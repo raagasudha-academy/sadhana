@@ -1,0 +1,61 @@
+{
+  "table": "sadhana-dev-main",
+  "region": "us-east-1",
+  "createdAt": "2026-10-21T13:12:36.931Z",
+  "sha256": "440d26886331c403b7e433987cdc2243fedfc504dda4a2b014ffcabebe781559",
+  "count": 9,
+  "counts": {
+    "OPS#sruti#FAMILY": 1,
+    "OPS#sruti#STUDENT": 1,
+    "OPS#raaga#FAMILY": 2,
+    "OPS#raaga#STUDENT": 4,
+    "OPS#raaga#ENROLMENT": 1
+  },
+  "keys": [
+    {
+      "PK": "OPS#raaga#ENROLMENT",
+      "SK": "ITEM#ENROLMENT-8f5e9208-0f7c-4fc4-a7d4-04ec452d1a15",
+      "version": 1
+    },
+    {
+      "PK": "OPS#raaga#FAMILY",
+      "SK": "ITEM#FAMILY-1290ad42-67ba-4dd8-9095-de53d23f614e",
+      "version": 1
+    },
+    {
+      "PK": "OPS#raaga#FAMILY",
+      "SK": "ITEM#FAMILY-cecc1237-8914-4103-8348-c6f117d570b1",
+      "version": 1
+    },
+    {
+      "PK": "OPS#raaga#STUDENT",
+      "SK": "ITEM#STUDENT-1309cc2a-6e11-49c3-94fc-56dbfe4f2390",
+      "version": 1
+    },
+    {
+      "PK": "OPS#raaga#STUDENT",
+      "SK": "ITEM#STUDENT-2a0d7d8f-7fe2-44ab-9daa-e6d2ba4a44c3",
+      "version": 1
+    },
+    {
+      "PK": "OPS#raaga#STUDENT",
+      "SK": "ITEM#STUDENT-416076d0-3d56-475d-a2d2-b97bb45e8e8b",
+      "version": 1
+    },
+    {
+      "PK": "OPS#raaga#STUDENT",
+      "SK": "ITEM#STUDENT-bba0766e-4266-4fdd-ab17-3a3524d77b8b",
+      "version": 1
+    },
+    {
+      "PK": "OPS#sruti#FAMILY",
+      "SK": "ITEM#FAMILY-2f5cd8ef-d68e-4990-abab-7967baa41fd6",
+      "version": 1
+    },
+    {
+      "PK": "OPS#sruti#STUDENT",
+      "SK": "ITEM#STUDENT-3042efed-b34c-4d47-a76a-a701aba48946",
+      "version": 1
+    }
+  ]
+}

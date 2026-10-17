@@ -1,0 +1,10 @@
+const fs=require('node:fs');const path=require('node:path');const assert=require('node:assert/strict');
+const ts=require('typescript');
+const root=path.resolve(__dirname,'..');let total=0;let failures=0;
+function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const name=path.join(dir,entry.name);if(entry.isDirectory())walk(name);else if(/\.tsx?$/.test(name)){total++;const text=fs.readFileSync(name,'utf8');const sf=ts.createSourceFile(name,text,ts.ScriptTarget.Latest,true,name.endsWith('.tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);for(const e of sf.parseDiagnostics){failures++;console.log('FAIL PARSE',path.relative(root,name),e.messageText);}}}}
+walk(path.join(root,'src'));walk(path.join(root,'backend','src'));
+console.log(`TypeScript/TSX parser: ${total} files, ${failures} syntax errors`);
+const ops=fs.readFileSync(root+'/backend/src/academyOperations.ts','utf8');const lam=fs.readFileSync(root+'/backend/src/lambda.ts','utf8');const app=fs.readFileSync(root+'/src/App.tsx','utf8');const client=fs.readFileSync(root+'/src/api/sadhanaClient.ts','utf8');
+const checks=[['Operational API route mounted',lam.includes("parts[0]==='operations'")],['Operations route uses authenticated claims',lam.includes('claims,body,parts[2]')],['All operational kinds defined',['family','student','enrolment','attendance','practice','feedback','rsvp'].every(x=>ops.includes(`${x}:[`))],['API routes client exists',client.includes('operations/')],['Live Dashboard wired',app.includes('LiveDashboard')],['Operations screen wired',app.includes('AcademyOperations')],['Versioned transactional persistence',ops.includes('TransactWriteCommand')],['Master class transaction condition',ops.includes('masterGuard')],['Academy access gate',ops.includes('demandViewInstitution(claims,inst);')],['Teacher student roster redacted',ops.includes('name:r.name,institution:inst')]];
+for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failures++;}
+if(failures)process.exitCode=1;

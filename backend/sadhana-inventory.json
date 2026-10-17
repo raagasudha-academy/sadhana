@@ -1,0 +1,126 @@
+{
+  "mode": "READ_ONLY",
+  "awsAccount": "627821644317",
+  "region": "us-east-1",
+  "sourceTable": "sadhana-dev-main",
+  "scannedItems": 558,
+  "approximateTableItemCount": 550,
+  "tableStatus": "ACTIVE",
+  "keySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "billingMode": "PAY_PER_REQUEST",
+  "globalSecondaryIndexes": [
+    {
+      "name": "GSI2",
+      "keys": [
+        {
+          "AttributeName": "GSI2PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI2SK",
+          "KeyType": "RANGE"
+        }
+      ]
+    },
+    {
+      "name": "GSI1",
+      "keys": [
+        {
+          "AttributeName": "GSI1PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI1SK",
+          "KeyType": "RANGE"
+        }
+      ]
+    }
+  ],
+  "groupCounts": {
+    "admin": 14,
+    "audit": 92,
+    "calendar": 435,
+    "calendar-venues": 3,
+    "students": 12,
+    "students-counters-PRESERVE": 2
+  },
+  "partitionCounts": {
+    "admin | TEACHER_REGISTRY": 7,
+    "admin | TEACHER_SUB#048894a8-80b1-702a-45b4-53167261fffb": 1,
+    "admin | TEACHER_SUB#3408a498-c031-70b0-8533-040c654db818": 1,
+    "admin | TEACHER_SUB#3468f438-10d1-70fa-7230-b6aaab9a87d8": 1,
+    "admin | TEACHER_SUB#4408b498-3031-700b-16c9-b63040017c22": 1,
+    "admin | TEACHER_SUB#64e894e8-70d1-7023-25f7-8bc4ea6bef60": 1,
+    "admin | TEACHER_SUB#c4a854f8-a021-70f1-2df5-b7ba87833247": 1,
+    "admin | TEACHER_SUB#d4b8e4f8-50b1-700b-d2a1-84e5e98fec23": 1,
+    "audit | AUDIT#raaga": 60,
+    "audit | AUDIT#shared": 1,
+    "audit | AUDIT#sruti": 31,
+    "calendar | SCHEDULE#raaga": 300,
+    "calendar | SCHEDULE#shared": 32,
+    "calendar | SCHEDULE#sruti": 94,
+    "calendar | SCHEDULE_SERIES#raaga": 2,
+    "calendar | SCHEDULE_SERIES#sruti": 7,
+    "calendar-venues | VENUE#VENUE-DURHAM": 1,
+    "calendar-venues | VENUE#VENUE-MIDDLESBROUGH": 1,
+    "calendar-venues | VENUE#VENUE-NEWCASTLE": 1,
+    "students | OPS#GLOBAL#FAMILY": 2,
+    "students | OPS#GLOBAL#STUDENT": 5,
+    "students | OPS#raaga#ENROLMENT": 3,
+    "students | OPS#raaga#FAMILY": 1,
+    "students | OPS#raaga#STUDENT": 1,
+    "students-counters-PRESERVE | OPS#GLOBAL#COUNTERS": 2
+  },
+  "sampleKeysOnly": {
+    "students": {
+      "PK": "OPS#raaga#ENROLMENT",
+      "SK": "ITEM#ENROLMENT-a99d56f7-960b-4b99-9d29-560f2dec6513",
+      "recordType": "",
+      "entityType": ""
+    },
+    "admin": {
+      "PK": "TEACHER_SUB#c4a854f8-a021-70f1-2df5-b7ba87833247",
+      "SK": "LINK",
+      "recordType": "",
+      "entityType": ""
+    },
+    "calendar": {
+      "PK": "SCHEDULE#raaga",
+      "SK": "RECORD#CLASS-RAAGA-DURHAM",
+      "recordType": "class",
+      "entityType": "schedule"
+    },
+    "audit": {
+      "PK": "AUDIT#raaga",
+      "SK": "AT#2026-10-16T05:31:13.408Z#EVT-a93f50e9-c7d0-49be-b193-56b47f33c43c",
+      "recordType": "",
+      "entityType": "AUDIT"
+    },
+    "calendar-venues": {
+      "PK": "VENUE#VENUE-NEWCASTLE",
+      "SK": "META",
+      "recordType": "",
+      "entityType": "VENUES"
+    },
+    "students-counters-PRESERVE": {
+      "PK": "OPS#GLOBAL#COUNTERS",
+      "SK": "FAMILY",
+      "recordType": "",
+      "entityType": ""
+    }
+  },
+  "notes": [
+    "No writes or deletes performed",
+    "Classification is a draft and must be reviewed before migration",
+    "Do not delete student counters: numbers must not be reused"
+  ]
+}

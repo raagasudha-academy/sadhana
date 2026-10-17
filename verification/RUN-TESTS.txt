@@ -1,0 +1,6 @@
+To run local mock tests from the extracted archive root:
+node verification/operations.test.cjs
+node verification/source-check.cjs
+
+Requirements: Node.js 22 and a globally installed TypeScript package.
+The test harness currently resolves TypeScript from /opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript; change that require path to require('typescript') on machines with local dev dependencies.

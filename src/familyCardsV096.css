@@ -1,0 +1,103 @@
+/* Sadhana v0.9.6 — additive family student cards */
+.reg-family-layout{display:grid;grid-template-columns:minmax(290px,.84fr) minmax(0,1.16fr);gap:22px;align-items:start}
+.reg-family-layout .reg-section{min-width:0}
+.reg-family-number{background:#edf1fa;color:#5670a3;border-radius:9px;padding:5px 11px;font-weight:700;font-size:13px}
+.reg-students-subtitle{color:#71809b;font-size:13px;margin:6px 0 0}
+.reg-student-cards{display:grid;gap:13px;margin-top:20px}
+.reg-student-card{border:1px solid #e1e6f0;background:#fff;border-radius:15px;padding:16px 18px;box-shadow:0 2px 8px rgba(37,55,90,.035)}
+.reg-student-main{display:flex;gap:13px;align-items:center;min-width:0}
+.reg-student-details{flex:1;min-width:0}
+.reg-student-name{display:block;border:0;background:none;text-align:left;padding:0;color:#243148;font-weight:750;font-size:16px;cursor:pointer;overflow-wrap:anywhere}
+.reg-student-name:hover{text-decoration:underline}
+.reg-student-meta{display:flex;gap:7px 11px;align-items:center;flex-wrap:wrap;margin-top:7px;font-size:12px;color:#78859a}
+.reg-roll-pill{color:#516c9f;background:#eef2f9;border-radius:6px;padding:3px 7px;font-weight:750;letter-spacing:.01em}
+.reg-student-classes{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:11px 0;margin:10px 0 0;border-top:1px solid #eef0f5;min-height:29px;font-size:13px}
+.reg-class-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;background:#eef3fc;border-radius:6px;color:#4c6798;font-weight:600}
+.reg-student-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:7px}
+.reg-student-actions button{display:inline-flex;align-items:center;gap:6px}
+.reg-admin-actions{border-top:1px solid #e9edf4;margin-top:20px;padding-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;color:#8995a6;font-size:12px}
+.reg-admin-actions button{font-size:12px}
+@media(max-width:1050px){.reg-family-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.reg-student-card{padding:13px}.reg-student-main{flex-wrap:wrap}.reg-student-main>.reg-status{margin-left:auto}.reg-student-actions{justify-content:stretch}.reg-student-actions button{flex:1;justify-content:center}.reg-family-layout{gap:14px}}
+
+/* v0.9.6 refinement — compact students, distinct enrolment, guarded actions */
+.reg-student-cards{gap:10px;margin-top:14px}
+.reg-student-card{padding:13px 15px}
+.reg-student-meta{margin-top:4px}
+.reg-student-lower{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;padding-top:9px;border-top:1px solid #eef0f5;flex-wrap:wrap}
+.reg-student-lower .reg-student-classes{padding:0;margin:0;border:0;min-height:0;flex:1;gap:6px}
+.reg-student-lower .reg-student-actions{margin:0;align-items:center}
+.reg-student-registration{font-size:11px;font-weight:700;padding:5px 8px;border-radius:999px;background:#eef2f9;color:#57709b;white-space:nowrap}
+.reg-enrolment-state{font-size:12px;font-weight:700;border-radius:999px;padding:5px 9px;white-space:nowrap}
+.reg-enrolment-state.is-not-enrolled{background:#fff6e7;color:#8e651c}
+.reg-enrolment-state.is-enrolled{background:#e9f5ee;color:#216b46}
+.reg-enrolment-state.is-archived{background:#f1f2f4;color:#697386}
+.reg-student-card-archived{background:#fafbfc}
+.reg-student-menu{position:relative}
+.reg-student-menu>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;width:34px;height:32px;border:1px solid #e1e6f0;border-radius:8px;font-weight:800;color:#526581;letter-spacing:2px;user-select:none}
+.reg-student-menu>summary::-webkit-details-marker{display:none}
+.reg-student-menu>summary:focus-visible{outline:2px solid #5879b1;outline-offset:2px}
+.reg-student-menu-panel{position:absolute;z-index:15;right:0;top:calc(100% + 5px);min-width:180px;padding:5px;border-radius:10px;background:white;box-shadow:0 9px 26px rgba(32,48,75,.16);border:1px solid #e1e6f0}
+.reg-student-menu-panel button{width:100%;justify-content:flex-start;padding:9px 11px;border:0;background:transparent;font-size:12px;color:#8d3946;cursor:pointer;white-space:nowrap;border-radius:7px}
+.reg-student-menu-panel button:hover{background:#fff3f4}
+@media(max-width:600px){.reg-student-lower{align-items:stretch}.reg-student-lower .reg-student-actions{width:100%;justify-content:flex-end}.reg-student-lower .reg-student-actions button{flex:0 0 auto}.reg-student-menu-panel{right:0}}
+
+
+/* v0.9.6 compact two-column card variant: actions at top right */
+.reg-family-students{container-type:inline-size}
+.reg-student-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+@container (min-width:520px){.reg-student-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.reg-student-card{min-width:0;display:flex;flex-direction:column;gap:12px;padding:16px}
+.reg-student-main{display:flex;align-items:flex-start;gap:10px;flex-wrap:nowrap}
+.reg-student-details{min-width:0;flex:1}
+.reg-student-name{font-size:14px;line-height:1.25}
+.reg-student-meta{font-size:11px;gap:4px 7px}
+.reg-card-icon-actions{display:flex;gap:3px;flex:none;margin:-4px -5px 0 0;align-items:center}
+.reg-card-icon{position:relative;display:inline-flex;justify-content:center;align-items:center;width:33px;height:33px;border:1px solid transparent;border-radius:9px;background:transparent;color:#627491;cursor:pointer;opacity:.76;transition:opacity .15s ease,background .15s ease,border-color .15s ease}
+.reg-student-card:hover .reg-card-icon,.reg-student-card:focus-within .reg-card-icon{opacity:1}
+.reg-card-icon:hover,.reg-card-icon:focus-visible{opacity:1;background:#edf2fb;border-color:#dce5f5;color:#345685}
+.reg-card-icon:focus-visible{outline:2px solid #5879b1;outline-offset:2px}
+.reg-card-icon:disabled{cursor:not-allowed;opacity:.3}
+.reg-card-icon-danger:hover,.reg-card-icon-danger:focus-visible{color:#ae3f50;background:#fff0f1;border-color:#fad5d9}
+.reg-card-icon[data-hint]:not(:disabled):is(:hover,:focus-visible)::after{content:attr(data-hint);position:absolute;right:0;top:calc(100% + 7px);z-index:10;white-space:nowrap;font-size:11px;line-height:1.3;font-weight:600;color:#fff;background:#283a59;border-radius:6px;padding:6px 9px;box-shadow:0 4px 12px rgba(30,45,68,.16);pointer-events:none}
+.reg-card-badges{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:auto}
+.reg-card-class-list{display:flex;gap:5px;flex-wrap:wrap;border-top:1px solid #edf0f5;padding-top:9px}
+@media(hover:none){.reg-card-icon{opacity:1;border-color:#e3e9f3;background:#f9fbfe}}
+@media(max-width:600px){.reg-student-main{flex-wrap:nowrap}.reg-card-icon{width:36px;height:36px}.reg-student-card{padding:13px}.reg-card-icon-actions{gap:0}}
+
+/* v0.9.6 two-up layout for the actual right-hand panel width */
+@container (min-width:520px){
+  .reg-student-card{padding:12px;gap:9px}
+  .reg-student-main{gap:7px}
+  .reg-card-icon-actions{gap:0;margin:-4px -5px 0 0}
+  .reg-card-icon{width:29px;height:30px}
+  .reg-student-meta{overflow-wrap:anywhere}
+  .reg-student-name{overflow-wrap:anywhere}
+}
+
+/* v0.9.6 user preference — single-column students and grouped guardian actions */
+.reg-family-students .reg-student-cards{grid-template-columns:minmax(0,1fr)}
+.reg-family-action-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.reg-family-action-row .reg-secondary{display:inline-flex;align-items:center;gap:8px}
+.reg-family-action-row .reg-family-archive{color:#ae4654;border-color:#edcbd1;background:#fff8f9}
+.reg-family-action-row .reg-family-archive:hover{background:#fff0f2}
+@media(max-width:480px){.reg-family-action-row .reg-secondary{flex:1 1 auto;justify-content:center}}
+
+/* v0.9.6 — Students directory inline actions (single-column list) */
+.reg-directory-student-entry{cursor:pointer;min-width:0}
+.reg-directory-student-entry:focus-visible{outline:2px solid #5879b1;outline-offset:2px}
+.reg-directory-student-trailing{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-left:auto;flex:none}
+.reg-directory-student-actions{margin:0;gap:2px}
+.reg-directory-student-actions .reg-card-icon{width:36px;height:36px;opacity:1}
+.reg-directory-student-entry:hover .reg-card-icon,.reg-directory-student-entry:focus-within .reg-card-icon{opacity:1}
+.reg-directory-chevron{flex:none}
+@media(max-width:720px){
+  .reg-directory-student-entry{flex-wrap:wrap;gap:10px}
+  .reg-directory-student-entry .reg-entry-main{flex:1 1 calc(100% - 75px)}
+  .reg-directory-student-trailing{width:100%;margin-left:0;justify-content:space-between;padding-left:0}
+  .reg-directory-chevron{display:none}
+}
+
+/* v0.9.6: badges remain left-aligned, including when other stylesheets load later */
+.reg-student-card .reg-card-badges { justify-content: flex-start; margin-left: 0; margin-right: auto; width: 100%; text-align: left; }
+.reg-directory-student-entry .reg-card-badges { justify-content: flex-start; }

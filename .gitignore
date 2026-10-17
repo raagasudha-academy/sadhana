@@ -1,0 +1,56 @@
+node_modules/
+backend/node_modules/
+dist/
+.aws-sam/
+.env
+.env.*
+!.env.example
+samconfig.toml
+*.log
+.DS_Store
+
+# Historical local patch/backups (not source)
+*.bak
+*.backup
+*.before-*
+*.pre-*
+.sadhana-*-backup-*/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.aws/
+.aws-sam/
+
+# Dependencies and build artefacts
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Local backups
+.local-patch-backups/
+.sadhana-v*-backup-*/
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.before-*
+
+# IDE and system files
+.DS_Store
+.idea/
+
+# Local output and logs
+*.log
+file_structure.txt
+
+# Local inventories and test reports
+file_structure.txt
+playwright-report/
+test-results/
