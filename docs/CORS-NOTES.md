@@ -1,0 +1,5 @@
+# Previously observed API Gateway CORS route behaviour
+
+The running `dev` API was confirmed to respond to preflight with `204` only after its unauthenticated `OPTIONS /api/{proxy+}` route was given the same Lambda integration target as its authenticated ANY route. Some SAM-transformed HTTP API route definitions produce an OPTIONS route with **no Target**. Future CloudFormation updates might recreate this issue.
+
+After the update, run `aws apigatewayv2 get-routes --api-id 6n9clqr224 --region us-east-1 --query 'Items[].{Route:RouteKey,Auth:AuthorizationType,Target:Target,Id:RouteId}' --output table`. Required: `ANY /api/{proxy+}` must remain `JWT`; `OPTIONS /api/{proxy+}` must be `NONE` and have an `integrations/...` target. If OPTIONS has no target again, have an administrator re-attach the already existing Lambda integration after reviewing it. The permanent CF-native route/integration resource is planned for a future infrastructure clean-up; don't disable JWT or apply a wildcard CORS origin.

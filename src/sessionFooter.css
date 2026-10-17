@@ -1,0 +1,33 @@
+/* Session editor only — overrides legacy inline flex sizing. */
+.sadhana-session-editor .reg-modal-actions {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  width: 100% !important;
+  flex-wrap: nowrap !important;
+}
+.sadhana-session-editor .reg-modal-actions > button {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: none !important;
+  margin: 0 !important;
+  padding: 10px 5px !important;
+  min-height: 42px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  font-weight: 600 !important;
+  white-space: normal !important;
+  text-align: center !important;
+  overflow-wrap: anywhere !important;
+  justify-content: center !important;
+}
+.sadhana-session-editor .reg-modal-actions > .reg-secondary { order: 1 !important; }
+.sadhana-session-editor .reg-modal-actions > .reg-primary { order: 2 !important; }
+.sadhana-session-editor .reg-modal-actions > .reg-danger { order: 3 !important; }
+.sadhana-session-editor .reg-modal-actions:not(:has(.reg-danger)) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}

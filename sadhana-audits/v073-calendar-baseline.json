@@ -1,0 +1,12 @@
+{
+  "table": "sadhana-dev-main",
+  "calendarCount": 424,
+  "counts": {
+    "class": 22,
+    "class-session": 367,
+    "holiday": 32,
+    "special-event": 3
+  },
+  "keysFingerprint": "97c354aba31434ea2480d987fa64e622975b2e15475f34454c371647d8c2f50a",
+  "scheduleFingerprint": "8093ff11b45014e81eb07a4a940788ee9afacf60898754e24c052219f9687d71"
+}
