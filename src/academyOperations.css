@@ -1,0 +1,12 @@
+.ops-panel{padding:18px}.ops-tabs{display:flex;gap:7px;flex-wrap:wrap;border-bottom:1px solid #e1e6ef;padding-bottom:12px}.ops-tabs button{border:1px solid #d9e0eb;border-radius:999px;padding:9px 13px;background:white;font:inherit;font-size:13px;cursor:pointer;color:#41516a}.ops-tabs button.active{background:#e8eefb;color:#263e69;border-color:#a6b7db;font-weight:650}.ops-tabs small{opacity:.75;margin-left:5px}.ops-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0}.ops-toolbar input{border:1px solid #cfd8e6;border-radius:10px;padding:11px 12px;font:inherit;min-width:180px;max-width:340px;width:100%}.ops-form{padding:18px;margin:18px 0;border:1px solid #dce3ee;border-radius:12px;background:#f8faff}.ops-form h2{font-size:17px;margin:0 0 14px}.ops-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.ops-field{display:grid;gap:7px;font-size:13px;color:#394960;font-weight:600}.ops-field b{color:#c6324b}.ops-field input,.ops-field select{border:1px solid #cbd5e1;border-radius:9px;background:white;padding:10px 13px;font:inherit;font-size:14px;width:100%;min-width:0}.ops-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:17px}.ops-notice{display:flex;gap:8px;align-items:center;color:#216848;font-size:13px}@media(max-width:600px){.ops-toolbar{flex-wrap:wrap}.ops-toolbar input{max-width:none}.ops-toolbar button{width:100%}}
+
+.ops-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:0 0 18px}.ops-summary>div{display:flex;flex-direction:column;gap:5px;border:1px solid #dee5ee;border-radius:12px;background:white;padding:16px}.ops-summary span{font-size:12px;color:#64748b}.ops-summary strong{font-size:25px;color:#293950}.ops-summary small{font-size:12px;color:#64748b}
+
+/* Live academy operations class-roster overview */
+.ops-roster{margin:1rem 0;padding:1rem;border:1px solid var(--border, #d7dce2);border-radius:12px}
+.ops-roster h2{font-size:1.05rem;margin:0 0 .3rem}
+.ops-roster p{margin:.25rem 0 .8rem}
+.ops-roster-list{display:grid;gap:.45rem}
+.ops-roster-list details{padding:.6rem .8rem;border:1px solid var(--border, #d7dce2);border-radius:8px}
+.ops-roster-list summary{cursor:pointer;font-weight:600}
+.ops-roster-list ul{margin:.6rem 0 0;padding-left:1.25rem}

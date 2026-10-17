@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Sadhana DynamoDB foundation and protected API. NOT a completed production portal.
+  Deploy only after configuring an invitation-only Cognito user pool and its app client.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+  CognitoUserPoolId:
+    Type: String
+    Description: Existing Sadhana staff Cognito User Pool ID in the deployment region
+  SadhanaSuperAdminSub:
+    Type: String
+    Default: ''
+    Description: Cognito sub of the trusted Sadhana super-admin; blank disables admin account changes
+  CognitoAppClientId:
+    Type: String
+    Description: Existing Sadhana staff Cognito app client ID
+  AllowedPortalOrigin:
+    Type: String
+    Description: Exact browser origin (use http://localhost:5173 for dev; production must use HTTPS)
+  MiddlesbroughCredentialParameter:
+    Type: String
+    Default: /sadhana/dev/google/middlesbrough-service-account
+    Description: Existing SSM SecureString holding dedicated Google service account JSON (never passed in template)
+  EnablePointInTimeRecovery:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Set true for production after reviewing backup/restore requirements and additional cost
+
+Conditions:
+  UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
+
+Resources:
+  SadhanaTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub sadhana-${Stage}-main
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [UsePitr, true, false]
+      SSESpecification:
+        SSEEnabled: true
+      DeletionProtectionEnabled: true
+      AttributeDefinitions:
+        - {AttributeName: PK, AttributeType: S}
+        - {AttributeName: SK, AttributeType: S}
+        - {AttributeName: GSI1PK, AttributeType: S}
+        - {AttributeName: GSI1SK, AttributeType: S}
+        - {AttributeName: GSI2PK, AttributeType: S}
+        - {AttributeName: GSI2SK, AttributeType: S}
+      KeySchema:
+        - {AttributeName: PK, KeyType: HASH}
+        - {AttributeName: SK, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - {AttributeName: GSI1PK, KeyType: HASH}
+            - {AttributeName: GSI1SK, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: GSI2
+          KeySchema:
+            - {AttributeName: GSI2PK, KeyType: HASH}
+            - {AttributeName: GSI2SK, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+
+  SadhanaProfilePhotos:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'sadhana-${Stage}-profile-photos-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  SadhanaApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+      CorsConfiguration:
+        AllowOrigins: [!Ref AllowedPortalOrigin]
+        AllowHeaders: [authorization, content-type]
+        AllowMethods: [GET, POST, PATCH, OPTIONS]
+        MaxAge: 600
+      Auth:
+        DefaultAuthorizer: CognitoStaff
+        Authorizers:
+          CognitoStaff:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}
+              audience: [!Ref CognitoAppClientId]
+
+  SadhanaApiLambda:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambda.ts
+        Target: es2022
+        Platform: node
+        Format: cjs
+        Minify: false
+        Sourcemap: false
+    Properties:
+      Runtime: nodejs22.x
+      Handler: src/lambda.handler
+
+      CodeUri: ../backend/
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          SADHANA_TABLE_NAME: !Ref SadhanaTable
+          SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
+          SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
+          MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+                - dynamodb:TransactWriteItems
+              Resource:
+                - !GetAtt SadhanaTable.Arn
+                - !Sub "${SadhanaTable.Arn}/index/*"
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsersInGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminListGroupsForUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminRemoveUserFromGroup
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:ListUsers
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub '${SadhanaProfilePhotos.Arn}/profiles/*'
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt SadhanaProfilePhotos.Arn
+            - Effect: Allow
+              Action: [ssm:GetParameter]
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MiddlesbroughCredentialParameter}'
+      Events:
+        ProtectedRoutes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SadhanaApi
+            Path: /api/{proxy+}
+            Method: ANY
+        # Browsers send OPTIONS without an Authorization header. This more
+        # specific method overrides the authenticated ANY route for preflight.
+        CorsPreflight:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SadhanaApi
+            Path: /api/{proxy+}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+
+Outputs:
+  ApiUrl:
+    Description: Cognito-protected API base URL; NOT PUBLIC DATA ACCESS
+    Value: !Sub https://${SadhanaApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/api
+  TableName:
+    Value: !Ref SadhanaTable

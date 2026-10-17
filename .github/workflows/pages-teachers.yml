@@ -1,0 +1,60 @@
+name: Sadhana Teachers — GitHub Pages
+on:
+  push:
+    branches: [feature/sadhana-v1-student-portal]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: sadhana-teacher-pages
+  cancel-in-progress: true
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Require public runtime configuration
+        env:
+          ISSUER: ${{ vars.VITE_SADHANA_COGNITO_ISSUER }}
+          CLIENT_ID: ${{ vars.VITE_SADHANA_COGNITO_CLIENT_ID }}
+          DOMAIN: ${{ vars.VITE_SADHANA_COGNITO_DOMAIN }}
+          API_URL: ${{ vars.VITE_SADHANA_API_URL }}
+        run: |
+          for v in "$ISSUER" "$CLIENT_ID" "$DOMAIN" "$API_URL"; do
+            if [ -z "$v" ]; then echo 'Missing public Cognito/API GitHub Actions variable'; exit 1; fi
+          done
+      - name: Frontend verification
+        run: npm run verify
+      - name: Backend unit verification
+        run: cd backend && npm ci && npm run check
+      - name: Build GitHub Pages release
+        env:
+          VITE_SADHANA_COGNITO_ISSUER: ${{ vars.VITE_SADHANA_COGNITO_ISSUER }}
+          VITE_SADHANA_COGNITO_CLIENT_ID: ${{ vars.VITE_SADHANA_COGNITO_CLIENT_ID }}
+          VITE_SADHANA_COGNITO_DOMAIN: ${{ vars.VITE_SADHANA_COGNITO_DOMAIN }}
+          VITE_SADHANA_API_URL: ${{ vars.VITE_SADHANA_API_URL }}
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          OWNER_NAME="${GITHUB_REPOSITORY%%/*}"
+          if [ "${REPO_NAME,,}" = "${OWNER_NAME,,}.github.io" ]; then
+            export VITE_BASE_PATH='/'
+          else
+            export VITE_BASE_PATH="/$REPO_NAME/"
+          fi
+          npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,31 @@
+{
+  "account": "627821644317",
+  "region": "us-east-1",
+  "source": "sadhana-dev-main",
+  "scanned": 559,
+  "destinations": {
+    "sadhana-dev-calendar": {
+      "records": 438,
+      "sha256": "d2be897a51d7382e595bd45d9912c8bd68909d04e2b7bce28a4110f3b5afb728"
+    },
+    "sadhana-dev-students": {
+      "records": 2,
+      "sha256": "bc52b5cd223c7a40846e1c8bf76ca860229581c2c283ea8ff8c66fff8caefb0d"
+    },
+    "sadhana-dev-learning": {
+      "records": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sadhana-dev-admin": {
+      "records": 14,
+      "sha256": "8e0ba3c8b1d062e41be291bcbb0d1aaff6b97a87da20c86e6322a68c770e71b8"
+    },
+    "sadhana-dev-audit": {
+      "records": 93,
+      "sha256": "c6782f0edb1c7acb6338bce32235cdc95f57c8ff3eb1b1ef51af50898f3444b0"
+    }
+  },
+  "skippedTestRegistration": 12,
+  "sourceSha256": "31060eeefd3f11bfe134793852f2b5286fea5c318f3e13e955d3ac995679242a",
+  "dryRun": false
+}
