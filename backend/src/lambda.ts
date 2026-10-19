@@ -1,3 +1,4 @@
+import {operations} from './academyOperations.ts';
 import {previewRecurringClass,createRecurringClass} from './recurringClasses.ts';
 /** Protected HTTP API for Sadhana. The AWS HTTP API JWT authorizer MUST run before this handler. */
 import { SadhanaRepository } from './repository.ts';
@@ -82,6 +83,11 @@ export function createHandler(repository: SadhanaRepository){
         if(method==='PATCH'&&parts.length===2&&parts[1]==='profile')
           return json(200,await updateAdministratorProfile(body,claims));
         return json(405,{error:'Unsupported administrator action.'});
+      }
+      if(parts[0]==='operations'&&parts.length>=2&&parts.length<=3){
+        const body=readJSON(event.body?event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body:'');
+        const result=await operations(query.institution||'',parts[1],method||'',claims,body,parts[2]||'');
+        return json(method==='POST'?201:200,result);
       }
       if(parts[0]==='teachers'){
         if(method==='GET'&&parts.length===1)

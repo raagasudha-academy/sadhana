@@ -71,6 +71,9 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
     return payload as T;
   };
   return {
+    listOperations:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId)=>request<{records:any[]}>('GET',`/operations/${kind}`,{institution}),
+    createOperation:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId,data:ResourcePayload)=>request<{record:any}>('POST',`/operations/${kind}`,{institution,body:data}),
+    updateOperation:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId,id:string,data:ResourcePayload,expectedVersion:number)=>request<{record:any}>('PATCH',`/operations/${kind}/${encodeURIComponent(id)}`,{institution,body:{...data,expectedVersion}}),
     uploadMyPhoto:(base64:string)=>request<{photoUrl:string;updated:boolean}>('POST','/photos/me',{body:{base64}}),
     uploadAdministratorPhoto:(username:string,base64:string)=>request<{photoUrl:string;updated:boolean}>('POST','/photos/administrator',{body:{username,base64}}),
     uploadTeacherPhoto:(teacherId:string,base64:string)=>request<{photoUrl:string;updated:boolean}>('POST','/photos/teacher',{body:{teacherId,base64}}),

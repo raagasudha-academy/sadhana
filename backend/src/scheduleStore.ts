@@ -249,6 +249,13 @@ export async function deleteMasterClass(inst:ScheduleInstitution,id:string,input
  demandInstitution(claims,inst);
  const master=await getScheduleRecord(inst,id);
  if(!master||master.recordType!=='class')throw httpError(404,'Master class not found.');
+ // Protect student history: never hard-delete a master with linked enrolments.
+ let cursor:Record<string,unknown>|undefined;
+ do {
+  const page=await db.send(new QueryCommand({TableName:table(),KeyConditionExpression:'PK=:pk',ExpressionAttributeValues:{':pk':`OPS#${inst}#ENROLMENT`},ExclusiveStartKey:cursor,Limit:200,ConsistentRead:true}));
+  if((page.Items||[]).some((r:any)=>r.classId===id))throw httpError(409,'This master class has student enrolments. Archive it instead; enrolment history must be preserved.');
+  cursor=page.LastEvaluatedKey;
+ }while(cursor);
  if(input.expectedVersion!==master.version)throw httpError(409,'Master class changed. Refresh before proceeding.');
  const [all,rules]=await Promise.all([listScheduleRaw(inst),listSeriesRules(inst)]);
  const sessions=all.filter(r=>r.recordType==='class-session'&&r.classId===id).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
