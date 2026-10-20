@@ -7,7 +7,7 @@ import './academyOperations.css';
 type Snapshot={institution:InstitutionId;students:any[];enrolments:any[];attendance:any[];practice:any[];rsvp:any[];schedule:any[]};
 /** Live dashboard: counts are derived from persisted operations, not the old demo registry. */
 export default function LiveDashboard({cloud,workspace,teacherMode,onChangePage}:{cloud:CloudSession;workspace:string;teacherMode:boolean;onChangePage:(page:string)=>void}){
- const [data,setData]=useState<Snapshot[]>([]);
+ const [loaded,setLoaded]=useState<{key:string;rows:Snapshot[]}|null>(null);
  const [busy,setBusy]=useState(true);
  const [error,setError]=useState('');
  const [refresh,setRefresh]=useState(0);
@@ -20,9 +20,11 @@ export default function LiveDashboard({cloud,workspace,teacherMode,onChangePage}
     cloud.api.listOperations('student',institution),cloud.api.listOperations('enrolment',institution),cloud.api.listOperations('attendance',institution),cloud.api.listOperations('practice',institution),cloud.api.listOperations('rsvp',institution),cloud.api.listSchedule(institution)
    ]);
    return {institution,students:students.records,enrolments:enrolments.records,attendance:attendance.records,practice:practice.records,rsvp:rsvp.records,schedule:schedule.records};
-  })).then(rows=>{if(live)setData(rows);}).catch(e=>{if(live)setError(e instanceof Error?e.message:'Unable to load live dashboard.');}).finally(()=>{if(live)setBusy(false);});
+  })).then(rows=>{if(live)setLoaded({key:scopes.join('|'),rows});}).catch(e=>{if(live)setError(e instanceof Error?e.message:'Unable to load live dashboard.');}).finally(()=>{if(live)setBusy(false);});
   return()=>{live=false;};
  },[cloud.api,cloud.staff.institutions.join(','),workspace,refresh]);
+ const currentKey=(workspace==='combined'?cloud.staff.institutions:[workspace]).filter(x=>(x==='raaga'||x==='sruti')&&cloud.staff.institutions.includes(x as InstitutionId)).join('|');
+ const data=loaded?.key===currentKey?loaded.rows:[];
  const students=new Set(data.flatMap(d=>d.students.map(s=>`${d.institution}:${s.id}`))).size;
  const activeEnrolments=data.reduce((n,d)=>n+d.enrolments.filter(e=>!e.archived).length,0);
  const attendance=data.flatMap(d=>d.attendance);
@@ -33,7 +35,8 @@ export default function LiveDashboard({cloud,workspace,teacherMode,onChangePage}
  return <>
   <div className="page-heading"><div><div className="eyebrow">LIVE ACADEMY OVERVIEW</div><h1>{teacherMode?'My teaching dashboard':'Academy dashboard'}</h1><p>{workspace==='combined'?'All authorised academies':workspace==='raaga'?'Raagasudha':'Sruti'} · live DynamoDB records {teacherMode?'· assigned classes only':''}</p></div><button type="button" className="reg-secondary" disabled={busy} onClick={()=>setRefresh(x=>x+1)}><RefreshCw size={16}/> Refresh</button></div>
   {error&&<p role="alert" className="sadhana-sync-error">{error}</p>}
-  {busy?<p>Loading live academy records…</p>:<>
+  {busy&&<p role="status">Refreshing live academy records…</p>}
+  {(!busy||data.length>0)&&<>
    <div className="ops-summary" aria-label="Persisted academy statistics">
     <div><span>Students</span><strong>{students}</strong></div>
     <div><span>Active enrolments</span><strong>{activeEnrolments}</strong></div>

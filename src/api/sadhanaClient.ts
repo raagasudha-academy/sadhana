@@ -50,6 +50,19 @@ export interface SadhanaApiOptions {
 }
 interface RequestOptions { institution?: InstitutionId; body?: ResourcePayload; params?: Record<string,string> }
 
+// Share a small concurrency budget across every API client and component.
+// AWS development account currently has a 10-execution Lambda limit.
+const READ_LIMIT = 3;
+let activeReads = 0;
+const waitingReads: Array<() => void> = [];
+async function limitRead<T>(work: () => Promise<T>): Promise<T> {
+  if (activeReads >= READ_LIMIT) await new Promise<void>(resolve => waitingReads.push(resolve));
+  activeReads++;
+  try { return await work(); }
+  finally { activeReads--; waitingReads.shift()?.(); }
+}
+const retryDelay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
   if (!/^https:\/\//.test(baseUrl)) throw new Error('The API must use HTTPS.');
   if (typeof getAccessToken !== 'function') throw new Error('Provide a Cognito access-token function.');
@@ -65,10 +78,28 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
       ...(body?{body:JSON.stringify(body)}:{}),
       cache:'no-store' as const,
     };
-    const res=await fetch(`${baseUrl.replace(/\/$/,'')}${path}${suffix}`,fetchOptions);
-    const payload: unknown=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(typeof payload==='object'&&payload!==null&&'error' in payload ? String(payload.error):`Request failed (${res.status})`);
-    return payload as T;
+    const url=`${baseUrl.replace(/\/$/,'')}${path}${suffix}`;
+    const perform = async (): Promise<T> => {
+      // GET requests are safe to retry; never replay a create/update/delete.
+      const attempts = method === 'GET' ? 3 : 1;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        let res: Response;
+        try { res = await fetch(url,fetchOptions); }
+        catch (error) {
+          if (attempt + 1 < attempts) { await retryDelay(300 * (2 ** attempt)); continue; }
+          throw error;
+        }
+        if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && attempt + 1 < attempts) {
+          await retryDelay(300 * (2 ** attempt));
+          continue;
+        }
+        const payload: unknown=await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(typeof payload==='object'&&payload!==null&&'error' in payload ? String(payload.error):`Request failed (${res.status})`);
+        return payload as T;
+      }
+      throw new Error('The request could not be completed.');
+    };
+    return method === 'GET' ? limitRead(perform) : perform();
   };
   return {
     listOperations:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId)=>request<{records:any[]}>('GET',`/operations/${kind}`,{institution}),

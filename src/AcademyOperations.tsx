@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {CheckCircle2,Plus,RefreshCw} from 'lucide-react';
 import type {InstitutionId} from './types';
 import type {CloudSession} from './CloudAuth';
@@ -19,15 +19,17 @@ export default function AcademyOperations({cloud,workspace,teacherMode,initialAr
  const [area,setArea]=useState<Kind>(initialArea),[data,setData]=useState<Record<Kind,any[]>>({family:[],student:[],enrolment:[],attendance:[],practice:[],feedback:[],rsvp:[]});
  const [schedule,setSchedule]=useState<any[]>([]),[draft,setDraft]=useState<any>(empty[initialArea]),[edit,setEdit]=useState<any>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[showForm,setShowForm]=useState(false),[search,setSearch]=useState('');
+ const loadSeq=useRef(0);
  const admin=!teacherMode&&cloud?.staff.role==='admin';
  const kinds:Kind[]=admin?['student','family','enrolment','attendance','practice','feedback','rsvp']:['enrolment','attendance','practice','feedback','rsvp'];
  const reload=async()=>{
-  if(!cloud)return;setBusy(true);setError('');try{
+  if(!cloud)return;const seq=++loadSeq.current;setBusy(true);setError('');try{
    const wanted=admin?kinds:[...kinds,'student' as Kind];const [all,cal]=await Promise.all([Promise.all(wanted.map(k=>cloud.api.listOperations(k,workspace))),cloud.api.listSchedule(workspace)]);
+   if(seq!==loadSeq.current)return;
    setData(prev=>({...prev,...Object.fromEntries(wanted.map((k,i)=>[k,all[i].records]))}));setSchedule(cal.records||[]);
-  }catch(e){setError(e instanceof Error?e.message:'Unable to load Sadhana records.');}finally{setBusy(false);}
+  }catch(e){if(seq===loadSeq.current)setError(e instanceof Error?e.message:'Unable to load Sadhana records.');}finally{if(seq===loadSeq.current)setBusy(false);}
  };
- useEffect(()=>{void reload();},[cloud?.api,workspace,teacherMode]);
+ useEffect(()=>{void reload();return()=>{loadSeq.current++;};},[cloud?.api,workspace,teacherMode]);
  const masters=schedule.filter(s=>s.recordType==='class'&&s.lifecycleStatus!=='archived');
  const sessions=schedule.filter(s=>s.recordType==='class-session'||s.recordType==='special-event'&&s.eventKind==='class');
  const enrolledIds=new Set(data.enrolment.filter(e=>!e.archived).map(e=>e.studentId));
