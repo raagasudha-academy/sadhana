@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from 'react-oidc-context';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { ArrowRight, LockKeyhole, ShieldCheck, LogOut, AlertCircle } from 'lucide-react';
 import App from './App';
+import StudentHome from './StudentHome';
 import BrandIcon from './BrandIcon';
 import { createSadhanaApi } from './api/sadhanaClient';
 import type { SadhanaApiClient, StaffResponse } from './api/sadhanaClient';
@@ -60,7 +61,8 @@ function SignInGate() {
   const profile=auth.user?.profile;
   const displayName=String(staff.displayName || profile?.name || profile?.given_name || profile?.preferred_username ||
     profile?.email?.split('@')[0] || '').trim();
-  return <App cloud={{staff:{...staff,displayName},api,signOut}} />;
+  const session={staff:{...staff,displayName},api,signOut};
+  return staff.role==='learner'?<StudentHome cloud={session}/>:<App cloud={session} />;
 }
 
 export default function CloudAuth() {

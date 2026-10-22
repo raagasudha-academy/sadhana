@@ -1,4 +1,6 @@
 import {operations} from './academyOperations.ts';
+import {learnerDashboard,saveLearnerPractice} from './studentLearning.ts';
+import {myStudentLinks,requestStudentAccess,listAccessRequests,decideStudentAccess,myStudentOverview} from './familyAccess.ts';
 import {previewRecurringClass,createRecurringClass} from './recurringClasses.ts';
 /** Protected HTTP API for Sadhana. The AWS HTTP API JWT authorizer MUST run before this handler. */
 import { SadhanaRepository } from './repository.ts';
@@ -9,7 +11,7 @@ import { listSchedule, changeSchedule, createSchedule, changeScheduleSeries, pre
 import type { ScheduleInstitution } from './scheduleModel.ts';
 import type { PracticeChange } from './repository.ts';
 import { httpError, permittedInstitutions, viewableInstitutions, RESOURCES } from './model.ts';
-import {listTeachers,saveTeacher} from './teacherDirectory.ts';
+import {listTeachers,saveTeacher,myTeacherIdentity,verifiedTeacherInstitutions} from './teacherDirectory.ts';
 import {listTeacherLinks,linkTeacherIdentity} from './teacherLinking.ts';
 import {listAdministrators,inviteAdministrator,changeAdministratorAccess,updateAdministratorProfile} from './adminDirectory.ts';
 import {ownProfilePhoto,uploadProfilePhoto,currentStaffDisplayName} from './profilePhotos.ts';
@@ -56,16 +58,39 @@ export function createHandler(repository: SadhanaRepository){
       if(!claims?.sub) return json(401,{error:'Authenticated Cognito access token required.'});
       const groups=permittedInstitutions(claims);
       const viewed=viewableInstitutions(claims);
-      if(!viewed.length)return json(403,{error:'Invitation-only staff role required.'});
+      // Account-access onboarding is available to authenticated users before any staff grant.
+      const isAccessRoute=['family-access','me','learner'].includes(apiRouteParts(event)[0]);
+      if(!viewed.length&&!isAccessRoute)return json(403,{error:'Staff role required.'});
       const parts=apiRouteParts(event);
       const method=event.requestContext?.http?.method ?? event.httpMethod;
       const query=event.queryStringParameters??{};
       const inst=query.institution as InstitutionId;
+      if(method==='GET'&&parts[0]==='me'&&!viewed.length)return json(200,{
+        subject:claims.sub,institutions:['raaga','sruti'],adminInstitutions:[],teacherInstitutions:[],role:'learner',displayName:'Student / Family'
+      });
       if(method==='GET'&&parts[0]==='me')return json(200,{
-        subject:claims.sub,institutions:viewed,adminInstitutions:groups,role:groups.length?'admin':'viewer',
+        subject:claims.sub,institutions:viewed,adminInstitutions:groups,
+        teacherInstitutions:(await verifiedTeacherInstitutions(claims.sub)).filter(i=>viewed.includes(i)),
+        role:groups.length?'admin':'viewer',
         displayName:await currentStaffDisplayName(claims.sub),
         photoUrl:await ownProfilePhoto(claims.sub),
       });
+      if(parts[0]==='learner'&&parts.length>=3){
+        const studentId=parts[1];
+        if(method==='GET'&&parts.length===3&&parts[2]==='dashboard')return json(200,await learnerDashboard(inst,claims,studentId));
+        if(method==='POST'&&parts.length===3&&parts[2]==='practice')return json(201,await saveLearnerPractice(inst,claims,studentId,readJSON(event.body||'')));
+        if(method==='PATCH'&&parts.length===4&&parts[2]==='practice')return json(200,await saveLearnerPractice(inst,claims,studentId,readJSON(event.body||''),parts[3]));
+        return json(405,{error:'Unsupported student action.'});
+      }
+      if(parts[0]==='family-access'){
+        const body=method==='POST'?readJSON(event.body?event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body:''):{};
+        if(method==='GET'&&parts[1]==='mine'&&parts.length===2)return json(200,await myStudentOverview(inst,claims));
+        if(method==='GET'&&parts[1]==='links'&&parts.length===2)return json(200,await myStudentLinks(inst,claims));
+        if(method==='POST'&&parts[1]==='request'&&parts.length===2)return json(201,await requestStudentAccess(inst,claims,body));
+        if(method==='GET'&&parts[1]==='requests'&&parts.length===2)return json(200,await listAccessRequests(inst,claims));
+        if(method==='POST'&&parts[1]==='decide'&&parts.length===2)return json(200,await decideStudentAccess(inst,claims,body));
+        return json(405,{error:'Unsupported account access action.'});
+      }
       if(parts[0]==='photos'){
         if(method!=='POST'||parts.length!==2||!['me','administrator','teacher'].includes(parts[1]))
           return json(405,{error:'Unsupported photo action.'});
@@ -90,6 +115,8 @@ export function createHandler(repository: SadhanaRepository){
         return json(method==='POST'?201:200,result);
       }
       if(parts[0]==='teachers'){
+        if(method==='GET'&&parts.length===2&&parts[1]==='me')
+          return json(200,await myTeacherIdentity(inst,claims));
         if(method==='GET'&&parts.length===1)
           return json(200,await listTeachers(inst,claims));
 

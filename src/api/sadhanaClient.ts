@@ -43,7 +43,7 @@ export interface AdministratorRecord {
 export interface AdministratorListResponse {
   records:AdministratorRecord[]; canManage:boolean;
 }
-export interface StaffResponse { subject: string; institutions: InstitutionId[]; adminInstitutions?: InstitutionId[]; role: 'admin' | 'viewer'; displayName?: string; photoUrl?:string }
+export interface StaffResponse { subject: string; institutions: InstitutionId[]; adminInstitutions?: InstitutionId[]; teacherInstitutions?: InstitutionId[]; role: 'admin' | 'viewer' | 'learner'; displayName?: string; photoUrl?:string }
 export interface SadhanaApiOptions {
   baseUrl: string;
   getAccessToken: () => Promise<string | null> | string | null;
@@ -112,6 +112,13 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
     updateAdministratorProfile:(username:string,firstName:string,lastName:string,title:string)=>request<{username:string;updated:boolean}>('PATCH','/administrators/profile',{body:{username,firstName,lastName,title}}),
     inviteAdministrator:(displayName:string,email:string,institution:InstitutionId)=>request<{username:string;institution:InstitutionId;invited:boolean}>('POST','/administrators/invite',{body:{displayName,email,institution}}),
     changeAdministratorAccess:(username:string,institution:InstitutionId,grant:boolean)=>request<{username:string;institution:InstitutionId;granted:boolean;unchanged:boolean}>('POST','/administrators/access',{body:{username,institution,grant}}),
+    learnerDashboard:(institution:InstitutionId,studentId:string)=>request<{student:{id:string;name:string;rollNumber:string};classes:Array<{classId:string;className:string;startDate:string;endDate:string}>;practice:Array<{id:string;classId:string;date:string;minutes:number;topic:string;comments:string;version:number}>;attendance:{marks:Array<{sessionId:string;status:string}>;attended:number;counted:number;percent:number|null}}>('GET',`/learner/${encodeURIComponent(studentId)}/dashboard`,{institution}),
+    saveLearnerPractice:(institution:InstitutionId,studentId:string,data:{classId:string;date:string;minutes:number;topic:string;comments:string},edit?:{id:string;version:number})=>request<{record:any}>(edit?'PATCH':'POST',`/learner/${encodeURIComponent(studentId)}/practice${edit?`/${encodeURIComponent(edit.id)}`:''}`,{institution,body:{...data,...(edit?{expectedVersion:edit.version}:{})}}),
+    myLinkedStudents:(institution:InstitutionId)=>request<{records:Array<{id:string;name:string;rollNumber:string;kind:string}>}>('GET','/family-access/mine',{institution}),
+    requestStudentLink:(institution:InstitutionId,studentId:string,kind:'student'|'guardian')=>request<{submitted:boolean;status:string}>('POST','/family-access/request',{institution,body:{studentId,kind}}),
+    listAccessRequests:(institution:InstitutionId)=>request<{records:Array<{studentId:string;subject:string;kind:string;status:string;version:number}>}>('GET','/family-access/requests',{institution}),
+    decideStudentLink:(institution:InstitutionId,subject:string,studentId:string,decision:'approved'|'rejected'|'revoked',expectedVersion:number)=>request<{updated:boolean}>('POST','/family-access/decide',{institution,body:{subject,studentId,decision,expectedVersion}}),
+    myTeacherIdentity:(institution:InstitutionId)=>request<{linked:boolean;teacherId:string|null}>('GET','/teachers/me',{institution}),
     listTeachers:(institution:InstitutionId)=>request<{records:TeacherRecord[];more:boolean}>('GET','/teachers',{institution}),
     createTeacher:(institution:InstitutionId,data:ResourcePayload)=>request<{record:TeacherRecord}>('POST','/teachers',{institution,body:data}),
     updateTeacher:(institution:InstitutionId,id:string,data:ResourcePayload,expectedVersion:number)=>request<{record:TeacherRecord}>('PATCH',`/teachers/${encodeURIComponent(id)}`,{institution,body:{...data,expectedVersion}}),

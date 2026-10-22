@@ -66,6 +66,18 @@ async function findTeacher(id:string):Promise<TeacherRecord|null>{
   return response.Item?present(response.Item,true):null;
 }
 
+/** Resolve the authenticated login privately; never expose directory Cognito subjects. */
+export async function myTeacherIdentity(inst:InstitutionId,claims:Claims){
+ demandViewInstitution(claims,inst);
+ const link=await db.send(new GetCommand({TableName:table(),Key:identityKey(claims.sub),ConsistentRead:true}));
+ const teacherId=link.Item?.teacherId;
+ if(typeof teacherId!=='string')return {linked:false,teacherId:null};
+ const teacher=await findTeacher(teacherId);
+ if(!teacher||!teacher.active||teacher.cognitoSub!==claims.sub||!teacher.institutions.includes(inst))
+  return {linked:false,teacherId:null};
+ return {linked:true,teacherId:teacher.id};
+}
+
 export async function listTeachers(
   inst:InstitutionId,
   claims:Claims
@@ -308,4 +320,15 @@ export async function validateTeacherAssignment(
     );
 
   return teacher;
+}
+
+/** Role discovery for the authenticated user; reads only the stable subject-to-teacher link. */
+export async function verifiedTeacherInstitutions(sub:string):Promise<InstitutionId[]>{
+ if(!sub)return [];
+ const lookup=await db.send(new GetCommand({TableName:table(),Key:identityKey(sub),ConsistentRead:true}));
+ const teacherId=lookup.Item?.teacherId;
+ if(typeof teacherId!=='string')return [];
+ const teacher=await findTeacher(teacherId);
+ if(!teacher||!teacher.active||teacher.cognitoSub!==sub)return [];
+ return teacher.institutions.filter(i=>i==='raaga'||i==='sruti');
 }

@@ -12,6 +12,7 @@ import { institutions } from './institutions';
 import { scheduleAttentionIssues } from './scheduleAttention';
 import TeacherManagement from './TeacherManagement';
 import AdminManagement from './AdminManagement';
+import AccountAccess from './AccountAccess';
 import PhotoAvatarEditor from './PhotoAvatarEditor';
 import AcademyOperations from './AcademyOperations';
 import PersistentRegistration from './PersistentRegistration';
@@ -40,6 +41,7 @@ const ICONS = {
   Settings: Settings2,
   Teachers: UserRound,
   Administrators: ShieldCheck,
+  'Account Access': ShieldCheck,
 };
 const dayLabel = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ukToday = () => {
@@ -454,9 +456,9 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
   useEffect(()=>{
     if(!isTeacher||!cloud){setAssignedTeacherIds([]);setTeacherScopeError('');return;}
     let active=true;setAssignedTeacherIds([]);setTeacherScopeError('');
-    Promise.all(insts.map((institution:any)=>cloud.api.listTeachers(institution)))
-      .then(all=>{if(!active)return;const linked=all.flatMap((r:any)=>r.records).filter((t:any)=>t.cognitoSub===cloud.staff.subject&&t.active);
-        setAssignedTeacherIds([...new Set<string>(linked.map((t:any)=>String(t.id)))]);
+    Promise.all(insts.map(institution=>cloud.api.myTeacherIdentity(institution)))
+      .then(all=>{if(!active)return;const linked=all.filter(r=>r.linked&&r.teacherId).map(r=>String(r.teacherId));
+        setAssignedTeacherIds([...new Set(linked)]);
         if(!linked.length)setTeacherScopeError('Your login is not linked to an active teacher record. Contact an administrator.');})
       .catch(()=>{if(active)setTeacherScopeError('Unable to verify assigned classes. No classes are shown.');});
     return()=>{active=false;};
@@ -924,7 +926,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const [syncError,setSyncError]=useState('');
   const [workspace,setWorkspace]=useState(()=>{try{return sessionStorage.getItem('sadhana:v095:workspace')||'combined';}catch{return 'combined';}});
   const [workspaceExpanded,setWorkspaceExpanded]=useState(false);
-  const [role,setRole]=useState('admin');
+  const [role,setRole]=useState<'admin'|'teacher'>(()=>{try{return sessionStorage.getItem('sadhana:view-as')==='teacher'?'teacher':'admin';}catch{return 'admin';}});
   const [page,setPage]=useState(()=>{try{return sessionStorage.getItem('sadhana:v095:page')||'Dashboard';}catch{return 'Dashboard';}});
   const [mobileNav,setMobileNav]=useState(false);
   useEffect(()=>{try{sessionStorage.setItem('sadhana:v095:page',page);sessionStorage.setItem('sadhana:v095:workspace',workspace);}catch{/* private mode */}},[page,workspace]);
@@ -1010,19 +1012,19 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const displayName=rawName[0].toLocaleUpperCase('en-GB')+rawName.slice(1);
   const person={label:displayName,initial:(displayName[0]||'A').toLocaleUpperCase('en-GB'),
     institutions:cloud?.staff.institutions ?? [],admin:cloud?.staff.role==='admin',
-    teacher:cloud?.staff.role==='viewer'};
-  const isTeacher=role==='teacher'||!person.admin;
-  const currentRole=person.admin?role:'teacher';
-  const teacherMode=currentRole==='teacher';
+    teacher:!!cloud?.staff.teacherInstitutions?.length || cloud?.staff.role==='viewer'};
   const availableInstitutions: InstitutionId[]=person.institutions;
-  // 'combined' is a view, not an institution ID. Allow it only for cross-academy admins.
-  const allowedWorkspaces=person.admin&&!teacherMode&&person.institutions.length>1?['combined',...person.institutions]:person.institutions;
-  const currentWorkspace=allowedWorkspaces.includes(workspace)?workspace:availableInstitutions[0];
-  const nav=teacherMode?['Dashboard','My Classes','My Students','Teachers','Venues']:adminPages;
+  const verifiedTeachingInstitutions=(cloud?.staff.teacherInstitutions||[]).filter(i=>availableInstitutions.includes(i));
+  // A selected view cannot create a permission; it only changes navigation.
+  const currentRole=person.admin?(role==='teacher'&&verifiedTeachingInstitutions.length?'teacher':'admin'):'teacher';
+  const teacherMode=currentRole==='teacher';
+  const allowedWorkspaces=teacherMode?(verifiedTeachingInstitutions.length?verifiedTeachingInstitutions:availableInstitutions):person.admin&&person.institutions.length>1?['combined',...person.institutions]:person.institutions;
+  const currentWorkspace=allowedWorkspaces.includes(workspace)?workspace:allowedWorkspaces[0];
+  const nav=teacherMode?['Dashboard','My Classes','My Students','Teachers','Venues']:[...adminPages.slice(0,-1),'Account Access',...adminPages.slice(-1)];
   const activePage=page==='My Profile'?'My Profile':nav.some(item => item === page) ? page : 'Dashboard';
   const unread=notifications.filter(n=>!n.read&&availableInstitutions.includes(n.institution)).length;
   const switchWorkspace=(w)=>{setWorkspace(w);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
-  const switchRole=(r)=>{setRole(r); if(r==='teacher')setWorkspace(availableInstitutions[0]);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
+  const switchRole=(r:'admin'|'teacher')=>{if(r==='admin'&&!person.admin)return;if(r==='teacher'&&!verifiedTeachingInstitutions.length)return;setRole(r);try{sessionStorage.setItem('sadhana:view-as',r);}catch{/* private mode */}if(r==='teacher')setWorkspace(verifiedTeachingInstitutions[0]);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
   const goPage=(p)=>{setEnrolClass('');setRegisterOpenStudent('');setPage(p);setStudent(null);setClassProfile(null);setMobileNav(false);if(p==='Families & Students'||p==='My Students'){setStudentFilter('All');setStudentQuery('');}};
   const openStudent=(s)=>{setWorkspace(s.institution);setStudent(teacherMode?s:null);setRegisterOpenStudent(teacherMode?'':s.id);setEnrolClass('');setClassProfile(null);setProfileTab('Overview');setPage(teacherMode?'My Students':'Families & Students');};
   const openClass=(c)=>{setClassProfile(c);setStudent(null);setSession(null);setProfileTab('Overview');setPage(teacherMode?'My Classes':'Classes & Timetable');};
@@ -1126,27 +1128,17 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
     </div>
   }
 </div>
+{person.admin&&verifiedTeachingInstitutions.length>0&&<fieldset className="sadhana-view-as" aria-label="View as" style={{margin:'12px 16px 16px',padding:'11px 13px',border:'1px solid #536781',borderRadius:11,display:'grid',gap:9,color:'#eef3fb',fontSize:13}}>
+ <legend style={{padding:'0 5px',fontSize:10,letterSpacing:'.13em',fontWeight:700,color:'#c5d1e2'}}>VIEW AS</legend>
+ <label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='admin'} onChange={()=>switchRole('admin')}/> Administrator</label>
+ <label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='teacher'} onChange={()=>switchRole('teacher')}/> Teacher</label>
+</fieldset>}
 <div className="sidebar-nav-scroll" tabIndex={0} aria-label="Sidebar menu, scroll for more options"><div className="sidebar-section-label">MENU</div>
       <nav aria-label="Primary navigation">{nav.map(p=>{const Icon=ICONS[p];return <button key={p} onClick={()=>goPage(p)} className={`nav-link ${activePage===p?'nav-active':''}`}><Icon size={18}/><span>{p}</span>{p==='Dashboard'&&<span className="nav-tiny-dot"/>}</button>;})}</nav>
       <div className="sidebar-bottom"><div className="sidebar-help"><Sparkles size={20}/><strong>Thoughtfully built, step by step.</strong><span>Academy and Learning Portal</span></div><span className="sidebar-foot">Raagasudha × Śruti Vedam</span></div></div>
     </aside>
     {mobileNav && <button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileNav(false)}/>}
     <div className="app-main"><header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={()=>setMobileNav(v=>!v)} aria-label="Toggle menu"><Menu size={21}/></button></div><div className="topbar-actions">
-
-  {person.admin && person.teacher && (
-    <div className="role-switch">
-      <button
-        className={currentRole==='admin'?'active':''}
-        onClick={()=>switchRole('admin')}>
-        Admin
-      </button>
-      <button
-        className={currentRole==='teacher'?'active':''}
-        onClick={()=>switchRole('teacher')}>
-        My Teaching
-      </button>
-    </div>
-  )}
 
   <div className="topbar-account">
 
@@ -1255,7 +1247,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
             </label>
           </details>}
       </section>
-    </>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:<SettingsPage workspace={currentWorkspace}/>}</main>
+    </>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Account Access'&&cloud?(currentWorkspace==='combined'?<AcademySelection page="Account Access" allowed={availableInstitutions} onSelect={switchWorkspace}/>:<AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>):<SettingsPage workspace={currentWorkspace}/>}</main>
       <footer className="main-footer"><span>Sadhana · Academy & Learning Portal</span><span>{cloud?"Live timetable and venues · other records awaiting import":"No backend session"}</span></footer>
     </div>
     {deletePrompt&&<div className="reg-shade" onMouseDown={e=>{if(e.target===e.currentTarget)setDeletePrompt(null);}}><section className="reg-modal" role="dialog" aria-modal="true" aria-label="Confirm delete or archive"><div className="reg-modal-head"><div><h2>Delete or archive class</h2><p>{deletePrompt.record.name}</p></div><button className="reg-icon-btn" onClick={()=>setDeletePrompt(null)}><X size={18}/></button></div><div className="reg-form"><div className="reg-warning"><CircleAlert size={17}/><span>{enrolments.some(e=>e.classId===deletePrompt.record.id)?'This class has student enrolments and will be archived to preserve history. It will no longer appear in active timetables.':'This locally created class has no enrolments and can be removed.'}</span></div><div className="reg-modal-actions"><button className="reg-secondary" onClick={()=>setDeletePrompt(null)}>Cancel</button><button className="reg-danger" onClick={performDelete}><Trash2 size={16}/>{enrolments.some(e=>e.classId===deletePrompt.record.id)?'Archive class':'Delete class'}</button></div></div></section></div>}
