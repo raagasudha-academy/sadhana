@@ -404,6 +404,20 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
   const [apiError,setApiError]=useState('');
   const [refreshCounter,setRefreshCounter]=useState(0);
   const [master,setMaster]=useState<any|null>(null);
+  const [editingMaster,setEditingMaster]=useState(false);
+  const [classRoster,setClassRoster]=useState<any[]>([]);
+  const [classDetailsTab,setClassDetailsTab]=useState<'details'|'roster'>('details');
+  const [rosterSearch,setRosterSearch]=useState('');
+  const [classRosterError,setClassRosterError]=useState('');
+  useEffect(()=>{
+    if(!master||!cloud){setClassRoster([]);return;}
+    let active=true;setClassRosterError('');setClassRoster([]);
+    Promise.all([cloud.api.listOperations('enrolment',master.institution),cloud.api.listOperations('student',master.institution)])
+      .then(([enrolments,students])=>{if(!active)return;const memberById=new Map(students.records.map((m:any)=>[m.id,m]));
+        setClassRoster(enrolments.records.filter((e:any)=>e.classId===master.id&&!e.archived).map((e:any)=>({enrolment:e,student:memberById.get(e.studentId)})));})
+      .catch((error:Error)=>{if(active)setClassRosterError(error.message||'Roster not available for this account.');});
+    return()=>{active=false;};
+  },[master?.id,cloud?.api]);
   const [masterForm,setMasterForm]=useState<any>({});
   const [seriesFrom,setSeriesFrom]=useState('');
   const [saving,setSaving]=useState(false);
@@ -435,10 +449,23 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
       .finally(()=>{if(alive)setLoading(false);});
     return()=>{alive=false;};
   },[cloud?.api,workspace,revision,refreshCounter]);
-  const classes=records.filter(r=>r.recordType==='class');
+  const [assignedTeacherIds,setAssignedTeacherIds]=useState<string[]>([]);
+  const [teacherScopeError,setTeacherScopeError]=useState('');
+  useEffect(()=>{
+    if(!isTeacher||!cloud){setAssignedTeacherIds([]);setTeacherScopeError('');return;}
+    let active=true;setAssignedTeacherIds([]);setTeacherScopeError('');
+    Promise.all(insts.map((institution:any)=>cloud.api.listTeachers(institution)))
+      .then(all=>{if(!active)return;const linked=all.flatMap((r:any)=>r.records).filter((t:any)=>t.cognitoSub===cloud.staff.subject&&t.active);
+        setAssignedTeacherIds([...new Set<string>(linked.map((t:any)=>String(t.id)))]);
+        if(!linked.length)setTeacherScopeError('Your login is not linked to an active teacher record. Contact an administrator.');})
+      .catch(()=>{if(active)setTeacherScopeError('Unable to verify assigned classes. No classes are shown.');});
+    return()=>{active=false;};
+  },[isTeacher,cloud?.api,cloud?.staff.subject,workspace]);
+  const classes=records.filter(r=>r.recordType==='class'&&(!isTeacher||assignedTeacherIds.includes(r.teacherId)));
   const lifecycleByClass=new Map(classes.map((c:any)=>[c.id,c.lifecycleStatus||'active']));
   const currentUkDate=ukToday().toISOString().slice(0,10);
   const activeCalendarRecords=records.filter((r:any)=>{
+    if(isTeacher&&!classes.some((c:any)=>c.id===(r.recordType==='class'?r.id:r.classId)))return false;
     if(!r.classId)return true;
     const state=lifecycleByClass.get(r.classId);
     return state!=='archived'||(r.date&&r.date<currentUkDate);
@@ -483,7 +510,7 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
     : sessions;
   const shift=(dir:number)=>setAnchor((value:Date)=>view==='week'?addDays(value,dir*7):new Date(Date.UTC(value.getUTCFullYear(),value.getUTCMonth()+dir,Math.min(value.getUTCDate(),28),12)));
   const rangeLabel=view==='week'?`${ukDate(start,{day:'numeric',month:'short'})} – ${ukDate(addDays(start,6),{day:'numeric',month:'short',year:'numeric'})}`:ukDate(start,{month:'long',year:'numeric'});
-  const openMaster=(r:any)=>{setMasterDeleteReview(null);setMasterDeleteError('');setMasterReview(false);setMaster(r);setMasterForm({name:r.name,teacher:r.teacher,teacherId:r.teacherId||'',programme:r.programme,mode:r.mode,location:r.location,startTime:r.startTime,endTime:r.endTime});setSeriesFrom(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));setSaveError('');};
+  const openMaster=(r:any)=>{setClassDetailsTab('details');setRosterSearch('');setEditingMaster(false);setMasterDeleteReview(null);setMasterDeleteError('');setMasterReview(false);setMaster(r);setMasterForm({name:r.name,teacher:r.teacher,teacherId:r.teacherId||'',programme:r.programme,mode:r.mode,location:r.location,startTime:r.startTime,endTime:r.endTime});setSeriesFrom(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));setSaveError('');};
   const [masterDeleteReview,setMasterDeleteReview]=useState<any>(null);
   const [masterDeleteBusy,setMasterDeleteBusy]=useState(false);
   const [masterDeleteError,setMasterDeleteError]=useState('');
@@ -545,7 +572,7 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
    &&Object.entries(masterForm).every(([k,v])=>k==='teacherId'||v===master[k]);
   return <>
     <PageHeader kicker="LIVE" title="Academy Calandar" description={loading?'Loading calendar…':`${records.filter(x=>x.recordType!=='class').length} dated entries · ${classes.length} master classes · ${records.filter(x=>x.recordType==='special-event').length} events`} right={<Pill>Time Zone: Europe/London</Pill>}/>
-    {apiError&&<p className="sadhana-sync-error" role="alert">{apiError}</p>}
+    {apiError&&<p className="sadhana-sync-error" role="alert">{apiError}</p>}{isTeacher&&teacherScopeError&&<p className="sadhana-sync-error" role="alert">{teacherScopeError}</p>}
     {!loading&&!apiError&&classIssueCount>0&&<p className="sadhana-attention-summary"><CircleAlert size={15}/> {classIssueCount} master class{classIssueCount===1?' needs':'es need'} attention · Select a red icon to see missing details.</p>}
     {!loading&&!apiError&&records.length===0&&<p>No calendar records found for this workspace.</p>}
     <section className="surface calendar-surface"><div className="calendar-toolbar"><div className="week-controls"><button className="icon-button" title="Previous period" onClick={()=>shift(-1)}><ChevronLeft size={18}/></button><div><strong>{rangeLabel}</strong><span>{view==='week'?'Weekly timetable':'Monthly timetable'}</span></div><button className="icon-button" title="Next period" onClick={()=>shift(1)}><ChevronRight size={18}/></button><button className="today-button" onClick={()=>setAnchor(ukToday())}>Today</button></div><div style={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:12}}><label className="sadhana-calendar-class-filter" style={{display:'inline-flex',alignItems:'center',gap:8,margin:0}}>
@@ -569,15 +596,15 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
 .sadhana-master-status-pill.archived{background:#edf0f5;color:#657186;border-color:#dce2eb}
 .class-tile .sadhana-tile-end{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:540px){.sadhana-master-filter-field{width:100%}.sadhana-master-status-filter{flex:1;max-width:none}}
-`}</style><section className="surface class-roster-list"><div className="surface-heading"><div><h2>Master class directory</h2><p>Live master classes across in-person and online teaching.</p></div><label className="sadhana-master-filter-field"><span>Status</span><select className="sadhana-master-status-filter" aria-label="Filter master classes by status" value={masterStatusFilter} onChange={e=>setMasterStatusFilter(e.target.value as 'all'|'active'|'paused'|'archived')}><option value="all">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></label><label className="class-list-search"><Search size={15}/><input aria-label="Search classes" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search classes" /></label></div>
-    <div className="class-card-grid">{classes.filter(c=>masterStatusFilter==='all'||(c.lifecycleStatus||'active')===masterStatusFilter).filter(c=>`${c.name} ${c.teacher} ${c.location}`.toLowerCase().includes(search.toLowerCase())).map(c=>{
+`}</style><section className="surface class-roster-list"><div className="surface-heading"><div><h2>Master class directory</h2><p>Live master classes across in-person and online teaching.</p></div><label className="sadhana-master-filter-field sadhana-master-class-filter"><span>Class</span><select aria-label="Filter master directory by class" value={selectedCalendarClass} onChange={e=>setSelectedCalendarClass(e.target.value)}><option value="">All classes</option>{orderedCalendarClasses.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="sadhana-master-filter-field"><span>Status</span><select className="sadhana-master-status-filter" aria-label="Filter master classes by status" value={masterStatusFilter} onChange={e=>setMasterStatusFilter(e.target.value as 'all'|'active'|'paused'|'archived')}><option value="all">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></label><label className="class-list-search"><Search size={15}/><input aria-label="Search classes" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search classes" /></label></div>
+    <div className="class-card-grid">{classes.filter(c=>!selectedCalendarClass||c.id===selectedCalendarClass).filter(c=>masterStatusFilter==='all'||(c.lifecycleStatus||'active')===masterStatusFilter).filter(c=>`${c.name} ${c.teacher} ${c.location}`.toLowerCase().includes(search.toLowerCase())).map(c=>{
       const issues=scheduleAttentionIssues(c,knownVenueIds);
-      return <button className="class-tile" key={c.id} onClick={()=>openMaster(c)}><span className="tile-top"><span className="class-mark"><GraduationCap size={19}/></span><span className="sadhana-tile-end"><span className={`sadhana-master-status-pill ${c.lifecycleStatus||'active'}`}>{c.lifecycleStatus==='paused'?'Paused':c.lifecycleStatus==='archived'?'Archived':'Active'}</span>{issues.length>0&&<span className="sadhana-record-alert" role="img" aria-label={`Needs attention: ${issues.join('; ')}`} title={issues.join(' · ')}><CircleAlert size={18}/></span>}<ArrowUpRight size={16}/></span></span><strong>{c.name}</strong><small>{displayTime(c.startTime)} – {displayTime(c.endTime)}</small><span className="class-tile-meta">{c.teacher||'Teacher unassigned'} · {c.mode}</span><small>{venues.find((v:any)=>v.id===c.venueId)?.name||c.location}</small><span className="tile-foot">{records.filter(x=>x.classId===c.id).length} sessions <span>{isTeacher?'View class':'Edit class'} <ArrowRight size={14}/></span></span></button>;
+      return <button className="class-tile" key={c.id} onClick={()=>openMaster(c)}><span className="tile-top"><span className="class-mark"><GraduationCap size={19}/></span><span className="sadhana-tile-end"><span className={`sadhana-master-status-pill ${c.lifecycleStatus||'active'}`}>{c.lifecycleStatus==='paused'?'Paused':c.lifecycleStatus==='archived'?'Archived':'Active'}</span>{issues.length>0&&<span className="sadhana-record-alert" role="img" aria-label={`Needs attention: ${issues.join('; ')}`} title={issues.join(' · ')}><CircleAlert size={18}/></span>}<ArrowUpRight size={16}/></span></span><strong>{c.name}</strong><small>{displayTime(c.startTime)} – {displayTime(c.endTime)}</small><span className="class-tile-meta">{c.teacher||'Teacher unassigned'} · {c.mode}</span><small>{venues.find((v:any)=>v.id===c.venueId)?.name||c.location}</small><span className="tile-foot">{records.filter(x=>x.classId===c.id).length} sessions <span>View details <ArrowRight size={14}/></span></span></button>;
     })}</div>
     {!classes.length&&<EmptyState title="No master classes imported" detail="They will appear when the one-time import is complete."/>}
     </section>
     <ManagedEvents cloud={cloud} workspace={workspace} isTeacher={isTeacher} venues={venues} openRequest={eventOpen} onClose={()=>setEventOpen(null)} onChanged={async()=>{setRefreshCounter(n=>n+1);}}/>
-    {master&&<div className="reg-shade"><section className="reg-modal sadhana-master-editor" role="dialog" aria-modal="true" aria-label={isTeacher?'Class details':'Edit master class'}>
+    {master&&<div className="reg-shade"><section className="reg-modal sadhana-master-editor" role="dialog" aria-modal="true" aria-label={editingMaster?'Edit master class':'Class details'}>
 <style>{`
 .sadhana-master-editor .sadhana-lifecycle-panel{border:1px solid #dfe5ee;border-radius:12px;padding:16px;margin:18px 0 12px;display:grid;gap:14px;background:#fff}
 .sadhana-master-editor .sadhana-lifecycle-heading{display:flex;justify-content:space-between;align-items:start;gap:12px}
@@ -598,10 +625,10 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
 .sadhana-master-editor .sadhana-master-footer button{font-size:12px!important;min-height:38px!important;padding:8px 12px!important;margin:0!important;width:auto!important;flex:0 1 auto!important;white-space:nowrap}
 @media(max-width:480px){.sadhana-master-editor .sadhana-master-footer>.reg-danger{width:100%!important}.sadhana-master-editor .sadhana-master-footer-right{width:100%;display:grid;grid-template-columns:1fr 1fr}.sadhana-master-editor .sadhana-master-footer-right button{width:100%!important}}
 `}</style>
-<div className="reg-modal-head"><div><h2>{isTeacher?'Class details':'Edit master class'}</h2><p>{master.name}</p></div><button className="reg-icon-btn" onClick={()=>setMaster(null)} aria-label="Close"><X size={18}/></button></div><form className="reg-form" onSubmit={e=>{e.preventDefault();void saveMaster();}}>{scheduleAttentionIssues(master,knownVenueIds).length>0&&<div className="sadhana-record-issues" role="note"><CircleAlert size={18}/><div><strong>Class details need attention</strong><ul>{scheduleAttentionIssues(master,knownVenueIds).map(issue=><li key={issue}>{issue}</li>)}</ul><small>Based on saved details. The warning clears after the correction is saved and refreshed.</small></div></div>}{(['name','programme','teacher','mode','location','startTime','endTime'] as const).map(k=><label key={k} className="sadhana-edit-field"><span>{k==='startTime'?'Start time':k==='endTime'?'End time':k}</span>{k==='teacher'&&!isTeacher?<select aria-label="Assigned registered teacher" value={masterForm.teacherId||matchingRegistryTeacher(masterForm.teacher||'',registeredTeachers)?.id||''} onChange={e=>{const t=registeredTeachers.find(t=>t.id===e.target.value);setMasterReview(false);setMasterForm((v:any)=>({...v,teacher:t?.displayName||'',teacherId:t?.id||''}));}}>
+<div className="reg-modal-head"><div><h2>{editingMaster?'Edit master class':'Class details'}</h2><p>{master.name}</p></div><button className="reg-icon-btn" onClick={()=>setMaster(null)} aria-label="Close"><X size={18}/></button></div><div className="sadhana-class-tabs" role="tablist" aria-label="Class details sections"><button type="button" role="tab" aria-selected={classDetailsTab==='details'} onClick={()=>setClassDetailsTab('details')}>Class details</button><button type="button" role="tab" aria-selected={classDetailsTab==='roster'} onClick={()=>setClassDetailsTab('roster')}>Student roster ({classRoster.length})</button></div>{classDetailsTab==='roster'?<section className="sadhana-class-roster" role="tabpanel" aria-label="Class student roster"><input aria-label="Search class roster" placeholder="Search by student or roll number" value={rosterSearch} onChange={e=>setRosterSearch(e.target.value)}/>{classRosterError?<p role="alert">{classRosterError}</p>:<div className="sadhana-roster-scroll"><table><thead><tr><th>Roll number</th><th>Student</th></tr></thead><tbody>{classRoster.filter(({student}:any)=>`${student?.name||''} ${student?.rollNumber||''}`.toLowerCase().includes(rosterSearch.toLowerCase())).map(({enrolment,student}:any)=><tr key={enrolment.id}><td>{student?.rollNumber||'—'}</td><td>{student?.name||'Student record unavailable'}</td></tr>)}</tbody></table>{!classRoster.length&&<p>No current enrolments found.</p>}</div>}</section>:<form className="reg-form" onSubmit={e=>{e.preventDefault();if(editingMaster)void saveMaster();}}>{scheduleAttentionIssues(master,knownVenueIds).length>0&&<div className="sadhana-record-issues" role="note"><CircleAlert size={18}/><div><strong>Class details need attention</strong><ul>{scheduleAttentionIssues(master,knownVenueIds).map(issue=><li key={issue}>{issue}</li>)}</ul><small>Based on saved details. The warning clears after the correction is saved and refreshed.</small></div></div>}{(['name','programme','teacher','mode','location','startTime','endTime'] as const).map(k=><label key={k} className="sadhana-edit-field"><span>{k==='startTime'?'Start time':k==='endTime'?'End time':k}</span>{k==='teacher'&&!isTeacher&&editingMaster?<select aria-label="Assigned registered teacher" value={masterForm.teacherId||matchingRegistryTeacher(masterForm.teacher||'',registeredTeachers)?.id||''} onChange={e=>{const t=registeredTeachers.find(t=>t.id===e.target.value);setMasterReview(false);setMasterForm((v:any)=>({...v,teacher:t?.displayName||'',teacherId:t?.id||''}));}}>
  <option value="">Choose registered teacher</option>
  {registeredTeachers.map(t=><option value={t.id} key={t.id}>{t.displayName}</option>)}
- </select>:<input readOnly={isTeacher} type={k==='startTime'||k==='endTime'?'time':'text'} maxLength={k==='location'?300:120} value={masterForm[k]||''} onChange={e=>{setMasterReview(false);setMasterForm((v:any)=>({...v,[k]:e.target.value}));}}/>}</label>)}<label className="sadhana-edit-field"><span>Teacher/time changes effective from (UK date)</span><input type="date" value={seriesFrom} onChange={e=>{setMasterReview(false);setSeriesFrom(e.target.value);}} readOnly={isTeacher}/></label><p className="reg-footnote">Teacher and time changes apply from this date to every future session in this class, including online sessions created later. Name, programme and location changes must be saved separately.</p>{saveError&&<p role="alert" className="sadhana-sync-error">{saveError}</p>}{masterReview&&baselineLinkOnly&&<div className="sadhana-inline-review" role="status"><CircleAlert size={19}/><div><strong>Review teacher link</strong><p>Link {linkedRegistryTeacher?.displayName} to {master.name}? This stores the teacher identity only. No dated sessions or teacher names will change.</p><button type="button" className="sadhana-review-back" onClick={()=>setMasterReview(false)}>Back to editing</button></div></div>}{!isTeacher&&<section className="sadhana-lifecycle-panel" aria-label="Class lifecycle">
+ </select>:<input readOnly={!editingMaster||isTeacher} type={k==='startTime'||k==='endTime'?'time':'text'} maxLength={k==='location'?300:120} value={masterForm[k]||''} onChange={e=>{setMasterReview(false);setMasterForm((v:any)=>({...v,[k]:e.target.value}));}}/>}</label>)}<label className="sadhana-edit-field"><span>Teacher/time changes effective from (UK date)</span><input type="date" value={seriesFrom} onChange={e=>{setMasterReview(false);setSeriesFrom(e.target.value);}} readOnly={!editingMaster||isTeacher}/></label><p className="reg-footnote">Teacher and time changes apply from this date to every future session in this class, including online sessions created later. Name, programme and location changes must be saved separately.</p>{saveError&&<p role="alert" className="sadhana-sync-error">{saveError}</p>}{masterReview&&baselineLinkOnly&&<div className="sadhana-inline-review" role="status"><CircleAlert size={19}/><div><strong>Review teacher link</strong><p>Link {linkedRegistryTeacher?.displayName} to {master.name}? This stores the teacher identity only. No dated sessions or teacher names will change.</p><button type="button" className="sadhana-review-back" onClick={()=>setMasterReview(false)}>Back to editing</button></div></div>}{!isTeacher&&editingMaster&&<section className="sadhana-lifecycle-panel" aria-label="Class lifecycle">
   <div className="sadhana-lifecycle-heading">
     <div><strong>Class lifecycle</strong><p><b>Active</b> — classes run as scheduled. <b>Paused</b> — temporarily on hold; resume when ready. <b>Archived</b> — finished or discontinued; hidden from the active calendar. History is retained.</p></div>
     <span className={`sadhana-lifecycle-badge ${master.lifecycleStatus||'active'}`}>{master.lifecycleStatus||'active'}</span>
@@ -624,10 +651,10 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
 </section>}
 {masterDeleteError&&<p className="sadhana-sync-error" role="alert">{masterDeleteError}</p>}
  <div className="reg-modal-actions sadhana-master-footer">
-  {!isTeacher&&<button type="button" className="reg-danger" disabled={masterDeleteBusy} onClick={()=>void reviewMasterDeletion()}><Trash2 size={15}/> Delete master class</button>}
+  {!isTeacher&&editingMaster&&<button type="button" className="reg-danger" disabled={masterDeleteBusy} onClick={()=>void reviewMasterDeletion()}><Trash2 size={15}/> Delete master class</button>}
   <div className="sadhana-master-footer-right"><button type="button" className="reg-secondary" onClick={()=>setMaster(null)}>Cancel</button>
-  {!isTeacher&&<button type="submit" className="reg-primary" disabled={saving}>{saving?'Saving…':baselineLinkOnly?(masterReview?'Confirm teacher link':'Review teacher link'):'Save changes'}</button>}</div>
-</div><p className="reg-footnote">If the existing name already matches a registered teacher, Save links its identity to this class baseline. Choose a different teacher plus an effective date to change future sessions. For an existing dated rule, open a session in that period.</p></form></section></div>}{master&&masterDeleteReview&&<div className="reg-shade sadhana-master-delete-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!masterDeleteBusy)setMasterDeleteReview(null);}}>
+  {!isTeacher&&!editingMaster&&<button type="button" className="reg-primary" onClick={()=>setEditingMaster(true)}>Edit class</button>}{!isTeacher&&editingMaster&&<button type="submit" className="reg-primary" disabled={saving}>{saving?'Saving…':baselineLinkOnly?(masterReview?'Confirm teacher link':'Review teacher link'):'Save changes'}</button>}</div>
+</div><p className="reg-footnote">If the existing name already matches a registered teacher, Save links its identity to this class baseline. Choose a different teacher plus an effective date to change future sessions. For an existing dated rule, open a session in that period.</p></form>}</section></div>}{master&&masterDeleteReview&&<div className="reg-shade sadhana-master-delete-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!masterDeleteBusy)setMasterDeleteReview(null);}}>
  <section className="reg-modal sadhana-master-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="master-delete-title" aria-describedby="master-delete-message">
  <div className="reg-modal-head"><div><h2 id="master-delete-title">Delete master class?</h2><p>Administrator action · Permanent deletion</p></div><button type="button" className="reg-icon-btn" onClick={()=>setMasterDeleteReview(null)} disabled={masterDeleteBusy} aria-label="Close"><X size={18}/></button></div>
  <div className="sadhana-master-delete-content"><strong>{masterDeleteReview.name}</strong><div className="sadhana-master-delete-summary"><span>Master class</span><strong>1</strong><span>Scheduled sessions</span><strong>{masterDeleteReview.sessionCount}</strong><span>Recurring rules</span><strong>{masterDeleteReview.ruleCount}</strong></div>
@@ -991,7 +1018,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   // 'combined' is a view, not an institution ID. Allow it only for cross-academy admins.
   const allowedWorkspaces=person.admin&&!teacherMode&&person.institutions.length>1?['combined',...person.institutions]:person.institutions;
   const currentWorkspace=allowedWorkspaces.includes(workspace)?workspace:availableInstitutions[0];
-  const nav=teacherMode?['Dashboard','My Classes','Venues']:adminPages;
+  const nav=teacherMode?['Dashboard','My Classes','My Students','Teachers','Venues']:adminPages;
   const activePage=page==='My Profile'?'My Profile':nav.some(item => item === page) ? page : 'Dashboard';
   const unread=notifications.filter(n=>!n.read&&availableInstitutions.includes(n.institution)).length;
   const switchWorkspace=(w)=>{setWorkspace(w);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
@@ -1205,7 +1232,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
           <div>
             <h2>{person.label}</h2>
             <p>{cloud?.staff.role==='admin'
-              ? 'Administrator' : 'Viewer'}</p>
+              ? 'Administrator' : 'Teacher access (assignment verification required)'}</p>
           </div>
         </div>
         <div className="sadhana-account-grid">

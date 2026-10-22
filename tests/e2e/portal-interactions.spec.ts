@@ -10,6 +10,11 @@ test.beforeEach(async({page})=>{
   await page.goto('/tests/e2e/portal.html');
   await expect(page.getByText('Test Meera').first()).toBeVisible();
 });
+async function chooseFilter(page:Page,name:string){
+  const menu=page.locator('.reg-combined-filters');
+  if(!(await menu.evaluate(el=>(el as HTMLDetailsElement).open))) await menu.locator('summary').click();
+  await menu.getByRole('radio',{name,exact:true}).check();
+}
 const rows=(page:Page)=>page.locator('.reg-directory-table tbody tr');
 async function table(page:Page){await page.getByRole('button',{name:'Table',exact:true}).click();await expect(page.locator('.reg-directory-table')).toBeVisible();}
 async function families(page:Page){await page.locator('.reg-tabs').getByRole('button',{name:'Families'}).click();}
@@ -29,12 +34,12 @@ test('real student table sorts roll numbers and names without changing identitie
 
 test('real directory combines location and archived status filters',async({page})=>{
   await table(page);
-  await page.getByRole('combobox',{name:'Filter students by location'}).selectOption('Carlisle');
+  await chooseFilter(page,'Carlisle');
   await expect(rows(page)).toHaveCount(2);
-  await page.getByRole('combobox',{name:'Filter by status'}).selectOption('Archived');
+  await chooseFilter(page,'Archived');
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first()).toContainText('Test Arjun');
-  await page.getByRole('combobox',{name:'Filter by status'}).selectOption('All');
+  await chooseFilter(page,'All statuses');
   await expect(rows(page)).toHaveCount(2);
 });
 
@@ -44,9 +49,7 @@ test('real Families list and table filter by location',async({page})=>{
   await expect(page.getByText('Test Northern Guardian').first()).toBeVisible();
   await table(page);
   await expect(rows(page)).toHaveCount(2);
-  const location=page.getByRole('combobox',{name:'Filter families by location'});
-  await expect(location).toBeVisible();
-  await location.selectOption('Newcastle');
+  await chooseFilter(page,'Newcastle');
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first()).toContainText('Test Northern Guardian');
   await page.getByRole('button',{name:'List',exact:true}).click();
@@ -75,7 +78,7 @@ test('real Archive reload Restore preserves permanent identity and only updates 
   const persisted=await page.evaluate(()=>(window as any).__sadhanaE2E.snapshot().student.find((s:any)=>s.id==='STUDENT-E2E-2'));
   expect(persisted).toMatchObject({id:before.id,rollNumber:before.rollNumber,familyId:before.familyId,archived:true});
   await page.getByRole('button', {name:'Students', exact:true}).click();
-  await page.getByRole('combobox',{name:'Filter by status'}).selectOption('Archived');
+  await chooseFilter(page,'Archived');
   await expect(page.getByText('Test Meera').first()).toBeVisible();
   await families(page);
   await page.getByRole('button',{name:/Test Guardian/}).first().click();

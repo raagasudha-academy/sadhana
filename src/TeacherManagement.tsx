@@ -21,7 +21,8 @@ const teacherPortraitFiles: Record<string, string> = {
 
 function TeacherPortrait({name,photoUrl=''}:{name:string;photoUrl?:string}) {
   const key=name.trim().toLowerCase().replace(/\s+/g,' ');
-  const filename=teacherPortraitFiles[key];
+  const normalized=(value:string)=>value.replace(/^(mrs?|miss|ms|dr|prof)\.?\s+/,'').replace(/[^a-z]/g,'');
+  const filename=teacherPortraitFiles[key] || Object.entries(teacherPortraitFiles).find(([label])=>normalized(label)===normalized(key))?.[1];
   const fallback=filename?`${import.meta.env.BASE_URL}teachers/${filename}`:'';
   const [source,setSource]=useState(photoUrl||fallback);
   useEffect(()=>setSource(photoUrl||fallback),[photoUrl,fallback]);
