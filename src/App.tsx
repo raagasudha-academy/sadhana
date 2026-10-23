@@ -458,7 +458,7 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
   useEffect(()=>{
     if(!isTeacher||!cloud){setAssignedTeacherIds([]);setTeacherScopeError('');return;}
     let active=true;setAssignedTeacherIds([]);setTeacherScopeError('');
-    Promise.all(insts.map(async institution=>({institution,identity:await cloud.api.myTeacherIdentity(institution)})))
+    Promise.all(insts.filter(institution=>institution==='raaga'||institution==='sruti').map(async institution=>({institution,identity:await cloud.api.myTeacherIdentity(institution)})))
       .then(all=>{if(!active)return;
         const linked=all.filter(({identity})=>identity.linked&&identity.teacherId).map(({identity})=>String(identity.teacherId));
         setAssignedTeacherIds([...new Set(linked)]);
