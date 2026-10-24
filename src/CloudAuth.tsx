@@ -5,9 +5,11 @@ import { WebStorageStateStore } from 'oidc-client-ts';
 import { ArrowRight, LockKeyhole, ShieldCheck, LogOut, AlertCircle, GraduationCap, BookOpen } from 'lucide-react';
 import App from './App';
 import StudentHome from './StudentHome';
-import BrandIcon from './BrandIcon';
+import AcademyBrandIcon from './AcademyBrandIcon';
+import CognitoPassword, {readPasswordSession,clearPasswordSession,refreshPasswordSession,revokePasswordSession} from './CognitoPassword';
 import { createSadhanaApi } from './api/sadhanaClient';
 import type { SadhanaApiClient, StaffResponse } from './api/sadhanaClient';
+import BrandIcon from './BrandIcon';
 
 const config = {
   issuer: import.meta.env.VITE_SADHANA_COGNITO_ISSUER?.trim() || '',
@@ -32,14 +34,20 @@ export interface CloudSession {
 function AuthCard({title,children,kind='welcome'}: {title:string;children:React.ReactNode;kind?:'welcome'|'signedout'}) {
   return <main className="auth-shell">
     <section className="auth-brand-panel" aria-label="About Sadhana">
-      <div className="auth-brand-head"><span className="auth-brand-mark"><BrandIcon /></span><div><strong>Sadhana</strong><small>ACADEMY &amp; LEARNING PORTAL</small></div></div>
+      <div className="auth-brand-head"><span className="auth-brand-mark auth-brand-mark--50"><AcademyBrandIcon /></span><div><strong>Sadhana</strong><small>ACADEMY &amp; LEARNING PORTAL</small></div></div>
       <div className="auth-brand-copy"><span className="auth-kicker">LEARN · PRACTISE · GROW</span><h2>Welcome to Sadhana.</h2></div>
-      <div className="auth-brand-programmes"><span><GraduationCap size={17}/> Raagasudha Music Academy</span><span><BookOpen size={17}/> Śruti School of Vedic Learning</span></div>
+      <div className="auth-brand-programmes">
+        <span><img src={`${import.meta.env.BASE_URL}branding/raaga.webp`} alt="" className="auth-academy-emblem" /> Raagasudha Music Academy</span>
+        <span><img src={`${import.meta.env.BASE_URL}branding/sruti.webp`} alt="" className="auth-academy-emblem" /> Śruti School of Vedic Learning</span>
+      </div>
     </section>
-    <section className="auth-signin-panel"><div className="auth-card">
+    <section className={`auth-signin-panel${kind==='signedout'?' auth-signin-panel--signedout':''}`}><div className={`auth-card${kind==='signedout'?' auth-card--signedout':' auth-card--welcome'}`}>
       <div className="auth-mobile-identity"><span className="auth-icon"><BrandIcon /></span><strong>Sadhana</strong></div>
-      <div className="auth-illustration">{kind==='signedout'?<LogOut size={26}/>:<ShieldCheck size={26}/>}</div>
-      <h1>{title}</h1>{children}
+      <div className="auth-card-heading">
+        <div className="auth-illustration">{kind==='signedout'?<LogOut size={26}/>:<ShieldCheck size={26}/>}</div>
+        <h1>{title}</h1>
+      </div>
+      {children}
       <p className="auth-footnote">Secure access powered by your Sadhana account.</p>
     </div></section>
   </main>;
@@ -51,21 +59,39 @@ function SignInGate() {
   const [apiError, setApiError] = useState('');
   const [signedOut,setSignedOut]=useState(()=>sessionStorage.getItem('sadhana_signed_out')==='1');
   const [checking, setChecking] = useState(false);
-  const token = auth.user?.access_token || '';
+  const [passwordSession,setPasswordSession]=useState(readPasswordSession);
+  const region=config.issuer.match(/cognito-idp\.([a-z0-9-]+)\.amazonaws\.com/)?.[1]||'us-east-1';
+  const token = auth.user?.access_token || passwordSession?.accessToken || '';
+  const signedIn=auth.isAuthenticated||Boolean(passwordSession?.accessToken);
+  useEffect(()=>{
+    if(!passwordSession)return;
+    let active=true;
+    const update=()=>{const current=readPasswordSession();if(!current)return;
+      void refreshPasswordSession(region,config.clientId,current).then(next=>{if(active&&next.accessToken!==current.accessToken)setPasswordSession(next);}).catch(()=>{
+        if(active){clearPasswordSession();setPasswordSession(null);setApiError('Your session has expired. Please sign in again.');}
+      });
+    };
+    update();const handle=window.setInterval(update,30000);
+    return()=>{active=false;window.clearInterval(handle);};
+  },[Boolean(passwordSession),region]);
   const api = useMemo(() => createSadhanaApi({baseUrl:config.apiUrl,getAccessToken:()=>token}),[token]);
   useEffect(() => {
-    if(!auth.isAuthenticated || !token) {setStaff(null);setApiError('');return;}
+    if(!signedIn || !token) {setStaff(null);setApiError('');return;}
     let alive=true;
     setChecking(true);setApiError('');setStaff(null);
     api.currentStaff().then(data => {if(alive)setStaff(data);}).catch(error => {if(alive)setApiError(error instanceof Error?error.message:'Unable to confirm permissions.');}).finally(()=>{if(alive)setChecking(false);});
     return ()=>{alive=false;};
-  },[api,auth.isAuthenticated,token]);
+  },[api,signedIn,token]);
   const signOut=async()=>{
     // Cognito managed-login logout accepts logout_uri, not post_logout_redirect_uri.
     // Use an already-authorised application root as the callback; do not append query strings.
     sessionStorage.setItem('sadhana_signed_out','1');
     setSignedOut(true);
     try {
+      const activePasswordSession=readPasswordSession();
+      clearPasswordSession();
+      setPasswordSession(null);
+      await revokePasswordSession(region,config.clientId,activePasswordSession);
       await auth.removeUser();
       const host=config.domain.startsWith('https://')?config.domain:`https://${config.domain}`;
       const url=new URL('/logout',host);
@@ -78,16 +104,13 @@ function SignInGate() {
       setApiError(e instanceof Error?e.message:'Could not sign out.');
     }
   };
-  // A logged-out user who intentionally opens the app goes directly to Cognito's
-  // single managed login form, without an intermediate Welcome/Continue screen.
-  useEffect(()=>{
-    if(auth.isLoading||auth.isAuthenticated||auth.activeNavigator||auth.error||signedOut)return;
-    void auth.signinRedirect().catch(()=>{});
-  },[auth.isLoading,auth.isAuthenticated,auth.activeNavigator,auth.error,signedOut,auth.signinRedirect]);
-  if(!auth.isAuthenticated&&signedOut&&!auth.isLoading)return <SignedOut/>;
-  if(auth.isLoading||auth.activeNavigator||checking||(auth.isAuthenticated&&!!token&&!staff&&!apiError)) return <AuthCard title="Securing your workspace"><p>Checking your sign-in and permissions…</p></AuthCard>;
-  if(auth.error) return <AuthCard title="Sign-in needs attention"><p role="alert">{auth.error.message}</p><button className="auth-primary" onClick={()=>void auth.signinRedirect()}>Try signing in again <ArrowRight size={17}/></button></AuthCard>;
-  if(!auth.isAuthenticated) return <AuthCard title="Opening secure sign in"><p>Connecting to your Sadhana login…</p><button className="auth-primary" onClick={()=>void auth.signinRedirect()}>Try again <ArrowRight size={17}/></button></AuthCard>;
+  if(!signedIn&&signedOut&&!auth.isLoading)return <SignedOut/>;
+  if(signedIn&&(checking||!staff&&!apiError))return <AuthCard title="Securing your workspace"><p>Checking your sign-in and permissions…</p></AuthCard>;
+  if(!signedIn&&auth.isLoading)return <AuthCard title="Securing your workspace"><p>Checking your sign-in…</p></AuthCard>;
+  if(!signedIn&&auth.error)return <AuthCard title="Sign-in needs attention"><p role="alert">{auth.error.message}</p><button className="auth-primary" onClick={()=>void auth.signinRedirect()}>Try Cognito sign-in <ArrowRight size={17}/></button></AuthCard>;
+  if(!signedIn)return <AuthCard title="Sign in to Sadhana"><CognitoPassword region={region} clientId={config.clientId}
+    onAuthenticated={next=>{sessionStorage.removeItem('sadhana_signed_out');setSignedOut(false);setPasswordSession(next);}}
+    onManagedLogin={()=>void auth.signinRedirect()}/></AuthCard>;
   if(apiError||!staff) return <AuthCard title="Permission check failed"><div className="auth-error" role="alert"><AlertCircle size={18}/><span>{apiError||'No staff authorization was returned.'}</span></div><p>Your Cognito login alone is not sufficient. Your Sadhana account needs an authorised staff group.</p><button className="auth-primary" onClick={()=>window.location.reload()}>Retry API check</button><button className="auth-secondary" onClick={()=>void signOut()}><LogOut size={15}/> Sign out</button></AuthCard>;
   // Cognito ID-token profile carries display attributes; the API remains the role authority.
   const profile=auth.user?.profile;

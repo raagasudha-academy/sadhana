@@ -1,5 +1,5 @@
 /** Explicit account-to-student links. No name, email or family-ID inference authorises access. */
-import {GetCommand,QueryCommand,PutCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {GetCommand,QueryCommand,PutCommand,UpdateCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {makeRoutedClient} from './tableRouter.ts';
 import {demandInstitution,httpError} from './model.ts';
 import {isStudentRecordId,isAccountSubject,canReadStudent} from './accessRules.ts';
@@ -23,7 +23,20 @@ export async function requestStudentAccess(instRaw:string,claims:Claims,body:any
  if(!body||Object.keys(body).some(k=>!['studentId','kind'].includes(k))||!validStudent(body.studentId)||!['student','guardian'].includes(body.kind))throw httpError(400,'Provide student record ID and student/guardian access type');
  const now=new Date().toISOString(),k=key(inst,claims.sub!,body.studentId);
  // Does not reveal whether a claimed student ID exists, and grants zero permissions.
- try{await db.send(new PutCommand({TableName:table(),Item:{...k,institution:inst,studentId:body.studentId,subject:claims.sub,kind:body.kind,status:'pending',version:1,createdAt:now,updatedAt:now,GSI1PK:`ACCESS_REQUEST#${inst}`,GSI1SK:`${now}#${claims.sub}#${body.studentId}`},ConditionExpression:'attribute_not_exists(PK)'}))}catch(e:any){if(e.name!=='ConditionalCheckFailedException')throw e;throw httpError(409,'Request already recorded. Contact the academy if changes are needed.')}
+ try{await db.send(new PutCommand({TableName:table(),Item:{...k,institution:inst,studentId:body.studentId,subject:claims.sub,kind:body.kind,status:'pending',version:1,createdAt:now,updatedAt:now,GSI1PK:`ACCESS_REQUEST#${inst}`,GSI1SK:`${now}#${claims.sub}#${body.studentId}`},ConditionExpression:'attribute_not_exists(PK)'}))}
+ catch(e:any){
+  if(e.name!=='ConditionalCheckFailedException')throw e;
+  // An existing revoked/rejected link can be re-requested, but never automatically reapproved.
+  // Reuse the verified account/student identity and its current version, avoiding duplicate links.
+  const previous=(await db.send(new GetCommand({TableName:table(),Key:k,ConsistentRead:true}))).Item;
+  if(!previous||!['revoked','rejected'].includes(previous.status)||previous.kind!==body.kind)throw httpError(409,'Request is already pending or approved, or its access type differs.');
+  try{await db.send(new UpdateCommand({TableName:table(),Key:k,
+   UpdateExpression:'SET #status=:pending, #version=:next, updatedAt=:now, GSI1PK=:gpk, GSI1SK=:gsk REMOVE reviewedBy',
+   ConditionExpression:'#version=:previous AND #status=:oldStatus AND #kind=:kind',
+   ExpressionAttributeNames:{'#status':'status','#version':'version','#kind':'kind'},
+   ExpressionAttributeValues:{':pending':'pending',':next':previous.version+1,':now':now,':gpk':`ACCESS_REQUEST#${inst}`,':gsk':`${now}#${claims.sub}#${body.studentId}`,':previous':previous.version,':oldStatus':previous.status,':kind':body.kind}
+  }))}catch(updateError:any){if(updateError.name==='ConditionalCheckFailedException')throw httpError(409,'Access request changed. Refresh and retry.');throw updateError}
+ }
  return {submitted:true,status:'pending'};
 }
 export async function listAccessRequests(instRaw:string,claims:Claims){

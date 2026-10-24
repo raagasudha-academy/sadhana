@@ -22,7 +22,7 @@ import LiveDashboard from './LiveDashboard';
 import { ClassFormDialog, VenueFormDialog, VenueManager } from './ClassManagement';
 import { initialFamilies, initialMembers, initialEnrolments, getEnrolmentStatus } from './registry';
 import PracticeModule from './PracticeModule';
-import BrandIcon from './BrandIcon';
+import AcademyBrandIcon from './AcademyBrandIcon';
 import MonthCalendar from './MonthCalendar';
 import type { CloudSession } from './CloudAuth';
 import { LogOut } from 'lucide-react';
@@ -1085,7 +1085,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const workspaceName=currentWorkspace==='combined'?'All Institutions':institutions[currentWorkspace].name;
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav?'sidebar-show':''}`}>
-      <div className="brand"><div className="brand-symbol"><BrandIcon /></div><div><strong>Sadhana</strong><small>ACADEMY &amp; LEARNING PORTAL</small></div></div>
+      <div className="brand"><div className="brand-symbol"><AcademyBrandIcon /></div><div><strong>Sadhana</strong><small>ACADEMY &amp; LEARNING PORTAL</small></div></div>
       <div className="sidebar-section-label">WORKSPACE</div>
       <div className="sidebar-workspace sadhana-workspace-dropdown">
   <button type="button"
@@ -1094,11 +1094,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
     aria-expanded={workspaceExpanded}
     onClick={()=>setWorkspaceExpanded(v=>!v)}>
     <span className="sidebar-work-icon">
-      {currentWorkspace==='sruti'
-        ? <BookOpen size={18}/>
-        : currentWorkspace==='raaga'
-          ? <Music2 size={18}/>
-          : <Home size={18}/>}
+      {currentWorkspace==='sruti' ? <AcademyBrandIcon academy="sruti" /> : currentWorkspace==='raaga' ? <AcademyBrandIcon academy="raaga" /> : <AcademyBrandIcon /> }
     </span>
     <span className="sadhana-workspace-text">
       <strong>{workspaceName}</strong>
@@ -1122,11 +1118,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
             switchWorkspace(w);
             setWorkspaceExpanded(false);
           }}>
-          {w==='combined'
-            ? <Home size={17}/>
-            : w==='sruti'
-              ? <BookOpen size={17}/>
-              : <Music2 size={17}/>}
+          {w==='combined' ? <AcademyBrandIcon size={19} /> : w==='sruti' ? <AcademyBrandIcon academy="sruti" size={19} /> : <AcademyBrandIcon academy="raaga" size={19} />}
           <span>{w==='combined'
             ? 'All Institutions'
             : institutions[w].name}</span>

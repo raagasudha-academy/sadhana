@@ -12,7 +12,7 @@ export function domainForPK(pk:string,sk=''):Domain {
  if(pk.startsWith('ACCESS_REQUEST#')||pk.startsWith('ACCESS#'))return 'admin';
  if(pk.startsWith('AUDIT#'))return 'audit';
  if(pk.startsWith('OPS#GLOBAL#COUNTERS')||pk.startsWith('OPS#GLOBAL#FAMILY')||pk.startsWith('OPS#GLOBAL#STUDENT')||pk.startsWith('OPS#sruti#FAMILY')||pk.startsWith('OPS#raaga#FAMILY')||pk.startsWith('OPS#sruti#STUDENT')||pk.startsWith('OPS#raaga#STUDENT')||pk.startsWith('OPS#sruti#ENROLMENT')||pk.startsWith('OPS#raaga#ENROLMENT')||pk.startsWith('FAMILY#')||pk.startsWith('STUDENT#')||pk.startsWith('ENROLMENT#')||pk==='DIRECTORY#FAMILY'||pk==='DIRECTORY#STUDENT'||/^INST#[^#]+#ENROLMENT$/.test(pk))return 'students';
- if(/^OPS#(?:sruti|raaga)#(?:ATTENDANCE|PRACTICE|FEEDBACK|RSVP)$/.test(pk)||pk.startsWith('PRACTICE#')||/^INST#[^#]+#PRACTICE$/.test(pk))return 'learning';
+ if(/^OPS#(?:sruti|raaga)#(?:ATTENDANCE|PRACTICE|FEEDBACK|RSVP)$/.test(pk)||pk.startsWith('PRACTICE_COMMENTS#')||pk.startsWith('PRACTICE#')||/^INST#[^#]+#PRACTICE$/.test(pk))return 'learning';
  if(pk.startsWith('PHONE#')) {if(sk.startsWith('FAMILY#')||sk.startsWith('STUDENT#'))return 'students'; throw Error(`Cannot route phone GSI without identity sort key`);}
  throw Error(`Unmapped DynamoDB partition: ${pk}`);
 }

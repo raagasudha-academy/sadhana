@@ -2683,7 +2683,7 @@ label.reg-field:has(input[type="checkbox"]) > span {
 /* Sadhana v1 unified authentication landing / signed-out view */
 .auth-shell{min-height:100vh;display:grid;grid-template-columns:minmax(300px,.95fr) minmax(360px,1.05fr);background:#f7f8fb}
 .auth-brand-panel{background:linear-gradient(155deg,#25364e,#344a68 70%,#3a4e69);color:#fff;min-height:100vh;padding:clamp(28px,5vw,72px);display:flex;flex-direction:column;justify-content:space-between;gap:40px}
-.auth-brand-head{display:flex;align-items:center;gap:13px}.auth-brand-head strong{display:block;font-family:Georgia,serif;font-size:30px;font-weight:600}.auth-brand-head small{font-size:9px;letter-spacing:1.6px;color:#d6dce6}.auth-brand-mark{display:grid;place-items:center;width:56px;height:56px;border-radius:14px;background:#e0c692}.auth-brand-mark img{max-width:45px;max-height:45px}
+.auth-brand-head{display:flex;align-items:center;gap:13px}.auth-brand-head strong{display:block;font-family:Georgia,serif;font-size:30px;font-weight:600}.auth-brand-head small{font-size:9px;letter-spacing:1.6px;color:#d6dce6}.auth-brand-mark{display:grid;place-items:center;width:56px;height:56px;border-radius:14px;background:#e0c692}.auth-brand-mark img{max-width:60px;max-height:60px}
 .auth-brand-copy{max-width:510px}.auth-kicker{font-size:11px;letter-spacing:2px;color:#e0c692;font-weight:700}.auth-brand-copy h2{font-family:Georgia,serif;font-size:clamp(32px,3.5vw,52px);line-height:1.16;font-weight:500;margin:16px 0}.auth-brand-copy p{font-size:16px;color:#dfe5ee;line-height:1.7}
 .auth-brand-programmes{display:grid;gap:14px;border-top:1px solid #64758c;padding-top:24px}.auth-brand-programmes span{display:flex;align-items:center;gap:11px;font-size:13px;color:#e8edf4}
 .auth-signin-panel{display:grid;place-items:center;padding:32px 20px}.auth-signin-panel .auth-card{box-shadow:none;border:0;background:transparent;width:min(430px,100%);padding:24px;gap:16px}.auth-signin-panel .auth-card h1{font-family:inherit;font-size:28px;font-weight:650;letter-spacing:-.6px}.auth-signin-panel .auth-card p{line-height:1.6}.auth-signin-panel .auth-primary{font:inherit;font-size:14px;cursor:pointer}.auth-signin-panel .auth-primary:focus-visible{outline:3px solid #c5a976;outline-offset:3px}.auth-mobile-identity{display:none}.auth-audiences{display:flex;gap:8px;flex-wrap:wrap}.auth-audiences span{display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;background:#edf1f6;border-radius:30px;padding:7px 10px}
@@ -2698,3 +2698,104 @@ label.reg-field:has(input[type="checkbox"]) > span {
 .auth-brand-copy h2{color:#fff8ec!important;font-size:clamp(30px,3vw,44px);line-height:1.12}
 .auth-brand-panel{gap:22px}
 .auth-signin-panel .auth-card{gap:12px}
+
+/* sadhana-signedout-institution-ux-v1 */
+.auth-brand-programmes > span { display:flex; align-items:center; gap:12px; min-height:36px; }
+.auth-academy-emblem { width:29px; height:29px; display:block; flex:0 0 29px; object-fit:contain; }
+.auth-signin-panel--signedout { display:flex; align-items:center; justify-content:center; min-width:0; }
+.auth-signin-panel--signedout .auth-card--signedout { width:min(440px,100%); margin-inline:auto; display:flex; flex-direction:column; align-items:stretch; gap:15px; }
+.auth-card--signedout .auth-illustration { align-self:center; margin:0 auto 4px; }
+.auth-card--signedout > h1 { text-align:center; margin:0; }
+.auth-card--signedout > p:not(.auth-footnote) { text-align:center; margin:0; }
+.auth-card--signedout > .auth-primary { width:100%; min-height:52px; }
+.auth-card--signedout > .auth-footnote { width:100%; margin:0; }
+@media (max-width:700px) {
+  .auth-signin-panel--signedout { padding:24px 18px; }
+  .auth-signin-panel--signedout .auth-card--signedout { max-width:100%; }
+  .auth-academy-emblem { width:25px; height:25px; flex-basis:25px; }
+}
+/* Larger Raagasudha and Śruti logos */
+.auth-brand-programmes > span {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 44px;
+}
+
+.auth-academy-emblem {
+  display: block;
+  width: 60px;
+  height: 42px;
+  flex: 0 0 42px;
+  object-fit: contain;
+}
+
+@media (max-width: 700px) {
+  .auth-academy-emblem {
+    width: 50px;
+    height: 50px;
+    flex-basis: 36px;
+  }
+}
+
+/* Sadhana authentication branding: 50px emblem, 64px gold tile.
+   Scope to the auth header so institution icons and sidebar are unchanged. */
+.auth-brand-head .auth-brand-mark--50 {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 15px;
+}
+.auth-brand-head .auth-brand-mark--50 img {
+  display: block;
+  width: 50px;
+  height: 50px;
+  max-width: 50px;
+  max-height: 50px;
+  object-fit: contain;
+}
+@media (max-width: 760px) {
+  .auth-brand-head .auth-brand-mark--50 {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+  }
+}
+
+/* v1.0 authentication: centred icon/title and relaxed sign-in form spacing. */
+.auth-signin-panel .auth-card-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.auth-signin-panel .auth-card-heading .auth-illustration {
+  width: 72px;
+  height: 72px;
+  margin: 0;
+  border-radius: 20px;
+}
+.auth-signin-panel .auth-card-heading h1 {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  line-height: 1.2;
+}
+.auth-signin-panel .auth-card--welcome {
+  width: min(470px, 100%);
+  gap: 18px;
+}
+.auth-signin-panel .auth-card--welcome .auth-card-heading {
+  margin-bottom: 24px;
+}
+.auth-signin-panel .auth-card--welcome .auth-footnote {
+  margin-top: 6px;
+}
+@media (max-width: 760px) {
+  .auth-signin-panel .auth-card-heading { gap: 14px; margin-bottom: 14px; }
+  .auth-signin-panel .auth-card-heading .auth-illustration { width: 64px; height: 64px; border-radius: 18px; }
+  .auth-signin-panel .auth-card--welcome .auth-card-heading { margin-bottom: 18px; }
+}

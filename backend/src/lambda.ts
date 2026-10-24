@@ -1,6 +1,6 @@
 import {commentOnPractice,teacherPracticeComments,readPracticeComments} from './practiceFeedback.ts';
 import {operations} from './academyOperations.ts';
-import {learnerDashboard,saveLearnerPractice} from './studentLearning.ts';
+import {learnerDashboard,saveLearnerPractice,saveLearnerRsvp} from './studentLearning.ts';
 import {myStudentLinks,requestStudentAccess,listAccessRequests,decideStudentAccess,myStudentOverview} from './familyAccess.ts';
 import {previewRecurringClass,createRecurringClass} from './recurringClasses.ts';
 /** Protected HTTP API for Sadhana. The AWS HTTP API JWT authorizer MUST run before this handler. */
@@ -86,6 +86,7 @@ export function createHandler(repository: SadhanaRepository){
         if(method==='GET'&&parts.length===3&&parts[2]==='dashboard')return json(200,await learnerDashboard(inst,claims,studentId));
         if(method==='POST'&&parts.length===3&&parts[2]==='practice')return json(201,await saveLearnerPractice(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='PATCH'&&parts.length===4&&parts[2]==='practice')return json(200,await saveLearnerPractice(inst,claims,studentId,readJSON(event.body||''),parts[3]));
+        if(method==='PUT'&&parts.length===3&&parts[2]==='rsvp')return json(200,await saveLearnerRsvp(inst,claims,studentId,readJSON(event.body||'')));
         return json(405,{error:'Unsupported student action.'});
       }
       if(parts[0]==='family-access'){
