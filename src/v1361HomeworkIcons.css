@@ -1,0 +1,73 @@
+/* v13.6.1 guarded teacher material upload controls */
+.sadhana-upload-icons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin:1rem 0}
+.sadhana-upload-icons label{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.45rem;cursor:pointer;border:1px solid #d5deeb;border-radius:12px;background:#f2f7fc;padding:1rem .4rem;color:#193356;font-weight:650;text-align:center}
+.sadhana-upload-icons label:focus-within{outline:3px solid #c6a153}
+.sadhana-upload-icons label:has(input:disabled){opacity:.5;cursor:not-allowed}
+.sadhana-upload-icons input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+@media(max-width:520px){.sadhana-upload-icons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* v13.6.1: form-local materials and Design 1 controls */
+.sadhana-form-materials{grid-column:1/-1;border:1px solid #d8dfeb;border-radius:12px;padding:1rem;background:#fafcff}
+.sadhana-form-materials p{font-size:.86rem;color:#52647d;margin:.35rem 0}
+.sadhana-material-file{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.35rem 0;overflow-wrap:anywhere}
+.sv1276-hw-form button.sadhana-hw-primary{background:#142e50;color:#f0c76a;border:1px solid #b9974b;border-radius:10px;padding:.8rem 1.2rem;font-weight:700;cursor:pointer}
+.sv1276-hw-form button.sadhana-hw-secondary,.sv1276-hw-records button.sadhana-hw-secondary{background:#fffaf1;color:#203d64;border:1px solid #c8a45b;border-radius:10px;padding:.65rem 1rem;font-weight:650;cursor:pointer}
+.sv1276-hw-form button:disabled{opacity:.55;cursor:not-allowed}
+
+.sadhana-homework-image{display:block;max-width:100%;width:220px;max-height:180px;object-fit:contain;border:1px solid #d5deeb;border-radius:10px;background:#fff;padding:4px}
+.sadhana-homework-image:hover{outline:2px solid #bf9a48}
+
+/* v13.6.2 — scoped Homework visual cleanup; zero API or persistence changes */
+:where(.sv1276-teacher-homework,.sv1278-homework){--hw-navy:#173554;--hw-gold:#c7a257;--hw-ink:#22374f;--hw-line:#dfe6ef;--hw-soft:#f7f9fc;color:var(--hw-ink)}
+.sv1276-teacher-homework{max-width:1100px;margin-inline:auto;display:grid;gap:1rem}
+.sv1276-teacher-homework>.tw-section-head{margin-bottom:0}
+.sv1276-teacher-homework>p{margin:.1rem 0 .3rem;color:#576980;line-height:1.55}
+.sv1276-teacher-homework>.sv1276-hw-form{background:#fff;border:1px solid var(--hw-line);border-radius:16px;padding:clamp(1rem,2.2vw,1.5rem);box-shadow:0 4px 20px rgba(20,46,80,.045);gap:1rem}
+.sv1276-teacher-homework .sv1276-hw-form label{color:#293e55;font-weight:650}
+.sv1276-teacher-homework .sv1276-hw-form :is(input:not([type=file]),textarea){width:100%;border:1px solid #cbd6e3;border-radius:10px;background:#fff;padding:.75rem .85rem;color:#1d344d;min-height:43px;box-sizing:border-box}
+.sv1276-teacher-homework .sv1276-hw-form textarea{min-height:130px;resize:vertical;line-height:1.55}
+.sv1276-teacher-homework :is(input,textarea,button):focus-visible,.sv1278-homework :is(input,textarea,button):focus-visible{outline:3px solid rgba(199,162,87,.5);outline-offset:2px}
+.sv1276-teacher-homework .sadhana-form-materials{background:var(--hw-soft);border:1px dashed #b9c9dc;border-radius:12px;padding:1rem 1.2rem}
+.sv1276-teacher-homework .sadhana-upload-icons{grid-template-columns:minmax(0,220px);margin:.6rem 0}
+.sv1276-teacher-homework .sadhana-upload-icons label{min-height:86px;border:1px solid #c7a257;background:#fffdf8;transition:background .15s,border-color .15s}
+.sv1276-teacher-homework .sadhana-upload-icons label:hover{background:#f8f0df;border-color:#a68239}
+.sv1276-teacher-homework .sadhana-material-file{padding:.65rem .75rem;border:1px solid var(--hw-line);border-radius:10px;background:#fff}
+.sv1276-teacher-homework>h3{margin:.6rem 0 0;font-size:1.12rem;color:var(--hw-navy)}
+.sv1276-teacher-homework .sv1276-hw-records{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:.9rem}
+.sv1276-teacher-homework .sv1276-hw-records article{display:flex;flex-wrap:wrap;align-content:start;align-items:flex-start;gap:.55rem;padding:1.1rem;border:1px solid var(--hw-line);border-radius:14px;background:#fff;box-shadow:0 3px 12px rgba(20,46,80,.035)}
+.sv1276-teacher-homework .sv1276-hw-records article>strong{width:100%;color:var(--hw-navy);font-size:1.03rem;line-height:1.35}
+.sv1276-teacher-homework .sv1276-hw-records article>span{width:100%;color:#687b91;font-size:.86rem}
+.sv1276-teacher-homework .sv1276-hw-records article>p{width:100%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;color:#425872;margin:.3rem 0 .6rem}
+.sv1276-teacher-homework button:not(.tw-tabs button),.sv1278-homework button:not(.sv1278-assignment){appearance:none;border:1px solid #bda06b;background:#fffaf0;color:#173554;border-radius:10px;min-height:40px;padding:.62rem .95rem;font:inherit;font-size:.91rem;font-weight:680;line-height:1.2;cursor:pointer;transition:background .15s,transform .15s;box-shadow:none}
+.sv1276-teacher-homework button:not(:disabled):hover,.sv1278-homework button:not(:disabled):hover{background:#f5e8cc}
+.sv1276-teacher-homework button:disabled,.sv1278-homework button:disabled{opacity:.48;cursor:not-allowed}
+.sv1276-teacher-homework button.sadhana-hw-primary,.sv1278-homework .sv1278-editor footer button:last-child{background:#173554;color:#f9df9d;border-color:#173554}
+.sv1276-teacher-homework button.sadhana-hw-primary:hover,.sv1278-homework .sv1278-editor footer button:last-child:hover{background:#244c76}
+.sv1276-teacher-homework .sv1278-review{border:1px solid var(--hw-line);border-radius:15px;background:var(--hw-soft);padding:1rem;display:grid;gap:.8rem}
+.sv1276-teacher-homework .sv1278-review article{background:#fff;border:1px solid var(--hw-line);border-radius:12px;padding:1rem;display:grid;gap:.65rem}
+.sv1276-teacher-homework .sv1278-review article>p{margin:.2rem 0;white-space:pre-wrap}
+.sv1276-teacher-homework .sv1278-review article>ul,.sv1278-homework .sv1278-upload-note ul,.sadhana-homework-materials ul{list-style:none;padding:0;margin:.4rem 0;display:flex;flex-wrap:wrap;gap:.65rem}
+.sv1276-teacher-homework .sv1278-review article>ul li,.sv1278-homework .sv1278-upload-note ul li,.sadhana-homework-materials li{border:1px solid var(--hw-line,#dfe6ef);border-radius:10px;padding:.5rem;background:#fff;max-width:100%}
+.sadhana-homework-image{width:180px;height:140px;max-height:none;object-fit:cover}
+.sv1278-homework{max-width:1150px;margin-inline:auto}
+.sv1278-homework>p{color:#5e7188;line-height:1.5}
+.sv1278-homework .sv1278-assignment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:.85rem}
+.sv1278-homework .sv1278-assignment{text-align:left;border:1px solid var(--hw-line);border-radius:14px;background:#fff;padding:1.05rem;min-height:130px;box-shadow:0 3px 12px rgba(20,46,80,.035)}
+.sv1278-homework .sv1278-assignment.active{border-color:var(--hw-gold);box-shadow:0 0 0 2px rgba(199,162,87,.2)}
+.sv1278-homework .sv1278-editor{display:grid;gap:1rem}
+.sv1278-homework .sv1278-editor h3{color:var(--hw-navy);margin:0}
+.sv1278-homework .sv1278-editor :is(textarea,input[type=file]){max-width:100%;box-sizing:border-box}
+.sv1278-homework .sv1278-upload-note,.sv1278-homework .sadhana-homework-materials{background:var(--hw-soft);border:1px solid var(--hw-line);border-radius:12px;padding:1rem}
+.sv1278-homework .sv1278-editor footer{display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;justify-content:space-between;border-top:1px solid var(--hw-line);padding-top:1rem}
+.sv1278-homework .sv1278-editor footer>div{display:flex;gap:.6rem;flex-wrap:wrap}
+.sv1278-homework .sv1291-drawer{width:min(100%,720px);max-width:100vw}
+@media(max-width:640px){.sv1276-teacher-homework .sv1276-hw-records{grid-template-columns:1fr}.sv1276-teacher-homework .sv1276-hw-form{padding:.95rem}.sv1276-teacher-homework .sv1276-hw-records article>button{width:100%}.sv1278-homework .sv1278-editor footer>div{width:100%}.sv1278-homework .sv1278-editor footer>div button{flex:1}}
+
+/* v13.7 — Student Homework saved-state badges */
+.sv1278-homework .sv137-homework-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.65rem;width:100%;min-width:0}
+.sv1278-homework .sv137-homework-card-heading strong{flex:1;min-width:0;overflow-wrap:anywhere}
+.sv1278-homework .sv137-homework-status{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:62px;border:1px solid transparent;border-radius:999px;padding:.24rem .6rem;line-height:1.2;font-size:.73rem;font-weight:750;letter-spacing:.01em;white-space:nowrap}
+.sv1278-homework .sv137-homework-status--new{background:#fff2d6;border-color:#e9c477;color:#8a5606}
+.sv1278-homework .sv137-homework-status--draft{background:#eaf2ff;border-color:#b5ccef;color:#285b99}
+.sv1278-homework .sv137-homework-status--submitted{background:#e4f5e9;border-color:#9cd3ac;color:#246b3c}
+.sv1278-homework .sv137-homework-status--closed{background:#edf0f4;border-color:#c9d0d9;color:#556171}

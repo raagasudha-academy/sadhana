@@ -1,4 +1,5 @@
 import {readPracticeComments} from './practiceFeedback.ts';
+import {isWithinPracticeWindow} from './practiceWindow.ts';
 /** Learner-only endpoints backed by individually approved account/student links. */
 import {randomUUID} from 'node:crypto';
 import {GetCommand,QueryCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
@@ -51,21 +52,26 @@ export async function learnerDashboard(instRaw:string,claims:Claims,studentId:st
  const counted=marks.filter(a=>['present','late','absent'].includes(a.status));
  const attended=counted.filter(a=>a.status==='present'||a.status==='late').length;
  const nextSessions=schedule.filter(s=>s.recordType==='class-session'&&typeof s.date==='string'&&s.date>=ukToday()&&memberships.some(e=>e.classId===s.classId&&e.startDate<=s.date&&(!e.endDate||s.date<=e.endDate))).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.startTime||'').localeCompare(String(b.startTime||''))).slice(0,5).map(s=>({sessionId:s.id,classId:s.classId,className:classNames.get(s.classId)||'Class',date:s.date,startTime:s.startTime||'',intention:rsvps.find(r=>r.studentId===studentId&&r.sessionId===s.id)?.intention||'unknown'}));
- return {student:{id:student.id,name:student.name,rollNumber:student.rollNumber||''},classes:currentClasses,nextSessions,practice:ownPractice,attendance:{marks,byClass,attended,counted:counted.length,percent:counted.length?Math.round(100*attended/counted.length):null}};
+ // v13.7.8 approved-enrolment calendar feed: include historical dates, not just five upcoming sessions.
+ const calendarSessions=schedule.filter(s=>s.recordType==='class-session'&&typeof s.date==='string'&&dateOK(s.date)&&
+   memberships.some(e=>e.classId===s.classId&&e.startDate<=s.date&&(!e.endDate||s.date<=e.endDate)))
+  .sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.startTime||'').localeCompare(String(b.startTime||'')))
+  .map(s=>({sessionId:s.id,classId:s.classId,className:classNames.get(s.classId)||'Class',date:s.date,startTime:s.startTime||'',intention:rsvps.find(r=>r.studentId===studentId&&r.sessionId===s.id)?.intention||'unknown'}));
+ return {student:{id:student.id,name:student.name,rollNumber:student.rollNumber||''},classes:currentClasses,nextSessions,calendarSessions,practice:ownPractice,attendance:{marks,byClass,attended,counted:counted.length,percent:counted.length?Math.round(100*attended/counted.length):null}};
 }
 export async function saveLearnerPractice(instRaw:string,claims:Claims,studentId:string,body:any,practiceId?:string){
  const inst=validInst(instRaw);await authorised(inst,claims,studentId);
  const allowed=['classId','date','minutes','topic','comments','expectedVersion'];
  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!allowed.includes(k)))throw httpError(400,'Unexpected practice data');
  const {classId,date,minutes,topic,comments,expectedVersion}=body;
- if(typeof classId!=='string'||!/^CLASS-[a-z0-9-]+$/i.test(classId)||!dateOK(date)||date>ukToday()||!Number.isInteger(minutes)||minutes<1||minutes>1440||typeof topic!=='string'||!topic.trim()||topic.length>200||typeof comments!=='string'||comments.length>1500)throw httpError(400,'Enter date, class, duration, topic and notes');
+ if(typeof classId!=='string'||!/^CLASS-[a-z0-9-]+$/i.test(classId)||!dateOK(date)||!isWithinPracticeWindow(date)||!Number.isInteger(minutes)||minutes<1||minutes>1440||typeof topic!=='string'||!topic.trim()||topic.length>200||typeof comments!=='string'||comments.length>1500)throw httpError(400,'Enter date, class, duration, topic and notes');
  const memberships=await enrolled(inst,studentId);
  if(!memberships.some(e=>e.classId===classId&&e.startDate<=date&&(!e.endDate||date<=e.endDate)))throw httpError(403,'Student was not enrolled in this class on that date');
  const existing=await records(`OPS#${inst}#PRACTICE`);
  const old=practiceId?existing.find(p=>p.id===practiceId&&p.studentId===studentId):null;
  if(practiceId&&!old)throw httpError(404,'Your practice entry was not found');
  if(old&&(!Number.isInteger(expectedVersion)||old.version!==expectedVersion))throw httpError(409,'Practice changed; refresh before editing');
- if(old&&old.date<ukToday())throw httpError(409,'Practice date has passed; corrections are locked');
+ if(old&&!isWithinPracticeWindow(old.date))throw httpError(409,'The seven-day practice correction window has closed');
  if(old&&(await readPracticeComments(inst,old.id)).length)throw httpError(409,'Teacher has reviewed this practice; corrections are locked');
  if(old&&(old.date!==date||old.classId!==classId))throw httpError(409,'Date/class cannot be changed on an existing entry');
  if(existing.some(p=>p.id!==practiceId&&p.studentId===studentId&&p.classId===classId&&p.date===date))throw httpError(409,'Practice already recorded for this class and date');

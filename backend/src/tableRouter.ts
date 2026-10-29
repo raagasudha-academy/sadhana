@@ -11,6 +11,7 @@ export function domainForPK(pk:string,sk=''):Domain {
  if(pk.startsWith('TEACHER_REGISTRY')||pk.startsWith('TEACHER_SUB#'))return 'admin';
  if(pk.startsWith('ACCESS_REQUEST#')||pk.startsWith('ACCESS#'))return 'admin';
  if(/^OPS#(?:sruti|raaga)#HOMEWORK(?:_COMPLETION)?$/.test(pk))return 'learning';
+ if(/^OPS#(?:sruti|raaga)#HOMEWORK_MATERIAL$/.test(pk))return 'learning';
  if(/^OPS#(?:sruti|raaga)#HOMEWORK_SUBMISSION#HOMEWORK-[0-9a-f-]{36}$/i.test(pk))return 'learning';
  if(pk.startsWith('AUDIT#'))return 'audit';
  if(pk==='OPS#raaga#COUNTERS')return 'students';

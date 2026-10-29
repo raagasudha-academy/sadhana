@@ -1,0 +1,29 @@
+/* Sadhana 13.7.6 — student practice visual refinement */
+.sv1276-learner .v1376-practice-page {display:block;max-width:1100px;margin:12px auto;background:#fff;border:1px solid #dce4ee;border-radius:16px;padding:clamp(18px,2.5vw,28px);box-shadow:0 8px 25px rgba(20,44,77,.035)}
+.v1376-practice-heading{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6ecf4;padding-bottom:17px;margin-bottom:20px}
+.v1376-practice-heading h3{font-size:20px;margin:0 0 4px;color:#172d4b;line-height:1.25}
+.v1376-practice-heading p{color:#657893;font-size:13px;margin:0}
+.sv1276-learner .v1376-practice-page .sv1276-practice-form{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));align-items:end;gap:16px;margin:0;padding:0;border:0;background:transparent;max-width:none}
+.v1376-practice-page .sv1276-practice-form>label{display:flex;flex-direction:column;gap:7px;margin:0;min-width:0;font-size:13px;font-weight:650;color:#263b58}
+.v1376-practice-page .sv1276-practice-form>label:nth-of-type(1){grid-column:span 5}
+.v1376-practice-page .sv1276-practice-form>label:nth-of-type(2){grid-column:span 4}
+.v1376-practice-page .sv1276-practice-form>label:nth-of-type(3){grid-column:span 3}
+.v1376-practice-page .sv1276-practice-form>label:nth-of-type(4){grid-column:span 6}
+.v1376-practice-page .sv1276-practice-form>label:nth-of-type(5){grid-column:span 6}
+.v1376-practice-page .sv1276-practice-form :is(input,select,textarea){box-sizing:border-box;width:100%;min-width:0;height:44px;min-height:44px;border:1px solid #ccd9e9;border-radius:9px;padding:9px 12px;font:inherit;color:#243b5c;background:#fff}
+.v1376-practice-page .sv1276-practice-form textarea{height:44px;resize:vertical}
+.v1376-practice-page .sv1276-practice-form>button[type=submit]{grid-column:1 / -1;justify-self:start;min-height:42px;width:auto;max-width:100%;padding:10px 22px;margin:2px 0 0;background:#183454;border:1px solid #bd9a55;color:#f8dc91;border-radius:9px;font-size:13px;font-weight:700;box-shadow:none}
+.v1376-practice-page .sv1276-practice-form>button[type=button]{grid-column:span 3;justify-self:start;min-height:40px;padding:9px 14px;width:auto;margin:0;border-radius:9px;border:1px solid #c6d4e5;background:#fff;color:#234061}
+.v1376-practice-recording{margin-top:18px;background:#f7f9fc;border:1px solid #dfe7f1;border-radius:10px;padding:12px 16px;color:#344b69}
+.v1376-practice-recording summary{font-size:13px;font-weight:650;cursor:pointer;list-style:auto}
+.v1376-practice-recording .sv125-upload{display:flex;flex-direction:column;gap:8px;margin-top:12px;font-size:12px;background:transparent;border:0;padding:0;max-width:390px}
+.v1376-practice-recording input[type=file]{font-size:12px;max-width:100%}
+.v1376-practice-history-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:28px 0 12px}
+.v1376-practice-history-head h3{margin:0;font-size:17px;color:#1c3454}
+.v1376-practice-history-head span{font-size:12px;color:#72849c}
+.v1376-practice-page .access-table-wrap{margin-top:0;border:1px solid #dfe7f1;border-radius:12px;overflow:auto}
+.v1376-practice-page .access-table-wrap table{width:100%;border-collapse:collapse}
+.v1376-practice-page .access-table-wrap th{background:#f4f7fb;color:#657995;text-transform:uppercase;letter-spacing:.045em;font-size:11px;font-weight:700;text-align:left;padding:14px 16px}
+.v1376-practice-page .access-table-wrap td{padding:13px 16px;border-top:1px solid #e8eef5;color:#334965;font-size:13px}
+.v1376-practice-page .access-table-wrap button{border:1px solid #c2a06a;color:#193b5e;background:#fffaf1;border-radius:8px;padding:7px 12px;min-height:34px;font-size:12px;font-weight:650;cursor:pointer}
+@media(max-width:760px){.sv1276-learner .v1376-practice-page{padding:16px}.v1376-practice-page .sv1276-practice-form>label:nth-of-type(n){grid-column:1/-1}.v1376-practice-page .sv1276-practice-form>button[type=button]{grid-column:1/-1}.v1376-practice-history-head{align-items:flex-start;flex-direction:column}}

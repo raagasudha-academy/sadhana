@@ -1,0 +1,36 @@
+/* v13.6.1: first approved Sadhana mockup. Presentation only; no auth changes. */
+.auth-v1361.auth-shell{grid-template-columns:minmax(340px, .94fr) minmax(420px,1.06fr);background:#fbfcfe}
+.auth-v1361 .auth-brand-panel{background:linear-gradient(145deg,#112844 0%,#132b4d 65%,#1b3658 100%);padding:clamp(30px,4.5vw,72px);align-items:center;justify-content:space-between;gap:28px;position:relative;overflow:hidden}
+.auth-v1361 .auth-brand-panel:before{content:"";position:absolute;width:min(70vw,720px);aspect-ratio:1;border:1px solid rgba(217,179,112,.09);border-radius:50%;left:50%;top:0;transform:translate(-50%,-36%);pointer-events:none}
+.auth-v1361 .auth-brand-center{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:18px;width:100%;min-height:290px;position:relative}
+.auth-v1361 .auth-brand-large{display:grid;place-items:center;width:clamp(180px,19vw,260px);height:clamp(180px,19vw,260px)}
+.auth-v1361 .auth-brand-large img{width:100%!important;height:100%!important;max-width:none!important;object-fit:contain}
+.auth-v1361 .auth-brand-subtitle{margin:0;font-size:clamp(10px,1vw,13px);font-weight:650;letter-spacing:.27em;text-align:center;color:#e7edf5}
+.auth-v1361 .auth-brand-programmes{position:relative;width:min(100%,520px);display:flex;justify-content:center;align-items:center;gap:clamp(12px,2vw,30px);padding:24px 0 0;border-top:1px solid rgba(231,237,245,.20)}
+.auth-v1361 .auth-brand-programmes span{display:flex;align-items:center;gap:10px;flex:1;min-width:0;font-size:12px;line-height:1.4;color:#e9eef8}
+.auth-v1361 .auth-brand-programmes .auth-academy-emblem{width:42px;height:42px;object-fit:contain;flex-shrink:0}
+.auth-v1361 .auth-signin-panel{padding:clamp(24px,5vw,72px);min-width:0}
+.auth-v1361 .auth-signin-panel .auth-card{width:min(440px,100%);padding:0;gap:18px;background:none;box-shadow:none;border:0}
+.auth-v1361 .auth-signin-panel .auth-card-heading{align-items:flex-start;text-align:left;margin:0 0 12px;gap:13px}
+.auth-v1361 .auth-signin-panel .auth-card-heading h1{font-family:Georgia,serif;font-size:clamp(30px,3vw,40px);font-weight:700;letter-spacing:-.5px;text-align:left;color:#182e4b}
+.auth-v1361 .auth-signin-panel .auth-primary{min-height:50px;background:#142d4c;border-radius:8px;color:white}
+.auth-v1361 .auth-signin-panel .auth-primary:hover{background:#214267}
+.auth-v1361 .auth-signin-panel .password-field{font-weight:600;color:#263a53}
+.auth-v1361 .auth-signin-panel .password-field input{min-height:46px;border-radius:9px}
+.auth-v1361 .auth-signin-panel .auth-card--signedout{align-items:center;text-align:center;gap:16px}
+.auth-v1361 .auth-card--signedout .auth-card-heading{align-items:center;text-align:center;gap:16px;margin-bottom:0}
+.auth-v1361 .auth-card--signedout .auth-card-heading h1{text-align:center}
+.auth-v1361 .auth-card--signedout .auth-illustration{width:64px;height:64px;border-radius:50%;background:#e7f3e8;color:#337753}
+.auth-v1361 .auth-card--signedout>p{text-align:center;margin:0}
+.auth-v1361 .auth-card--signedout>.auth-primary{width:min(300px,100%)}
+@media(max-width:760px){
+ .auth-v1361.auth-shell{grid-template-columns:1fr}
+ .auth-v1361 .auth-brand-panel{min-height:0;padding:25px 20px 20px;gap:12px}
+ .auth-v1361 .auth-brand-center{min-height:0;gap:5px}
+ .auth-v1361 .auth-brand-large{width:120px;height:120px}
+ .auth-v1361 .auth-brand-subtitle{font-size:9px;letter-spacing:.17em}
+ .auth-v1361 .auth-brand-programmes{display:none}
+ .auth-v1361 .auth-signin-panel{padding:40px 24px}
+ .auth-v1361 .auth-signin-panel .auth-card{padding:0}
+}
+@media(prefers-reduced-motion:reduce){.auth-v1361 *{scroll-behavior:auto}}

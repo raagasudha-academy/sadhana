@@ -168,6 +168,10 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
  const selectedInstitution=workspace==='sruti'||workspace==='raaga'?workspace:institution;
  const [teachers,setTeachers]=useState<any[]>([]);
  const [teacherId,setTeacherId]=useState('');
+ // v13.7.7 teacher calendar verified identity
+ const [calendarTeacherIdentity,setCalendarTeacherIdentity]=useState<{linked:boolean;teacherId?:string}|null>(null);
+ const [calendarIdentityLoading,setCalendarIdentityLoading]=useState(false);
+ const [calendarIdentityError,setCalendarIdentityError]=useState('');
  const [teacherPickerOpen,setTeacherPickerOpen]=useState(false);
  const [editing,setEditing]=useState<any>(null);
  const [name,setName]=useState('');const [programme,setProgramme]=useState('');const [eventKind,setEventKind]=useState('recurring');
@@ -181,13 +185,30 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
  const [mode,setMode]=useState('In person');const [venueId,setVenueId]=useState('');
  const [error,setError]=useState('');const [busy,setBusy]=useState(false);
  const [venueRows,setVenueRows]=useState<any[]>([]);
+ useEffect(()=>{
+  if(!isTeacher||!openRequest||!cloud||!selectedInstitution){
+   setCalendarTeacherIdentity(null);setCalendarIdentityLoading(false);setCalendarIdentityError('');return;
+  }
+  let active=true;
+  setCalendarTeacherIdentity(null);setCalendarIdentityLoading(true);setCalendarIdentityError('');
+  void cloud.api.myTeacherIdentity(selectedInstitution).then((identity:{linked:boolean;teacherId?:string})=>{
+   if(!active)return;
+   setCalendarTeacherIdentity(identity);
+   if(identity.linked&&identity.teacherId)setTeacherId(identity.teacherId);
+   else setCalendarIdentityError('Your login is not linked to an active registered teacher for this academy.');
+  }).catch((error:unknown)=>{
+   if(active){setCalendarTeacherIdentity(null);setCalendarIdentityError(error instanceof Error?error.message:'Unable to verify teacher identity.');}
+  }).finally(()=>{if(active)setCalendarIdentityLoading(false);});
+  return()=>{active=false;};
+ },[isTeacher,openRequest,cloud?.api,cloud?.staff.subject,selectedInstitution]);
+
  useEffect(()=>{if(!openRequest||!cloud)return;const directoryInstitution=selectedInstitution||(sharedEvent?allowed[0]:'');if(!directoryInstitution)return;let active=true;
   cloud.api.listTeachers(directoryInstitution).then((r:any)=>{if(active)setTeachers(r.records.filter((t:any)=>t.active));}).catch((e:Error)=>{if(active)setError(e.message);});
   cloud.api.list('venues',directoryInstitution).then((r:any)=>{if(active)setVenueRows(r.records||[]);}).catch((e:Error)=>{if(active)setError(e.message);});
   return()=>{active=false;};
  },[cloud?.api,selectedInstitution,sharedEvent,openRequest]);
  useEffect(()=>{if(!openRequest)return;const entry=openRequest.record||null;
-  setEditing(entry);setInstitution(entry?.institution||'');setName(entry?.name||'');setProgramme(entry?.eventKind==='event'?'Event':entry?.programme||(!entry&&workspace==='raaga'?'Singing':!entry&&workspace==='sruti'?'Vedam':''));setEventKind(entry?.eventKind||(!entry?'recurring':entry?.programme==='Event'?'event':'class'));setRecurringUntil('');setRepeatFrequency('weekly');setRepeatInterval(1);setRepeatEndMode('date');setRepeatCount(12);setRepeatDays([new Date(`${entry?.date||ukToday().toISOString().slice(0,10)}T12:00:00Z`).getUTCDay()]);setRecurringPreview(null);
+  setEditing(entry);setInstitution(entry?.institution||'');setName(entry?.name||'');setProgramme(entry?.eventKind==='event'?'Event':entry?.programme||(!entry&&workspace==='raaga'?'Singing':!entry&&workspace==='sruti'?'Vedam':''));setEventKind(entry?.eventKind||(!entry?(isTeacher?'class':'recurring'):entry?.programme==='Event'?'event':'class'));setRecurringUntil('');setRepeatFrequency('weekly');setRepeatInterval(1);setRepeatEndMode('date');setRepeatCount(12);setRepeatDays([new Date(`${entry?.date||ukToday().toISOString().slice(0,10)}T12:00:00Z`).getUTCDay()]);setRecurringPreview(null);
   setDate(entry?.date||ukToday().toISOString().slice(0,10));setStartTime(entry?.startTime||'10:00');
   setEndTime(entry?.endTime||'11:00');setMode(entry?.mode||'In person');setVenueId(entry?.venueId||'');
   setTeacherId(entry?.teacherId||'');setTeacherPickerOpen(false);setError('');
@@ -212,7 +233,11 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
    if(!['In person','Online'].includes(mode))throw Error('Choose a delivery mode.');
    if(!isTeacher&&!teacherId)throw Error('Choose a registered teacher.');
    if(!isTeacher&&!teachers.some((t:any)=>t.id===teacherId))throw Error('Choose an active teacher from the directory.');
-   if(isTeacher&&!teachers.some((t:any)=>t.cognitoSub===cloud.staff.subject)&&!editing?.teacherId)throw Error('Your login must be linked to a registered teacher.');
+   if(isTeacher){
+    if(calendarIdentityLoading)throw Error('Teacher identity verification is still in progress.');
+    if(!calendarTeacherIdentity?.linked||!calendarTeacherIdentity.teacherId)throw Error(calendarIdentityError||'Your login must be linked to an active registered teacher.');
+    if(editing?.teacherId&&editing.teacherId!==calendarTeacherIdentity.teacherId)throw Error('You cannot modify a calendar entry assigned to another teacher.');
+   }
   }
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z')))throw Error('Choose a valid class or event date.');
   if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)||endTime<=startTime)throw Error('Choose a start and end time; the end must be later than the start.');
@@ -495,7 +520,17 @@ function Timetable({ workspace, isTeacher, classView, setClassView, onSession, c
   const lifecycleByClass=new Map(classes.map((c:any)=>[c.id,c.lifecycleStatus||'active']));
   const currentUkDate=ukToday().toISOString().slice(0,10);
   const activeCalendarRecords=records.filter((r:any)=>{
-    if(isTeacher&&!classes.some((c:any)=>c.id===(r.recordType==='class'?r.id:r.classId)))return false;
+    // v13.7.7 teacher-owned standalone calendar visibility
+    if(isTeacher){
+      const linkedToAssignedMaster=classes.some((c:any)=>c.id===(r.recordType==='class'?r.id:r.classId));
+      // Standalone dated classes do not have a master classId. They are visible
+      // ONLY when the backend record is explicitly attributed to this login's
+      // verified teacher registry ID. Never infer ownership from the name.
+      const ownStandalone=!!r.managedEvent && !r.classId &&
+        assignedTeacherIds.includes(String(r.teacherId||'')) &&
+        insts.includes(r.institution);
+      if(!linkedToAssignedMaster&&!ownStandalone)return false;
+    }
     if(!r.classId)return true;
     const state=lifecycleByClass.get(r.classId);
     return state!=='archived'||(r.date&&r.date<currentUkDate);
@@ -699,10 +734,53 @@ function CommsPage({ workspace }: any) {
   return <><PageHeader kicker="COMMUNICATIONS" title="Communications" description="A future home for WhatsApp delivery records, announcements and failed messages."/><div className="feature-grid"><section className="surface feature-card"><div className="feature-icon"><MessageCircle size={22}/></div><h2>Message history</h2><p>Review sent, delivered and failed messages for your institution.</p><Pill>Phase 5</Pill></section><section className="surface feature-card"><div className="feature-icon"><CircleAlert size={22}/></div><h2>Failed messages</h2><p>Investigate failures and choose whether to resend manually.</p><Pill>Phase 5</Pill></section><section className="surface feature-card"><div className="feature-icon"><ShieldCheck size={22}/></div><h2>Contact preferences</h2><p>Institution-specific announcement permissions and Reminder Service status.</p><Pill>Phase 5</Pill></section></div><div className="info-inline"><Info size={17}/> No WhatsApp messages can be sent from Sadhana at this stage. Existing Charu messaging is completely untouched.</div></>;
 }
 function SettingsPage({ workspace }: any) { const sections=[{title:'Practice reminders',text:'7:00 PM UK default; individual overrides preserved.'},{title:'Practice alerts',text:'Low practice below 50%; missing submissions 2 expected days.'},{title:'Attendance reminders',text:'Exactly 24 hours before each class starts.'},{title:'Reporting',text:'Sunday 10:00 AM UK institution summary; 30 minutes before class teacher report.'},{title:'Online classes',text:'Links managed externally and not stored in Sadhana.'},{title:'Audit history',text:'Important changes and report exports will be logged.'}]; return <><PageHeader kicker="INSTITUTION SETTINGS" title={`${institutions[workspace].name} settings`} description="Agreed defaults, for reference in this frontend preview."/><div className="settings-grid">{sections.map(s=><section className="surface setting-card" key={s.title}><div className="setting-icon"><Settings2 size={18}/></div><strong>{s.title}</strong><p>{s.text}</p></section>)}</div><div className="info-inline"><Info size={17}/> These are descriptive placeholders. Editing and saving settings will be added after a secure backend is connected.</div></>; }
-function ProfileScreen({ student, classItem, activeTab, setTab, onBack, enrolments, members, onEnrolFromClass, onEditClass, onDeleteClass, isTeacher }: any) {
+function ProfileScreen({ student, classItem, activeTab, setTab, onBack, enrolments, members, onEnrolFromClass, onEditClass, onDeleteClass, isTeacher, cloud }: any) {
   const isStudent=!!student; const tabs=isStudent?['Overview','Classes','Practice','Attendance','Notes']:['Overview','Students','Schedule','Practice','RSVPs'];
   const item=student||classItem;
-  return <><button className="back-link" onClick={onBack}><ChevronLeft size={16}/> Back to {isStudent?'students':'classes'}</button><PageHeader kicker={isStudent? 'STUDENT PROFILE':'CLASS PROFILE'} title={item.name} description={isStudent?`${item.id} · ${institutions[item.institution].name} · Institution-specific profile`:`${item.id} · ${institutions[item.institution].name} · ${item.teacher}`} right={<div className="class-toolbar-actions"><Pill tone={isStudent&&item.status==='Upcoming'?'violet':'green'}>{isStudent?item.status:'Regular class'}</Pill>{!isStudent&&!isTeacher&&<><button className="reg-secondary" onClick={()=>onEditClass(item)}><CalendarDays size={15}/> Edit class</button><button className="reg-danger" onClick={()=>onDeleteClass(item)}><Trash2 size={15}/> Delete / archive</button></>}</div>}/><section className="surface profile-screen"><div className="tablist profile-tabs" role="tablist">{tabs.map(t=><button key={t} role="tab" aria-selected={t===activeTab} className={`tab ${t===activeTab?'active':''}`} onClick={()=>setTab(t)}>{t}</button>)}</div><div className="profile-body">{isStudent ? <StudentTab item={item} tab={activeTab}/> : <ClassTab item={item} tab={activeTab} enrolments={enrolments} members={members} onEnrolFromClass={onEnrolFromClass} isTeacher={isTeacher}/>}</div></section></>;
+  /* v13.7.4 live calendar roster */
+  const masterClassId=String(classItem?.classId||classItem?.original?.classId||(String(classItem?.id||'').startsWith('CLASS-')?classItem.id:'')||'');
+  const [liveRoster,setLiveRoster]=useState<any[]>([]);
+  /* v13.7.5 calendar session RSVP */
+  const [sessionRsvps,setSessionRsvps]=useState<any[]>([]);
+  const [sessionAttendance,setSessionAttendance]=useState<any[]>([]);
+  const [sessionStatusBusy,setSessionStatusBusy]=useState(false);
+  const [sessionStatusError,setSessionStatusError]=useState('');
+  useEffect(()=>{
+    if(!classItem||!cloud?.api)return;
+    let active=true;
+    setSessionRsvps([]);setSessionAttendance([]);setSessionStatusBusy(true);setSessionStatusError('');
+    Promise.all([
+      cloud.api.listOperations('rsvp',classItem.institution),
+      cloud.api.listOperations('attendance',classItem.institution)
+    ]).then(([rsvpResult,attendanceResult]:any[])=>{
+      if(!active)return;
+      setSessionRsvps(rsvpResult.records||[]);
+      setSessionAttendance(attendanceResult.records||[]);
+    }).catch((e:any)=>{if(active)setSessionStatusError(e instanceof Error?e.message:'Unable to load session responses')})
+      .finally(()=>{if(active)setSessionStatusBusy(false)});
+    return()=>{active=false};
+  },[cloud?.api,classItem?.institution,classItem?.id]);
+
+  const [rosterBusy,setRosterBusy]=useState(false);
+  const [rosterError,setRosterError]=useState('');
+  useEffect(()=>{
+    if(!classItem||!cloud?.api)return;
+    let active=true;setRosterBusy(true);setRosterError('');setLiveRoster([]);
+    if(!masterClassId){setRosterError('Calendar event has no master class link.');setRosterBusy(false);return;}
+    Promise.all([cloud.api.listOperations('enrolment',classItem.institution),cloud.api.listOperations('student',classItem.institution)])
+      .then(([en,st]:any[])=>{
+        if(!active)return;
+        const students=new Map<string,any>((st.records||[]).filter((r:any)=>!r.archived).map((r:any)=>[r.id,r]));
+        const rows=(en.records||[]).filter((e:any)=>e.classId===masterClassId&&!e.archived&&students.has(e.studentId)).map((e:any)=>{
+          const student=students.get(e.studentId);return {id:e.studentId,name:student.name||'Student',rollNumber:student.rollNumber||'',status:getEnrolmentStatus(e)};
+        });
+        setLiveRoster(Array.from(new Map<string,any>(rows.map((r:any)=>[r.id,r])).values()).sort((a:any,b:any)=>String(a.rollNumber||a.name).localeCompare(String(b.rollNumber||b.name))));
+      }).catch((e:any)=>{if(active)setRosterError(e instanceof Error?e.message:'Unable to load roster')})
+      .finally(()=>{if(active)setRosterBusy(false)});
+    return()=>{active=false};
+  },[cloud?.api,classItem?.institution,masterClassId]);
+
+  return <><button className="back-link" onClick={onBack}><ChevronLeft size={16}/> Back to {isStudent?'students':'classes'}</button><PageHeader kicker={isStudent? 'STUDENT PROFILE':'CLASS PROFILE'} title={item.name} description={isStudent?`${item.id} · ${institutions[item.institution].name} · Institution-specific profile`:`${item.id} · ${institutions[item.institution].name} · ${item.teacher}`} right={<div className="class-toolbar-actions"><Pill tone={isStudent&&item.status==='Upcoming'?'violet':'green'}>{isStudent?item.status:'Regular class'}</Pill>{!isStudent&&!isTeacher&&<><button className="reg-secondary" onClick={()=>onEditClass(item)}><CalendarDays size={15}/> Edit class</button><button className="reg-danger" onClick={()=>onDeleteClass(item)}><Trash2 size={15}/> Delete / archive</button></>}</div>}/><section className="surface profile-screen"><div className="tablist profile-tabs" role="tablist">{tabs.map(t=><button key={t} role="tab" aria-selected={t===activeTab} className={`tab ${t===activeTab?'active':''}`} onClick={()=>setTab(t)}>{t}</button>)}</div><div className="profile-body">{isStudent ? <StudentTab item={item} tab={activeTab}/> : <ClassTab item={item} tab={activeTab} enrolments={enrolments} members={members} onEnrolFromClass={onEnrolFromClass} isTeacher={isTeacher} liveRoster={liveRoster} rosterBusy={rosterBusy} rosterError={rosterError} useLiveRoster={!!cloud?.api} sessionRsvps={sessionRsvps} sessionAttendance={sessionAttendance} sessionStatusBusy={sessionStatusBusy} sessionStatusError={sessionStatusError}/>}</div></section></>;
 }
 function InfoRow({ name, children }: any) { return <div className="info-row"><span>{name}</span><strong>{children}</strong></div>; }
 function StudentTab({ item, tab }: any) {
@@ -713,13 +791,27 @@ function StudentTab({ item, tab }: any) {
   if(tab==='Attendance') return <><h2>Attendance RSVPs</h2><div className="detail-card"><ClipboardCheck size={18}/><div><strong>Intended attendance</strong><p>Session-by-session RSVP history will appear here after integration.</p></div></div></>;
   return <><h2>Internal teacher notes</h2><p className="muted">Only authorised institution staff will be able to view these records.</p>{item.notes.length?item.notes.map((n,i)=><div className="note-card" key={i}><div className="note-head"><strong>{n.by}</strong><Pill>{n.status}</Pill></div><p>{n.text}</p><span>{n.date} · note</span></div>):<EmptyState title="No notes" detail="Teacher notes will be created in a later phase."/>}</>;
 }
-function ClassTab({item,tab,enrolments=[],members=[],onEnrolFromClass,isTeacher}: any) {
+function ClassTab({item,tab,enrolments=[],members=[],onEnrolFromClass,isTeacher,liveRoster=[],rosterBusy=false,rosterError="",useLiveRoster=false,sessionRsvps=[],sessionAttendance=[],sessionStatusBusy=false,sessionStatusError=""}: any) {
   const enrolled=enrolments.filter(e=>e.institution===item.institution&&e.classId===item.id&&getEnrolmentStatus(e)!=='Archived').map(e=>({id:e.studentId, name:members.find(m=>m.id===e.studentId)?.name || e.studentId, status:getEnrolmentStatus(e), initials:(members.find(m=>m.id===e.studentId)?.name||'ST').split(' ').map(x=>x[0]).slice(0,2).join('')}));
-  if(tab==='Overview') return <div className="profile-two"><div><h2>Class details</h2><InfoRow name="Teacher">{item.teacher}</InfoRow><InfoRow name="Delivery">{item.mode}</InfoRow><InfoRow name="Venue">{item.venue}</InfoRow><InfoRow name="Schedule">{dayLabel[item.day]} · {displayTime(item.time)}</InfoRow><InfoRow name="Class dates">{item.startDate || "Original schedule"} — {item.endDate || "Ongoing"}</InfoRow><InfoRow name="Students">{enrolled.length} enrolled</InfoRow></div><div className="profile-highlight"><h3>Class performance</h3><div className="profile-metrics"><div><strong>{item.rate==null?'—':`${item.rate}%`}</strong><span>Practice Rate</span></div><div><strong>{item.submission==null?'—':`${item.submission}%`}</strong><span>Submissions</span></div></div><p>Class performance will appear when practice data is connected.</p></div></div>;
-  if(tab==='Students') return <><div className="reg-section-head"><h2>Enrolled students</h2>{!isTeacher && <button className="reg-primary" onClick={()=>onEnrolFromClass(item.id)}><Plus size={16}/> Enrol existing student</button>}</div><div className="profile-student-list">{enrolled.map(s=><div key={s.id}><span className="avatar avatar-small">{s.initials}</span><strong>{s.name}</strong><Pill tone={s.status==='Upcoming'?'violet':'green'}>{s.status}</Pill></div>)}</div><p className="muted">Future enrolments appear as Upcoming until their start date.</p></>;
+  const currentRoster=useLiveRoster?liveRoster:enrolled;
+  const rosterNotice=rosterBusy?'Loading current enrolments…':rosterError?'Unable to load roster: '+rosterError:'';
+  if(tab==='Overview') return <div className="profile-two"><div><h2>Class details</h2><InfoRow name="Teacher">{item.teacher}</InfoRow><InfoRow name="Delivery">{item.mode}</InfoRow><InfoRow name="Venue">{item.venue}</InfoRow><InfoRow name="Schedule">{dayLabel[item.day]} · {displayTime(item.time)}</InfoRow><InfoRow name="Class dates">{item.startDate || "Original schedule"} — {item.endDate || "Ongoing"}</InfoRow><InfoRow name="Students">{rosterBusy?'Loading…':rosterError?'Unavailable':currentRoster.length+' enrolled'}</InfoRow></div><div className="profile-highlight"><h3>Class performance</h3><div className="profile-metrics"><div><strong>{item.rate==null?'—':`${item.rate}%`}</strong><span>Practice Rate</span></div><div><strong>{item.submission==null?'—':`${item.submission}%`}</strong><span>Submissions</span></div></div><p>Class performance will appear when practice data is connected.</p></div></div>;
+  if(tab==='Students') return <><div className="reg-section-head"><h2>Enrolled students</h2>{!isTeacher && String(item.id).startsWith('CLASS-') && <button className="reg-primary" onClick={()=>onEnrolFromClass(item.id)}><Plus size={16}/> Enrol existing student</button>}</div>{rosterNotice&&<p role="status">{rosterNotice}</p>}<div className="profile-student-list">{currentRoster.map((s:any)=><div key={s.id}><span className="avatar avatar-small">{s.name.split(' ').map((x:string)=>x[0]).slice(0,2).join('')}</span><strong>{s.name}</strong><Pill tone={s.status==='Upcoming'?'violet':'green'}>{s.status}</Pill></div>)}</div><p className="muted">Future enrolments appear as Upcoming until their start date.</p></>;
   if(tab==='Schedule') return <><h2>Recurring timetable</h2><div className="detail-card"><CalendarDays size={20}/><div><strong>{dayLabel[item.day]} at {displayTime(item.time)} UK time</strong><p>{item.duration} minutes · {item.mode} · {item.venue}</p></div></div><p className="muted">Individual class exceptions, holidays and session history will be connected later.</p></>;
   if(tab==='Practice') return <><h2>Class practice</h2><div className="profile-metrics larger"><div><strong>{item.rate==null?'—':`${item.rate}%`}</strong><span>Practice Rate</span></div><div><strong>{item.submission==null?'—':`${item.submission}%`}</strong><span>Submission Rate</span></div></div><p className="muted">Student-level trends are planned for the live reports phase.</p></>;
-  return <><h2>Attendance RSVPs</h2><div className="detail-card"><ClipboardCheck size={20}/><div><strong>Class attendance intention</strong><p>Confirmed Attending, Confirmed Absent and Assumed Attending will display here.</p></div></div></>;
+  const sessionId=String(item.id||'');
+  const rsvpByStudent=new Map<string,any>(sessionRsvps.filter((r:any)=>String(r.sessionId||'')===sessionId).map((r:any)=>[String(r.studentId),r]));
+  const markByStudent=new Map<string,any>(sessionAttendance.filter((a:any)=>String(a.sessionId||'')===sessionId).map((a:any)=>[String(a.studentId),a]));
+  const displayIntention=(raw:any)=>raw==='attending'?'Attending':raw==='not_attending'?'Not attending':raw==='unknown'?'Not sure':'No response';
+  return <><h2>Session RSVPs & attendance</h2>
+    <p className="muted">Responses and teacher-marked attendance for this dated session only. RSVP is not an attendance mark.</p>
+    {sessionStatusBusy&&<p role="status">Loading session responses…</p>}
+    {sessionStatusError&&<p role="alert" className="sadhana-sync-error">{sessionStatusError}</p>}
+    {!sessionStatusBusy&&!sessionStatusError&&<div className="table-scroll"><table className="data-table"><thead><tr><th>Roll number</th><th>Student</th><th>RSVP</th><th>Attendance</th></tr></thead><tbody>
+    {currentRoster.map((st:any)=>{const r=rsvpByStudent.get(String(st.id));const a=markByStudent.get(String(st.id));return <tr key={st.id}><td>{st.rollNumber||'—'}</td><td>{st.name}</td><td>{displayIntention(r?.intention)}</td><td>{a?.status?String(a.status):'Not marked'}</td></tr>})}
+    {!currentRoster.length&&<tr><td colSpan={4}>{rosterBusy?'Loading enrolled students…':rosterError?'Roster unavailable':'No enrolled students found for this class.'}</td></tr>}
+    </tbody></table></div>}
+  </>;
 }
 
 // sadhana-ui-confirm-polish-20261019: consistent confirmation for session deletion.
@@ -958,7 +1050,21 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const [learnerInstitutions,setLearnerInstitutions]=useState<InstitutionId[]>([]);
   const [familyChoices,setFamilyChoices]=useState<Array<{institution:InstitutionId;id:string;name:string;rollNumber:string}>>([]);
   const [chosenStudent,setChosenStudent]=useState('');
-  useEffect(()=>{if(!cloud)return;let active=true;Promise.all((['raaga','sruti'] as InstitutionId[]).map(async i=>{try{const r=await cloud.api.myLinkedStudents(i);return {institution:i,records:r.records}}catch{return {institution:i,records:[]}}})).then(results=>{if(!active)return;setLearnerInstitutions(results.filter(r=>r.records.length).map(r=>r.institution));setFamilyChoices(results.flatMap(r=>r.records.map(s=>({institution:r.institution,id:s.id,name:s.name,rollNumber:s.rollNumber}))));});return()=>{active=false}},[cloud]);
+  const [familyAccessError,setFamilyAccessError]=useState('');
+  const [familyAccessRetry,setFamilyAccessRetry]=useState(0);
+  useEffect(()=>{if(!cloud)return;let active=true;
+    // A failed guardian lookup is not proof that the family has no approved children.
+    Promise.allSettled((['raaga','sruti'] as InstitutionId[]).map(async institution=>({institution,records:(await cloud.api.myLinkedStudents(institution)).records})))
+      .then(results=>{if(!active)return;
+        const institutions:InstitutionId[]=['raaga','sruti'];
+        const success=results.flatMap(result=>result.status==='fulfilled'?[result.value]:[]);
+        const failed=results.flatMap((result,index)=>result.status==='rejected'?[institutions[index]]:[]);
+        setFamilyAccessError(failed.length?`Could not verify approved family access for ${failed.map(i=>i==='raaga'?'Raagasudha':'Śruti Vedam').join(' and ')}. Please retry; this does not mean your approvals were removed.`:'');
+        setLearnerInstitutions(success.filter(r=>r.records.length).map(r=>r.institution));
+        setFamilyChoices(success.flatMap(r=>r.records.map(s=>({institution:r.institution,id:s.id,name:s.name,rollNumber:s.rollNumber}))));
+      });
+    return()=>{active=false};
+  },[cloud?.api,familyAccessRetry]);
   const [page,setPage]=useState(()=>{try{return sessionStorage.getItem('sadhana:v095:page')||'Dashboard';}catch{return 'Dashboard';}});
   const [mobileNav,setMobileNav]=useState(false);
   useEffect(()=>{try{sessionStorage.setItem('sadhana:v095:page',page);sessionStorage.setItem('sadhana:v095:workspace',workspace);}catch{/* private mode */}},[page,workspace]);
@@ -1056,7 +1162,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const nav= (studentMode?['Dashboard','My classes','Timetable & calendar','Homework','Practice','Attendance','My teachers','My venues','My profile','Privacy & consents']:teacherMode?['Dashboard','My Classes','My Students','Teachers','Venues']:[...adminPages.slice(0,-1),'Account Access','Fees',...adminPages.slice(-1)]).filter(item=>item!=='Website Registrations'||(currentWorkspace==='raaga'&&person.admin&&!teacherMode));
   const activePage=page==='My Profile'?'My Profile':nav.some(item => item === page) ? page : 'Dashboard';
   const unread=notifications.filter(n=>!n.read&&availableInstitutions.includes(n.institution)).length;
-  const switchWorkspace=(w)=>{setWorkspace(w);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
+  const switchWorkspace=(w)=>{setWorkspace(w);if(!studentMode)setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
   const switchRole=(r:'admin'|'teacher'|'student')=>{if(r==='student'&&!learnerInstitutions.length)return;if(r==='admin'&&!person.admin)return;if(r==='teacher'&&!verifiedTeachingInstitutions.length)return;setRole(r);try{sessionStorage.setItem('sadhana:view-as',r);}catch{/* private mode */}if(r==='teacher')setWorkspace(verifiedTeachingInstitutions[0]);if(r==='student')setWorkspace(learnerInstitutions[0]);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
   const goPage=(p)=>{setEnrolClass('');setRegisterOpenStudent('');setPage(p);setStudent(null);setClassProfile(null);setMobileNav(false);if(p==='Families & Students'||p==='My Students'){setStudentFilter('All');setStudentQuery('');}};
   const openStudent=(s)=>{setWorkspace(s.institution);setStudent(teacherMode?s:null);setRegisterOpenStudent(teacherMode?'':s.id);setEnrolClass('');setClassProfile(null);setProfileTab('Overview');setPage(teacherMode?'My Students':'Families & Students');};
@@ -1122,8 +1228,8 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
       {currentWorkspace==='sruti' ? <AcademyBrandIcon academy="sruti" /> : currentWorkspace==='raaga' ? <AcademyBrandIcon academy="raaga" /> : <AcademyBrandIcon /> }
     </span>
     <span className="sadhana-workspace-text">
-      <strong>{studentMode?(familyChoices.find(s=>s.id===chosenStudent&&s.institution===currentWorkspace)?.name||familyChoices.find(s=>s.institution===currentWorkspace)?.name||'My family'):workspaceName}</strong>
-      <small>{studentMode?`${workspaceName} · Learning`:teacherMode?'My Teaching':'Administration'}</small>
+      <strong>{workspaceName}</strong>
+      <small>{studentMode?'Learning portal':teacherMode?'My Teaching':'Administration'}</small>
     </span>
     <ChevronDown size={17}
       className={workspaceExpanded
@@ -1134,7 +1240,8 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   {workspaceExpanded &&
     <div className="sadhana-workspace-options"
       role="group" aria-label="Select an institution">
-      {!studentMode&&allowedWorkspaces.map(w =>
+      {studentMode&&familyAccessError&&<div role="alert" style={{padding:10,fontSize:12}}>{familyAccessError}<button type="button" onClick={()=>setFamilyAccessRetry(n=>n+1)}>Retry verification</button></div>}
+      {allowedWorkspaces.map(w =>
         <button type="button" key={w}
           className={w===currentWorkspace
             ? 'sadhana-workspace-option active'
@@ -1150,20 +1257,20 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
           {w===currentWorkspace && <Check size={15}/>}
         </button>
       )}
-      {studentMode&&familyChoices.map(child=><button type="button" key={`${child.institution}:${child.id}`}
-        className={child.institution===currentWorkspace&&child.id===(chosenStudent||familyChoices.find(s=>s.institution===currentWorkspace)?.id)?'sadhana-workspace-option active':'sadhana-workspace-option'}
-        onClick={()=>{setChosenStudent(child.id);if(child.institution!==currentWorkspace)switchWorkspace(child.institution);else setPage('Dashboard');setWorkspaceExpanded(false);setMobileNav(false)}}>
-        <AcademyBrandIcon academy={child.institution} size={19}/>
-        <span>{child.name} · {child.rollNumber||child.institution}</span>
-      </button>)}
     </div>
   }
 </div>
-{person.admin&&(verifiedTeachingInstitutions.length>0||learnerInstitutions.length>0)&&<fieldset className="sadhana-view-as" aria-label="View as" style={{margin:'12px 16px 16px',padding:'11px 13px',border:'1px solid #536781',borderRadius:11,display:'grid',gap:9,color:'#eef3fb',fontSize:13}}>
+{(studentMode||person.admin&&(verifiedTeachingInstitutions.length>0||learnerInstitutions.length>0))&&<fieldset className="sadhana-view-as" aria-label="View as" style={{margin:'12px 16px 16px',padding:'11px 13px',border:'1px solid #536781',borderRadius:11,display:'grid',gap:9,color:'#eef3fb',fontSize:13}}>
  <legend style={{padding:'0 5px',fontSize:10,letterSpacing:'.13em',fontWeight:700,color:'#c5d1e2'}}>VIEW AS</legend>
- <label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='admin'} onChange={()=>switchRole('admin')}/> Administrator</label>
- {verifiedTeachingInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='teacher'} onChange={()=>switchRole('teacher')}/> Teacher</label>}
- {learnerInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='student'} onChange={()=>switchRole('student')}/> Student</label>}
+ {person.admin&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='admin'} onChange={()=>switchRole('admin')}/> Administrator</label>}
+ {!studentMode&&verifiedTeachingInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='teacher'} onChange={()=>switchRole('teacher')}/> Teacher</label>}
+ {studentMode? <>
+  {familyChoices.filter(child=>child.institution===currentWorkspace).map(child=><label key={`${child.institution}:${child.id}`} style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}>
+    <input type="radio" name="sadhana-learner-view-as" checked={child.id===(familyChoices.find(s=>s.institution===currentWorkspace&&s.id===chosenStudent)?.id||familyChoices.find(s=>s.institution===currentWorkspace)?.id)} onChange={()=>{setChosenStudent(child.id);setMobileNav(false)}}/>
+    <span>{child.name}</span>
+  </label>)}
+  {!familyChoices.some(child=>child.institution===currentWorkspace)&&<span>{familyAccessError?'Family access could not be verified.':'No approved students in this institution.'}</span>}
+ </>:learnerInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={false} onChange={()=>switchRole('student')}/> Student</label>}
 </fieldset>}
 <div className="sidebar-nav-scroll" tabIndex={0} aria-label="Sidebar menu, scroll for more options"><div className="sidebar-section-label">MENU</div>
       <nav aria-label="Primary navigation">{nav.map(p=>{const Icon=ICONS[p];return <button key={p} onClick={()=>goPage(p)} className={`nav-link ${activePage===p?'nav-active':''}`}><Icon size={18}/><span>{p}</span>{p==='Dashboard'&&<span className="nav-tiny-dot"/>}</button>;})}</nav>

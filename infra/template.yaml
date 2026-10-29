@@ -89,6 +89,41 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
 
+  # Private assignment materials and learner homework evidence. No public ACLs or policies.
+  SadhanaHomeworkMedia:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'sadhana-${Stage}-homework-media-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: [!Ref AllowedPortalOrigin]
+            AllowedMethods: [GET, HEAD, PUT]
+            AllowedHeaders: ['*']
+            ExposedHeaders: [ETag]
+            MaxAge: 600
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
   SadhanaApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -96,7 +131,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins: [!Ref AllowedPortalOrigin]
         AllowHeaders: [authorization, content-type]
-        AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
+        AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
         MaxAge: 600
       Auth:
         DefaultAuthorizer: CognitoStaff
@@ -129,9 +164,12 @@ Resources:
       Environment:
         Variables:
           SADHANA_TABLE_NAME: !Ref SadhanaTable
+          SADHANA_DATA_MODE: split
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
+          SADHANA_LEARNER_MEDIA_BUCKET: !Ref SadhanaHomeworkMedia
+          SADHANA_HOMEWORK_MEDIA_BUCKET: !Ref SadhanaHomeworkMedia
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:
         - Version: '2012-10-17'
@@ -151,6 +189,13 @@ Resources:
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-calendar'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-students'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-audit'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-learning'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-admin'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-calendar/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-students/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-learning/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-admin/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-audit/index/*'
             # Family Delete verifies references across the split-table architecture.
             # Read-only Scan only; no expanded write permissions.
             - Sid: FamilyDeleteDependencyScanSplitTables
@@ -184,6 +229,16 @@ Resources:
               Action:
                 - s3:ListBucket
               Resource: !GetAtt SadhanaProfilePhotos.Arn
+            # Objects are private. Browser presigned URLs are issued only by
+            # authenticated, assignment-authorized application endpoints.
+            - Sid: HomeworkMediaObjects
+              Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource:
+                - !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/*'
+                - !Sub '${SadhanaHomeworkMedia.Arn}/teacher-materials/*'
             - Effect: Allow
               Action: [ssm:GetParameter]
               Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MiddlesbroughCredentialParameter}'
@@ -211,3 +266,6 @@ Outputs:
     Value: !Sub https://${SadhanaApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/api
   TableName:
     Value: !Ref SadhanaTable
+  HomeworkMediaBucket:
+    Description: Private S3 bucket for authorized homework evidence and teacher materials
+    Value: !Ref SadhanaHomeworkMedia

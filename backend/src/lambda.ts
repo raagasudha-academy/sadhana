@@ -1,6 +1,6 @@
 import {srutiGuardianCandidates,requestSrutiGuardianFromRaaga} from './crossAcademyGuardian.ts';
 import {learnerExtras,saveLearnerProfile,beginLearnerMedia,completeLearnerMedia,listLearnerMedia} from './learnerExtras.ts';
-import {publishHomework,classHomework,learnerHomework,completeHomework,saveHomeworkSubmission,getHomeworkSubmission,teacherHomeworkSubmissions,teacherHomeworkFeedback,beginHomeworkEvidence,finishHomeworkEvidence,homeworkEvidenceLinks,teacherHomeworkEvidenceLinks} from './homework.ts';
+import {publishHomework,republishHomework,classHomework,learnerHomework,completeHomework,saveHomeworkSubmission,getHomeworkSubmission,teacherHomeworkSubmissions,teacherHomeworkFeedback,beginHomeworkEvidence,finishHomeworkEvidence,homeworkEvidenceLinks,teacherHomeworkEvidenceLinks,beginTeacherHomeworkMaterial,finishTeacherHomeworkMaterial,setTeacherHomeworkMaterials,teacherHomeworkMaterialLinks,learnerHomeworkMaterialLinks} from './homework.ts';
 import {commentOnPractice,teacherPracticeComments,readPracticeComments} from './practiceFeedback.ts';
 import {fetchWebsiteRegistration,reviewWebsiteRegistration} from './websiteRegistrationGateway.ts';
 import {operations} from './academyOperations.ts';
@@ -93,11 +93,18 @@ export function createHandler(repository: SadhanaRepository){
         return json(405,{error:'Unsupported comment action'});
       }
       if(parts[0]==='homework'&&parts.length===5&&parts[2]==='evidence'&&method==='GET')return json(200,await teacherHomeworkEvidenceLinks(inst,claims,parts[1],parts[3],parts[4]));
+      if(parts[0]==='homework'&&parts.length===5&&parts[2]==='materials'){
+        if(method==='GET'&&parts[4]==='links')return json(200,await teacherHomeworkMaterialLinks(inst,claims,parts[1],parts[3]));
+        if(method==='POST'&&parts[4]==='selection')return json(200,await setTeacherHomeworkMaterials(inst,claims,parts[1],parts[3],readJSON(event.body||'')));
+        if(method==='POST'&&parts[4]==='start')return json(200,await beginTeacherHomeworkMaterial(inst,claims,parts[1],parts[3],readJSON(event.body||'')));
+        if(method==='POST'&&parts[4]==='finish')return json(200,await finishTeacherHomeworkMaterial(inst,claims,parts[1],parts[3],readJSON(event.body||'')));
+      }
       if(parts[0]==='homework'&&parts.length===4&&parts[2]==='submissions'){
         if(method==='GET')return json(200,await teacherHomeworkSubmissions(inst,claims,parts[1],parts[3]));
         return json(405,{error:'Unsupported submission action'});
       }
       if(parts[0]==='homework'&&parts.length===5&&parts[2]==='feedback'&&method==='POST')return json(200,await teacherHomeworkFeedback(inst,claims,parts[1],parts[3],parts[4],readJSON(event.body||'')));
+      if(parts[0]==='homework'&&parts.length===3&&method==='PUT')return json(200,await republishHomework(inst,claims,parts[1],parts[2],readJSON(event.body||'')));
       if(parts[0]==='homework'&&parts.length===2){
         if(method==='GET')return json(200,await classHomework(inst,claims,parts[1]));
         if(method==='POST')return json(201,await publishHomework(inst,claims,{...readJSON(event.body||''),classId:parts[1]}));
@@ -114,6 +121,7 @@ export function createHandler(repository: SadhanaRepository){
           if(method==='GET')return json(200,await getHomeworkSubmission(inst,claims,studentId,parts[3]));
           if(method==='PUT')return json(200,await saveHomeworkSubmission(inst,claims,studentId,parts[3],readJSON(event.body||'')));
         }
+        if(method==='GET'&&parts.length===5&&parts[2]==='homework'&&parts[4]==='materials')return json(200,await learnerHomeworkMaterialLinks(inst,claims,studentId,parts[3]));
         if(method==='GET'&&parts.length===3&&parts[2]==='homework')return json(200,await learnerHomework(inst,claims,studentId));
         if(method==='POST'&&parts.length===3&&parts[2]==='homework')return json(200,await completeHomework(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='GET'&&parts.length===3&&parts[2]==='extras')return json(200,await learnerExtras(inst,claims,studentId));

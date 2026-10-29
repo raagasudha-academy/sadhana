@@ -31,27 +31,40 @@ export interface CloudSession {
 }
 
 function AuthCard({title,children,kind='welcome'}: {title:string;children:React.ReactNode;kind?:'welcome'|'signedout'}) {
-  return <main className="auth-shell">
-    <section className="auth-brand-panel" aria-label="About Sadhana">
-      <div className="auth-brand-head"><span className="auth-brand-mark auth-brand-mark--50"><AcademyBrandIcon /></span><div><strong>Sadhana</strong><small>ACADEMY &amp; LEARNING PORTAL</small></div></div>
-      <div className="auth-brand-copy"><span className="auth-kicker">LEARN · PRACTISE · GROW</span><h2>Welcome to Sadhana.</h2></div>
+  return <main className="auth-shell auth-v1361">
+    <section className="auth-brand-panel" aria-label="Sadhana Academy & Learning Portal">
+      <div className="auth-brand-center">
+        <span className="auth-brand-large"><AcademyBrandIcon size={240}/></span>
+        <p className="auth-brand-subtitle">ACADEMY &amp; LEARNING PORTAL</p>
+      </div>
       <div className="auth-brand-programmes">
         <span><img src={`${import.meta.env.BASE_URL}branding/raaga.webp`} alt="" className="auth-academy-emblem" /> Raagasudha Music Academy</span>
         <span><img src={`${import.meta.env.BASE_URL}branding/sruti.webp`} alt="" className="auth-academy-emblem" /> Śruti School of Vedic Learning</span>
       </div>
     </section>
-    <section className={`auth-signin-panel${kind==='signedout'?' auth-signin-panel--signedout':''}`}><div className={`auth-card${kind==='signedout'?' auth-card--signedout':' auth-card--welcome'}`}>
-      <div className="auth-mobile-identity"><span className="auth-icon"><BrandIcon /></span><strong>Sadhana</strong></div>
-      <div className="auth-card-heading">
-        <div className="auth-illustration">{kind==='signedout'?<LogOut size={26}/>:<ShieldCheck size={26}/>}</div>
-        <h1>{title}</h1>
+    <section className={`auth-signin-panel${kind==='signedout'?' auth-signin-panel--signedout':''}`}>
+      <div className={`auth-card${kind==='signedout'?' auth-card--signedout':' auth-card--welcome'}`}>
+        <div className="auth-card-heading">
+          {kind==='signedout'&&<div className="auth-illustration"><ShieldCheck size={24}/></div>}
+          <h1>{title}</h1>
+        </div>
+        {children}
       </div>
-      {children}
-      <p className="auth-footnote">Secure access powered by your Sadhana account.</p>
-    </div></section>
+    </section>
   </main>;
 }
 function SignedOut(){return <AuthCard title="Signed out" kind="signedout"><p>Your session has ended.</p><button className="auth-primary" type="button" onClick={()=>{sessionStorage.removeItem("sadhana_signed_out");window.location.assign(applicationUrl())}}>Sign in again <ArrowRight size={17}/></button></AuthCard>}
+
+function learnerIdTokenProfile(idToken?:string):{name?:string;given_name?:string;family_name?:string;email?:string;picture?:string}|null {
+ if(!idToken)return null;
+ try {
+  const payload=JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))) as Record<string,unknown>;
+  if(payload.token_use!=='id')return null;
+  const val=(k:string)=>typeof payload[k]==='string'?String(payload[k]):undefined;
+  return {name:val('name'),given_name:val('given_name'),family_name:val('family_name'),email:val('email'),picture:val('picture')};
+ }catch{return null;}
+}
+
 function SignInGate() {
   const auth = useAuth();
   const [staff, setStaff] = useState<StaffResponse | null>(null);
@@ -112,14 +125,15 @@ function SignInGate() {
     onManagedLogin={()=>void auth.signinRedirect()}/></AuthCard>;
   if(apiError||!staff) return <AuthCard title="Permission check failed"><div className="auth-error" role="alert"><AlertCircle size={18}/><span>{apiError||'No staff authorization was returned.'}</span></div><p>Signing in alone is not sufficient. Your Sadhana account needs an authorised staff group.</p><button className="auth-primary" onClick={()=>window.location.reload()}>Retry API check</button><button className="auth-secondary" onClick={()=>void signOut()}><LogOut size={15}/> Sign out</button></AuthCard>;
   // Cognito ID-token profile carries display attributes; the API remains the role authority.
-  const profile=auth.user?.profile;
+  const profile=auth.user?.profile || learnerIdTokenProfile(passwordSession?.idToken);
   const apiName=String(staff.displayName||'').trim();
-  const profileName=String(profile?.name||[profile?.given_name,profile?.family_name].filter(Boolean).join(' ')||profile?.preferred_username||'').trim();
+  const profileName=String(profile?.name||[profile?.given_name,profile?.family_name].filter(Boolean).join(' ')||('preferred_username' in (profile ?? {}) ? (profile as Record<string, unknown>).preferred_username : '')||'').trim();
   // API role remains authoritative. Use verified identity presentation where a generic learner label was returned.
   const displayName=(staff.role==='learner'&&(!apiName||apiName==='Student / Family'))
     ? (profileName||String(profile?.email||'').split('@')[0]||apiName||'Student / Family')
     : (apiName||profileName||String(profile?.email||'').split('@')[0]||'');
-  const session={staff:{...staff,displayName},api,signOut};
+  const profilePicture=typeof profile?.picture==='string'&&profile.picture.startsWith('https://')?profile.picture:undefined;
+  const session={staff:{...staff,displayName,photoUrl:staff.photoUrl||profilePicture},api,signOut};
   return <App cloud={session} />;
 }
 
