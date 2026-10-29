@@ -10,13 +10,16 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build",
     "icon:install": "tsx scripts/installIcon.ts",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test:e2e": "playwright test",
-    "test:e2e:update": "playwright test --update-snapshots"
+    "test:e2e:update": "playwright test --update-snapshots",
+    "lint:fix": "eslint src backend/src --fix",
+    "format:check": "prettier --check src backend/src",
+    "format": "prettier --write src backend/src"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -26,6 +29,7 @@
     "react-oidc-context": "^3.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
@@ -37,10 +41,14 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^26.1.0",
+    "prettier": "^3.9.10",
     "sharp": "^0.35.5",
     "tsx": "^4.19.0",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.72.0",
     "vite": "^6.1.0",
     "vitest": "^5.0.5"
   }

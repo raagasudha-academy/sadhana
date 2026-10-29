@@ -54,3 +54,16 @@ file_structure.txt
 file_structure.txt
 playwright-report/
 test-results/
+
+# Sadhana local patch and recovery artifacts
+.sadhana-patch-backups/
+.local-patch-backups/
+*.bak
+*.bak.*
+*.backup
+*.orig
+*.rej
+*~
+
+# Local operational audit outputs
+sadhana-revoke-audit-report.json

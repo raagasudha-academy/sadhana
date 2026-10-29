@@ -1,0 +1,12 @@
+/* Shared visual language for administrator, teacher and learner workspaces.
+   Permissions remain defined by the existing role and API policy. */
+:root{--sadhana-navy:#12233c;--sadhana-ink:#19314e;--sadhana-border:#cbd6e3;--sadhana-focus:#86b3ef;--sadhana-radius:10px}
+.app-shell .sidebar,.student-portal-v123 .sv123-sidebar{background:var(--sadhana-navy)}
+.app-shell :is(input,select,textarea),.student-portal-v123 :is(input,select,textarea){font-family:inherit;min-width:0;max-width:100%;box-sizing:border-box}
+.app-shell :is(input,select,textarea):not([type=checkbox]):not([type=radio]),.student-portal-v123 :is(input,select,textarea):not([type=checkbox]):not([type=radio]){border-radius:var(--sadhana-radius);border-color:var(--sadhana-border)}
+.app-shell :is(button,a,select,input,textarea):focus-visible,.student-portal-v123 :is(button,a,select,input,textarea):focus-visible{outline:3px solid var(--sadhana-focus);outline-offset:2px}
+.app-shell :is(button,select,input,textarea),.student-portal-v123 :is(button,select,input,textarea){font-family:inherit}
+.app-shell table,.student-portal-v123 table{border-collapse:collapse;width:100%}
+.app-shell th,.student-portal-v123 th{text-align:left;white-space:normal}
+.app-shell .surface,.student-portal-v123 .surface{min-width:0}
+@media(max-width:700px){.app-shell .surface,.student-portal-v123 .surface{max-width:100%;overflow-wrap:anywhere}.app-shell .access-table-wrap,.student-portal-v123 .access-table-wrap{overflow-x:auto}}

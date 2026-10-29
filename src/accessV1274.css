@@ -1,0 +1,13 @@
+/* Sadhana v12.7.4 – original navy, unified Account Access controls */
+.access-v1274-cross {display:grid;gap:14px;padding:22px 24px!important}
+.access-v1274-cross h3 {margin:0;color:#203553;font-size:1.15rem}
+.access-v1274-cross p {margin:0;line-height:1.55;max-width:85ch}
+.access-v1274-cross-grid {display:grid;grid-template-columns:minmax(260px,1fr) auto auto;gap:12px;align-items:end}
+.access-v1274-cross-grid label {min-width:0;display:grid;gap:7px;font-weight:650;color:#304564;font-size:.91rem}
+.access-v1274-cross-grid select {width:100%;min-width:0;min-height:44px;padding:9px 36px 9px 12px;border:1px solid #c7d4e5;border-radius:10px;background:#fff;color:#233953;font:inherit}
+.access-v1274-cross-grid button {min-height:44px;padding:10px 17px;border-radius:10px;border:1px solid #294976;background:#294976;color:#fff;font:inherit;font-weight:650;white-space:nowrap;cursor:pointer}
+.access-v1274-cross-grid button.access-secondary-button {background:#fff;color:#294976;border-color:#c7d4e5}
+.access-v1274-cross-grid button:disabled {opacity:.52;cursor:not-allowed}
+.access-v1274-cross-grid :is(select,button):focus-visible {outline:3px solid #97bfff;outline-offset:2px}
+@media(max-width:900px){.access-v1274-cross-grid {grid-template-columns:1fr 1fr}.access-v1274-cross-grid label{grid-column:1/-1}}
+@media(max-width:520px){.access-v1274-cross-grid{grid-template-columns:1fr}.access-v1274-cross-grid label{grid-column:auto}.access-v1274-cross-grid button{width:100%}}

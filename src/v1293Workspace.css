@@ -1,0 +1,18 @@
+/* v12.9.3 — shared Admin-style academy workspace card for learner sidebar. */
+.sv1291-unified .sv1293-workspace{margin:18px 0 19px;padding:0 14px}
+.sv1291-unified .sv1293-workspace-label{display:block;margin:0 0 12px 12px;color:#aebfd6;font-size:11px;font-weight:800;letter-spacing:.22em}
+.sv1291-unified .sv1293-workspace-control{position:relative}
+.sv1291-unified .sv1293-workspace-toggle{display:flex;align-items:center;gap:12px;width:100%;min-height:79px;padding:12px;text-align:left;background:#314563;border:1px solid #52647f;border-radius:12px;color:#fff;cursor:pointer}
+.sv1291-unified .sv1293-workspace-toggle:hover,.sv1291-unified .sv1293-workspace-toggle[aria-expanded="true"]{background:#394f70}
+.sv1291-unified .sv1293-workspace-toggle:focus-visible{outline:3px solid #82b8ff;outline-offset:2px}
+.sv1291-unified .sv1293-workspace-icon{display:grid;place-items:center;width:49px;height:49px;flex:none;background:#e7edf7;border-radius:12px}
+.sv1291-unified .sv1293-workspace-copy{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+.sv1291-unified .sv1293-workspace-copy strong{font-size:16px;line-height:1.2;color:#fff;white-space:normal}
+.sv1291-unified .sv1293-workspace-copy small{font-size:13px;line-height:1.2;color:#bdcae0}
+.sv1291-unified .sv1293-workspace-chevron{flex:none;color:#e4edfc}
+.sv1291-unified .sv1293-workspace-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;overflow:hidden;padding:5px;background:#fff;border:1px solid #cfd9e9;border-radius:11px;box-shadow:0 12px 28px #0d1f3c40}
+.sv1291-unified .sv1293-workspace-menu button{display:flex;gap:9px;align-items:center;width:100%;min-height:44px;border:0;border-radius:7px;padding:8px;color:#263853;background:transparent;text-align:left;cursor:pointer}
+.sv1291-unified .sv1293-workspace-menu button span{flex:1}
+.sv1291-unified .sv1293-workspace-menu button:hover,.sv1291-unified .sv1293-workspace-menu button.selected{background:#eaf0fa}
+.sv1291-unified .sv1293-workspace-menu button:focus-visible{outline:2px solid #437dc1;outline-offset:-2px}
+@media(max-width:720px){.sv1291-unified .sv1293-workspace{margin-top:12px}}

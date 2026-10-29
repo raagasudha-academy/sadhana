@@ -1,4 +1,8 @@
+import './v1296SharedShell.css';
+import './roleWorkspace.css';
 import StudentHome from './StudentHome';
+import './v1298LearnerContent.css';
+import FeesComingSoon from './features/sadhanaCoreStarter/FeesComingSoon';
 import {teacherIdentityFailureMessage} from './teacherIdentityMessages';
 import './sessionFooter.css';
 import { useEffect, useMemo, useState } from 'react';
@@ -19,6 +23,8 @@ import PhotoAvatarEditor from './PhotoAvatarEditor';
 import AcademyOperations from './AcademyOperations';
 import PersistentRegistration from './PersistentRegistration';
 import LiveDashboard from './LiveDashboard';
+import WebsiteRegistrations from './WebsiteRegistrations';
+import { Inbox } from 'lucide-react';
 import { ClassFormDialog, VenueFormDialog, VenueManager } from './ClassManagement';
 import { initialFamilies, initialMembers, initialEnrolments, getEnrolmentStatus } from './registry';
 import PracticeModule from './PracticeModule';
@@ -43,7 +49,24 @@ const ICONS = {
   Settings: Settings2,
   Teachers: UserRound,
   Administrators: ShieldCheck,
+  'Website Registrations': Inbox,
   'Account Access': ShieldCheck,
+  Fees: FileText,
+  'My classes': BookOpen,
+  'Timetable & calendar': CalendarDays,
+  Homework: FileText,
+  Practice: FileBarChart2,
+  Attendance: CheckCircle2,
+  'My teachers': UsersRound,
+  'My venues': MapPin,
+  'My profile': UserRound,
+  'Privacy & consents': ShieldCheck,
+};
+const learnerPageMap:Record<string,import('./StudentHome').LearnerPage>={
+  'Dashboard':'overview','My classes':'classes','Timetable & calendar':'calendar',
+  'Homework':'homework','Practice':'practice','Attendance':'attendance',
+  'My teachers':'teachers','My venues':'venues','My profile':'profile',
+  'Privacy & consents':'privacy'
 };
 const dayLabel = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ukToday = () => {
@@ -933,7 +956,9 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const [workspaceExpanded,setWorkspaceExpanded]=useState(false);
   const [role,setRole]=useState<'admin'|'teacher'|'student'>(()=>{try{const saved=sessionStorage.getItem('sadhana:view-as');return saved==='teacher'||saved==='student'?saved:'admin';}catch{return 'admin';}});
   const [learnerInstitutions,setLearnerInstitutions]=useState<InstitutionId[]>([]);
-  useEffect(()=>{if(!cloud)return;let active=true;Promise.all((['raaga','sruti'] as InstitutionId[]).map(async i=>{try{const r=await cloud.api.myLinkedStudents(i);return r.records.length?i:null}catch{return null}})).then(results=>{if(active)setLearnerInstitutions(results.filter((i):i is InstitutionId=>!!i));});return()=>{active=false}},[cloud]);
+  const [familyChoices,setFamilyChoices]=useState<Array<{institution:InstitutionId;id:string;name:string;rollNumber:string}>>([]);
+  const [chosenStudent,setChosenStudent]=useState('');
+  useEffect(()=>{if(!cloud)return;let active=true;Promise.all((['raaga','sruti'] as InstitutionId[]).map(async i=>{try{const r=await cloud.api.myLinkedStudents(i);return {institution:i,records:r.records}}catch{return {institution:i,records:[]}}})).then(results=>{if(!active)return;setLearnerInstitutions(results.filter(r=>r.records.length).map(r=>r.institution));setFamilyChoices(results.flatMap(r=>r.records.map(s=>({institution:r.institution,id:s.id,name:s.name,rollNumber:s.rollNumber}))));});return()=>{active=false}},[cloud]);
   const [page,setPage]=useState(()=>{try{return sessionStorage.getItem('sadhana:v095:page')||'Dashboard';}catch{return 'Dashboard';}});
   const [mobileNav,setMobileNav]=useState(false);
   useEffect(()=>{try{sessionStorage.setItem('sadhana:v095:page',page);sessionStorage.setItem('sadhana:v095:workspace',workspace);}catch{/* private mode */}},[page,workspace]);
@@ -1023,12 +1048,12 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const availableInstitutions: InstitutionId[]=person.institutions;
   const verifiedTeachingInstitutions=(cloud?.staff.teacherInstitutions||[]).filter(i=>availableInstitutions.includes(i));
   // A selected view cannot create a permission; it only changes navigation.
-  const currentRole=person.admin?(role==='student'&&learnerInstitutions.length?'student':role==='teacher'&&verifiedTeachingInstitutions.length?'teacher':'admin'):'teacher';
+  const currentRole=cloud?.staff.role==='learner'?'student':person.admin?(role==='student'&&learnerInstitutions.length?'student':role==='teacher'&&verifiedTeachingInstitutions.length?'teacher':'admin'):(verifiedTeachingInstitutions.length?'teacher':learnerInstitutions.length?'student':'teacher');
   const studentMode=currentRole==='student';
   const teacherMode=currentRole==='teacher';
   const allowedWorkspaces=studentMode?learnerInstitutions:teacherMode?(verifiedTeachingInstitutions.length?verifiedTeachingInstitutions:availableInstitutions):person.admin&&person.institutions.length>1?['combined',...person.institutions]:person.institutions;
-  const currentWorkspace=allowedWorkspaces.includes(workspace)?workspace:allowedWorkspaces[0];
-  const nav=studentMode?['Dashboard']:teacherMode?['Dashboard','My Classes','My Students','Teachers','Venues']:[...adminPages.slice(0,-1),'Account Access',...adminPages.slice(-1)];
+  const currentWorkspace=allowedWorkspaces.includes(workspace)?workspace:(allowedWorkspaces[0] || 'sruti');
+  const nav= (studentMode?['Dashboard','My classes','Timetable & calendar','Homework','Practice','Attendance','My teachers','My venues','My profile','Privacy & consents']:teacherMode?['Dashboard','My Classes','My Students','Teachers','Venues']:[...adminPages.slice(0,-1),'Account Access','Fees',...adminPages.slice(-1)]).filter(item=>item!=='Website Registrations'||(currentWorkspace==='raaga'&&person.admin&&!teacherMode));
   const activePage=page==='My Profile'?'My Profile':nav.some(item => item === page) ? page : 'Dashboard';
   const unread=notifications.filter(n=>!n.read&&availableInstitutions.includes(n.institution)).length;
   const switchWorkspace=(w)=>{setWorkspace(w);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
@@ -1097,8 +1122,8 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
       {currentWorkspace==='sruti' ? <AcademyBrandIcon academy="sruti" /> : currentWorkspace==='raaga' ? <AcademyBrandIcon academy="raaga" /> : <AcademyBrandIcon /> }
     </span>
     <span className="sadhana-workspace-text">
-      <strong>{workspaceName}</strong>
-      <small>{studentMode?'My Learning':teacherMode?'My Teaching':'Administration'}</small>
+      <strong>{studentMode?(familyChoices.find(s=>s.id===chosenStudent&&s.institution===currentWorkspace)?.name||familyChoices.find(s=>s.institution===currentWorkspace)?.name||'My family'):workspaceName}</strong>
+      <small>{studentMode?`${workspaceName} · Learning`:teacherMode?'My Teaching':'Administration'}</small>
     </span>
     <ChevronDown size={17}
       className={workspaceExpanded
@@ -1109,7 +1134,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   {workspaceExpanded &&
     <div className="sadhana-workspace-options"
       role="group" aria-label="Select an institution">
-      {allowedWorkspaces.map(w =>
+      {!studentMode&&allowedWorkspaces.map(w =>
         <button type="button" key={w}
           className={w===currentWorkspace
             ? 'sadhana-workspace-option active'
@@ -1125,6 +1150,12 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
           {w===currentWorkspace && <Check size={15}/>}
         </button>
       )}
+      {studentMode&&familyChoices.map(child=><button type="button" key={`${child.institution}:${child.id}`}
+        className={child.institution===currentWorkspace&&child.id===(chosenStudent||familyChoices.find(s=>s.institution===currentWorkspace)?.id)?'sadhana-workspace-option active':'sadhana-workspace-option'}
+        onClick={()=>{setChosenStudent(child.id);if(child.institution!==currentWorkspace)switchWorkspace(child.institution);else setPage('Dashboard');setWorkspaceExpanded(false);setMobileNav(false)}}>
+        <AcademyBrandIcon academy={child.institution} size={19}/>
+        <span>{child.name} · {child.rollNumber||child.institution}</span>
+      </button>)}
     </div>
   }
 </div>
@@ -1211,7 +1242,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   </div>
 </div></header>
       {(syncMessage||syncError)&&<div className={`sync-notice ${syncError?'sync-notice-error':''}`} role="status">{syncError||syncMessage}<button type="button" onClick={()=>{setSyncMessage('');setSyncError('');}} aria-label="Dismiss sync message"><X size={14}/></button></div>}
-      <main className="content">{studentMode&&cloud?<StudentHome cloud={cloud} initialInstitution={currentWorkspace as InstitutionId} embedded/>:<>{venueSuccess&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{venueSuccess}</span><button aria-label="Dismiss" onClick={()=>setVenueSuccess('')}><X size={15}/></button></div>}{changeNotice&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{changeNotice} These changes are local only and reset on refresh.</span><button aria-label="Dismiss" onClick={()=>setChangeNotice('')}><X size={15}/></button></div>}{student?<ProfileScreen student={student} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setStudent(null)} enrolments={enrolments} members={members} isTeacher={teacherMode}/>:classProfile?<ProfileScreen classItem={classProfile} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setClassProfile(null)} enrolments={enrolments} members={members} isTeacher={teacherMode} onEnrolFromClass={enrolFromClass} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud}/>:needsAcademySelection(currentWorkspace,activePage) ? <AcademySelection page={activePage} allowed={availableInstitutions} onSelect={chooseAcademyForPage}/> : activePage==='My Profile'?<>
+      <main className="content">{studentMode&&cloud?<StudentHome cloud={cloud} initialInstitution={currentWorkspace as InstitutionId} embedded page={learnerPageMap[activePage]||'overview'} selectedStudentId={chosenStudent} onStudentChange={setChosenStudent}/>:<>{venueSuccess&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{venueSuccess}</span><button aria-label="Dismiss" onClick={()=>setVenueSuccess('')}><X size={15}/></button></div>}{changeNotice&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{changeNotice} These changes are local only and reset on refresh.</span><button aria-label="Dismiss" onClick={()=>setChangeNotice('')}><X size={15}/></button></div>}{student?<ProfileScreen student={student} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setStudent(null)} enrolments={enrolments} members={members} isTeacher={teacherMode}/>:classProfile?<ProfileScreen classItem={classProfile} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setClassProfile(null)} enrolments={enrolments} members={members} isTeacher={teacherMode} onEnrolFromClass={enrolFromClass} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud}/>:needsAcademySelection(currentWorkspace,activePage) ? <AcademySelection page={activePage} allowed={availableInstitutions} onSelect={chooseAcademyForPage}/> : activePage==='My Profile'?<>
       <PageHeader kicker="MY ACCOUNT"
         title="My Profile"
         description="Your Sadhana account and institution access."/>
@@ -1248,7 +1279,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
             </label>
           </details>}
       </section>
-    </>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Account Access'&&cloud?(currentWorkspace==='combined'?<AcademySelection page="Account Access" allowed={availableInstitutions} onSelect={switchWorkspace}/>:<AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>):<SettingsPage workspace={currentWorkspace}/>}</>}
+    </>:activePage==='Fees'&&person.admin&&!teacherMode?<FeesComingSoon/>:activePage==='Website Registrations'&&cloud&&currentWorkspace==='raaga'&&person.admin&&!teacherMode?<WebsiteRegistrations cloud={cloud}/>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Account Access'&&cloud?(currentWorkspace==='combined'?<AcademySelection page="Account Access" allowed={availableInstitutions} onSelect={switchWorkspace}/>:<AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>):<SettingsPage workspace={currentWorkspace}/>}</>}
       </main>
       <footer className="main-footer"><span>Sadhana · Academy & Learning Portal</span><span>{cloud?"Live timetable and venues · other records awaiting import":"No backend session"}</span></footer>
     </div>

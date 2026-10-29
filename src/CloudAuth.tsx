@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from 'react-oidc-context';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { ArrowRight, LockKeyhole, ShieldCheck, LogOut, AlertCircle, GraduationCap, BookOpen } from 'lucide-react';
 import App from './App';
-import StudentHome from './StudentHome';
 import AcademyBrandIcon from './AcademyBrandIcon';
 import CognitoPassword, {readPasswordSession,clearPasswordSession,refreshPasswordSession,revokePasswordSession} from './CognitoPassword';
 import { createSadhanaApi } from './api/sadhanaClient';
@@ -107,17 +106,21 @@ function SignInGate() {
   if(!signedIn&&signedOut&&!auth.isLoading)return <SignedOut/>;
   if(signedIn&&(checking||!staff&&!apiError))return <AuthCard title="Securing your workspace"><p>Checking your sign-in and permissions…</p></AuthCard>;
   if(!signedIn&&auth.isLoading)return <AuthCard title="Securing your workspace"><p>Checking your sign-in…</p></AuthCard>;
-  if(!signedIn&&auth.error)return <AuthCard title="Sign-in needs attention"><p role="alert">{auth.error.message}</p><button className="auth-primary" onClick={()=>void auth.signinRedirect()}>Try Cognito sign-in <ArrowRight size={17}/></button></AuthCard>;
+  if(!signedIn&&auth.error)return <AuthCard title="Sign-in needs attention"><p role="alert">{auth.error.message}</p><button className="auth-primary" onClick={()=>void auth.signinRedirect()}>Try another sign-in method <ArrowRight size={17}/></button></AuthCard>;
   if(!signedIn)return <AuthCard title="Sign in to Sadhana"><CognitoPassword region={region} clientId={config.clientId}
     onAuthenticated={next=>{sessionStorage.removeItem('sadhana_signed_out');setSignedOut(false);setPasswordSession(next);}}
     onManagedLogin={()=>void auth.signinRedirect()}/></AuthCard>;
-  if(apiError||!staff) return <AuthCard title="Permission check failed"><div className="auth-error" role="alert"><AlertCircle size={18}/><span>{apiError||'No staff authorization was returned.'}</span></div><p>Your Cognito login alone is not sufficient. Your Sadhana account needs an authorised staff group.</p><button className="auth-primary" onClick={()=>window.location.reload()}>Retry API check</button><button className="auth-secondary" onClick={()=>void signOut()}><LogOut size={15}/> Sign out</button></AuthCard>;
+  if(apiError||!staff) return <AuthCard title="Permission check failed"><div className="auth-error" role="alert"><AlertCircle size={18}/><span>{apiError||'No staff authorization was returned.'}</span></div><p>Signing in alone is not sufficient. Your Sadhana account needs an authorised staff group.</p><button className="auth-primary" onClick={()=>window.location.reload()}>Retry API check</button><button className="auth-secondary" onClick={()=>void signOut()}><LogOut size={15}/> Sign out</button></AuthCard>;
   // Cognito ID-token profile carries display attributes; the API remains the role authority.
   const profile=auth.user?.profile;
-  const displayName=String(staff.displayName || profile?.name || profile?.given_name || profile?.preferred_username ||
-    profile?.email?.split('@')[0] || '').trim();
+  const apiName=String(staff.displayName||'').trim();
+  const profileName=String(profile?.name||[profile?.given_name,profile?.family_name].filter(Boolean).join(' ')||profile?.preferred_username||'').trim();
+  // API role remains authoritative. Use verified identity presentation where a generic learner label was returned.
+  const displayName=(staff.role==='learner'&&(!apiName||apiName==='Student / Family'))
+    ? (profileName||String(profile?.email||'').split('@')[0]||apiName||'Student / Family')
+    : (apiName||profileName||String(profile?.email||'').split('@')[0]||'');
   const session={staff:{...staff,displayName},api,signOut};
-  return staff.role==='learner'?<StudentHome cloud={session}/>:<App cloud={session} />;
+  return <App cloud={session} />;
 }
 
 export default function CloudAuth() {

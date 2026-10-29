@@ -3,8 +3,16 @@ import type { InstitutionId } from './types';
 import type { ScheduleInstitution, ScheduleRecord } from './api/sadhanaClient';
 
 export const adminPages = [
-  'Dashboard', 'Families & Students', 'Classes & Timetable',
-  'Practice & Reports', 'Communications', 'Teachers', 'Administrators', 'Venues', 'Settings',
+  'Dashboard',
+  'Website Registrations',
+  'Families & Students',
+  'Classes & Timetable',
+  'Practice & Reports',
+  'Communications',
+  'Teachers',
+  'Venues',
+  'Administrators',
+  'Settings'
 ] as const;
 
 export function needsAcademySelection(workspace:string,page:string):boolean {

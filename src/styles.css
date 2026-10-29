@@ -2799,3 +2799,59 @@ label.reg-field:has(input[type="checkbox"]) > span {
   .auth-signin-panel .auth-card-heading .auth-illustration { width: 64px; height: 64px; border-radius: 18px; }
   .auth-signin-panel .auth-card--welcome .auth-card-heading { margin-bottom: 18px; }
 }
+/* v12.9.5 — Admin branding, constrained to sidebar */
+
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 8px;
+}
+
+.sidebar .brand-symbol {
+  width: 58px;
+  height: 66px;
+  flex: 0 0 58px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.sidebar .brand-symbol svg,
+.sidebar .brand-symbol img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sidebar .brand > div:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar .brand strong {
+  display: block;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.8px;
+  line-height: 1.1;
+}
+
+.sidebar .brand small {
+  display: block;
+  color: #c8d0e1;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: normal;
+  max-width: 100%;
+}

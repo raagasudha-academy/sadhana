@@ -1,8 +1,68 @@
-.access-console{padding:24px;max-width:1160px}.access-console header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.access-console h2{font-size:20px;margin:0 0 6px}.access-console p{font-size:13px;color:#64748b;margin:0 0 16px}.access-console button{font:inherit;font-size:12px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;cursor:pointer;color:#334155}.access-console button:disabled{opacity:.5}.access-controls{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:12px 0;font-size:13px}.access-controls select{margin-left:8px;padding:7px;border:1px solid #cbd5e1;border-radius:8px}.access-table-wrap{overflow-x:auto}.access-console table{width:100%;border-collapse:collapse;font-size:13px}.access-console th,.access-console td{padding:11px;text-align:left;border-bottom:1px solid #e2e8f0}.access-console th{color:#64748b;font-size:12px;font-weight:600}.access-console .access-note{margin-top:18px}
 
-.access-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.access-summary>div{border:1px solid #e2e8f0;border-radius:12px;padding:14px;display:grid;gap:5px}.access-summary small,.access-summary span{font-size:12px;color:#64748b}.access-summary strong{font-size:23px;color:#344966}.access-practice-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.access-practice-form label{font-size:12px;display:grid;gap:5px}.access-practice-form input,.access-practice-form select,.access-practice-form textarea{padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.access-practice-form label:has(textarea){grid-column:1/-1}@media(max-width:650px){.access-summary,.access-practice-form{grid-template-columns:1fr}}
+/* Guardian request layout: names and relationship verification */
+.access-console .access-guardian-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:end;margin-top:18px}
+.access-console .access-guardian-grid label{display:grid;gap:8px;min-width:0;font-weight:650;color:#35465f;font-size:13px}
+.access-console .access-guardian-grid select{width:100%;min-width:0;min-height:44px;border:1px solid #cdd7e7;border-radius:10px;background:#fff;padding:10px 12px;color:#2b3d58}
+.access-console .access-guardian-create{grid-column:1 / -1;justify-self:start;min-height:43px;padding:10px 18px;border:0;border-radius:10px;background:#526b9f;color:#fff;font-weight:700}
+.access-console .access-guardian-create:disabled{background:#aab7d2;cursor:not-allowed}
+.access-console .access-relationship-note{font-size:12px;line-height:1.6;color:#667994;margin-top:14px;max-width:85ch}
+@media(max-width:720px){.access-console .access-guardian-grid{grid-template-columns:1fr}.access-console .access-guardian-create{width:100%;justify-self:stretch}}
 
-/* Student and parent portal navigation */
-.learner-workspace{display:grid;gap:18px;margin-top:12px}.learner-tabs{display:flex;align-items:center;flex-wrap:wrap;gap:7px;border-bottom:1px solid #dfe5ee;padding-bottom:12px}.access-console .learner-tabs button{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;color:#516179;background:transparent;border:1px solid transparent;font-size:13px;font-weight:550}.access-console .learner-tabs button.active{background:#edf2f9;border-color:#c7d5e8;color:#293d59}.access-console .learner-tabs button:focus-visible{outline:2px solid #8d779f;outline-offset:2px}.learner-workspace section{border:1px solid #e4eaf2;border-radius:12px;padding:16px;background:white}.learner-workspace section h3{margin:0 0 13px}.access-console .access-summary strong{font-size:21px}.access-console .access-practice-form button{align-self:end}@media(max-width:600px){.learner-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.access-console .learner-tabs button{justify-content:center}}
 
-.access-self-link{border:1px solid #dbe4f1;background:#f8fafc;border-radius:12px;padding:16px;margin:16px 0}.access-self-link h3{margin:0 0 5px;color:#293950;font-size:15px}.access-self-link p{margin:0 0 12px}.access-self-controls{display:grid;grid-template-columns:minmax(170px,1fr) auto;align-items:end;gap:8px}.access-self-controls label{grid-column:1/-1;color:#475569;font-size:12px;font-weight:600}.access-self-controls select{min-width:0;border:1px solid #cbd5e1;border-radius:9px;padding:9px;background:white;color:#293950}.access-console .access-self-controls button{background:#6078af;color:white;border-color:#6078af;padding:9px 12px}.access-console .access-success{color:#166534;margin-top:10px}.access-error{border:1px solid #fecaca;background:#fef2f2;border-radius:9px;padding:12px;margin:8px 0;color:#991b1b;font-size:13px}.access-error p{margin:4px 0 0;color:#991b1b}.access-console button[title]{opacity:.45}@media(max-width:650px){.access-self-controls{grid-template-columns:1fr}}
+/* sadhana-v116 parent portal polish: presentation only, no auth/data changes */
+.sadhana-v116-family-shell{min-height:100vh;background:#f5f6fa;padding:0 24px 60px;color:#293851;font-family:inherit}
+.sadhana-v116-family-shell .access-console{max-width:1150px;margin:0 auto;background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}
+.sadhana-v116-family-shell .sv116-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 4px;background:transparent;border-bottom:1px solid #dfe4ef}
+.sv116-brand{display:flex;align-items:center;gap:12px}.sv116-brand-symbol{display:grid;place-items:center;background:#bd9d56;color:#fff;border-radius:13px;width:45px;height:45px;font-size:26px}
+.sv116-brand-title{font-size:24px;line-height:1.1;font-weight:800;display:block}.sv116-brand small{display:block;letter-spacing:1.5px;font-size:9px;color:#6d7a91;font-weight:800;margin-top:4px}
+.sv116-signout{border:1px solid #d6deeb;background:#fff;color:#34435b;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer}
+.sv116-body{padding:36px 0 0}.sv116-eyebrow{font-size:11px;letter-spacing:2px;color:#a57b35;font-weight:800}
+.sv116-intro h1{font-size:clamp(26px,3vw,38px);letter-spacing:-1px;line-height:1.15;margin:10px 0;color:#28364e}.sv116-intro p{color:#697b94;margin:0 0 26px;font-size:15px}
+.sv116-academy{display:flex;align-items:center;gap:15px;margin-bottom:28px!important}.sv116-academy label{font-size:13px;font-weight:750;color:#42516a}.sv116-academy select{min-width:220px;margin-left:12px;background:#fff;border:1px solid #d8e0ed;border-radius:10px;padding:10px 14px;color:#28364e}
+.sv116-section-title{font-size:19px!important;margin:0 0 15px!important;color:#28364e}
+.sv116-empty{border:1px solid #e0e6ef;border-radius:18px;background:#fff;padding:35px 30px;text-align:center;box-shadow:0 6px 20px rgba(23,38,70,.035);max-width:860px}
+.sv116-empty-icon{width:62px;height:62px;border-radius:18px;background:#edf0f8;color:#7d86aa;margin:0 auto 18px;display:grid;place-items:center;font-size:33px}
+.sv116-empty strong{display:block;font-size:20px;margin:0 0 8px}.sv116-empty p{color:#60738d;max-width:520px;margin:0 auto 13px;line-height:1.6}.sv116-empty span{display:block;font-size:12px;color:#8592a6}
+.sadhana-v116-family-shell .access-table-wrap,.sadhana-v116-family-shell .learner-workspace{background:#fff;border-radius:14px;overflow:hidden}
+.sadhana-v116-family-shell .access-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.sadhana-v116-family-shell .access-summary>div{border:1px solid #e1e7f0;border-radius:13px;background:#fff;padding:18px}
+.sv116-request{margin:26px 0 0;padding:18px 22px;border:1px solid #dee5ef;border-radius:14px;background:#fff;max-width:860px}
+.sv116-request summary{font-weight:750!important;cursor:pointer;color:#334866;font-size:15px!important}
+.sv116-request p{line-height:1.6;color:#64748b}.sv116-request form{margin-top:16px}
+.sadhana-v116-family-shell .access-note{font-size:12px;color:#77879b;line-height:1.6;margin:26px 0}
+@media(max-width:650px){.sadhana-v116-family-shell{padding:0 15px 35px}.sadhana-v116-family-shell .sv116-header{padding:15px 0}.sv116-body{padding-top:25px}.sv116-academy{display:block}.sv116-academy select{margin:9px 0 0;width:100%}.sadhana-v116-family-shell .access-summary{grid-template-columns:1fr}.sv116-empty{padding:26px 16px}}
+
+
+/* Sadhana v11.7.1 review experience */
+.access-console{padding:24px!important;max-width:1180px;margin:20px auto;border:1px solid #e0e7f0;border-radius:18px;background:#fff;color:#293953;box-sizing:border-box}
+.access-console>header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
+.access-console h2{font-size:26px;line-height:1.2;margin:0 0 6px;font-weight:750}
+.access-console h3{font-size:18px;margin:0 0 6px}
+.access-console p{line-height:1.55}
+.access-console button,.access-console select{font:inherit}
+.access-console>header button,.access-console .access-secondary-button{border:1px solid #ccd6e5;background:#fff;color:#304360;border-radius:10px;padding:9px 13px;font-weight:600;cursor:pointer}
+.access-console .access-self-link{padding:20px;background:#f8fafc;border:1px solid #e3eaf3;border-radius:14px;margin-bottom:22px}
+.access-console .access-controls{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:14px 0;font-weight:600}
+.access-console .access-controls select{padding:9px 14px;border:1px solid #d4deec;border-radius:9px;background:#fff;margin-left:8px}
+.access-console .access-table-wrap{width:100%;overflow-x:auto;border:1px solid #e1e8f1;border-radius:13px}
+.access-console table{width:100%;border-collapse:collapse;text-align:left;font-size:14px}
+.access-console th{padding:13px 14px;background:#f5f8fc;color:#475a72;font-weight:700;white-space:nowrap}
+.access-console td{padding:14px;vertical-align:middle;border-top:1px solid #e8edf4}
+.access-console td small{margin-top:5px;font-size:12px}
+.access-console .access-review-button{background:#30486e;color:white;border:1px solid #30486e;border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer;margin-right:7px}
+.access-console button:disabled{opacity:.5;cursor:not-allowed}
+.access-console .access-note{font-size:12px;color:#65758b;margin-top:18px}
+.access-modal-backdrop{position:fixed;inset:0;z-index:10000;background:rgba(17,28,48,.55);display:flex;align-items:center;justify-content:center;padding:18px}
+.access-review-modal{width:min(100%,560px);padding:26px;border-radius:18px;background:#fff;box-shadow:0 22px 64px rgba(0,0,0,.2);box-sizing:border-box}
+.access-review-heading{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:22px}
+.access-review-heading h3{font-size:23px;margin:5px 0 0}
+.access-eyebrow{text-transform:uppercase;letter-spacing:.1em;font-size:11px;font-weight:750;color:#907129}
+.access-console .access-modal-close{border:0;background:#edf1f7;border-radius:9px;font-size:25px;width:36px;height:36px;cursor:pointer}
+.access-review-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.access-review-pair>div{min-width:0;border:1px solid #e2e8f1;background:#f8fafc;border-radius:12px;padding:14px;display:grid;gap:6px;overflow-wrap:anywhere}
+.access-review-pair span,.access-review-pair small{font-size:12px;color:#66758e}
+.access-review-pair strong{font-size:15px;color:#273850}
+.access-review-explainer{font-size:14px;color:#485b72}
+.access-review-warning{background:#fff4eb;border:1px solid #f0cbb2;color:#8a3a20;border-radius:10px;padding:13px;font-size:13px}
+.access-review-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+@media(max-width:700px){.access-console{margin:10px;padding:16px!important}.access-console>header{align-items:flex-start}.access-review-pair{grid-template-columns:1fr}.access-console td,.access-console th{padding:10px}}

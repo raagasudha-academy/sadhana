@@ -10,7 +10,11 @@ export function domainForPK(pk:string,sk=''):Domain {
  if(pk.startsWith('SCHEDULE#')||pk.startsWith('SCHEDULE_SERIES#')||pk.startsWith('VENUE#')||pk.startsWith('CALENDAR#')||pk.startsWith('CLASS#')||pk==='DIRECTORY#VENUE'||/^INST#[^#]+#CLASS$/.test(pk))return 'calendar';
  if(pk.startsWith('TEACHER_REGISTRY')||pk.startsWith('TEACHER_SUB#'))return 'admin';
  if(pk.startsWith('ACCESS_REQUEST#')||pk.startsWith('ACCESS#'))return 'admin';
+ if(/^OPS#(?:sruti|raaga)#HOMEWORK(?:_COMPLETION)?$/.test(pk))return 'learning';
+ if(/^OPS#(?:sruti|raaga)#HOMEWORK_SUBMISSION#HOMEWORK-[0-9a-f-]{36}$/i.test(pk))return 'learning';
  if(pk.startsWith('AUDIT#'))return 'audit';
+ if(pk==='OPS#raaga#COUNTERS')return 'students';
+ if(pk==='OPS#GLOBAL#WEB_IMPORT')return 'students';
  if(pk.startsWith('OPS#GLOBAL#COUNTERS')||pk.startsWith('OPS#GLOBAL#FAMILY')||pk.startsWith('OPS#GLOBAL#STUDENT')||pk.startsWith('OPS#sruti#FAMILY')||pk.startsWith('OPS#raaga#FAMILY')||pk.startsWith('OPS#sruti#STUDENT')||pk.startsWith('OPS#raaga#STUDENT')||pk.startsWith('OPS#sruti#ENROLMENT')||pk.startsWith('OPS#raaga#ENROLMENT')||pk.startsWith('FAMILY#')||pk.startsWith('STUDENT#')||pk.startsWith('ENROLMENT#')||pk==='DIRECTORY#FAMILY'||pk==='DIRECTORY#STUDENT'||/^INST#[^#]+#ENROLMENT$/.test(pk))return 'students';
  if(/^OPS#(?:sruti|raaga)#(?:ATTENDANCE|PRACTICE|FEEDBACK|RSVP)$/.test(pk)||pk.startsWith('PRACTICE_COMMENTS#')||pk.startsWith('PRACTICE#')||/^INST#[^#]+#PRACTICE$/.test(pk))return 'learning';
  if(pk.startsWith('PHONE#')) {if(sk.startsWith('FAMILY#')||sk.startsWith('STUDENT#'))return 'students'; throw Error(`Cannot route phone GSI without identity sort key`);}

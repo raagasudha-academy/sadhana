@@ -1,0 +1,50 @@
+/* Sadhana v11.9: responsive learner-first presentation. */
+.student-portal-v119 {width:100%;max-width:1100px;margin:0 auto;}
+.student-portal-v119 .access-console{overflow:hidden;}
+.student-portal-v119 .sv116-intro{padding:clamp(16px,3vw,28px);border-radius:18px;background:linear-gradient(120deg,#f3f5ff,#f9fbff);margin:0 0 18px;}
+.student-portal-v119 .sv116-intro h1{font-size:clamp(24px,3vw,36px);line-height:1.2;}
+.student-portal-v119 .student-portal-learning{display:grid;gap:14px;margin:24px 0;}
+.student-portal-v119 .learner-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px;}
+.student-portal-v119 .learner-tabs button{display:inline-flex;align-items:center;gap:7px;min-height:42px;border-radius:12px;}
+.student-portal-v119 .access-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;}
+.student-portal-v119 .access-summary>div{min-width:0;}
+.student-portal-v119 .access-practice-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
+.student-portal-v119 .access-practice-form label{min-width:0;}
+.student-portal-v119 .access-practice-form input,.student-portal-v119 .access-practice-form select,.student-portal-v119 .access-practice-form textarea{max-width:100%;}
+.student-portal-v119 .access-table-wrap{max-width:100%;overflow-x:auto;}
+.student-portal-v119 button:focus-visible,.student-portal-v119 select:focus-visible,.student-portal-v119 input:focus-visible{outline:3px solid #697adb;outline-offset:2px;}
+@media (max-width:640px){.student-portal-v119 .sv116-body{padding:14px}.student-portal-v119 .learner-tabs button{flex:1 1 44%;justify-content:center}.student-portal-v119 .access-summary{grid-template-columns:1fr 1fr}.student-portal-v119 .sv116-intro{padding:18px 14px}}
+@media (prefers-reduced-motion:reduce){.student-portal-v119 *{scroll-behavior:auto!important;transition:none!important}}
+
+.sv120-homework-list{display:grid;gap:12px}.sv120-homework-card{display:flex;justify-content:space-between;align-items:center;gap:16px;border:1px solid #dce4eb;border-radius:12px;padding:16px;background:#fff}.sv120-homework-card p{white-space:pre-wrap}.sv120-homework-card small{color:#64748b}@media(max-width:600px){.sv120-homework-card{flex-direction:column;align-items:stretch}}
+
+/* v12.2 parent portal visual refinement — scoped, no API or access changes. */
+.student-portal-v119{--sp-ink:#27364e;--sp-line:#dce5f0;--sp-blue:#314a74;--sp-soft:#f5f8fd;color:var(--sp-ink)}
+.student-portal-v119 .student-portal-learning{gap:16px;margin:26px 0}
+.student-portal-v119 .student-portal-learning>label{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-weight:650;color:#334560}
+.student-portal-v119 .student-portal-learning>label select{appearance:auto;min-height:44px;min-width:min(100%,290px);max-width:100%;padding:10px 14px;border:1px solid #c8d5e7;border-radius:11px;background:#fff;color:#27364e;font:inherit;box-shadow:0 2px 6px rgba(37,54,82,.04)}
+.student-portal-v119 .learner-workspace{min-width:0}
+.student-portal-v119 .learner-workspace>section[aria-label="Next class RSVP"]{background:linear-gradient(130deg,#f5f8fe,#fff)!important;border-color:#dce5f0!important;border-radius:15px!important;padding:20px!important;margin:8px 0 20px!important}
+.student-portal-v119 .learner-workspace>section[aria-label="Next class RSVP"] h3{font-size:17px;color:#253b5e}
+.student-portal-v119 .learner-tabs{gap:10px;margin:14px 0 24px;border-bottom:1px solid var(--sp-line);padding-bottom:13px}
+.student-portal-v119 .learner-tabs button{appearance:none;padding:10px 15px;min-height:44px;border:1px solid #d2ddec;border-radius:11px;background:white;color:#344b6a;font-size:14px;font-weight:650;line-height:1.3;cursor:pointer;box-shadow:0 1px 3px rgba(34,50,76,.04);transition:background .15s,border-color .15s,transform .15s}
+.student-portal-v119 .learner-tabs button:hover{background:#f1f5fc;border-color:#9eb2d2}
+.student-portal-v119 .learner-tabs button.active{background:#2e466d;color:#fff;border-color:#2e466d;box-shadow:0 3px 9px rgba(39,63,102,.17)}
+.student-portal-v119 .access-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}
+.student-portal-v119 .access-summary>div{display:flex;flex-direction:column;gap:9px;justify-content:center;min-height:117px;padding:18px;border:1px solid var(--sp-line);border-radius:14px;background:#fff}
+.student-portal-v119 .access-summary small{display:block;font-size:12px;font-weight:700;color:#5b6d87;letter-spacing:.02em}
+.student-portal-v119 .access-summary strong{display:block;font-size:clamp(21px,2.6vw,29px);line-height:1.1;overflow-wrap:anywhere;color:#213855}
+.student-portal-v119 .access-summary span{display:block;font-size:12px;line-height:1.45;color:#6a7890}
+.student-portal-v119 .sv116-section-title{margin-top:24px;margin-bottom:12px}
+.student-portal-v119 .access-table-wrap{border:1px solid var(--sp-line);border-radius:13px;background:#fff}
+.student-portal-v119 .access-table-wrap table{width:100%;border-collapse:collapse}
+.student-portal-v119 .access-table-wrap th,.student-portal-v119 .access-table-wrap td{padding:13px 16px;text-align:left;vertical-align:middle}
+.student-portal-v119 .access-table-wrap th{background:#f4f7fc;color:#40546f;font-size:12px}
+.student-portal-v119 .access-table-wrap tr+tr td{border-top:1px solid #e8eef5}
+.student-portal-v119 .sv120-homework-card button,.student-portal-v119 .access-practice-form button[type="submit"]{border:1px solid #2e466d;border-radius:10px;background:#2e466d;color:white;min-height:42px;padding:9px 15px;font-weight:650;cursor:pointer}
+.student-portal-v119 button:disabled{cursor:not-allowed;opacity:.58}
+.student-portal-v119 .sv116-request{margin-top:26px;border:1px solid var(--sp-line);border-radius:13px;padding:14px 18px;background:#fff}
+.student-portal-v119 .sv116-request summary{color:#314968}
+@media(max-width:780px){.student-portal-v119 .access-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.student-portal-v119 .access-summary{grid-template-columns:1fr}.student-portal-v119 .learner-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.student-portal-v119 .learner-tabs button{width:100%;padding:9px 8px;justify-content:center}.student-portal-v119 .student-portal-learning>label select{width:100%;min-width:0}.student-portal-v119 .access-table-wrap th,.student-portal-v119 .access-table-wrap td{padding:11px 12px}.student-portal-v119 .access-summary>div{min-height:90px}}
+@media(prefers-reduced-motion:reduce){.student-portal-v119 .learner-tabs button{transition:none}}

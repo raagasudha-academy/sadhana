@@ -1,8 +1,9 @@
-import {makeRoutedClient} from './tableRouter.ts';
+import {makeRoutedClient,expectedTables} from './tableRouter.ts';
+import {DEPENDENT_WRITER_KINDS,dependentStudentGuard} from './revocationWriterFence.ts';
 /** Sadhana v0.9: institution-scoped operational records, no schema/index migration. */
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient,GetCommand,QueryCommand,PutCommand,UpdateCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {DynamoDBDocumentClient,GetCommand,QueryCommand,PutCommand,UpdateCommand,TransactWriteCommand,ScanCommand} from '@aws-sdk/lib-dynamodb';
 import {clean,demandInstitution,demandViewInstitution,httpError,permittedInstitutions} from './model.ts';
 import type {Claims,InstitutionId} from './model.ts';
 import {schedulePK,scheduleSK} from './scheduleModel.ts';
@@ -10,15 +11,15 @@ const db=makeRoutedClient();
 const table=()=>{if(!process.env.SADHANA_TABLE_NAME)throw Error('SADHANA_TABLE_NAME missing');return process.env.SADHANA_TABLE_NAME;};
 const dateOK=(x:unknown)=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T12:00:00Z'))&&new Date(x+'T12:00:00Z').toISOString().slice(0,10)===x;
 const institution=(s:string):InstitutionId=>{if(s!=='sruti'&&s!=='raaga')throw httpError(400,'Select an academy.');return s;};
-const allowedFields={family:['parentName','phone','location','archived'],student:['name','phone','location','familyId','adultConfirmed','relationship','archived'],enrolment:['studentId','classId','startDate','endDate','archived'],attendance:['studentId','sessionId','status','note'],practice:['studentId','classId','date','didPractice','minutes','comments'],feedback:['studentId','classId','date','note'],rsvp:['studentId','sessionId','intention','note']} as const;
+const allowedFields={family:['parentName','email','phone','location','archived'],student:['name','email','phone','location','familyId','adultConfirmed','relationship','archived'],enrolment:['studentId','classId','startDate','endDate','archived'],attendance:['studentId','sessionId','status','note'],practice:['studentId','classId','date','didPractice','minutes','comments'],feedback:['studentId','classId','date','note'],rsvp:['studentId','sessionId','intention','note']} as const;
 type Kind=keyof typeof allowedFields;
 const kinds=Object.keys(allowedFields) as Kind[];
 // Global family/student identity shared by both academies; operational records remain academy-scoped.
 const key=(inst:InstitutionId,kind:Kind,id:string)=>({PK:kind==='family'||kind==='student'?`OPS#GLOBAL#${kind.toUpperCase()}`:`OPS#${inst}#${kind.toUpperCase()}`,SK:`ITEM#${id}`});
 // Atomic DynamoDB ADD prevents duplicate roll numbers under concurrent registration.
 // A failed downstream write can leave a gap; numbers are intentionally never reused.
-async function allocate(kind:'family'|'student') {
- const result=await db.send(new UpdateCommand({TableName:table(),Key:{PK:'OPS#GLOBAL#COUNTERS',SK:kind.toUpperCase()},UpdateExpression:'ADD #n :one',ExpressionAttributeNames:{'#n':'value'},ExpressionAttributeValues:{':one':1},ReturnValues:'UPDATED_NEW'}));
+async function allocate(inst:InstitutionId,kind:'family'|'student') {
+ const result=await db.send(new UpdateCommand({TableName:table(),Key:{PK:inst==='raaga'?'OPS#raaga#COUNTERS':'OPS#GLOBAL#COUNTERS',SK:kind.toUpperCase()},UpdateExpression:'ADD #n :one',ExpressionAttributeNames:{'#n':'value'},ExpressionAttributeValues:{':one':1},ReturnValues:'UPDATED_NEW'}));
  const value=result.Attributes?.value;
  if(!Number.isSafeInteger(value)||value<1)throw Error('Number allocation failed');
  return String(value).padStart(3,'0');
@@ -45,8 +46,12 @@ const validate=(kind:Kind,d:any)=>{
  const extra=Object.keys(d).filter(k=>!allowedFields[kind].includes(k as never));if(extra.length)throw httpError(400,`Unsupported fields: ${extra.join(', ')}`);
  if(d.archived!==undefined&&typeof d.archived!=='boolean')throw httpError(400,'Invalid archived flag.');
  const str=(k:string,n=180)=>{if(d[k]!==undefined){if(typeof d[k]!=='string')throw httpError(400,`Invalid ${k}.`);d[k]=clean(d[k]).slice(0,n);}};
- for(const k of ['name','parentName','phone','location','familyId','studentId','classId','sessionId','status','intention','note','comments','startDate','endDate','date','relationship'])str(k,k==='note'||k==='comments'?1500:180);
+ for(const k of ['name','parentName','email','phone','location','familyId','studentId','classId','sessionId','status','intention','note','comments','startDate','endDate','date','relationship'])str(k,k==='note'||k==='comments'?1500:180);
  if(kind==='family'&&(!d.parentName||!/^\+[1-9]\d{7,14}$/.test(d.phone||'')))throw httpError(400,'Parent/guardian name and international phone required.');
+ if(d.email!==undefined){d.email=d.email.trim().toLowerCase();if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email))throw httpError(400,'Enter a valid email address.');}
+ if(kind==='family'&&!d.email)throw httpError(400,'Parent/guardian email required.');
+ if(kind==='student'&&(!d.familyId||d.relationship==='parent_guardian')&&!d.email)throw httpError(400,'Adult student email required.');
+ if(kind==='student'&&(!d.familyId||d.relationship==='parent_guardian')&&!/^\+[1-9]\d{7,14}$/.test(d.phone||''))throw httpError(400,'Adult student international phone required.');
  if(kind==='student'&&(!d.name||(d.phone&&!/^\+[1-9]\d{7,14}$/.test(d.phone))))throw httpError(400,'Valid student name and phone required.');
  if(kind==='student'&&!d.familyId&&d.adultConfirmed!==true)throw httpError(400,'Independent students must confirm adulthood.');
  if(kind==='enrolment'&&(!d.studentId||!d.classId||!dateOK(d.startDate)||d.endDate&&!dateOK(d.endDate)||d.endDate&&d.endDate<d.startDate))throw httpError(400,'Student, master class and valid dates required.');
@@ -65,6 +70,70 @@ export async function operations(instRaw:string,kindRaw:string,method:string,cla
    const safe:any[]=[];const teacherEnrolments=kind==='student'?await rows(inst,'enrolment'):[];for(const r of await rows(inst,kind)){if(kind==='student'){const allowedClasses=teacherEnrolments.filter(e=>e.studentId===r.id&&!e.archived);let assigned=false;for(const e of allowedClasses){try{await teacher(inst,claims,e.classId);assigned=true;break;}catch{/* another teacher */}}if(assigned)safe.push({id:r.id,name:r.name,rollNumber:r.rollNumber||'',institution:inst});continue;}const linkedSession=(kind==='attendance'||kind==='rsvp')?await session(inst,r.sessionId):null;const classId=kind==='enrolment'?r.classId:r.classId||linkedSession?.classId;if(!classId&&linkedSession?.eventKind!=='class')continue;try{if(linkedSession?.eventKind==='class'){const reg=(await db.send(new GetCommand({TableName:table(),Key:{PK:'TEACHER_REGISTRY',SK:`TEACHER#${linkedSession.teacherId}`}}))).Item;if(!reg?.active||reg.cognitoSub!==claims.sub)continue;}else await teacher(inst,claims,classId);safe.push(kind==='enrolment'?{id:r.id,studentId:r.studentId,classId:r.classId,startDate:r.startDate,endDate:r.endDate,archived:r.archived}:r);}catch{/* not this teacher */}}return {records:safe};}
   return {records:await rows(inst,kind)};
  }
+ // Explicit permanent family deletion: fail closed if any outside record refers to the family or its students.
+ // Scan uses physical table clients since the split-table router intentionally has no Scan support.
+ if(method==='DELETE'){
+  if(kind==='enrolment'){
+   if(!admin)throw httpError(403,'Only academy administrators can remove enrolments.');
+   if(!id)throw httpError(400,'Enrolment ID is required.');
+   const enrolment=await get(inst,'enrolment',id);
+   if(!enrolment||enrolment.institution!==inst)throw httpError(404,'Enrolment not found in this academy.');
+   if(body?.confirm!=='DELETE'||body?.expectedVersion!==enrolment.version)throw httpError(400,'Confirm DELETE with the current enrolment version.');
+   // Do not remove an enrolment if any learning, attendance, RSVP or feedback depends on the student/class.
+   // This is deliberately conservative: review ambiguous history rather than orphaning records.
+   const linkedKinds=['attendance','practice','feedback','rsvp'] as const;
+   for(const linkedKind of linkedKinds){
+    const all=await rows(inst,linkedKind);
+    if(all.some((r:any)=>r.studentId===enrolment.studentId &&
+      (r.classId===enrolment.classId || !!r.sessionId)))
+     throw httpError(409,'Student has learning, attendance or RSVP history. End the enrolment instead of permanently deleting it.');
+   }
+   const allOther=await rows(inst,'enrolment');
+   if(allOther.some((r:any)=>r.id!==id&&r.studentId===enrolment.studentId&&r.classId===enrolment.classId))
+    throw httpError(409,'Multiple enrolment records exist for this student and class; review before deletion.');
+   try{await db.send(new TransactWriteCommand({TransactItems:[{Delete:{TableName:table(),Key:key(inst,'enrolment',id),ConditionExpression:'#v=:v AND institution=:i AND studentId=:s AND classId=:c',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':enrolment.version,':i':inst,':s':enrolment.studentId,':c':enrolment.classId}}}]}));}
+   catch(e:any){if(e.name==='TransactionCanceledException')throw httpError(409,'Enrolment changed. Refresh and retry.');throw e;}
+   return {deleted:true,enrolmentId:id};
+  }
+  if(kind!=='family'||!id)throw httpError(405,'Only family permanent deletion is supported.');
+  if(!admin)throw httpError(403,'Only academy administrators can delete families.');
+  const family=await get(inst,'family',id);
+  if(!family||family.institution!==inst)throw httpError(404,'Family not found in this academy.');
+  if(body?.confirm!=='DELETE'||body?.expectedVersion!==family.version)throw httpError(400,'Confirm DELETE and the current family version.');
+  const children=(await rows(inst,'student')).filter(s=>s.familyId===id);
+  if(children.some(s=>s.institution!==inst))throw httpError(409,'Family has cross-academy student records; manual review needed.');
+  if(children.length>20)throw httpError(409,'This family exceeds the 20-student safe-delete limit.');
+  const studentIds=new Set(children.map(s=>s.id));
+  const watchIds=new Set([id,...studentIds]);
+  const direct=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});
+  const physicalTables=process.env.SADHANA_DATA_MODE==='split'?Object.values(expectedTables):[table()];
+  let inspected=0;
+  for(const tableName of physicalTables){
+   let cursor:any;
+   do{
+    const page=await direct.send(new ScanCommand({TableName:tableName,ExclusiveStartKey:cursor,Limit:200,ConsistentRead:true}));
+    for(const r of page.Items||[]){
+     inspected++;
+     if(inspected>10000)throw httpError(409,'Too many records to prove family deletion safe; manual review required.');
+     // Deletion targets are the family and students themselves, not dependencies.
+     if((r.PK==='OPS#GLOBAL#FAMILY'&&r.SK===`ITEM#${id}`)||
+       (r.PK==='OPS#GLOBAL#STUDENT'&&studentIds.has(r.id)&&r.SK===`ITEM#${r.id}`))continue;
+     // Audit records are historical events, not live references that can grant access.
+     if(String(r.PK||'').startsWith('AUDIT#'))continue;
+     // Check nested objects too; access and future relationship schemas can differ.
+     const serialized=JSON.stringify(r);
+     if([...watchIds].some(ref=>serialized.includes(ref)))
+       throw httpError(409,`Family has linked enrolment, learning, access or other records in ${tableName}; remove dependencies before deleting.`);
+    }
+    cursor=page.LastEvaluatedKey;
+   }while(cursor);
+  }
+  const deletes=[...children.map(s=>({Delete:{TableName:table(),Key:key(inst,'student',s.id),ConditionExpression:'#v=:v AND institution=:i AND familyId=:f',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':s.version,':i':inst,':f':id}}})),
+   {Delete:{TableName:table(),Key:key(inst,'family',id),ConditionExpression:'#v=:v AND institution=:i',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':family.version,':i':inst}}}];
+  try{await db.send(new TransactWriteCommand({TransactItems:deletes}));}
+  catch(e:any){if(e.name==='TransactionCanceledException')throw httpError(409,'Family changed during deletion; refresh and retry.');throw e;}
+  return {deleted:true,familyId:id,studentsDeleted:children.length};
+ }
  if(method!=='POST'&&method!=='PATCH')throw httpError(405,'Unsupported action.');
  if(!admin)demandViewInstitution(claims,inst);
  if(!admin&&['family','student','enrolment'].includes(kind))throw httpError(403,'Administrators manage identities and enrolments.');
@@ -78,15 +147,15 @@ export async function operations(instRaw:string,kindRaw:string,method:string,cla
     validate('family',familyDraft);
     const parsed=members.map((input:any)=>{
       if(!input||typeof input!=='object'||Array.isArray(input))throw httpError(400,'Invalid family member.');
-      const draft={name:input.name,phone:input.phone||'',familyId:'PENDING',relationship:input.relationship||'child'};
+      const draft={name:input.name,email:input.email||'',phone:input.phone||'',familyId:'PENDING',relationship:input.relationship||'child'};
       validate('student',draft);
       if(!draft.name)throw httpError(400,'Every learner needs a name.');
       return draft;
     });
     if(new Set(parsed.map((r:any)=>r.name.toLowerCase())).size!==parsed.length)throw httpError(400,'Duplicate learner names in family.');
-    const familyNumber=await allocate('family');
+    const familyNumber=await allocate(inst,'family');
     const studentNumbers:string[]=[];
-    for(const _ of parsed)studentNumbers.push(await allocate('student'));
+    for(const _ of parsed)studentNumbers.push(await allocate(inst,'student'));
     const familyId=`FAMILY-${randomUUID()}`;
     const now=new Date().toISOString();
     const fam={...key(inst,'family',familyId),...familyDraft,familyNumber,id:familyId,institution:inst,version:1,createdAt:now,updatedAt:now,updatedBy:claims.sub};
@@ -112,7 +181,7 @@ export async function operations(instRaw:string,kindRaw:string,method:string,cla
     if(student.adultConfirmed!==true)throw httpError(409,'Only a confirmed independent adult can convert to family.');
     const {existingStudentId,...familyDraft}=body;
     validate('family',familyDraft);
-    const number=await allocate('family');
+    const number=await allocate(inst,'family');
     const now=new Date().toISOString();
     const familyId=`FAMILY-${randomUUID()}`;
     const familyItem={...key(inst,'family',familyId),...familyDraft,familyNumber:number,id:familyId,institution:inst,version:1,createdAt:now,updatedAt:now,updatedBy:claims.sub};
@@ -179,9 +248,9 @@ export async function operations(instRaw:string,kindRaw:string,method:string,cla
  let familyNumber: string|undefined=old?.familyNumber;
  let rollNumber: string|undefined=old?.rollNumber;
  let studentNumber: string|undefined=old?.studentNumber;
- if(!old&&kind==='family')familyNumber=await allocate('family');
+ if(!old&&kind==='family')familyNumber=await allocate(inst,'family');
  if(!old&&kind==='student'){
-  studentNumber=await allocate('student');
+  studentNumber=await allocate(inst,'student');
   const f=draft.familyId?await get(inst,'family',draft.familyId):null;
   if(f&&!f.familyNumber)throw httpError(409,'Family has no allocated number. Reset test registration records before using new numbering.');
   rollNumber=`${f?.familyNumber||'000'}-${studentNumber}`;
@@ -190,8 +259,13 @@ export async function operations(instRaw:string,kindRaw:string,method:string,cla
  // Serialize enrolment creation/updates against master deletion. A concurrent master
  // deletion and enrolment transaction cannot both commit successfully.
  const masterGuard=kind==='enrolment'?{ConditionCheck:{TableName:table(),Key:{PK:schedulePK(inst),SK:scheduleSK(draft.classId)},ConditionExpression:'#type=:type AND #version=:version',ExpressionAttributeNames:{'#type':'recordType','#version':'version'},ExpressionAttributeValues:{':type':'class',':version':(await master(inst,draft.classId)).version}}}:null;
+ // Every dependent-record save must be serialized against changes to the global student identity.
+ // A revocation coordinator must first fence the identity with a versioned write, then
+ // scan dependencies. Do not enable revocation until that coordinator is implemented.
+ const dependencyGuard=DEPENDENT_WRITER_KINDS.includes(kind as typeof DEPENDENT_WRITER_KINDS[number])
+  ?await dependentStudentGuard(db,table(),draft.studentId):null;
  const item={...key(inst,kind,nextId),...draft,...(kind==='family'?{familyNumber}:{}),...(kind==='student'?{studentNumber,rollNumber}:{}),id:nextId,institution:inst,version:(old?.version||0)+1,createdAt:old?.createdAt||now,updatedAt:now,updatedBy:claims.sub};
  const audit={PK:`AUDIT#${inst}`,SK:`AT#${now}#${randomUUID()}`,entityType:'AUDIT',type:id?'UPDATE':'CREATE',resource:`ops-${kind}`,id:nextId,actorSub:claims.sub,at:now};
- try{await db.send(new TransactWriteCommand({TransactItems:[...(masterGuard?[masterGuard]:[]),{Put:{TableName:table(),Item:item,...(old?{ConditionExpression:'#v=:v',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':old.version}}:{ConditionExpression:'attribute_not_exists(PK)'})}},{Put:{TableName:table(),Item:audit}}]}));}catch(e:any){if(e.name==='TransactionCanceledException')throw httpError(409,'Record changed; refresh and retry.');throw e;}
+ try{await db.send(new TransactWriteCommand({TransactItems:[...(masterGuard?[masterGuard]:[]),...(dependencyGuard?[dependencyGuard]:[]),{Put:{TableName:table(),Item:item,...(old?{ConditionExpression:'#v=:v',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':old.version}}:{ConditionExpression:'attribute_not_exists(PK)'})}},{Put:{TableName:table(),Item:audit}}]}));}catch(e:any){if(e.name==='TransactionCanceledException')throw httpError(409,'Record changed; refresh and retry.');throw e;}
  const {PK,SK,...record}=item;return {record};
 }

@@ -1,0 +1,33 @@
+/* v12.9.1: Admin-aligned learner shell and homework drawer. */
+.sv1291-unified{--sv-ink:#283850;--sv-border:#dfe6f1;--sv-background:#f4f6fa;color:var(--sv-ink)}
+.sv1291-unified .sv123-sidebar{background:#12243f;border-right:1px solid #263b5b}
+.sv1291-unified .sv123-side-links button{border-radius:10px;min-height:43px;font-weight:500}
+.sv1291-unified .sv123-side-links button.active{background:#edf2fb;color:#233955;font-weight:700}
+.sv1291-unified .sv123-main{background:var(--sv-background);min-width:0}
+.sv1291-unified .sv116-body{max-width:1200px;margin:0 auto}
+.sv1291-unified .sv116-intro{padding:22px 26px;margin-bottom:14px}
+.sv1291-unified .sv116-intro h1{font-size:clamp(24px,2.5vw,32px);line-height:1.2}
+.sv1291-unified .sv1281-compact-header.sv1291-topbar{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-wrap:wrap;min-height:74px;padding:10px 22px;background:#fff;border-bottom:1px solid var(--sv-border)}
+.sv1291-account{display:flex;align-items:center;gap:9px;min-width:0}
+.sv1291-avatar{display:flex;align-items:center;justify-content:center;width:38px;height:38px;flex:none;border-radius:50%;background:#e7eefa;border:1px solid #d1dceb;color:#344f81;font-weight:700;overflow:hidden}
+.sv1291-avatar img{width:100%;height:100%;object-fit:cover}
+.sv1291-account-name{font-size:13px;font-weight:700;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv1291-unified .sv1281-header-student{margin:0;min-width:0}
+.sv1291-unified .sv1281-header-student select{max-width:min(330px,55vw);min-height:40px;border:1px solid #d8e1ee;border-radius:9px;background:white}
+.sv1291-unified .sv1291-signout{display:inline-flex;align-items:center;gap:6px;border:1px solid #dce4ef;border-radius:9px;padding:9px 12px;background:white}
+.sv1291-unified .sv123-inline-tabs{display:none}
+.sv1291-unified .sv1278-assignment{border:1px solid var(--sv-border);border-radius:13px;background:white;box-shadow:0 2px 7px rgba(20,36,60,.04)}
+.sv1291-unified .sv1278-assignment:hover,.sv1291-unified .sv1278-assignment:focus-visible{border-color:#6281b6;box-shadow:0 4px 15px rgba(25,50,90,.10)}
+.sv1291-drawer-backdrop{position:fixed;inset:0;background:rgba(15,30,55,.43);z-index:1100;display:flex;justify-content:flex-end}
+.sv1291-drawer{height:100%;width:min(670px,100vw);background:#fff;box-shadow:-12px 0 38px rgba(15,28,45,.18);overflow:auto;padding:0 24px 30px;box-sizing:border-box;outline:none}
+.sv1291-drawer-head{position:sticky;top:0;z-index:1;background:white;display:flex;justify-content:space-between;align-items:center;min-height:67px;border-bottom:1px solid #dce4ef;font-size:15px;font-weight:750}
+.sv1291-drawer-head button{display:flex;border:1px solid #dde5f1;border-radius:9px;background:#fff;padding:9px;cursor:pointer}
+.sv1291-drawer .sv1278-editor{border:none;box-shadow:none;margin:0;padding:18px 0;max-width:100%;width:auto}
+.sv1291-drawer .sv1278-editor textarea{max-width:100%}
+.sv1291-drawer .sv1278-editor footer{flex-wrap:wrap;gap:12px}
+/* The teacher workspace is inside the existing Admin shell: normalize interior cards only. */
+.teacher-workspace .tw-panel,.teacher-workspace .tw-stats>div{border-color:#dfe6f1;box-shadow:0 3px 14px rgba(29,49,78,.035);background:#fff}
+.teacher-workspace .page-heading{margin-bottom:20px}
+.teacher-workspace .tw-filter{background:#f5f7fb;border:1px solid #e4e9f2}
+.teacher-workspace .tw-tabs button.active{background:#edf2fb;color:#233955;border-color:#d5e0f0}
+@media(max-width:720px){.sv1291-unified .sv1281-compact-header.sv1291-topbar{padding:10px 14px;justify-content:flex-start;gap:8px}.sv1291-account-name{max-width:140px}.sv1291-unified .sv1281-header-student{width:100%}.sv1291-unified .sv1281-header-student select{max-width:calc(100vw - 115px)}.sv1291-unified .sv116-intro{padding:16px}.sv1291-drawer{width:100vw;padding:0 16px 22px}.sv1291-drawer .sv1278-editor footer>div{display:flex;flex-wrap:wrap;gap:8px}}

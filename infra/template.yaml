@@ -96,7 +96,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins: [!Ref AllowedPortalOrigin]
         AllowHeaders: [authorization, content-type]
-        AllowMethods: [GET, POST, PATCH, OPTIONS]
+        AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
         MaxAge: 600
       Auth:
         DefaultAuthorizer: CognitoStaff
@@ -144,9 +144,26 @@ Resources:
                 - dynamodb:DeleteItem
                 - dynamodb:Query
                 - dynamodb:TransactWriteItems
+                - dynamodb:Scan
               Resource:
                 - !GetAtt SadhanaTable.Arn
                 - !Sub "${SadhanaTable.Arn}/index/*"
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-calendar'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-students'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-audit'
+            # Family Delete verifies references across the split-table architecture.
+            # Read-only Scan only; no expanded write permissions.
+            - Sid: FamilyDeleteDependencyScanSplitTables
+              Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-students'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-calendar'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-learning'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-identity'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-admin'
+                - !GetAtt SadhanaTable.Arn
             - Effect: Allow
               Action:
                 - cognito-idp:ListUsersInGroup

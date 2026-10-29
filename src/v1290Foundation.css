@@ -1,0 +1,10 @@
+/* v12.9.0: presentation-only learner foundation; no changes to APIs or permissions. */
+.student-portal-v123 .sv123-main{min-width:0;background:#f4f6fb}
+.student-portal-v123 .sv116-body{max-width:1180px;width:100%;margin:0 auto}
+.student-portal-v123 .student-portal-learning{min-width:0}
+.student-portal-v123 .sv1277-page-title{letter-spacing:-.015em}
+.sv1290-privacy{padding:clamp(18px,3vw,28px);border:1px solid #dce5f0;border-radius:16px;background:#fff;max-width:760px}
+.sv1290-privacy h3{margin:0 0 12px;color:#203858}
+.sv1290-privacy p{line-height:1.65;color:#455978}
+.sv1290-privacy [role=note]{background:#f3f6fb;padding:12px 15px;border-radius:10px}
+@media(max-width:700px){.student-portal-v123 .sv116-body{padding-inline:12px}.sv1290-privacy{padding:16px}}

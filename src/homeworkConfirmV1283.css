@@ -1,0 +1,10 @@
+/* v12.8.3 - Sadhana homework confirmation */
+.sv1283-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(9,22,43,.62);display:flex;align-items:center;justify-content:center;padding:18px}
+.sv1283-dialog{width:min(100%,460px);max-height:calc(100vh - 36px);overflow:auto;background:#fff;border:1px solid #d9e2ef;box-shadow:0 24px 70px rgba(10,29,51,.28);border-radius:18px;padding:28px;color:#24354e}
+.sv1283-icon{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:13px;background:#eaf1fa;color:#174775}
+.sv1283-dialog h2{font-size:24px;margin:15px 0 7px;color:#162b46}.sv1283-dialog p{margin:0 0 18px;line-height:1.55;color:#596d85}
+.sv1283-dialog dl{background:#f5f8fc;border:1px solid #dce5f0;border-radius:12px;margin:0 0 16px;padding:4px 16px}
+.sv1283-dialog dl>div{display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px;padding:11px 0;border-bottom:1px solid #e0e8f1}.sv1283-dialog dl>div:last-child{border-bottom:0}.sv1283-dialog dt{color:#60738c;font-size:13px}.sv1283-dialog dd{margin:0;font-weight:650;overflow-wrap:anywhere}
+.sv1283-dialog .sv1283-note{font-size:13px;margin-bottom:22px}.sv1283-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.sv1283-actions button{cursor:pointer;border-radius:10px;min-height:42px;padding:9px 17px;border:1px solid #ccd9e7;background:#fff;color:#183554;font:inherit;font-weight:650}.sv1283-actions .sv1283-primary{background:#173c66;border-color:#173c66;color:white}.sv1283-actions button:disabled{opacity:.55;cursor:not-allowed}.sv1283-actions button:focus-visible{outline:3px solid #86b7f6;outline-offset:2px}
+@media(max-width:520px){.sv1283-dialog{padding:21px}.sv1283-dialog dl>div{grid-template-columns:1fr;gap:2px}.sv1283-actions button{flex:1}}

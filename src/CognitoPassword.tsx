@@ -56,7 +56,8 @@ export default function CognitoPassword({region,clientId,onAuthenticated,onManag
   setAnswer('');setNewPassword('');
  };
  const handleLogin=async()=>{
-  const user=username.trim();if(!user||!password)return;
+  const user=username.trim().toLowerCase();if(!user||!password)return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)){setError('Enter your registered email address.');return;}
   setBusy(true);setError('');
   try{
    const r=await cognito(region,'InitiateAuth',{AuthFlow:'USER_AUTH',ClientId:clientId,
@@ -85,22 +86,22 @@ export default function CognitoPassword({region,clientId,onAuthenticated,onManag
  const handleReset=async()=>{
   setBusy(true);setError('');
   try{
-   await cognito(region,'ForgotPassword',{ClientId:clientId,Username:username.trim()});
+   await cognito(region,'ForgotPassword',{ClientId:clientId,Username:username.trim().toLowerCase()});
    setMode('confirm-reset');setInfo('If your account supports recovery, a verification code has been sent.');
   }catch(e){setError(message(e));}finally{setBusy(false);}
  };
  const handleConfirmReset=async()=>{
   setBusy(true);setError('');
   try{
-   await cognito(region,'ConfirmForgotPassword',{ClientId:clientId,Username:username.trim(),ConfirmationCode:resetCode.trim(),Password:newPassword});
+   await cognito(region,'ConfirmForgotPassword',{ClientId:clientId,Username:username.trim().toLowerCase(),ConfirmationCode:resetCode.trim(),Password:newPassword});
    setPassword('');setNewPassword('');setResetCode('');setMode('login');setInfo('Password updated. Sign in using your new password.');
   }catch(e){setError(message(e));}finally{setBusy(false);}
  };
  return <div className="sadhana-password-form">
   <form className="password-form" onSubmit={e=>{e.preventDefault();void(challenge?handleChallenge():mode==='reset'?handleReset():mode==='confirm-reset'?handleConfirmReset():handleLogin());}}>
-   {!challenge&&<label className="password-field">Username or email<input autoComplete="username" placeholder="Enter your username or email" required value={username} onChange={e=>setUsername(e.target.value)}/></label>}
+   {!challenge&&<label className="password-field">Email address<input type="email" autoComplete="email" placeholder="you@example.com" required value={username} onChange={e=>setUsername(e.target.value)}/></label>}
    {!challenge&&mode==='login'&&<label className="password-field">Password<input type="password" autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>}
-   {challenge&&<><p>{challenge.name==='NEW_PASSWORD_REQUIRED'?'Choose a new password':challenge.name==='SELECT_CHALLENGE'?'Confirm password sign-in':challenge.name==='PASSWORD'?'Enter password to continue':'Enter the verification code from Cognito'}</p>
+   {challenge&&<><p>{challenge.name==='NEW_PASSWORD_REQUIRED'?'Choose a new password':challenge.name==='SELECT_CHALLENGE'?'Confirm password sign-in':challenge.name==='PASSWORD'?'Enter password to continue':'Enter the verification code sent to you'}</p>
     {challenge.name==='NEW_PASSWORD_REQUIRED'?<input type="password" autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>:challenge.name==='SELECT_CHALLENGE'||challenge.name==='PASSWORD'?null:<input autoComplete="one-time-code" required value={answer} onChange={e=>setAnswer(e.target.value)}/>}</>}
    {!challenge&&mode==='confirm-reset'&&<><label className="password-field">Verification code<input required autoComplete="one-time-code" value={resetCode} onChange={e=>setResetCode(e.target.value)}/></label><label className="password-field">New password<input type="password" autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label></>}
    {error&&<p role="alert" className="auth-error">{error}</p>}
@@ -109,6 +110,6 @@ export default function CognitoPassword({region,clientId,onAuthenticated,onManag
   </form>
   {!challenge&&mode==='login'&&<button type="button" className="auth-secondary password-text-link" onClick={()=>{setMode('reset');setError('');}}>Forgot password?</button>}
   {(challenge||mode!=='login')&&<button type="button" className="auth-secondary password-text-link" onClick={()=>{setChallenge(null);setMode('login');setError('');}}>Back to sign in</button>}
-  <button type="button" className="auth-secondary password-fallback" onClick={onManagedLogin}>Use secure Cognito sign-in instead</button>
+  <button type="button" className="auth-secondary password-fallback" onClick={onManagedLogin}>Other sign-in options</button>
  </div>;
 }

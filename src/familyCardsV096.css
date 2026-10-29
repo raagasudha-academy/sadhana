@@ -79,6 +79,8 @@
 .reg-family-students .reg-student-cards{grid-template-columns:minmax(0,1fr)}
 .reg-family-action-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
 .reg-family-action-row .reg-secondary{display:inline-flex;align-items:center;gap:8px}
+.reg-family-action-row .reg-family-permanent-delete{display:inline-flex;align-items:center;gap:7px;border:1px solid #d7929c;background:#fff1f3;color:#9c2136;border-radius:9px;padding:10px 14px;font-weight:650;cursor:pointer}
+.reg-family-action-row .reg-family-permanent-delete:hover{background:#ffe3e8}
 .reg-family-action-row .reg-family-archive{color:#ae4654;border-color:#edcbd1;background:#fff8f9}
 .reg-family-action-row .reg-family-archive:hover{background:#fff0f2}
 @media(max-width:480px){.reg-family-action-row .reg-secondary{flex:1 1 auto;justify-content:center}}

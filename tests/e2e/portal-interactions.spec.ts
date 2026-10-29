@@ -17,7 +17,7 @@ async function chooseFilter(page:Page,name:string){
 }
 const rows=(page:Page)=>page.locator('.reg-directory-table tbody tr');
 async function table(page:Page){await page.getByRole('button',{name:'Table',exact:true}).click();await expect(page.locator('.reg-directory-table')).toBeVisible();}
-async function families(page:Page){await page.locator('.reg-tabs').getByRole('button',{name:'Families'}).click();}
+async function families(page:Page){await page.locator('.reg-tabs').getByRole('button',{name:'Family & Relationships',exact:true}).click();}
 async function students(page:Page){await page.locator('.reg-tabs').getByRole('button',{name:'Students'}).click();}
 
 test('real student table sorts roll numbers and names without changing identities',async({page})=>{
