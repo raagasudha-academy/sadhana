@@ -12,6 +12,7 @@ import {queueImportedParentLinks} from './parentLinkWorkflow.ts';
 import {previewWebsiteRevocation} from './websiteRevocationPreflight.ts';
 import {revokeWebsiteImport,cancelFencedWebsiteRevocation} from './websiteRegistrationRevocation.ts';
 import {learnerDashboard,saveLearnerPractice,saveLearnerRsvp} from './studentLearning.ts';
+import {createAdditionalSessions} from './additionalSessions.ts';
 import {myStudentLinks,requestStudentAccess,listAccessRequests,decideStudentAccess,myStudentOverview} from './familyAccess.ts';
 import {previewRecurringClass,createRecurringClass} from './recurringClasses.ts';
 /** Protected HTTP API for Sadhana. The AWS HTTP API JWT authorizer MUST run before this handler. */
@@ -249,6 +250,12 @@ export function createHandler(repository: SadhanaRepository){
         if(method==='PATCH'&&parts.length===2)return json(200,await saveManagedEvent(academy,claims,body,parts[1]));
         if(method==='DELETE'&&parts.length===2)return json(200,await cancelManagedEvent(academy,claims,parts[1],body.expectedVersion));
         return json(405,{error:'Unsupported event action.'});
+      }
+      if(parts[0]==='additional-sessions'&&method==='POST'&&parts.length===1){
+        const academy=query.institution as InstitutionId;
+        if(academy!=='raaga'&&academy!=='sruti')throw httpError(400,'Choose an academy.');
+        const body=readJSON(event.body?event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body:'');
+        return json(201,await createAdditionalSessions(academy,claims,body));
       }
       // Sadhana-owned, individually editable timetable (never invokes Google Calendar).
       if(parts[0]==='schedule') {

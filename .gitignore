@@ -67,3 +67,15 @@ test-results/
 
 # Local operational audit outputs
 sadhana-revoke-audit-report.json
+
+# Sadhana developer-only generated and backup files
+.local-patch-backups/
+.sadhana-patch-backups/
+.sadhana-*-backup-*/
+*.bak
+*.bak.*
+*.backup
+*.orig
+*.rej
+*~
+.idea/

@@ -185,6 +185,20 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
  const [mode,setMode]=useState('In person');const [venueId,setVenueId]=useState('');
  const [error,setError]=useState('');const [busy,setBusy]=useState(false);
  const [venueRows,setVenueRows]=useState<any[]>([]);
+ const [additionalMasters,setAdditionalMasters]=useState<any[]>([]);
+ const [additionalClassId,setAdditionalClassId]=useState('');
+ const [additionalReview,setAdditionalReview]=useState(false);
+ const [additionalRepeatCount,setAdditionalRepeatCount]=useState(3);
+ const [additionalRows,setAdditionalRows]=useState([{date:ukToday().toISOString().slice(0,10),startTime:'10:00',endTime:'11:00'}]);
+ useEffect(()=>{if(!openRequest||!selectedInstitution||!cloud)return;let live=true;
+  cloud.api.listSchedule(selectedInstitution).then((result:any)=>{if(live)setAdditionalMasters((result.records||[]).filter((r:any)=>r.recordType==='class'&&r.lifecycleStatus!=='archived'));}).catch((e:Error)=>{if(live)setError(e.message);});
+  return()=>{live=false;};
+ },[cloud?.api,selectedInstitution,openRequest]);
+ const selectableMasters=additionalMasters.filter((r:any)=>!isTeacher||(calendarTeacherIdentity?.linked&&r.teacherId===calendarTeacherIdentity.teacherId));
+ const selectedMaster=selectableMasters.find((r:any)=>r.id===additionalClassId);
+ const addConsecutiveRows=()=>setAdditionalRows(rows=>{if(rows.length>=20)return rows;const last=rows[rows.length-1];const duration=Number(last.endTime.slice(0,2))*60+Number(last.endTime.slice(3))-Number(last.startTime.slice(0,2))*60-Number(last.startTime.slice(3));const end=Number(last.endTime.slice(0,2))*60+Number(last.endTime.slice(3))+duration;if(duration<=0||end>=1440){setError('The next consecutive session would cross midnight. Choose an earlier time.');return rows;}const t=(n:number)=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;setAdditionalReview(false);setError('');return [...rows,{date:last.date,startTime:last.endTime,endTime:t(end)}];});
+ const addWeeklyRows=()=>{setAdditionalRows(rows=>{const source=rows[rows.length-1];const count=Math.min(additionalRepeatCount,20-rows.length);const dates=Array.from({length:count},(_,i)=>{const d=new Date(`${source.date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+7*(i+1));return {...source,date:d.toISOString().slice(0,10)};});return [...rows,...dates];});setAdditionalReview(false);setError('');};
+ const validateAdditionalPreview=()=>{if(!selectedMaster)throw Error('Choose an existing assigned master class.');if(isTeacher&&(calendarIdentityLoading||!calendarTeacherIdentity?.linked||selectedMaster.teacherId!==calendarTeacherIdentity.teacherId))throw Error('Verified teacher assignment required.');if(additionalRows.length<1||additionalRows.length>20)throw Error('Choose 1 to 20 sessions.');const keys=new Set<string>();for(const [i,r] of additionalRows.entries()){if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)||Number.isNaN(Date.parse(r.date+'T12:00:00Z'))||!/^([01]\d|2[0-3]):[0-5]\d$/.test(r.startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(r.endTime)||r.startTime>=r.endTime)throw Error(`Session ${i+1}: enter a valid date and time range.`);const key=`${r.date}|${r.startTime}|${r.endTime}`;if(keys.has(key))throw Error(`Session ${i+1} duplicates another proposed session.`);keys.add(key);}};
  useEffect(()=>{
   if(!isTeacher||!openRequest||!cloud||!selectedInstitution){
    setCalendarTeacherIdentity(null);setCalendarIdentityLoading(false);setCalendarIdentityError('');return;
@@ -208,7 +222,7 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
   return()=>{active=false;};
  },[cloud?.api,selectedInstitution,sharedEvent,openRequest]);
  useEffect(()=>{if(!openRequest)return;const entry=openRequest.record||null;
-  setEditing(entry);setInstitution(entry?.institution||'');setName(entry?.name||'');setProgramme(entry?.eventKind==='event'?'Event':entry?.programme||(!entry&&workspace==='raaga'?'Singing':!entry&&workspace==='sruti'?'Vedam':''));setEventKind(entry?.eventKind||(!entry?(isTeacher?'class':'recurring'):entry?.programme==='Event'?'event':'class'));setRecurringUntil('');setRepeatFrequency('weekly');setRepeatInterval(1);setRepeatEndMode('date');setRepeatCount(12);setRepeatDays([new Date(`${entry?.date||ukToday().toISOString().slice(0,10)}T12:00:00Z`).getUTCDay()]);setRecurringPreview(null);
+  setAdditionalReview(false);setAdditionalClassId('');setAdditionalRows([{date:ukToday().toISOString().slice(0,10),startTime:'10:00',endTime:'11:00'}]);setEditing(entry);setInstitution(entry?.institution||'');setName(entry?.name||'');setProgramme(entry?.eventKind==='event'?'Event':entry?.programme||(!entry&&workspace==='raaga'?'Singing':!entry&&workspace==='sruti'?'Vedam':''));setEventKind(entry?.eventKind||(!entry?(isTeacher?'class':'recurring'):entry?.programme==='Event'?'event':'class'));setRecurringUntil('');setRepeatFrequency('weekly');setRepeatInterval(1);setRepeatEndMode('date');setRepeatCount(12);setRepeatDays([new Date(`${entry?.date||ukToday().toISOString().slice(0,10)}T12:00:00Z`).getUTCDay()]);setRecurringPreview(null);
   setDate(entry?.date||ukToday().toISOString().slice(0,10));setStartTime(entry?.startTime||'10:00');
   setEndTime(entry?.endTime||'11:00');setMode(entry?.mode||'In person');setVenueId(entry?.venueId||'');
   setTeacherId(entry?.teacherId||'');setTeacherPickerOpen(false);setError('');
@@ -219,6 +233,13 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
  const chosenVenue=locations.find((v:any)=>v.id===venueId);
  const eventOnline=sharedEvent&&venueId==='online';
  const save=async()=>{setBusy(true);setError('');try{
+  if(eventKind==='additional'){
+   if(!selectedInstitution)throw Error('Choose an academy.');
+   validateAdditionalPreview();
+   if(!additionalReview){setAdditionalReview(true);return;}
+   await cloud.api.createAdditionalSessions(selectedInstitution,{classId:selectedMaster.id,sessions:additionalRows});
+   await onChanged();onClose();return;
+  }
   // These checks are intentionally shared by Preview and Save. Custom teacher buttons
   // cannot rely on native HTML `required` validation.
   if(!['recurring','class','event'].includes(eventKind))throw Error('Choose a calendar entry type.');
@@ -353,7 +374,27 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
     opacity: 0.7;
     cursor: not-allowed;
   }
-`}</style><section className="reg-modal sadhana-calendar-entry-modal" role="dialog" aria-modal="true" aria-label="Manage calendar event">
+
+.sadhana-calendar-entry-modal.sadhana-additional-modal{width:min(780px,calc(100vw - 28px));max-width:780px;max-height:calc(100vh - 36px);overflow-y:auto}
+.sadhana-additional{display:grid;gap:16px;min-width:0}
+.sadhana-additional-intro{display:grid;gap:4px;color:#233755}.sadhana-additional-intro span{color:#667893;font-size:13px}
+.sadhana-additional-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px;border:1px solid #dce5f1;border-radius:12px;background:#f7f9fd}
+.sadhana-additional-context>div{display:grid;gap:4px;min-width:0}.sadhana-additional-context small{color:#6b7b93}.sadhana-additional-context strong{font-size:13px;overflow-wrap:anywhere}
+.sadhana-additional-heading{display:flex;justify-content:space-between;gap:8px;align-items:center}.sadhana-additional-heading span{font-size:12px;color:#64748b}
+.sadhana-additional-rows{display:grid;gap:12px}.sadhana-additional-row{padding:14px;border:1px solid #dce5f1;border-radius:12px;background:white;min-width:0}
+.sadhana-additional-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;color:#263d5c}.sadhana-additional-row-actions{display:flex;gap:8px}
+.sadhana-additional-row-actions button,.sadhana-additional-tools button,.sadhana-additional-weekly button,.sadhana-additional-review button{min-height:34px;border:1px solid #cbd7e8;border-radius:8px;background:#fff;color:#2e4b74;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer}
+.sadhana-additional-row-actions .sadhana-additional-remove{color:#a23838}
+.sadhana-additional button:disabled{cursor:not-allowed;opacity:.5}
+.sadhana-additional-fields{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,1fr));gap:12px;min-width:0}
+.sadhana-additional-fields label{display:grid;gap:6px;color:#334766;font-size:12px;font-weight:600;min-width:0}
+.sadhana-additional-fields input{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;height:42px;border:1px solid #cbd7e8;border-radius:9px;background:#fff;color:#253752;padding:8px;font:inherit;font-size:14px}
+.sadhana-additional-tools{display:flex;gap:10px;flex-wrap:wrap}
+.sadhana-additional-weekly{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px;border-radius:10px;background:#f6f8fc;font-size:13px}.sadhana-additional-weekly label{display:flex;align-items:center;gap:6px}.sadhana-additional-weekly select{height:34px;border-radius:8px;border:1px solid #cbd7e8;padding:4px}
+.sadhana-additional-note{display:grid;gap:5px;padding:13px;border-left:3px solid #5c78a7;background:#f6f9fd;font-size:13px;color:#425570}.sadhana-additional-note strong{color:#233755}
+.sadhana-additional-review{padding:16px;border:1px solid #d6e1f2;border-radius:12px;background:#f7f9fe}.sadhana-additional-review p{font-size:13px}.sadhana-additional-review ol{max-height:260px;overflow:auto;padding-left:24px;line-height:1.9;font-size:13px}
+@media(max-width:600px){.sadhana-additional-context{grid-template-columns:1fr}.sadhana-additional-fields{grid-template-columns:1fr 1fr}.sadhana-additional-fields label:first-child{grid-column:1 / -1}.sadhana-additional-modal .reg-form{padding:16px}}
+`}</style><section className={`reg-modal sadhana-calendar-entry-modal ${eventKind==='additional'?'sadhana-additional-modal':''}`} role="dialog" aria-modal="true" aria-label="Manage calendar event">
   <div className="reg-modal-head"><h2>{editing?'Edit calendar event':'Add Event'}</h2><button className="reg-icon-btn" type="button" onClick={onClose}><X size={18}/></button></div>
   <form className="reg-form" onSubmit={e=>{e.preventDefault();void save();}}>
   <p className="sadhana-required-note"><strong>*</strong> Required fields</p>
@@ -379,14 +420,31 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
         }}
       >
         <option value="recurring">New recurring class</option>
-        <option value="class">Compensation class</option>
+        <option value="class">Standalone class event</option>
+        {!editing&&<option value="additional">Additional sessions for existing class</option>}
         <option value="event">Event</option>
       </select>
     </label>
     {!sharedEvent&&<label className="sadhana-edit-field"><span className={!selectedInstitution ? "sadhana-required-label" : undefined}>Academy</span><select required value={selectedInstitution} disabled={workspace!=='combined'||!!editing} onChange={e=>{setInstitution(e.target.value);setTeacherId('');setTeacherPickerOpen(false);setVenueId('');setProgramme(eventKind==='event'?'Event':e.target.value==='raaga'?'Singing':e.target.value==='sruti'?'Vedam':'');setError('');}}>
    <option value="">Choose academy</option>{allowed.map((i:string)=><option key={i} value={i}>{institutions[i].name}</option>)}</select></label>}
   {sharedEvent&&<p className="reg-footnote">This event appears in both Raagasudha and Sruti calendars. Changes and cancellation apply to both.</p>}
-  <label className="sadhana-edit-field"><span className="sadhana-required-label">Event / class name</span><input required value={name} onChange={e=>setName(e.target.value)}/></label>
+  {eventKind==='additional'&&<div className="sadhana-additional" aria-label="Additional class sessions">
+   <div className="sadhana-additional-intro"><strong>Additional sessions</strong><span>Extra teaching dates for an existing class. The regular timetable stays unchanged.</span></div>
+   <label className="sadhana-edit-field"><span>Existing master class *</span><select required value={additionalClassId} onChange={e=>{setAdditionalClassId(e.target.value);setAdditionalReview(false);setError('');}}><option value="">Select assigned class</option>{selectableMasters.map((r:any)=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+   {selectedMaster&&<div className="sadhana-additional-context"><div><small>Teacher</small><strong>{selectedMaster.teacher||'Registered teacher'}</strong></div><div><small>Delivery / venue</small><strong>{selectedMaster.mode==='Online'?'Online':selectedMaster.location||'Saved venue'}</strong></div><div><small>Academy</small><strong>{institutions[selectedInstitution]?.name||selectedInstitution}</strong></div></div>}
+   <div className="sadhana-additional-heading"><strong>Session dates and times</strong><span>{additionalRows.length} / 20</span></div>
+   {!additionalReview? <>
+    <div className="sadhana-additional-rows">{additionalRows.map((row,i)=><div className="sadhana-additional-row" key={i}>
+     <div className="sadhana-additional-row-head"><strong>Session {i+1}</strong><div className="sadhana-additional-row-actions">{additionalRows.length>1&&<button type="button" className="sadhana-additional-remove" onClick={()=>{setAdditionalRows(rows=>rows.filter((_,j)=>j!==i));setError('');}}>Remove</button>}</div></div>
+     <div className="sadhana-additional-fields"><label>Date<input aria-label={`Additional session ${i+1} date`} type="date" required value={row.date} onChange={e=>{setAdditionalRows(rows=>rows.map((r,j)=>i===j?{...r,date:e.target.value}:r));setError('');}}/></label><label>Start time<input aria-label={`Additional session ${i+1} start`} type="time" required value={row.startTime} onChange={e=>{setAdditionalRows(rows=>rows.map((r,j)=>i===j?{...r,startTime:e.target.value}:r));setError('');}}/></label><label>End time<input aria-label={`Additional session ${i+1} end`} type="time" required value={row.endTime} onChange={e=>{setAdditionalRows(rows=>rows.map((r,j)=>i===j?{...r,endTime:e.target.value}:r));setError('');}}/></label></div>
+    </div>)}</div>
+    <div className="sadhana-additional-tools"><button type="button" disabled={additionalRows.length>=20} onClick={()=>{setAdditionalRows(rows=>[...rows,{...rows[rows.length-1]}]);setError('');}}>+ Add another date</button><button type="button" disabled={additionalRows.length>=20} onClick={addConsecutiveRows}>+ Next consecutive session</button></div>
+    <div className="sadhana-additional-weekly"><span>Or repeat the last session weekly</span><label>Weeks<select aria-label="Number of additional weeks" value={additionalRepeatCount} onChange={e=>setAdditionalRepeatCount(Number(e.target.value))}>{[1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>{n}</option>)}</select></label><button type="button" disabled={additionalRows.length>=20} onClick={addWeeklyRows}>Generate dates</button></div>
+   </>:<div className="sadhana-additional-review"><strong>Review before creating</strong><p>These {additionalRows.length} sessions will be linked to <b>{selectedMaster?.name}</b>. Check each date and time.</p><ol>{additionalRows.map((r,i)=><li key={i}>{new Date(`${r.date}T12:00:00Z`).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})} · {r.startTime}–{r.endTime}</li>)}</ol><button type="button" onClick={()=>{setAdditionalReview(false);setError('');}}>← Edit session dates</button></div>}
+   <div className="sadhana-additional-note"><strong>Student visibility</strong><span>Only approved students enrolled in the selected master class can see these sessions. Times are UK local (Europe/London). RSVP and attendance remain separate for every date.</span></div>
+   {error&&<p role="alert" className="sadhana-sync-error">{error}</p>}
+  </div>}
+  {eventKind!=='additional'&&<><label className="sadhana-edit-field"><span className="sadhana-required-label">Event / class name</span><input required value={name} onChange={e=>setName(e.target.value)}/></label>
   <label className="sadhana-edit-field"><span>Programme</span><select required disabled={eventKind==='event'||!selectedInstitution} value={eventKind==='event'?'Event':programme} onChange={e=>setProgramme(e.target.value)}>
    {eventKind==='event'?<option value="Event">Event</option>:selectedInstitution==='raaga'?<option value="Singing">Singing</option>:selectedInstitution==='sruti'?<><option value="Vedam">Vedam</option><option value="Vedanta">Vedanta</option></>:<option value="">Choose academy first</option>}
   </select></label>
@@ -416,7 +474,8 @@ function ManagedEvents({cloud,workspace,isTeacher,venues,onChanged,openRequest,o
   {sharedEvent&&<label className="sadhana-edit-field"><span className="sadhana-required-label">Venue</span><select required value={venueId} onChange={e=>setVenueId(e.target.value)}><option value="">Choose venue</option><option value="online">Online</option>{locations.map((v:any)=><option key={v.id} value={v.id}>{v.name}</option>)}</select></label>}
   {eventKind!=='event'&&(mode==='Online'?<label className="sadhana-edit-field"><span>Venue</span><input readOnly required value="Online"/></label>:<label className="sadhana-edit-field"><span className="sadhana-required-label">Venue</span><select required value={venueId} onChange={e=>setVenueId(e.target.value)}><option value="">Choose venue</option>{locations.map((v:any)=><option key={v.id} value={v.id}>{v.name}</option>)}</select></label>)}
   {error&&<p role="alert" className="sadhana-sync-error">{error}</p>}
-  <div className="reg-modal-actions"><button type="button" className="reg-secondary" onClick={onClose}>Close</button>{editing&&<button type="button" className="reg-danger" disabled={busy} onClick={()=>void cancel()}>Cancel event</button>}<button type="submit" className="reg-primary" disabled={busy||(!sharedEvent&&!selectedInstitution)||(eventKind==='recurring'&&isTeacher)||(eventKind==='recurring'&&!!recurringPreview?.duplicateNames?.length)||(sharedEvent&&(isTeacher||!allowed.includes('raaga')||!allowed.includes('sruti')))}>{busy?'Saving…':eventKind==='recurring'?(recurringPreview?'Confirm & create class':'Preview class dates'):'Save calendar entry'}</button></div>
+  </>}
+  <div className="reg-modal-actions"><button type="button" className="reg-secondary" onClick={onClose}>Close</button>{editing&&<button type="button" className="reg-danger" disabled={busy} onClick={()=>void cancel()}>Cancel event</button>}<button type="submit" className="reg-primary" disabled={busy||(!sharedEvent&&!selectedInstitution)||(eventKind==='recurring'&&isTeacher)||(eventKind==='recurring'&&!!recurringPreview?.duplicateNames?.length)||(sharedEvent&&(isTeacher||!allowed.includes('raaga')||!allowed.includes('sruti')))}>{busy?'Saving…':eventKind==='recurring'?(recurringPreview?'Confirm & create class':'Preview class dates'):eventKind==='additional'?(additionalReview?`Confirm & create ${additionalRows.length} sessions`:`Review ${additionalRows.length} sessions`):'Save calendar entry'}</button></div>
   </form></section></div>;
 }
 const sadhanaMasterDeleteStyles = `

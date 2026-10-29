@@ -174,6 +174,7 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
     cancelSharedEvent:(id:string,expectedVersion:number)=>request<{record:ScheduleRecord}>('DELETE',`/events/shared/${encodeURIComponent(id)}`,{body:{expectedVersion}}),
     listManagedEvents:(institution:InstitutionId)=>request<{records:ScheduleRecord[]}>('GET','/events',{institution}),
     createManagedEvent:(institution:InstitutionId,data:ResourcePayload)=>request<{record:ScheduleRecord}>('POST','/events',{institution,body:data}),
+    createAdditionalSessions:(institution:InstitutionId,data:{classId:string;sessions:{date:string;startTime:string;endTime:string}[]})=>request<{count:number}>('POST','/additional-sessions',{institution,body:data}),
     updateManagedEvent:(institution:InstitutionId,id:string,data:ResourcePayload,expectedVersion:number)=>request<{record:ScheduleRecord}>('PATCH',`/events/${encodeURIComponent(id)}`,{institution,body:{...data,expectedVersion}}),
     cancelManagedEvent:(institution:InstitutionId,id:string,expectedVersion:number)=>request<{record:ScheduleRecord}>('DELETE',`/events/${encodeURIComponent(id)}`,{institution,body:{expectedVersion}}),
     createSchedule:(institution:ScheduleInstitution,data:ResourcePayload)=>request<{record:ScheduleRecord}>('POST','/schedule',{params:{institution},body:data}),
