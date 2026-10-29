@@ -13,6 +13,8 @@ import {previewWebsiteRevocation} from './websiteRevocationPreflight.ts';
 import {revokeWebsiteImport,cancelFencedWebsiteRevocation} from './websiteRegistrationRevocation.ts';
 import {learnerDashboard,saveLearnerPractice,saveLearnerRsvp} from './studentLearning.ts';
 import {createAdditionalSessions} from './additionalSessions.ts';
+import {academyDirectory} from './academyDirectory.ts';
+import {learnerIdentity} from './learnerExtras.ts';
 import {myStudentLinks,requestStudentAccess,listAccessRequests,decideStudentAccess,myStudentOverview} from './familyAccess.ts';
 import {previewRecurringClass,createRecurringClass} from './recurringClasses.ts';
 /** Protected HTTP API for Sadhana. The AWS HTTP API JWT authorizer MUST run before this handler. */
@@ -126,6 +128,7 @@ export function createHandler(repository: SadhanaRepository){
         if(method==='GET'&&parts.length===3&&parts[2]==='homework')return json(200,await learnerHomework(inst,claims,studentId));
         if(method==='POST'&&parts.length===3&&parts[2]==='homework')return json(200,await completeHomework(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='GET'&&parts.length===3&&parts[2]==='extras')return json(200,await learnerExtras(inst,claims,studentId));
+        if(method==='GET'&&parts.length===3&&parts[2]==='academy-directory'){await learnerIdentity(inst,claims,studentId);return json(200,await academyDirectory(inst));}
         if(method==='PATCH'&&parts.length===3&&parts[2]==='profile')return json(200,await saveLearnerProfile(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='POST'&&parts.length===4&&parts[2]==='media'&&parts[3]==='start')return json(200,await beginLearnerMedia(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='POST'&&parts.length===4&&parts[2]==='media'&&parts[3]==='finish')return json(200,await completeLearnerMedia(inst,claims,studentId,readJSON(event.body||'')));
