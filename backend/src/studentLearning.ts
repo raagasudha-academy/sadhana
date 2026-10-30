@@ -51,12 +51,12 @@ export async function learnerDashboard(instRaw:string,claims:Claims,studentId:st
  });
  const counted=marks.filter(a=>['present','late','absent'].includes(a.status));
  const attended=counted.filter(a=>a.status==='present'||a.status==='late').length;
- const nextSessions=schedule.filter(s=>s.recordType==='class-session'&&typeof s.date==='string'&&s.date>=ukToday()&&memberships.some(e=>e.classId===s.classId&&e.startDate<=s.date&&(!e.endDate||s.date<=e.endDate))).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.startTime||'').localeCompare(String(b.startTime||''))).slice(0,5).map(s=>({sessionId:s.id,classId:s.classId,className:classNames.get(s.classId)||'Class',date:s.date,startTime:s.startTime||'',intention:rsvps.find(r=>r.studentId===studentId&&r.sessionId===s.id)?.intention||'unknown'}));
+ const nextSessions=schedule.filter(s=>s.recordType==='class-session'&&typeof s.date==='string'&&s.date>=ukToday()&&memberships.some(e=>e.classId===s.classId&&e.startDate<=s.date&&(!e.endDate||s.date<=e.endDate))).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.startTime||'').localeCompare(String(b.startTime||''))).slice(0,5).map(s=>({sessionId:s.id,classId:s.classId,className:classNames.get(s.classId)||'Class',date:s.date,startTime:s.startTime||'',additionalSession:s.additionalSession===true,status:String(s.status||'confirmed'),intention:rsvps.find(r=>r.studentId===studentId&&r.sessionId===s.id)?.intention||'unknown'}));
  // v13.7.8 approved-enrolment calendar feed: include historical dates, not just five upcoming sessions.
  const calendarSessions=schedule.filter(s=>s.recordType==='class-session'&&typeof s.date==='string'&&dateOK(s.date)&&
    memberships.some(e=>e.classId===s.classId&&e.startDate<=s.date&&(!e.endDate||s.date<=e.endDate)))
   .sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.startTime||'').localeCompare(String(b.startTime||'')))
-  .map(s=>({sessionId:s.id,classId:s.classId,className:classNames.get(s.classId)||'Class',date:s.date,startTime:s.startTime||'',intention:rsvps.find(r=>r.studentId===studentId&&r.sessionId===s.id)?.intention||'unknown'}));
+  .map(s=>({sessionId:s.id,classId:s.classId,className:classNames.get(s.classId)||'Class',date:s.date,startTime:s.startTime||'',additionalSession:s.additionalSession===true,status:String(s.status||'confirmed'),intention:rsvps.find(r=>r.studentId===studentId&&r.sessionId===s.id)?.intention||'unknown'}));
  return {student:{id:student.id,name:student.name,rollNumber:student.rollNumber||''},classes:currentClasses,nextSessions,calendarSessions,practice:ownPractice,attendance:{marks,byClass,attended,counted:counted.length,percent:counted.length?Math.round(100*attended/counted.length):null}};
 }
 export async function saveLearnerPractice(instRaw:string,claims:Claims,studentId:string,body:any,practiceId?:string){
