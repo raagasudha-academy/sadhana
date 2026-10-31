@@ -30,6 +30,7 @@ import {listTeachers,saveTeacher,myTeacherIdentity,verifiedTeacherInstitutions} 
 import {listTeacherLinks,linkTeacherIdentity} from './teacherLinking.ts';
 import {listAdministrators,inviteAdministrator,changeAdministratorAccess,updateAdministratorProfile} from './adminDirectory.ts';
 import {ownProfilePhoto,uploadProfilePhoto,currentStaffDisplayName} from './profilePhotos.ts';
+import {getOwnProfile,saveOwnProfile} from './selfProfile.ts';
 import type { Claims, InstitutionId, ResourceName, HttpError } from './model.ts';
 
 interface SadhanaHttpEvent {
@@ -74,12 +75,22 @@ export function createHandler(repository: SadhanaRepository){
       const groups=permittedInstitutions(claims);
       const viewed=viewableInstitutions(claims);
       // Account-access onboarding is available to authenticated users before any staff grant.
-      const isAccessRoute=['family-access','me','learner'].includes(apiRouteParts(event)[0]);
+      const routeParts=apiRouteParts(event);
+      // Authenticated users may manage only their own photo, never staff targets.
+      // uploadProfilePhoto validates the payload and derives identity from claims.sub.
+      const isOwnPhotoRoute=requestMethod==='POST' && routeParts.length===2 &&
+        routeParts[0]==='photos' && routeParts[1]==='me';
+      const isAccessRoute=['family-access','me','learner'].includes(routeParts[0]) || isOwnPhotoRoute;
       if(!viewed.length&&!isAccessRoute)return json(403,{error:'Staff role required.'});
       const parts=apiRouteParts(event);
       const method=event.requestContext?.http?.method ?? event.httpMethod;
       const query=event.queryStringParameters??{};
       const inst=query.institution as InstitutionId;
+      if(parts[0]==='me'&&parts[1]==='profile'&&parts.length===2){
+        if(method==='GET')return json(200,await getOwnProfile(claims.sub));
+        if(method==='PATCH')return json(200,await saveOwnProfile(claims.sub,readJSON(event.body||'')));
+        return json(405,{error:'Unsupported profile action.'});
+      }
       if(method==='GET'&&parts[0]==='me'&&!viewed.length)return json(200,{
         subject:claims.sub,institutions:['raaga','sruti'],adminInstitutions:[],teacherInstitutions:[],role:'learner',displayName:'Student / Family'
       });

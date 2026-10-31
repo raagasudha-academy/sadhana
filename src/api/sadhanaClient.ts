@@ -107,6 +107,8 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
     deleteFamily:(institution:InstitutionId,id:string,expectedVersion:number)=>request<{deleted:boolean;familyId:string;studentsDeleted:number}>('DELETE',`/operations/family/${encodeURIComponent(id)}`,{institution,body:{confirm:'DELETE',expectedVersion}}),
     deleteEnrolment:(institution:InstitutionId,id:string,expectedVersion:number)=>request<{deleted:boolean;enrolmentId:string}>('DELETE',`/operations/enrolment/${encodeURIComponent(id)}`,{institution,body:{confirm:'DELETE',expectedVersion}}),
     updateOperation:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId,id:string,data:ResourcePayload,expectedVersion:number)=>request<{record:any}>('PATCH',`/operations/${kind}/${encodeURIComponent(id)}`,{institution,body:{...data,expectedVersion}}),
+    getMyProfile:()=>request<{name:string;givenName:string;familyName:string;email:string;emailVerified:boolean;phone:string;phoneVerified:boolean;photoUrl?:string}>('GET','/me/profile'),
+    updateMyProfile:(data:{name:string;givenName:string;familyName:string})=>request<{name:string;givenName:string;familyName:string;email:string;emailVerified:boolean;phone:string;phoneVerified:boolean;photoUrl?:string}>('PATCH','/me/profile',{body:data}),
     uploadMyPhoto:(base64:string)=>request<{photoUrl:string;updated:boolean}>('POST','/photos/me',{body:{base64}}),
     uploadAdministratorPhoto:(username:string,base64:string)=>request<{photoUrl:string;updated:boolean}>('POST','/photos/administrator',{body:{username,base64}}),
     uploadTeacherPhoto:(teacherId:string,base64:string)=>request<{photoUrl:string;updated:boolean}>('POST','/photos/teacher',{body:{teacherId,base64}}),

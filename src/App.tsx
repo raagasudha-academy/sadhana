@@ -1,6 +1,7 @@
 import './v1296SharedShell.css';
 import './roleWorkspace.css';
 import StudentHome from './StudentHome';
+import SadhanaMyProfile from './SadhanaMyProfile';
 import './v1298LearnerContent.css';
 import FeesComingSoon from './features/sadhanaCoreStarter/FeesComingSoon';
 import {teacherIdentityFailureMessage} from './teacherIdentityMessages';
@@ -1148,7 +1149,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const [venueError,setVenueError]=useState('');
   const [venueSuccess,setVenueSuccess]=useState('');
   const refreshLiveData=async()=>{
-    if(!cloud)return;
+    if(!cloud||cloud.staff.role==='learner')return;
     const allowed=cloud.staff.institutions.filter((inst):inst is InstitutionId=>inst==='raaga'||inst==='sruti');
     if(!allowed.length)return;
     const [directory,schedules]=await Promise.all([
@@ -1168,7 +1169,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
     setVenueError('');
   };
   useEffect(()=>{
-    if(!cloud){setVenues([]);setVenueLinks({});return;}
+    if(!cloud||cloud.staff.role==='learner'){setVenues([]);setVenueLinks({});return;}
     let alive=true;
     // Only update state while mounted; future reloads are triggered by the Sync button.
     const allowed=cloud.staff.institutions.filter((inst):inst is InstitutionId=>inst==='raaga'||inst==='sruti');
@@ -1187,7 +1188,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
         setVenueLinks(links);
       }).catch((error:Error)=>{if(alive)setVenueError(error.message);});
     return()=>{alive=false;};
-  },[cloud?.api]);
+  },[cloud?.api,cloud?.staff.role,cloud?.staff.subject]);
   const syncNow=async()=>{
     if(!cloud||syncing)return;
     setSyncing(true);setSyncError('');setSyncMessage('');
@@ -1408,44 +1409,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   </div>
 </div></header>
       {(syncMessage||syncError)&&<div className={`sync-notice ${syncError?'sync-notice-error':''}`} role="status">{syncError||syncMessage}<button type="button" onClick={()=>{setSyncMessage('');setSyncError('');}} aria-label="Dismiss sync message"><X size={14}/></button></div>}
-      <main className="content">{studentMode&&cloud?<StudentHome cloud={cloud} initialInstitution={currentWorkspace as InstitutionId} embedded page={learnerPageMap[activePage]||'overview'} selectedStudentId={chosenStudent} onStudentChange={setChosenStudent}/>:<>{venueSuccess&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{venueSuccess}</span><button aria-label="Dismiss" onClick={()=>setVenueSuccess('')}><X size={15}/></button></div>}{changeNotice&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{changeNotice} These changes are local only and reset on refresh.</span><button aria-label="Dismiss" onClick={()=>setChangeNotice('')}><X size={15}/></button></div>}{student?<ProfileScreen student={student} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setStudent(null)} enrolments={enrolments} members={members} isTeacher={teacherMode}/>:classProfile?<ProfileScreen classItem={classProfile} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setClassProfile(null)} enrolments={enrolments} members={members} isTeacher={teacherMode} onEnrolFromClass={enrolFromClass} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud}/>:needsAcademySelection(currentWorkspace,activePage) ? <AcademySelection page={activePage} allowed={availableInstitutions} onSelect={chooseAcademyForPage}/> : activePage==='My Profile'?<>
-      <PageHeader kicker="MY ACCOUNT"
-        title="My Profile"
-        description="Your Sadhana account and institution access."/>
-      <section className="surface sadhana-account-card">
-        <div className="sadhana-account-header">
-          <div className="sadhana-account-photo">
-            {cloud?<PhotoAvatarEditor api={cloud.api} onUploaded={setOwnPhotoUrl} label="your profile photo">
-              <StaffPortrait name={person.label} initial={person.initial} photoUrl={ownPhotoUrl}/>
-            </PhotoAvatarEditor>:<StaffPortrait name={person.label} initial={person.initial} photoUrl={ownPhotoUrl}/>}
-          </div>
-          <div>
-            <h2>{person.label}</h2>
-            <p>{cloud?.staff.role==='admin'
-              ? 'Administrator' : 'Teacher access (assignment verification required)'}</p>
-          </div>
-        </div>
-        <div className="sadhana-account-grid">
-          <div>
-            <small>Institution access</small>
-            <strong>{person.institutions
-              .map(i=>institutions[i].name)
-              .join(' · ')||'—'}</strong>
-          </div>
-          <div>
-            <small>Teacher profile</small>
-            <strong>See Teachers directory</strong>
-          </div>
-        </div>
-        {person.admin&&cloud?.staff.subject&&
-          <details className="sadhana-account-details">
-            <summary>Account reference (administrators)</summary>
-            <label>Cognito subject
-              <input readOnly value={cloud.staff.subject}/>
-            </label>
-          </details>}
-      </section>
-    </>:activePage==='Fees'&&person.admin&&!teacherMode?<FeesComingSoon/>:activePage==='Website Registrations'&&cloud&&currentWorkspace==='raaga'&&person.admin&&!teacherMode?<WebsiteRegistrations cloud={cloud}/>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Account Access'&&cloud?(currentWorkspace==='combined'?<AcademySelection page="Account Access" allowed={availableInstitutions} onSelect={switchWorkspace}/>:<AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>):<SettingsPage workspace={currentWorkspace}/>}</>}
+      <main className="content">{studentMode&&cloud&&activePage==='My profile'?<SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/>:studentMode&&cloud?<StudentHome cloud={cloud} initialInstitution={currentWorkspace as InstitutionId} embedded page={learnerPageMap[activePage]||'overview'} selectedStudentId={chosenStudent} onStudentChange={setChosenStudent}/>:<>{venueSuccess&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{venueSuccess}</span><button aria-label="Dismiss" onClick={()=>setVenueSuccess('')}><X size={15}/></button></div>}{changeNotice&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{changeNotice} These changes are local only and reset on refresh.</span><button aria-label="Dismiss" onClick={()=>setChangeNotice('')}><X size={15}/></button></div>}{student?<ProfileScreen student={student} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setStudent(null)} enrolments={enrolments} members={members} isTeacher={teacherMode}/>:classProfile?<ProfileScreen classItem={classProfile} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setClassProfile(null)} enrolments={enrolments} members={members} isTeacher={teacherMode} onEnrolFromClass={enrolFromClass} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud}/>:needsAcademySelection(currentWorkspace,activePage) ? <AcademySelection page={activePage} allowed={availableInstitutions} onSelect={chooseAcademyForPage}/> : activePage==='My Profile'&&cloud?<SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/>:activePage==='Fees'&&person.admin&&!teacherMode?<FeesComingSoon/>:activePage==='Website Registrations'&&cloud&&currentWorkspace==='raaga'&&person.admin&&!teacherMode?<WebsiteRegistrations cloud={cloud}/>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Account Access'&&cloud?(currentWorkspace==='combined'?<AcademySelection page="Account Access" allowed={availableInstitutions} onSelect={switchWorkspace}/>:<AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>):<SettingsPage workspace={currentWorkspace}/>}</>}
       </main>
       <footer className="main-footer"><span>Sadhana · Academy & Learning Portal</span><span>{cloud?"Live timetable and venues · other records awaiting import":"No backend session"}</span></footer>
     </div>

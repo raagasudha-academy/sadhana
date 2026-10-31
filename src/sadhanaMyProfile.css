@@ -1,0 +1,106 @@
+.sadhana-my-profile{width:100%;max-width:1140px;margin:0 auto;padding:14px 12px 40px}.sadhana-my-profile header{margin-bottom:22px}.sadhana-my-profile .eyebrow{font-size:11px;letter-spacing:.14em;font-weight:700;color:#65718b}.sadhana-my-profile h1{font-size:28px;margin:7px 0}.sadhana-my-profile header p,.sadhana-profile-hint{color:var(--text-secondary,#65718b)}.sadhana-my-profile-grid{display:grid;grid-template-columns:minmax(230px, .85fr) minmax(0,1.65fr);gap:18px}.sadhana-profile-panel{border:1px solid #d9e1e9;border-radius:16px;background:var(--card-bg,#fff);padding:25px;min-width:0}.sadhana-profile-panel h2{font-size:19px;margin:0 0 18px}.sadhana-profile-avatar{text-align:center;margin-bottom:12px}.sadhana-profile-avatar-fallback{width:86px;height:86px;margin:auto;border-radius:50%;display:grid;place-items:center;background:#e7eefb;color:#243a66;font-size:34px;font-weight:700}.sadhana-profile-email{overflow-wrap:anywhere;color:#45556b}.sadhana-profile-wide{grid-column:1/-1}.sadhana-profile-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.sadhana-my-profile label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:650;margin-bottom:17px}.sadhana-my-profile input{width:100%;min-height:42px;padding:10px 12px;border:1px solid #b6c3d0;border-radius:9px;background:transparent;color:inherit;font:inherit}.sadhana-my-profile input:read-only{background:#f1f4f7;color:#45556b}.sadhana-my-profile label small{font-weight:400;color:#66748a}.sadhana-my-profile button[type=submit],.sadhana-my-profile button:not([type]){padding:11px 17px;background:#315f9e;color:#fff;border:0;border-radius:9px;cursor:pointer}.sadhana-my-profile button:disabled{opacity:.55;cursor:not-allowed}.sadhana-profile-actions{display:flex;gap:12px}.sadhana-profile-error{color:#a3232d}.sadhana-profile-success{color:#186a47}@media(max-width:760px){.sadhana-my-profile-grid,.sadhana-profile-fields{grid-template-columns:1fr}.sadhana-profile-wide{grid-column:auto}.sadhana-profile-panel{padding:17px}}
+
+/* v13.9.5d: saved portrait fills the editable avatar */
+.sadhana-profile-avatar-fallback{overflow:hidden}.sadhana-profile-current-photo{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* Sadhana v13.9.5f: profile layout refinement, CSS only */
+.sadhana-my-profile{
+  width:100%;
+  max-width:1200px;
+  margin:0 auto;
+  padding:24px clamp(12px,2vw,28px) 48px;
+  box-sizing:border-box;
+}
+.sadhana-my-profile header{margin-bottom:24px}
+.sadhana-my-profile-grid{
+  display:grid;
+  grid-template-columns:minmax(300px, 360px) minmax(0,1fr);
+  align-items:stretch;
+  gap:22px;
+}
+.sadhana-my-profile-grid > .sadhana-profile-panel{
+  box-sizing:border-box;
+  min-width:0;
+  border-radius:18px;
+  padding:28px;
+}
+.sadhana-my-profile-grid > .sadhana-profile-panel:first-child{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  text-align:center;
+  gap:0;
+}
+.sadhana-profile-avatar{
+  position:relative;
+  width:128px;
+  margin:8px auto 22px;
+}
+.sadhana-profile-avatar-fallback{
+  width:124px;
+  height:124px;
+  font-size:42px;
+  overflow:hidden;
+  border-radius:50%;
+}
+.sadhana-profile-current-photo{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:50%;
+}
+.sadhana-my-profile-grid > .sadhana-profile-panel:first-child h2{
+  max-width:100%;
+  margin:0 0 10px;
+  font-size:clamp(19px,1.7vw,23px);
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
+.sadhana-my-profile-grid > .sadhana-profile-panel:first-child .sadhana-profile-email{
+  max-width:100%;
+  margin:0;
+  font-size:15px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.sadhana-profile-form{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+}
+.sadhana-profile-form h2{margin-bottom:23px}
+.sadhana-profile-form .sadhana-profile-fields{gap:18px}
+.sadhana-my-profile label{margin-bottom:18px}
+.sadhana-my-profile input{min-height:46px}
+.sadhana-profile-form button[type=submit]{
+  align-self:flex-start;
+  margin-top:3px;
+  min-height:44px;
+}
+.sadhana-profile-wide{grid-column:1/-1}
+.sadhana-profile-wide h2{margin-bottom:22px}
+.sadhana-profile-wide > form{margin-top:8px}
+.sadhana-profile-wide .sadhana-profile-hint{
+  font-size:13px;
+  line-height:1.55;
+  margin:12px 0 0;
+}
+.sadhana-my-profile input:focus-visible,
+.sadhana-my-profile button:focus-visible{
+  outline:3px solid #91b5ed;
+  outline-offset:2px;
+}
+@media(max-width:880px){
+  .sadhana-my-profile-grid{grid-template-columns:1fr}
+  .sadhana-profile-wide{grid-column:1}
+  .sadhana-my-profile-grid > .sadhana-profile-panel:first-child{
+    min-height:0;
+  }
+}
+@media(max-width:600px){
+  .sadhana-my-profile{padding:16px 10px 32px}
+  .sadhana-my-profile-grid{gap:14px}
+  .sadhana-my-profile-grid > .sadhana-profile-panel{padding:20px}
+  .sadhana-profile-fields{grid-template-columns:1fr}
+}

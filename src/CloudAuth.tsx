@@ -28,6 +28,8 @@ export interface CloudSession {
   staff: StaffResponse;
   api: SadhanaApiClient;
   signOut: () => Promise<void>;
+  beginPhoneChange: (phone:string) => Promise<void>;
+  verifyPhoneChange: (code:string) => Promise<void>;
 }
 
 function AuthCard({title,children,kind='welcome'}: {title:string;children:React.ReactNode;kind?:'welcome'|'signedout'}) {
@@ -133,7 +135,25 @@ function SignInGate() {
     ? (profileName||String(profile?.email||'').split('@')[0]||apiName||'Student / Family')
     : (apiName||profileName||String(profile?.email||'').split('@')[0]||'');
   const profilePicture=typeof profile?.picture==='string'&&profile.picture.startsWith('https://')?profile.picture:undefined;
-  const session={staff:{...staff,displayName,photoUrl:staff.photoUrl||profilePicture},api,signOut};
+  // Cognito public user APIs, authenticated by the signed-in access token, not AWS credentials.
+  const cognitoUserAction=async(action:'UpdateUserAttributes'|'VerifyUserAttribute',payload:Record<string,unknown>)=>{
+    if(import.meta.env.VITE_SADHANA_PHONE_VERIFIED_BEFORE_UPDATE!=='true')throw Error('Phone changes require verified-before-update to be enabled in the Cognito user pool. Ask an administrator.');
+    if(!token)throw Error('Sign in again before changing your phone number.');
+    const response=await fetch(`https://cognito-idp.${region}.amazonaws.com/`,{
+      method:'POST',headers:{'Content-Type':'application/x-amz-json-1.1','X-Amz-Target':`AWSCognitoIdentityProviderService.${action}`},
+      body:JSON.stringify({...payload,AccessToken:token})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(String(data.message||data.Message||'Cognito verification failed'));
+  };
+  const beginPhoneChange=async(phone:string)=>{
+    if(!/^\+[1-9]\d{7,14}$/.test(phone))throw Error('Use E.164 international phone format.');
+    await cognitoUserAction('UpdateUserAttributes',{UserAttributes:[{Name:'phone_number',Value:phone}]});
+  };
+  const verifyPhoneChange=async(code:string)=>{
+    if(!/^\d{4,8}$/.test(code.trim()))throw Error('Enter the SMS verification code.');
+    await cognitoUserAction('VerifyUserAttribute',{AttributeName:'phone_number',Code:code.trim()});
+  };
+  const session={staff:{...staff,displayName,photoUrl:staff.photoUrl||profilePicture},api,signOut,beginPhoneChange,verifyPhoneChange};
   return <App cloud={session} />;
 }
 

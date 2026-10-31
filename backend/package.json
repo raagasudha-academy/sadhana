@@ -10,22 +10,22 @@
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test",
-    "build": "esbuild src/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/lambda.mjs --external:@aws-sdk/*",
+    "build": "esbuild src/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/lambda.mjs --external:@aws-sdk/* --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
     "import:calendar": "tsx scripts/importOneTimeSchedule.ts",
     "link:venues": "tsx scripts/linkThreeVenues.ts",
     "verify:venues": "tsx scripts/verifyVenueLinks.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-ssm": "^3.900.0",
-    "@aws-sdk/client-dynamodb": "^3.900.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
-    "@aws-sdk/lib-dynamodb": "^3.900.0",
-    "@aws-sdk/client-s3": "^3.900.0",
-    "@aws-sdk/s3-request-presigner": "^3.900.0",
-    "@smithy/signature-v4": "^5.0.0",
-    "@smithy/protocol-http": "^5.0.0",
     "@aws-crypto/sha256-js": "^5.0.0",
-    "@aws-sdk/credential-provider-node": "^3.900.0"
+    "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
+    "@aws-sdk/client-dynamodb": "^3.900.0",
+    "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/client-ssm": "^3.900.0",
+    "@aws-sdk/credential-provider-node": "^3.900.0",
+    "@aws-sdk/lib-dynamodb": "^3.900.0",
+    "@aws-sdk/s3-request-presigner": "^3.900.0",
+    "@smithy/protocol-http": "^5.0.0",
+    "@smithy/signature-v4": "^5.0.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",
