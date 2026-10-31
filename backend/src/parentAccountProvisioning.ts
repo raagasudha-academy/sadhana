@@ -4,6 +4,7 @@ import {CognitoIdentityProviderClient,ListUsersCommand,AdminCreateUserCommand} f
 import {GetCommand,UpdateCommand} from '@aws-sdk/lib-dynamodb';
 import {makeRoutedClient} from './tableRouter.ts';
 import {tryQueueGuardianReviews} from './v117GuardianAutoHook.ts';
+import {registrationContactPhone} from './registrationContactPhone.ts';
 const db=makeRoutedClient();
 const cognito=new CognitoIdentityProviderClient({});
 const table=()=>{const n=process.env.SADHANA_TABLE_NAME;if(!n)throw Error('Missing Sadhana table');return n;};
@@ -34,6 +35,8 @@ export async function provisionParentAccount(registrationId:string){
    throw Error('Website import mapping differs; parent account provisioning blocked');
  const parent=(website.people||[]).find((p:any)=>p.personId===website.primaryContactPersonId);
  const email=String(parent?.email||'').trim().toLowerCase();
+ // Use the same person's registration phone, not an emergency or unrelated guardian number.
+ const phone=registrationContactPhone(parent?.phone);
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Primary contact email invalid');
  // Cognito is the login identity provider; do not infer guardian permission from this email.
  const escaped=email.replace(/[\\"]/g,c=>'\\'+c);
@@ -52,7 +55,7 @@ export async function provisionParentAccount(registrationId:string){
  }
  try{
    const newUser=await cognito.send(new AdminCreateUserCommand({UserPoolId:pool(),Username:`parent-${crypto.randomUUID()}`,
-    UserAttributes:[{Name:'email',Value:email},{Name:'name',Value:String(parent?.fullName||'Parent').slice(0,90)}],
+    UserAttributes:[{Name:'email',Value:email},{Name:'name',Value:String(parent?.fullName||'Parent').slice(0,90)},...(phone?[{Name:'phone_number',Value:phone}]:[])],
     DesiredDeliveryMediums:['EMAIL']}));
    await setStatus(registrationId,'INVITATION_SENT',{parentAccountSub:attr(newUser.User?.Attributes,'sub'),parentAccountUsername:newUser.User?.Username||email,parentAccountEmail:email});
    await tryQueueGuardianReviews(registrationId);

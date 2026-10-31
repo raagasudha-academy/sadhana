@@ -6,7 +6,7 @@ test('invitation is HTML escaped and login is HTTPS only', () => {
   const value = parentInvitationTemplate(
     '<script>',
     'abc&def',
-    'https://example.org/login'
+    'https://raagasudha-academy.github.io/sadhana/'
   );
 
   assert.doesNotMatch(value.html, /<script>/);
