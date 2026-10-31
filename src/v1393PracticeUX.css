@@ -1,0 +1,52 @@
+/* Sadhana v13.9.3 · Practice page width and responsive form refinement. */
+/* Keep the scoped workspace full width; never constrain practice to a 370px column. */
+.student-portal-v119 .learner-workspace:has(> .v1376-practice-page),
+.student-portal-v119 .sv1276-learner:has(> .v1376-practice-page),
+.student-portal-v119 .student-portal-learning:has(.v1376-practice-page) {
+  width:100%; max-width:none; min-width:0; box-sizing:border-box;
+}
+.student-portal-v119 .sv1276-learner .v1376-practice-page,
+.student-portal-v119 .v1376-practice-page {
+  box-sizing:border-box; width:100%; max-width:1080px; min-width:0;
+  margin:18px auto 28px; padding:clamp(20px,2.5vw,32px);
+  border:1px solid #dbe4ef; background:#fff; border-radius:18px;
+  box-shadow:0 6px 25px rgba(18,39,70,.04);
+}
+.student-portal-v119 .v1376-practice-heading {margin-bottom:22px;}
+.student-portal-v119 .v1376-practice-heading h3 {font-size:22px;}
+.student-portal-v119 .v1376-practice-heading p {font-size:14px;line-height:1.5;}
+.student-portal-v119 .sv1276-learner .v1376-practice-page .sv1276-practice-form {
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:18px 16px; width:100%;max-width:none; margin:0; padding:0;
+  border:0;background:transparent;align-items:start;
+}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(1){grid-column:span 6}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(2){grid-column:span 3}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(3){grid-column:span 3}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(4){grid-column:span 6}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(5){grid-column:span 6}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>label{display:flex;flex-direction:column;gap:8px;min-width:0}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form :is(input,select,textarea){width:100%;min-width:0;box-sizing:border-box;min-height:46px;border-radius:10px}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form textarea{min-height:94px;max-height:260px;resize:vertical}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form :is(input,select,textarea):focus-visible{outline:3px solid #a3c4f1;outline-offset:2px;border-color:#416899}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>button[type=submit]{grid-column:1/-1;min-height:46px;padding:11px 24px;background:#19365a;color:#fff;border:0;border-radius:10px;justify-self:start;cursor:pointer}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form>button[type=submit]:disabled{opacity:.5;cursor:not-allowed}
+.student-portal-v119 .v1376-practice-recording{margin-top:24px;padding:17px 20px;background:#f7f9fc}
+.student-portal-v119 .v1376-practice-recording summary{font-size:14px;min-height:24px}
+.student-portal-v119 .v1376-practice-recording .sv125-upload{max-width:100%;width:min(100%,480px)}
+.student-portal-v119 .v1376-practice-history-head{margin:32px 0 14px}
+.student-portal-v119 .v1376-practice-history-head h3{font-size:20px}
+.student-portal-v119 .v1376-practice-page .access-table-wrap{width:100%;overflow-x:auto}
+.student-portal-v119 .v1376-practice-page .access-table-wrap table{min-width:560px}
+@media(max-width:900px){
+ .student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(1),
+ .student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(4),
+ .student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(5){grid-column:span 12}
+ .student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(2),
+ .student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(3){grid-column:span 6}
+}
+@media(max-width:580px){
+ .student-portal-v119 .v1376-practice-page{padding:18px 14px;margin:12px auto 22px}
+ .student-portal-v119 .v1376-practice-page .sv1276-practice-form>label:nth-of-type(n){grid-column:1/-1}
+ .student-portal-v119 .v1376-practice-history-head{align-items:flex-start;flex-direction:column}
+}

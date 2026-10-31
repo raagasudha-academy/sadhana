@@ -4,6 +4,7 @@ import {makeRoutedClient} from './tableRouter.ts';
 import {demandInstitution,httpError} from './model.ts';
 import {isStudentRecordId,isAccountSubject,canReadStudent} from './accessRules.ts';
 import {randomUUID} from 'node:crypto';
+import {retryVerifiedAdultSelfAccess} from './adultSelfAccessRetry.ts';
 import {CognitoIdentityProviderClient,ListUsersCommand} from '@aws-sdk/client-cognito-identity-provider';
 import type {Claims,InstitutionId} from './model.ts';
 const db=makeRoutedClient();
@@ -39,6 +40,7 @@ const key=(inst:InstitutionId,sub:string,studentId:string)=>({PK:`ACCESS#${inst}
 const publicLink=(x:any)=>({studentId:x.studentId,institution:x.institution,kind:x.kind,status:x.status,version:x.version,updatedAt:x.updatedAt});
 export async function myStudentLinks(instRaw:string,claims:Claims){
  const inst=validInst(instRaw);if(!claims.sub)throw httpError(401,'Sign in required');
+ try{await retryVerifiedAdultSelfAccess(claims.sub,inst)}catch(e){console.error('Verified adult self-access retry deferred',{errorType:e instanceof Error?e.name:'Unknown'});}
  let last:any;const result:any[]=[];
  do{const page=await db.send(new QueryCommand({TableName:table(),KeyConditionExpression:'PK=:pk',ExpressionAttributeValues:{':pk':`ACCESS#${inst}#${claims.sub}`},ExclusiveStartKey:last,Limit:100,ConsistentRead:true}));result.push(...(page.Items||[]));last=page.LastEvaluatedKey;if(result.length>100)throw httpError(413,'Too many linked students')}while(last);
  return {records:result.filter(r=>canReadStudent(r,r.studentId,inst)).map(publicLink)};
