@@ -2,7 +2,7 @@ import { DirectoryDataMenu, StudentCardBadges } from './DirectoryComponents';
 import { persistArchiveState } from './archiveLifecycle';
 import { filterStudentsByLocation, sortDirectoryStudents } from './directorySelectors';
 import './registrationUxPolish.css';
-import './familyCardsV096.css';
+import './registrationFamilyCards.css';
 import './quickUnenrol.css';
 import { useMemo, useState, useEffect } from 'react';
 import {

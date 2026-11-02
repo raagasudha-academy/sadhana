@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import type {CloudSession} from './CloudAuth';
 import type {InstitutionId} from './types';
 import './accountAccess.css';
-import './accessV1274.css';
+import './accountAccessControls.css';
 type RequestRow={studentId:string;subject:string;kind:string;status:string;version:number};
 type Student={id:string;name:string;rollNumber?:string;archived?:boolean};
 export default function AccountAccess({cloud,institution}:{cloud:CloudSession;institution:InstitutionId}){

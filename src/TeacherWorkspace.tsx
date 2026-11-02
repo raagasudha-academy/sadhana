@@ -11,7 +11,7 @@ import type {InstitutionId} from './types';
 import {eligibleStudentIds,visibleMasterClasses,visibleDatedSessions} from './operationsSelectors';
 import SessionAttendanceRegister from './SessionAttendanceRegister';
 import './teacherWorkspace.css';
-import './learningUXV1276.css';
+import './learningExperience.css';
 import './unifiedLayout.css';
 
 type Area='attendance'|'students'|'practice'|'history'|'homework';

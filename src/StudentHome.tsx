@@ -1,4 +1,4 @@
-import './familyDashboardV1.css';
+import './studentFamilyDashboard.css';
 import './studentTimetablePolish.css';
 import './studentUiFinish.css'; // sv-student-ui-finish
 import './studentNavigationExperience.css';
@@ -6,7 +6,7 @@ import './studentExperience.css';
 import './studentPracticeRefined.css';
 import './practiceInsights.css';
 import './practiceUX.css';
-import './compactHeaderV1281.css';
+import './studentCompactHeader.css';
 import './homeworkInstructions.css';
 function HomeworkInstructions({instructions}:{instructions?:string}) {
  const value=typeof instructions==='string'?instructions.trim():'';
@@ -24,12 +24,12 @@ import type {InstitutionId} from './types';
 import './accountAccess.css';
 import './studentPortal.css';
 import './studentWorkspace.css';
-import './rollRequestV1275.css';
-import './learningUXV1276.css';
-import './studentNavigationV1277.css';
+import './studentAccessRequest.css';
+import './learningExperience.css';
+import './studentNavigationLayout.css';
 import './embeddedCalendar.css';
-import './homeworkV1278.css';
-import './homeworkConfirmV1283.css';
+import './homeworkPalette.css';
+import './homeworkConfirmation.css';
 import './foundation.css';
 import './unifiedLayout.css';
 import './handoverLayout.css';
