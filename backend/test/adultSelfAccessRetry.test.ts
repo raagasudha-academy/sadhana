@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const retry=readFileSync(new URL('../src/adultSelfAccessRetry.ts',import.meta.url),'utf8');
 const family=readFileSync(new URL('../src/familyAccess.ts',import.meta.url),'utf8');
-const verifier=readFileSync(new URL('../src/v117GuardianQueue.ts',import.meta.url),'utf8');
+const verifier=readFileSync(new URL('../src/guardianQueue.ts',import.meta.url),'utf8');
 test('automatic adult access requires immutable subject and independent adult import',()=>{
  assert.match(retry,/isAccountSubject\(subject\)/);
  assert.match(retry,/marker\.parentAccountSub!==subject/);

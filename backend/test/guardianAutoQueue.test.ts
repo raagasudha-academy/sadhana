@@ -1,8 +1,8 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {readFileSync} from 'node:fs';
-const queue=readFileSync(new URL('../src/v117GuardianQueue.ts',import.meta.url),'utf8');
-const hook=readFileSync(new URL('../src/v117GuardianAutoHook.ts',import.meta.url),'utf8');
+const queue=readFileSync(new URL('../src/guardianQueue.ts',import.meta.url),'utf8');
+const hook=readFileSync(new URL('../src/guardianAutoHook.ts',import.meta.url),'utf8');
 const provisioning=readFileSync(new URL('../src/parentAccountProvisioning.ts',import.meta.url),'utf8');
 test('v11.7 guardian queue stays pending; verified adult self-access is separate',()=>{
  assert.match(queue,/status:'pending'/);

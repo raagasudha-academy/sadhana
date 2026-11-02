@@ -1,10 +1,10 @@
-import './v1376PracticeInsights.css';
-import './v137HomeworkCardActions.css';
+import './practiceInsights.css';
+import './homeworkCardActions.css';
 import PracticeReview from './PracticeReview';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {homeworkFileAllowed,homeworkSelectionAllowed,homeworkMediaKind,HomeworkMediaPreview} from './HomeworkMaterials';
 import {Image} from 'lucide-react';
-import './v1361HomeworkIcons.css';
+import './homeworkIcons.css';
 import {RefreshCw} from 'lucide-react';
 import type {CloudSession} from './CloudAuth';
 import type {InstitutionId} from './types';
@@ -12,7 +12,7 @@ import {eligibleStudentIds,visibleMasterClasses,visibleDatedSessions} from './op
 import SessionAttendanceRegister from './SessionAttendanceRegister';
 import './teacherWorkspace.css';
 import './learningUXV1276.css';
-import './v1291Unified.css';
+import './unifiedLayout.css';
 
 type Area='attendance'|'students'|'practice'|'history'|'homework';
 const tabs:{id:Area;label:string}[]=[{id:'students',label:'My Students'},{id:'attendance',label:'Attendance'},{id:'practice',label:'Practice'},{id:'homework',label:'Homework'},{id:'history',label:'History'}];

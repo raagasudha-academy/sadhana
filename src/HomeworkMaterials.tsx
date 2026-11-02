@@ -1,4 +1,4 @@
-import './v1361HomeworkIcons.css';
+import './homeworkIcons.css';
 import {useEffect,useState} from 'react';
 import {Image} from 'lucide-react';
 import type {CloudSession} from './CloudAuth';

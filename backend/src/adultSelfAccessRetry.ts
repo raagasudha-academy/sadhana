@@ -3,7 +3,7 @@
  */
 import {QueryCommand} from '@aws-sdk/lib-dynamodb';
 import {makeRoutedClient} from './tableRouter.ts';
-import {enqueueImportedGuardianReviews} from './v117GuardianQueue.ts';
+import {enqueueImportedGuardianReviews} from './guardianQueue.ts';
 import {isAccountSubject} from './accessRules.ts';
 const db=makeRoutedClient();
 const table=()=>{const name=process.env.SADHANA_TABLE_NAME;if(!name)throw Error('Missing Sadhana table');return name};

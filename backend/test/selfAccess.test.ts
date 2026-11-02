@@ -3,7 +3,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const file=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../src/v117GuardianQueue.ts');
+const file=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../src/guardianQueue.ts');
 const source=readFileSync(file,'utf8');
 test('self approval requires verified Cognito email and matching imported primary contact',()=>{
  assert.match(source,/email_verified/);

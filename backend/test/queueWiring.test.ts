@@ -9,7 +9,7 @@ test('manual requeue invokes verified self resolver and enforces admin scope',()
  assert.doesNotMatch(s,/requestStudentAccess/);
 });
 test('legacy admin-created pending guardian can upgrade only through verified self evidence',()=>{
- const s=readFileSync(new URL('v117GuardianQueue.ts',base),'utf8');
+ const s=readFileSync(new URL('guardianQueue.ts',base),'utf8');
  assert.match(s,/isVerifiedSelfCandidate/);
  assert.match(s,/prior.status==='pending'/);
  assert.match(s,/!!legacyAdminRequester&&isAccountSubject\(prior.requestedBy\)&&prior.requestedBy!==marker.parentAccountSub/);

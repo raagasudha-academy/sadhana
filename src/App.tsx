@@ -1,8 +1,8 @@
-import './v1296SharedShell.css';
+import './sharedShell.css';
 import './roleWorkspace.css';
 import StudentHome from './StudentHome';
 import SadhanaMyProfile from './SadhanaMyProfile';
-import './v1298LearnerContent.css';
+import './learnerContent.css';
 import FeesComingSoon from './features/sadhanaCoreStarter/FeesComingSoon';
 import {teacherIdentityFailureMessage} from './teacherIdentityMessages';
 import './sessionFooter.css';
@@ -1101,6 +1101,17 @@ function StaffPortrait({name,initial,photoUrl=''}:{name:string;initial:string;ph
 
 export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const [ownPhotoUrl,setOwnPhotoUrl]=useState(cloud?.staff.photoUrl||'');
+  // Signed photo URLs are temporary; refresh the account's OWN portrait at bootstrap.
+  // Never derive this avatar from the selected learner/child record.
+  useEffect(()=>{
+    if(!cloud?.api)return;
+    let active=true;
+    setOwnPhotoUrl(cloud.staff.photoUrl||'');
+    void cloud.api.getMyProfile().then(profile=>{
+      if(active)setOwnPhotoUrl(profile.photoUrl||'');
+    }).catch(()=>{/* The existing avatar remains usable if profile read-back fails. */});
+    return()=>{active=false;};
+  },[cloud?.api,cloud?.staff.subject]);
   const [syncing,setSyncing]=useState(false);
   const [syncMessage,setSyncMessage]=useState('');
   const [syncError,setSyncError]=useState('');
@@ -1344,7 +1355,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
     <button
       type="button"
       className="user-avatar sadhana-profile-avatar"
-      onClick={()=>goPage('My Profile')}
+      onClick={()=>goPage(studentMode?'My profile':'My Profile')}
       title="My Profile"
       aria-label="Open My Profile">
       <StaffPortrait
@@ -1359,7 +1370,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
       <button
         type="button"
         className="topbar-account-name"
-        onClick={()=>goPage('My Profile')}
+        onClick={()=>goPage(studentMode?'My profile':'My Profile')}
         title="Open My Profile">
         {person.label}
       </button>

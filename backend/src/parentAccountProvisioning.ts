@@ -3,7 +3,7 @@ import {fetchWebsiteRegistration} from './websiteRegistrationGateway.ts';
 import {CognitoIdentityProviderClient,ListUsersCommand,AdminCreateUserCommand} from '@aws-sdk/client-cognito-identity-provider';
 import {GetCommand,UpdateCommand} from '@aws-sdk/lib-dynamodb';
 import {makeRoutedClient} from './tableRouter.ts';
-import {tryQueueGuardianReviews} from './v117GuardianAutoHook.ts';
+import {tryQueueGuardianReviews} from './guardianAutoHook.ts';
 import {registrationContactPhone} from './registrationContactPhone.ts';
 const db=makeRoutedClient();
 const cognito=new CognitoIdentityProviderClient({});

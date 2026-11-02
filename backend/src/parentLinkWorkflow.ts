@@ -3,7 +3,7 @@
  * children remain pending guardian requests until administrator relationship review. */
 import {demandInstitution} from './model.ts';
 import type {Claims} from './model.ts';
-import {enqueueImportedGuardianReviews} from './v117GuardianQueue.ts';
+import {enqueueImportedGuardianReviews} from './guardianQueue.ts';
 
 export async function queueImportedParentLinks(registrationId:string,claims:Claims){
  demandInstitution(claims,'raaga');

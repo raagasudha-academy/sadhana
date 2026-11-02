@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const source=readFileSync(new URL('../src/v117GuardianQueue.ts',import.meta.url),'utf8');
+const source=readFileSync(new URL('../src/guardianQueue.ts',import.meta.url),'utf8');
 test('v11.7.7 only converts verified adult self and keeps guardians pending',()=>{
  assert.match(source,/isVerifiedSelfCandidate\(studentRecords/);
  assert.match(source,/student\?\.adultConfirmed===true/);

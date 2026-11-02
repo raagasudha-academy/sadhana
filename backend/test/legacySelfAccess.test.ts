@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const src=readFileSync(new URL('../src/v117GuardianQueue.ts',import.meta.url),'utf8');
+const src=readFileSync(new URL('../src/guardianQueue.ts',import.meta.url),'utf8');
 test('legacy adult self access uses source mapping, verified account and adult student evidence',()=>{
  assert.match(src,/evidence\.mappedStudentId===evidence\.studentId/);
  assert.match(src,/student\?\.adultConfirmed===true/);

@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+const code=readFileSync(new URL('../src/StudentHome.tsx',import.meta.url),'utf8');
+test('separate teachers and administrators, labelled by academy',()=>{assert.match(code,/function ApprovedAcademiesStaffDirectory/);assert.match(code,/All Teachers/);assert.match(code,/All Administrators/);assert.match(code,/Śruti Vedam/);assert.match(code,/Raagasudha/)});
+test('academy content gated by currently approved links',()=>{assert.match(code,/myLinkedStudents\(institution\)/);assert.match(code,/if\(!approved\)return null/);assert.match(code,/learnerAcademyDirectory\(institution,approved.id\)/)});
+test('only backend published HTTPS photo URL displayed',()=>{assert.match(code,/photoUrl\?:string/);assert.match(code,/referrerPolicy="no-referrer"/);assert.doesNotMatch(code.split('function ApprovedAcademiesStaffDirectory(')[1].split('export type LearnerChoice=')[0],/listTeachers|listAdministrators|listOperations|email|phone_number/)});

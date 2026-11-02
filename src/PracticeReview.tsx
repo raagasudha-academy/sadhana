@@ -1,4 +1,4 @@
-import './v1376PracticeInsights.css';
+import './practiceInsights.css';
 import {useEffect,useMemo,useState} from 'react';
 import {BookOpenCheck} from 'lucide-react';
 import type {CloudSession} from './CloudAuth';

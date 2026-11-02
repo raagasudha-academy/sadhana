@@ -137,7 +137,6 @@ function SignInGate() {
   const profilePicture=typeof profile?.picture==='string'&&profile.picture.startsWith('https://')?profile.picture:undefined;
   // Cognito public user APIs, authenticated by the signed-in access token, not AWS credentials.
   const cognitoUserAction=async(action:'UpdateUserAttributes'|'VerifyUserAttribute',payload:Record<string,unknown>)=>{
-    if(import.meta.env.VITE_SADHANA_PHONE_VERIFIED_BEFORE_UPDATE!=='true')throw Error('Phone changes require verified-before-update to be enabled in the Cognito user pool. Ask an administrator.');
     if(!token)throw Error('Sign in again before changing your phone number.');
     const response=await fetch(`https://cognito-idp.${region}.amazonaws.com/`,{
       method:'POST',headers:{'Content-Type':'application/x-amz-json-1.1','X-Amz-Target':`AWSCognitoIdentityProviderService.${action}`},
