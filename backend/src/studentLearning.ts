@@ -6,7 +6,7 @@ import {GetCommand,QueryCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamod
 import {makeRoutedClient} from './tableRouter.ts';
 import {httpError} from './model.ts';
 import type {Claims,InstitutionId} from './model.ts';
-import {isStudentRecordId} from './accessRules.ts';
+import {requireApprovedLearnerLink,requireActiveLearner} from './learnerAccessPolicy.ts';
 import {schedulePK,scheduleSK} from './scheduleModel.ts';
 const db=makeRoutedClient();
 const table=()=>{if(!process.env.SADHANA_TABLE_NAME)throw Error('Missing table');return process.env.SADHANA_TABLE_NAME};
@@ -15,11 +15,11 @@ const dateOK=(x:any)=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Numbe
 const ukToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const records=async(pk:string,limit=1000)=>{let cursor:any;const items:any[]=[];do{const result=await db.send(new QueryCommand({TableName:table(),KeyConditionExpression:'PK=:pk',ExpressionAttributeValues:{':pk':pk},Limit:100,ExclusiveStartKey:cursor,ConsistentRead:true}));items.push(...(result.Items||[]));cursor=result.LastEvaluatedKey;if(items.length>limit)throw httpError(413,'Too many records')}while(cursor);return items};
 async function authorised(inst:InstitutionId,claims:Claims,studentId:string){
- if(!claims.sub||!isStudentRecordId(studentId))throw httpError(403,'Student access denied');
+ if(!claims.sub)throw httpError(403,'Student access denied');
  const r=(await db.send(new GetCommand({TableName:table(),Key:{PK:`ACCESS#${inst}#${claims.sub}`,SK:`STUDENT#${studentId}`},ConsistentRead:true}))).Item;
- if(!r||r.status!=='approved'||r.studentId!==studentId||r.institution!==inst)throw httpError(403,'Student access not approved');
+ requireApprovedLearnerLink(inst,claims.sub,studentId,r);
  const student=(await db.send(new GetCommand({TableName:table(),Key:{PK:'OPS#GLOBAL#STUDENT',SK:`ITEM#${studentId}`},ConsistentRead:true}))).Item;
- if(!student||student.archived)throw httpError(404,'Active student record not found');
+ requireActiveLearner(student);
  return student;
 }
 async function enrolled(inst:InstitutionId,studentId:string){

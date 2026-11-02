@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {requireApprovedLearnerLink,requireActiveLearner} from '../src/learnerAccessPolicy.ts';
+const sub='1d93a1d2-56db-44d8-8c5a-24e1e95c421a';
+const other='2d93a1d2-56db-44d8-8c5a-24e1e95c421a';
+const student='STUDENT-11111111-1111-4111-8111-111111111111';
+const valid={institution:'sruti',studentId:student,subject:sub,status:'approved'};
+const denied=(f:()=>unknown,status=403)=>assert.throws(f,(err:any)=>err?.status===status);
+test('approved exact learner link is permitted',()=>{assert.doesNotThrow(()=>requireApprovedLearnerLink('sruti',sub,student,valid));});
+test('revoked, rejected and pending links deny access immediately',()=>{for(const status of ['revoked','rejected','pending'])denied(()=>requireApprovedLearnerLink('sruti',sub,student,{...valid,status}));});
+test('missing links and invalid account identity deny access',()=>{denied(()=>requireApprovedLearnerLink('sruti',sub,student,undefined));denied(()=>requireApprovedLearnerLink('sruti','',student,valid));});
+test('academy isolation rejects wrong-academy link',()=>denied(()=>requireApprovedLearnerLink('raaga',sub,student,valid)));
+test('cross-account and cross-student lookups are rejected',()=>{denied(()=>requireApprovedLearnerLink('sruti',other,student,valid));denied(()=>requireApprovedLearnerLink('sruti',sub,'STUDENT-22222222-2222-4222-8222-222222222222',valid));});
+test('archived and absent student records are never exposed',()=>{denied(()=>requireActiveLearner(null),404);denied(()=>requireActiveLearner({archived:true}),404);assert.doesNotThrow(()=>requireActiveLearner({id:student,archived:false}));});

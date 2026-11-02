@@ -6,18 +6,18 @@ import {getSignedUrl} from '@aws-sdk/s3-request-presigner';
 import {makeRoutedClient} from './tableRouter.ts';
 import {httpError} from './model.ts';
 import type {Claims,InstitutionId} from './model.ts';
-import {isStudentRecordId} from './accessRules.ts';
+import {requireApprovedLearnerLink,requireActiveLearner} from './learnerAccessPolicy.ts';
 import {schedulePK,scheduleSK} from './scheduleModel.ts';
 const db=makeRoutedClient();const s3=new S3Client({});
 const table=()=>{if(!process.env.SADHANA_TABLE_NAME)throw Error('Missing table');return process.env.SADHANA_TABLE_NAME};
 const academy=(x:string):InstitutionId=>{if(x!=='raaga'&&x!=='sruti')throw httpError(400,'Invalid academy');return x};
 export async function learnerIdentity(instRaw:string,claims:Claims,studentId:string){
  const inst=academy(instRaw);
- if(!claims.sub||!isStudentRecordId(studentId))throw httpError(403,'Student access denied');
+ if(!claims.sub)throw httpError(403,'Student access denied');
  const access=(await db.send(new GetCommand({TableName:table(),Key:{PK:`ACCESS#${inst}#${claims.sub}`,SK:`STUDENT#${studentId}`},ConsistentRead:true}))).Item;
- if(!access||access.status!=='approved'||access.institution!==inst||access.studentId!==studentId)throw httpError(403,'Approval required for this academy');
+ requireApprovedLearnerLink(inst,claims.sub,studentId,access);
  const student=(await db.send(new GetCommand({TableName:table(),Key:{PK:'OPS#GLOBAL#STUDENT',SK:`ITEM#${studentId}`},ConsistentRead:true}))).Item;
- if(!student||student.archived)throw httpError(404,'Student not found');
+ requireActiveLearner(student);
  return {inst,student,kind:access.kind as string};
 }
 const profileKey=(studentId:string)=>({PK:'OPS#GLOBAL#STUDENT',SK:`PROFILE#${studentId}`});
