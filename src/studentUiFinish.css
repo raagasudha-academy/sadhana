@@ -1,0 +1,11 @@
+/* Student experience finishing pass; scoped to the learner shell and the classes panel. */
+.sv1291-unified .student-experience.sv-nav-wide{max-width:1280px!important;width:100%;margin-inline:auto}
+.sv1291-unified .student-experience.sv-nav-wide .student-experience-sessions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important;border:0!important;overflow:visible!important;background:transparent!important;box-shadow:none!important}
+.sv1291-unified .student-experience.sv-nav-wide .student-experience-session{display:flex!important;flex-direction:column;align-items:stretch!important;gap:12px!important;min-width:0;min-height:174px;border:1px solid #dce4ef!important;border-radius:15px!important;background:#fff;padding:17px!important;box-shadow:0 5px 18px rgba(34,51,83,.04)}
+.sv1291-unified .student-experience.sv-nav-wide .student-experience-session+.student-experience-session{border-top:1px solid #dce4ef!important}
+.sv1291-unified .student-experience.sv-nav-wide .student-experience-date{flex-shrink:0}
+.sv1291-unified .student-experience.sv-nav-wide .student-experience-session-main{flex:initial!important;min-width:0}
+.sv1291-unified .student-experience.sv-nav-wide .sv-nav-rsvp{grid-column:auto!important;margin-top:auto}
+.sv1291-unified .student-experience.sv-nav-wide .sv-nav-rsvp select{width:100%}
+@media(max-width:1000px){.sv1291-unified .student-experience.sv-nav-wide .student-experience-sessions{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:620px){.sv1291-unified .student-experience.sv-nav-wide .student-experience-sessions{grid-template-columns:minmax(0,1fr)!important}.sv1291-unified .student-experience.sv-nav-wide .student-experience-session{min-height:0!important}}

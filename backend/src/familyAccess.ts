@@ -122,11 +122,26 @@ export async function decideStudentAccess(instRaw:string,claims:Claims,body:any)
 export async function myStudentOverview(instRaw:string,claims:Claims){
  const inst=validInst(instRaw);const links=(await myStudentLinks(inst,claims)).records;
  const records=[] as any[];
+ const parentByFamily=new Map<string,string>();
  for(const link of links){
   const student=(await db.send(new GetCommand({TableName:table(),Key:{PK:'OPS#GLOBAL#STUDENT',SK:`ITEM#${link.studentId}`},ConsistentRead:true}))).Item;
   if(!student||student.archived)continue;if(student.institution!==inst){const membership=await db.send(new QueryCommand({TableName:table(),KeyConditionExpression:'PK=:pk',ExpressionAttributeValues:{':pk':`OPS#${inst}#ENROLMENT`},ConsistentRead:true}));if(!(membership.Items||[]).some(e=>e.studentId===link.studentId&&!e.archived))continue;}
-  // Minimal student fields only; practice and timetable are added through individually scoped APIs.
-  records.push({id:student.id,name:student.name,rollNumber:student.rollNumber||'',kind:link.kind});
+  // Relationship is display metadata only. The approved-link lookup above is the sole authorisation gate.
+  // Fail closed to 'unknown' when no verified family relationship can be established.
+  let familyRole:'parent'|'child'|'unknown'='unknown';
+  if(typeof student.familyId==='string'&&student.familyId.startsWith('FAMILY-')){
+   if(student.relationship==='child')familyRole='child';
+   else if(student.relationship==='self'){
+    if(!parentByFamily.has(student.familyId)){
+     const family=(await db.send(new GetCommand({TableName:table(),Key:{PK:'OPS#GLOBAL#FAMILY',SK:`ITEM#${student.familyId}`},ConsistentRead:true}))).Item;
+     parentByFamily.set(student.familyId,typeof family?.parentName==='string'?family.parentName.trim().replace(/\s+/g,' ').toLocaleLowerCase('en-GB'):'');
+    }
+    const studentName=typeof student.name==='string'?student.name.trim().replace(/\s+/g,' ').toLocaleLowerCase('en-GB'):'';
+    if(studentName&&studentName===parentByFamily.get(student.familyId))familyRole='parent';
+   }
+  }
+  // No family IDs, other family members or permission metadata are disclosed.
+  records.push({id:student.id,name:student.name,rollNumber:student.rollNumber||'',kind:link.kind,relationship:familyRole});
  }
  return {records};
 }

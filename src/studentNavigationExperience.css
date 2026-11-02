@@ -1,0 +1,18 @@
+/* Student navigation experience; scoped so staff/admin pages are unaffected. */
+.sv1291-unified .sv116-body{max-width: none!important;width:100%;box-sizing:border-box}
+.sv1291-unified .student-portal-learning{width:100%;max-width:none!important}
+.sv1291-unified .learner-workspace{max-width:none!important;width:100%}
+.sv1291-unified .student-experience.sv-nav-wide{max-width:1120px!important;margin-inline:auto;width:100%;box-sizing:border-box}
+.sv1291-unified .student-experience-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))!important;gap:18px!important}
+.sv1291-unified .student-experience-sessions{width:100%!important;max-width:none!important}
+.sv1291-unified .student-experience-session{display:grid!important;grid-template-columns:58px minmax(0,1fr) minmax(150px,210px);gap:16px!important;align-items:center}
+.sv-nav-context{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 22px;border-bottom:1px solid #d9e1ec;padding-bottom:8px}
+.sv-nav-context button{border:0;border-radius:9px;background:transparent;color:#536480;font:inherit;font-size:14px;font-weight:600;padding:10px 15px;cursor:pointer}
+.sv-nav-context button.active{background:#eaf0fc;color:#203d75}
+.sv-nav-context button:hover{background:#f1f4fa}
+.sv-nav-rsvp{display:flex;flex-direction:column;gap:5px;min-width:0}
+.sv-nav-rsvp-label{font-size:11px;color:#52627c;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.sv-nav-rsvp select{width:100%;min-width:0;padding:9px 10px;border-radius:9px;border:1px solid #c7d1e0;background:#fff;color:#253754;font:inherit;font-size:13px;font-weight:600}
+.sv-nav-rsvp select:disabled{opacity:.6;cursor:wait}
+@media(max-width:860px){.sv1291-unified .student-experience-session{grid-template-columns:55px minmax(0,1fr)!important}.sv-nav-rsvp{grid-column:2}}
+@media(max-width:540px){.sv-nav-context{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}.sv-nav-context button{white-space:nowrap}.sv1291-unified .student-experience.sv-nav-wide{max-width:100%;padding-inline:0}.sv1291-unified .student-experience-session{gap:10px!important}.sv-nav-rsvp{grid-column:1/-1}.sv1291-unified .student-experience-grid{grid-template-columns:1fr!important}}

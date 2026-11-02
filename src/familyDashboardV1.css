@@ -1,0 +1,87 @@
+/* Family dashboard v1: scoped to overview components; no changes to the global shell. */
+.svfd-viewing{display:flex;align-items:center;gap:9px;margin-top:16px;color:#59708f;font-size:14px}
+.svfd-viewing strong{color:#243b60}
+.svfd-family{margin:22px 0 24px;background:#fff;border:1px solid #dce5f2;border-radius:15px;overflow:hidden}
+.svfd-family-bar{display:flex;align-items:center;gap:12px;padding:14px 18px}
+.svfd-family-toggle{flex:1;min-width:0;display:flex;align-items:center;gap:12px;border:0;background:none;text-align:left;cursor:pointer;color:#203757}
+.svfd-family-toggle>span{flex:1;display:flex;flex-direction:column;gap:3px}
+.svfd-family-toggle strong{font-size:17px}.svfd-family-toggle small{color:#687f9e;font-size:13px}
+.svfd-family-toggle>svg:last-child{transition:transform .2s}.svfd-chevron-open{transform:rotate(180deg)}
+.svfd-add{border:0;border-radius:10px;background:#17375d;color:white;cursor:pointer;font-weight:650;padding:11px 16px;white-space:nowrap}
+.svfd-family-body{border-top:1px solid #e7edf6;padding:16px}.svfd-family-body .access-table-wrap{margin:0}
+.svfd-dashboard{display:grid;gap:22px;margin-top:12px}
+.svfd-next,.svfd-actions,.svfd-homework-reminder{border:1px solid #dce5f2;border-radius:16px;background:#fff;padding:22px}
+.svfd-next-top{display:flex;justify-content:space-between;gap:15px;align-items:center}
+.svfd-next h3,.svfd-actions h3{margin:0;font-size:20px;color:#243752}.svfd-next h3{display:flex;align-items:center;gap:9px}
+.svfd-next h4{font-size:22px;margin:17px 0 7px;color:#243752}
+.svfd-date-pill{border-radius:999px;background:#eef3fa;padding:8px 13px;color:#385071;font-weight:650;white-space:nowrap}
+.svfd-session-meta{color:#59708f;margin:0 0 18px}
+.svfd-rsvp{border-top:1px solid #e7edf6;padding-top:17px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.svfd-rsvp>div:first-child{display:flex;align-items:flex-start;flex-direction:column;gap:7px}
+.svfd-caption{font-size:12px;letter-spacing:.03em;color:#647b99}
+.svfd-rsvp-pill{display:inline-flex;padding:6px 11px;border-radius:999px;font-size:13px}
+.svfd-rsvp-pill.is-yes{background:#eaf6ef;color:#17603b}.svfd-rsvp-pill.is-no{background:#fff0ed;color:#a33428}.svfd-rsvp-pill.is-undecided{background:#eef1f6;color:#526481}
+.svfd-outline-btn{border:1px solid #cbd8e9;background:white;border-radius:10px;padding:10px 17px;color:#244264;font-weight:650;cursor:pointer}
+.svfd-rsvp-change{display:flex;align-items:end;gap:8px;flex-wrap:wrap}.svfd-rsvp-change label{display:flex;flex-direction:column;gap:4px;font-size:12px}.svfd-rsvp-change select{padding:8px;border:1px solid #cbd8e9;border-radius:8px}
+.svfd-rsvp-change button{border:0;background:none;color:#526481;cursor:pointer;padding:10px}
+.svfd-actions h3{margin-bottom:16px}.svfd-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.svfd-action-grid button{min-width:0;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:10px;background:#fcfdff;border:1px solid #dce5f2;border-radius:14px;padding:19px;cursor:pointer;color:#234060;transition:border-color .15s,box-shadow .15s}
+.svfd-action-grid button:hover,.svfd-action-grid button:focus-visible{border-color:#7596c4;box-shadow:0 4px 16px #20416815}
+.svfd-action-grid strong{font-size:18px}.svfd-action-grid span{font-size:13px;color:#607796;min-height:35px}.svfd-action-grid small{font-size:13px;font-weight:700;color:#24476e}
+.svfd-homework-reminder{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.svfd-homework-reminder>div{display:flex;flex-direction:column;gap:5px}.svfd-homework-reminder strong{font-size:18px;color:#203757}.svfd-homework-reminder small{color:#6c7f99}
+.svfd-modal-backdrop{position:fixed;inset:0;background:#10223b9c;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.svfd-modal{background:white;border-radius:18px;box-shadow:0 25px 70px #10223b33;width:min(100%,520px);padding:25px;max-height:90vh;overflow:auto;color:#243752}
+.svfd-modal-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.svfd-modal h2{font-size:22px;margin:0}.svfd-modal-head button{border:0;background:#eef2f8;border-radius:8px;padding:8px;cursor:pointer}
+.svfd-modal>p{color:#637793;line-height:1.5}.svfd-modal form{display:grid;gap:15px}.svfd-modal label{display:flex;flex-direction:column;gap:7px;font-size:14px;font-weight:600}.svfd-modal input,.svfd-modal select{width:100%;padding:11px;border:1px solid #cbd8e9;border-radius:9px}
+.svfd-modal form button{background:#17375d;border:0;border-radius:10px;padding:12px;color:white;cursor:pointer;font-weight:700}
+@media(max-width:900px){.svfd-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.svfd-action-grid{grid-template-columns:1fr}.svfd-family-bar,.svfd-homework-reminder{flex-wrap:wrap}.svfd-next,.svfd-actions,.svfd-homework-reminder{padding:17px}.svfd-add{margin-left:auto}.svfd-next h4{font-size:19px}}
+/* Family Dashboard — compact typography and spacing */
+
+.student-portal-v119 .sv116-intro h1 {
+    font-size: 28px;
+    line-height: 1.2;
+}
+
+.student-portal-v119 .sv116-intro p {
+    font-size: 14px;
+}
+
+.svfd-dashboard {
+    gap: 16px;
+}
+
+.svfd-next,
+.svfd-actions,
+.svfd-homework-reminder {
+    padding: 18px;
+}
+
+.svfd-next h3,
+.svfd-actions h3 {
+    font-size: 17px;
+}
+
+.svfd-next h4 {
+    font-size: 18px;
+}
+
+.svfd-action-grid strong,
+.svfd-homework-reminder strong {
+    font-size: 15px;
+}
+
+.svfd-action-grid button {
+    padding: 15px;
+}
+
+.svfd-family-toggle strong {
+    font-size: 15px;
+}
+
+/* Family relationship and student status — v2 */
+.svfd-family-role-v2 th,.svfd-family-role-v2 td{vertical-align:middle}
+.svfd-family-role{display:inline-block;border-radius:999px;background:#eef2f8;color:#28446b;padding:4px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.svfd-student-status{display:inline-flex;align-items:center;gap:5px;color:#23704b;font-size:13px;font-weight:600;white-space:nowrap}
+@media(max-width:640px){.svfd-family-body .access-table-wrap{overflow-x:auto}.svfd-family-role-v2{min-width:560px}}
