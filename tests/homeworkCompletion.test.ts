@@ -1,14 +1,35 @@
-import {readFileSync} from 'node:fs';
-import {describe,it,expect} from 'vitest';
-const student=readFileSync('src/StudentHome.tsx','utf8');
-describe('v13.7.3 homework completion UX',()=>{
- it('respects the reviewed submission lock',()=>{
-  expect(student).toContain('reviewedAt?:string|null');
-  expect(student).toContain("submission.reviewedAt?' · Reviewed · Read-only'");
-  expect(student).toContain('disabled={!submissionEditable||submissionBusy}');
+
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+const readSource = (path: string) =>
+  readFileSync(new URL(path, import.meta.url), 'utf8');
+
+const controller = readSource(
+  '../src/features/learning/useStudentPortalController.ts'
+);
+
+const homework = readSource(
+  '../src/features/learning/StudentHomework.tsx'
+);
+
+const portalView = readSource(
+  '../src/features/learning/StudentPortalView.tsx'
+);
+
+describe('homework completion UX', () => {
+ it('respects the reviewed submission lock', () => {
+  expect(controller).toContain('reviewedAt?:string|null');
+  expect(homework).toContain(
+    "submission.reviewedAt?' · Reviewed · Read-only'"
+  );
+  expect(homework).toContain(
+    'disabled={!submissionEditable||submissionBusy}'
+  );
  });
- it('retains draft and submit actions',()=>{
-  expect(student).toContain("saveAssignment('draft')");
-  expect(student).toContain("saveAssignment('submitted')");
+
+ it('retains draft and submit actions', () => {
+  expect(homework).toContain("saveAssignment('draft')");
+  expect(portalView).toContain("saveAssignment('submitted')");
  });
 });
