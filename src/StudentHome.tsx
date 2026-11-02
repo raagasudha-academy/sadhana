@@ -1,7 +1,6 @@
 import './studentFamilyDashboard.css';
 import './studentTimetablePolish.css';
 import './studentUiFinish.css'; // sv-student-ui-finish
-import './studentNavigationExperience.css';
 import './studentExperience.css';
 import './studentPracticeRefined.css';
 import './practiceInsights.css';
@@ -28,8 +27,7 @@ import './studentAccessRequest.css';
 import './learningExperience.css';
 import './studentNavigationLayout.css';
 import './embeddedCalendar.css';
-import './homeworkPalette.css';
-import './homeworkConfirmation.css';
+import './studentHomework.css';
 import './foundation.css';
 import './unifiedLayout.css';
 import './handoverLayout.css';
