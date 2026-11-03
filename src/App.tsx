@@ -1,13 +1,13 @@
 import './sharedShell.css';
 import './roleWorkspace.css';
 import { learnerPageMap, learnerSectionMap } from './app/learnerNavigation';
-import StudentHome from './StudentHome';
-import SadhanaMyProfile from './SadhanaMyProfile';
+const StudentHome = lazy(() => import('./StudentHome'));
+const SadhanaMyProfile = lazy(() => import('./SadhanaMyProfile'));
 import './learnerContent.css';
-import FeesComingSoon from './features/sadhanaCoreStarter/FeesComingSoon';
+const FeesComingSoon = lazy(() => import('./features/sadhanaCoreStarter/FeesComingSoon'));
 import {teacherIdentityFailureMessage} from './teacherIdentityMessages';
 import './sessionFooter.css';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
   CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
@@ -18,14 +18,14 @@ import {
 } from 'lucide-react';
 import { institutions } from './institutions';
 import { scheduleAttentionIssues } from './scheduleAttention';
-import TeacherManagement from './TeacherManagement';
-import AdminManagement from './AdminManagement';
-import AccountAccess from './AccountAccess';
+const TeacherManagement = lazy(() => import('./TeacherManagement'));
+const AdminManagement = lazy(() => import('./AdminManagement'));
+const AccountAccess = lazy(() => import('./AccountAccess'));
 import PhotoAvatarEditor from './PhotoAvatarEditor';
-import AcademyOperations from './AcademyOperations';
-import PersistentRegistration from './PersistentRegistration';
-import LiveDashboard from './LiveDashboard';
-import WebsiteRegistrations from './WebsiteRegistrations';
+const AcademyOperations = lazy(() => import('./AcademyOperations'));
+const PersistentRegistration = lazy(() => import('./PersistentRegistration'));
+const LiveDashboard = lazy(() => import('./LiveDashboard'));
+const WebsiteRegistrations = lazy(() => import('./WebsiteRegistrations'));
 import { Inbox } from 'lucide-react';
 import { ClassFormDialog, VenueFormDialog, VenueManager } from './ClassManagement';
 import { initialFamilies, initialMembers, initialEnrolments, getEnrolmentStatus } from './registry';
@@ -399,7 +399,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   </div>
 </div></header>
       {(syncMessage||syncError)&&<div className={`sync-notice ${syncError?'sync-notice-error':''}`} role="status">{syncError||syncMessage}<button type="button" onClick={()=>{setSyncMessage('');setSyncError('');}} aria-label="Dismiss sync message"><X size={14}/></button></div>}
-      <main className="content">{studentMode&&cloud&&activePage==='My profile'?<SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/>:studentMode&&cloud?<StudentHome
+      <main className="content"><Suspense fallback={<p role="status">Loading section…</p>}>{studentMode&&cloud&&activePage==='My profile'?<SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/>:studentMode&&cloud?<StudentHome
         cloud={cloud}
         initialInstitution={currentWorkspace as InstitutionId}
         embedded
@@ -423,7 +423,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
           goPage(section[destination]);
         }}
       />:<>{venueSuccess&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{venueSuccess}</span><button aria-label="Dismiss" onClick={()=>setVenueSuccess('')}><X size={15}/></button></div>}{changeNotice&&<div className="reg-success" role="status"><CheckCircle2 size={17}/><span>{changeNotice} These changes are local only and reset on refresh.</span><button aria-label="Dismiss" onClick={()=>setChangeNotice('')}><X size={15}/></button></div>}{student?<ProfileScreen student={student} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setStudent(null)} enrolments={enrolments} members={members} isTeacher={teacherMode}/>:classProfile?<ProfileScreen classItem={classProfile} activeTab={profileTab} setTab={setProfileTab} onBack={()=>setClassProfile(null)} enrolments={enrolments} members={members} isTeacher={teacherMode} onEnrolFromClass={enrolFromClass} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud}/>:needsAcademySelection(currentWorkspace,activePage) ? <AcademySelection page={activePage} allowed={availableInstitutions} onSelect={chooseAcademyForPage}/> : activePage==='My Profile'&&cloud?<SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/>:activePage==='Fees'&&person.admin&&!teacherMode?<FeesComingSoon/>:activePage==='Website Registrations'&&cloud&&currentWorkspace==='raaga'&&person.admin&&!teacherMode?<WebsiteRegistrations cloud={cloud}/>:activePage==='Dashboard'&&cloud?<LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode} onChangePage={goPage}/>:activePage==='Dashboard'?<Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent} onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes} members={members} enrolments={enrolments} practiceLogs={practiceLogs}/>:activePage==='Families & Students'||activePage==='My Students'?(teacherMode?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={true} initialArea="enrolment"/>:<PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId} initialClass={enrolClass} initialStudent={registerOpenStudent}/>):activePage==='Classes & Timetable'||activePage==='My Classes'?<Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView} setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset} onSession={setSession} onClass={openClass} allClasses={classes} onCreateClass={()=>setClassDialog({record:null})} onEditClass={editClass} onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision} venues={venues}/>:activePage==='Practice & Reports'?<AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId} teacherMode={teacherMode} initialArea="practice"/>:activePage==='Communications'?<CommsPage workspace={currentWorkspace}/>:activePage==='Venues'?<VenueManager venues={venues} canEdit={!!cloud&&person.admin&&!teacherMode} linkedCounts={venueLinks} error={venueError} onAdd={()=>setVenueDialog({record:null})} onEdit={v=>setVenueDialog({record:v})}/>:activePage==='Teachers'?<TeacherManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Administrators'?<AdminManagement cloud={cloud} workspace={currentWorkspace}/>:activePage==='Account Access'&&cloud?(currentWorkspace==='combined'?<AcademySelection page="Account Access" allowed={availableInstitutions} onSelect={switchWorkspace}/>:<AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>):<SettingsPage workspace={currentWorkspace}/>}</>}
-      </main>
+      </Suspense></main>
       <footer className="main-footer"><span>Sadhana · Academy & Learning Portal</span><span>{cloud?"Live timetable and venues · other records awaiting import":"No backend session"}</span></footer>
     </div>
     {deletePrompt&&<div className="reg-shade" onMouseDown={e=>{if(e.target===e.currentTarget)setDeletePrompt(null);}}><section className="reg-modal" role="dialog" aria-modal="true" aria-label="Confirm delete or archive"><div className="reg-modal-head"><div><h2>Delete or archive class</h2><p>{deletePrompt.record.name}</p></div><button className="reg-icon-btn" onClick={()=>setDeletePrompt(null)}><X size={18}/></button></div><div className="reg-form"><div className="reg-warning"><CircleAlert size={17}/><span>{enrolments.some(e=>e.classId===deletePrompt.record.id)?'This class has student enrolments and will be archived to preserve history. It will no longer appear in active timetables.':'This locally created class has no enrolments and can be removed.'}</span></div><div className="reg-modal-actions"><button className="reg-secondary" onClick={()=>setDeletePrompt(null)}>Cancel</button><button className="reg-danger" onClick={performDelete}><Trash2 size={16}/>{enrolments.some(e=>e.classId===deletePrompt.record.id)?'Archive class':'Delete class'}</button></div></div></section></div>}

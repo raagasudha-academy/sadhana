@@ -71,6 +71,7 @@ export function useStudentPortalController({
  const updateProfile=async(e:React.FormEvent)=>{e.preventDefault();if(!activeId||!extras)return;try{await cloud.api.saveLearnerProfile(inst,activeId,{preferredName,phone:contactPhone,about,expectedVersion:extras.profile.version});await loadExtras(activeId);setMessage('Profile preferences saved')}catch(e){setError(e instanceof Error?e.message:'Unable to save profile')}};
  const uploadEvidence=async(file:File,purpose:'profile'|'homework'|'practice')=>{if(!activeId)return;setUploadBusy(true);setError('');try{const signed=await cloud.api.beginLearnerMedia(inst,activeId,{mime:file.type,size:file.size,purpose});const r=await fetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type},body:file});if(!r.ok)throw Error(`Private upload failed (${r.status}). Check bucket CORS and credentials.`);await cloud.api.finishLearnerMedia(inst,activeId,signed.key,purpose);const results=await cloud.api.listLearnerMedia(inst,activeId);setMedia(results.records);setMessage('File uploaded privately')}catch(e){setError(e instanceof Error?e.message:'Unable to upload file')}finally{setUploadBusy(false)}};
 
+ const [message,setMessage]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);
  const [students,setStudents]=useState<Array<{id:string;name:string;rollNumber:string;kind:string;relationship?:'parent'|'child'|'unknown'}>>([]);
  const showFamilyDashboard = new Set(students.map(s=>s.id)).size >= 2;
  const [activeId,setActiveId]=useState('');
@@ -135,11 +136,18 @@ export function useStudentPortalController({
    : [];
  const [classId,setClassId]=useState(''),[date,setDate]=useState(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())),[minutes,setMinutes]=useState(15),[topic,setTopic]=useState(''),[notes,setNotes]=useState('');
  const loadDetail=async(id:string)=>{setConfirmHomework(null);setSelectedHomework('');setHomeworkDrawerOpen(false);setSubmission(null);setAttachments([]);setHomeworkText('');setDetailLoading(true);if(id!==activeId)setDetail(null);let timer:ReturnType<typeof setTimeout>|undefined;try{setError('');const result=await Promise.race([cloud.api.learnerDashboard(inst,id),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Student records took too long to load. Please retry or check the Network tab.')),15000)})]);if(timer)clearTimeout(timer);setDetail(result);activeDashboardRef.current={institution:inst,studentId:id};setCalendarAnchor(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit'}).format(new Date()));setActiveId(id);setClassId(result.classes[0]?.classId||'');void loadHomework(id);void loadExtras(id)}catch(e){setError(e instanceof Error?e.message:'Unable to load student dashboard')}finally{if(timer)clearTimeout(timer);setDetailLoading(false)}};
- useEffect(()=>{if(embedded&&selectedStudentId&&students.some(x=>x.id===selectedStudentId)&&selectedStudentId!==activeId&&!detailLoading)void loadDetail(selectedStudentId)},[embedded,selectedStudentId,students,activeId,detailLoading]);
+ // The initial family-list effect already fetches the chosen student's dashboard.
+ // Wait for it to settle before reacting to explicit View As changes; otherwise
+ // both effects can request the same dashboard concurrently.
+ useEffect(()=>{
+   if(loading || !embedded || !selectedStudentId || detailLoading) return;
+   if(!students.some(student=>student.id===selectedStudentId)) return;
+   if(selectedStudentId!==activeId) void loadDetail(selectedStudentId);
+ },[loading,embedded,selectedStudentId,students,activeId,detailLoading]);
  // Embedded View As selection is owned by App; loading data must never write it back.
  const savePractice=async(e:React.FormEvent)=>{e.preventDefault();if(!activeId)return;setError('');setMessage('');try{await cloud.api.saveLearnerPractice(inst,activeId,{classId,date,minutes,topic,comments:notes},edit||undefined);setMessage('Practice saved.');setEdit(null);setTopic('');setNotes('');await loadDetail(activeId)}catch(e){setError(e instanceof Error?e.message:'Unable to save practice')}};
  const [rollNumber,setRollNumber]=useState('');const [kind,setKind]=useState<'student'|'guardian'>('guardian');const [requestBusy,setRequestBusy]=useState(false);
- const [message,setMessage]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);
+
  useEffect(()=>{
    let live=true;
    setLoading(true);
