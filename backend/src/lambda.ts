@@ -15,6 +15,7 @@ import {registrationRoutes} from './routes/registrationRoutes.ts';
 import {operationsRoutes} from './routes/operationsRoutes.ts';
 import {calendarRoutes} from './routes/calendarRoutes.ts';
 import {m9Routes} from './routes/m9Routes.ts';
+import {m9WriteRoutes} from './routes/m9WriteRoutes.ts';
 
 
 
@@ -60,6 +61,7 @@ export function createHandler(repository: SadhanaRepository){
         displayName:await currentStaffDisplayName(claims.sub),
         photoUrl:await ownProfilePhoto(claims.sub),
       });
+      {const response=await m9WriteRoutes(routeContext);if(response)return response;}
       {const response=await m9Routes(routeContext);if(response)return response;}
       {const response=await learningRoutes(routeContext);if(response)return response;}
       {const response=await familyRoutes(routeContext);if(response)return response;}
