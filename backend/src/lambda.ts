@@ -1,4 +1,5 @@
 import {SadhanaRepository} from './repository.ts';
+import {makeM95DirectoryRoutes} from './routes/m95DirectoryRoutes.ts';
 import {apiRouteParts} from './apiRoute.ts';
 import type {PracticeChange} from './repository.ts';
 import {httpError, permittedInstitutions, viewableInstitutions, RESOURCES} from './model.ts';
@@ -21,6 +22,7 @@ import {m9WriteRoutes} from './routes/m9WriteRoutes.ts';
 
 
 export function createHandler(repository: SadhanaRepository){
+  const m95DirectoryRoutes=makeM95DirectoryRoutes(undefined, (inst,claims)=>repository.list('venues',inst,claims) as Promise<{records:Record<string,any>[];more:boolean}>);
   return async (event: SadhanaHttpEvent): Promise<JsonResponse>=>{
     try {
       // CORS preflight is unauthenticated by design. API Gateway adds the
@@ -68,6 +70,7 @@ export function createHandler(repository: SadhanaRepository){
       {const response=await m9Routes(routeContext);if(response)return response;}
       {const response=await learningRoutes(routeContext);if(response)return response;}
       {const response=await familyRoutes(routeContext);if(response)return response;}
+      {const response=await m95DirectoryRoutes(routeContext);if(response)return response;}
       {const response=await staffRoutes(routeContext);if(response)return response;}
       {const response=await registrationRoutes(routeContext);if(response)return response;}
       {const response=await operationsRoutes(routeContext);if(response)return response;}
