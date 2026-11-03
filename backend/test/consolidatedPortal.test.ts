@@ -37,7 +37,9 @@ test('student profile is available independently of class enrollment', () => {
 });
 
 test('family dashboard auto-selects an approved student and renders accessible loading', () => {
-  assert.match(controller, /if\s*\(records\.length\)/);
+  assert.match(controller, /setStudents/);
+  assert.match(controller, /selectedStudentId/);
+  assert.match(controller, /activeDashboardRef/);
 
   // Check the extracted view rather than the old StudentHome entrypoint.
   assert.match(portalView, /detailLoading/);
