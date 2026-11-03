@@ -13,6 +13,7 @@ import {learningRoutes} from './routes/learningRoutes.ts';
 import {familyRoutes} from './routes/familyRoutes.ts';
 import {staffRoutes} from './routes/staffRoutes.ts';
 import {registrationRoutes} from './routes/registrationRoutes.ts';
+import {m95GuardianRegistrationRoutes} from './routes/m95GuardianRegistrationRoutes.ts';
 import {operationsRoutes} from './routes/operationsRoutes.ts';
 import {calendarRoutes} from './routes/calendarRoutes.ts';
 import {m95CalendarWriteRoutes} from './routes/m95CalendarWriteRoutes.ts';
@@ -54,7 +55,7 @@ export function createHandler(repository: SadhanaRepository){
       // uploadProfilePhoto validates the payload and derives identity from claims.sub.
       const isOwnPhotoRoute=requestMethod==='POST' && routeParts.length===2 &&
         routeParts[0]==='photos' && routeParts[1]==='me';
-      const isAccessRoute=['family-access','me','learner'].includes(routeParts[0]) || isOwnPhotoRoute;
+      const isAccessRoute=['family-access','me','learner','m9-onboarding'].includes(routeParts[0]) || isOwnPhotoRoute;
       if(!viewed.length&&!isAccessRoute)return json(403,{error:'Staff role required.'});
       const parts=apiRouteParts(event);
       const method=event.requestContext?.http?.method ?? event.httpMethod;
@@ -82,6 +83,7 @@ export function createHandler(repository: SadhanaRepository){
       {const response=await familyRoutes(routeContext);if(response)return response;}
       {const response=await m95DirectoryRoutes(routeContext);if(response)return response;}
       {const response=await staffRoutes(routeContext);if(response)return response;}
+      {const response=await m95GuardianRegistrationRoutes(routeContext);if(response)return response;}
       {const response=await registrationRoutes(routeContext);if(response)return response;}
       {const response=await operationsRoutes(routeContext);if(response)return response;}
       if(method==='GET'&&parts[0]==='health')return json(200,{status:'ok',database:'configured',environment:'protected-api'});
