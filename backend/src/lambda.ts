@@ -14,6 +14,7 @@ import {staffRoutes} from './routes/staffRoutes.ts';
 import {registrationRoutes} from './routes/registrationRoutes.ts';
 import {operationsRoutes} from './routes/operationsRoutes.ts';
 import {calendarRoutes} from './routes/calendarRoutes.ts';
+import {m95CompatibilityRoutes} from './routes/m95CompatibilityRoutes.ts';
 import {m9Routes} from './routes/m9Routes.ts';
 import {m9WriteRoutes} from './routes/m9WriteRoutes.ts';
 
@@ -30,6 +31,8 @@ export function createHandler(repository: SadhanaRepository){
       // DO NOT use event.headers or a user-selected frontend persona as an identity.
       // API Gateway's JWT authorizer verifies signature, issuer, audience and expiry.
       const claims=event?.requestContext?.authorizer?.jwt?.claims;
+      if(process.env.M95_COMPAT_MODE==='pilot' && !['GET','HEAD','OPTIONS'].includes(String(requestMethod)))
+        return json(503,{error:'M9 read-only pilot: updates are temporarily disabled. Set M95_COMPAT_MODE=off to restore the original API.'});
       if(!claims?.sub) return json(401,{error:'Authenticated Cognito access token required.'});
       const groups=permittedInstitutions(claims);
       const viewed=viewableInstitutions(claims);
@@ -69,6 +72,7 @@ export function createHandler(repository: SadhanaRepository){
       {const response=await registrationRoutes(routeContext);if(response)return response;}
       {const response=await operationsRoutes(routeContext);if(response)return response;}
       if(method==='GET'&&parts[0]==='health')return json(200,{status:'ok',database:'configured',environment:'protected-api'});
+      {const response=await m95CompatibilityRoutes(routeContext);if(response)return response;}
       {const response=await calendarRoutes(routeContext);if(response)return response;}
 
       if(method==='GET'&&parts[0]==='identities'&&parts[1]==='search')return json(200,await repository.identitySearch(claims,query.q));
