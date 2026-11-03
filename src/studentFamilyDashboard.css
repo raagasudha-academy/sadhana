@@ -89,10 +89,10 @@
 /* Student dashboard typography aligned with application shell */
 /* Scope to the embedded student portal; no admin/teacher styling is changed. */
 .app-shell .sv1296-embedded-root.student-portal-v119 .sv116-intro h1 {
-  font-size: 24px;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.18;
+  letter-spacing: -0.9px;
+  font-weight: 760;
 }
 .app-shell .sv1296-embedded-root.student-portal-v119 .sv116-intro p,
 .app-shell .sv1296-embedded-root.student-portal-v119 .svfd-viewing {
