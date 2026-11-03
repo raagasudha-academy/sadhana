@@ -1,7 +1,8 @@
 /** M9.5 opt-in website import. No Cognito provisioning or external website writes. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient,GetCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
-import {fetchWebsiteRegistration} from './websiteRegistrationGateway.ts';
+import {DynamoDBDocumentClient,GetCommand,TransactWriteCommand,UpdateCommand} from '@aws-sdk/lib-dynamodb';
+import {fetchWebsiteRegistration,updateWebsiteRegistrationImport} from './websiteRegistrationGateway.ts';
+import {expectedWebsiteMapping} from './m95WebsiteSyncCore.mjs';
 import {demandInstitution,httpError} from './model.ts';
 import type {Claims, InstitutionId} from './model.ts';
 import {markerId,prepareWebsiteImport} from './m95WebsiteImportCore.mjs';
@@ -35,6 +36,10 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  const [family,student]=await Promise.all([getCounter(inst,'FAMILY_NUMBER'),getCounter(inst,'STUDENT_ROLL')]);
  const now=new Date().toISOString();
  const plan=prepareWebsiteImport(remote,inst,claims.sub,{family,student},now);
+ // A returning primary contact must go through explicit identity/family review;
+ // do not silently allocate another household or grant guardian access.
+ const existingContact=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId:plan.contactGuardId},ConsistentRead:true}))).Item;
+ if(existingContact)throw fail(409,'Primary contact belongs to an existing M9 family. Administrator family reconciliation is required.');
  if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:true,writeCount:plan.items.length+2,readyForExecute:true};
  // The registration record and identity guards participate in the SAME transaction as counters and people.
  // Conditional writes ensure concurrent retries cannot allocate the same roll number.
@@ -53,4 +58,26 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
   throw e;
  }
  return {imported:true,alreadyImported:false,registrationId:id,familyId:plan.familyId,studentIds:plan.studentMappings.map((x:any)=>x.studentId),studentRollNumbers:Object.fromEntries(plan.studentMappings.map((x:any)=>[x.sourcePersonId,x.rollNumber])),pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:true,provisioningPending:true};
+}
+
+/** Recoverable post-transaction website sync. Never makes guardian access approved. */
+export async function m95ReconcileWebsiteImport(inst:InstitutionId,claims:Claims,externalId:string,execute=false){
+ demandInstitution(claims,inst);
+ if(process.env.M95_ONBOARDING_MODE!=='enabled')throw fail(404,'Not enabled.');
+ if(execute && process.env.M95_WEBSITE_SYNC_WRITES!=='enabled')throw fail(403,'M9 website status writes are disabled.');
+ if(inst!=='raaga'||!/^RS-[A-Za-z0-9_-]{1,110}$/.test(externalId))throw fail(400,'Unverified website source or invalid registration ID.');
+ const registrationId=markerId(inst,externalId);
+ const local=(await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId},ConsistentRead:true}))).Item;
+ if(!local)throw fail(404,'M9 import not found; no website sync performed.');
+ const remote=approvedShape(await fetchWebsiteRegistration(externalId));
+ const result=expectedWebsiteMapping(local,remote,inst,externalId);
+ if(!execute)return {preview:true,alreadySynced:result.alreadySynced,registrationId,websiteSyncPending:!result.alreadySynced,readyToSync:true};
+ // Write the upstream mapping first. A failed local acknowledgement can be safely retried.
+ if(!result.alreadySynced)await updateWebsiteRegistrationImport(externalId,result.mapping);
+ const now=new Date().toISOString();
+ await db.send(new UpdateCommand({TableName:tables.registrations,Key:{registrationId},
+  UpdateExpression:'SET websiteSyncStatus = :synced, websiteSyncedAt = :now, updatedAt = :now',
+  ConditionExpression:'attribute_exists(registrationId) AND institutionId = :inst AND externalRegistrationId = :external AND importStatus = :imported',
+  ExpressionAttributeValues:{':synced':'synced',':now':now,':inst':inst,':external':externalId,':imported':'imported'}}));
+ return {registrationId,websiteSyncStatus:'synced',alreadySynced:result.alreadySynced,provisioningPending:true,guardianApprovalPending:true};
 }

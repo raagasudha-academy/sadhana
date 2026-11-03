@@ -20,7 +20,7 @@ test('create uses conditional put and rejects existing key collisions in DynamoD
  enable();const calls:any[]=[];const writer=makeM9TargetWriter({send:async(c:any)=>{calls.push(c);return {};}} as any,{enabled:true});
  const value=await writer.create('classes',{classId:'c1',institutionId:'raaga',name:'Music'});
  assert.equal(value.version,1);assert.ok(calls[0] instanceof PutCommand);
- assert.equal(calls[0].input.ConditionExpression,'attribute_not_exists(#pk)');assert.equal(calls[0].input.TableName,'sadhana-dev-classes');disable();
+ assert.equal(calls[0].input.ConditionExpression,'attribute_not_exists(#pk)');assert.equal(calls[0].input.TableName,'sadhana-dev-m9-classes');disable();
 });
 test('repository update guards version and institution atomically',async()=>{
  enable();const calls:any[]=[];const writer=makeM9TargetWriter({send:async(c:any)=>{calls.push(c);return {Attributes:{classId:'c1'}};}} as any,{enabled:true});

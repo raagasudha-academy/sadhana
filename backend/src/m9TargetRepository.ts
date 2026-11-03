@@ -57,7 +57,7 @@ export function makeM9TargetReader(client:M9DocumentClient,options:{env?:'dev'|'
  const env=options.env??'dev';
  const allowed=options.enabled===true && process.env.M9_TARGET_REPOSITORY_ENABLED==='read-only';
  const check=()=>{if(!allowed)throw Error('M9 target reader is disabled; set M9_TARGET_REPOSITORY_ENABLED=read-only and opt in explicitly');};
- const tableName=(entity:M9Entity)=>{if(!Object.hasOwn(M9_TARGET_KEYS,entity))throw Error('Unknown M9 entity table');return `sadhana-${env}-${entity}`;};
+ const tableName=(entity:M9Entity)=>{if(!Object.hasOwn(M9_TARGET_KEYS,entity))throw Error('Unknown M9 entity table');return `sadhana-${env}-m9-${entity}`;};
  return {
   async get(entity:M9Entity,id:string){
    check();if(!id)throw Error('Primary key value required');

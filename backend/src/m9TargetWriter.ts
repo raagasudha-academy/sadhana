@@ -18,7 +18,7 @@ function validVersion(x:unknown):x is number{return Number.isSafeInteger(x)&&typ
 export function makeM9TargetWriter(client:M9WriteClient,options:{env?:M9WriteEnvironment;enabled?:boolean}={}){
  const env=options.env??'dev';if(!['dev','test'].includes(env))throw Error('Unsupported M9 environment');
  const check=()=>enabled(options.enabled===true);
- const table=(entity:M9Entity)=>{if(!allowedEntity(entity))throw Error('Unknown M9 table');return `sadhana-${env}-${entity}`;};
+ const table=(entity:M9Entity)=>{if(!allowedEntity(entity))throw Error('Unknown M9 table');return `sadhana-${env}-m9-${entity}`;};
  return {
   async create(entity:M9Entity,item:M9EntityItem){
    check();if(!plainObject(item))throw Error('Record must be an object');
