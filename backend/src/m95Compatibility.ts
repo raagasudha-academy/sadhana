@@ -18,8 +18,9 @@ export function legacyRecord(item:CompatibleItem):Record<string,any>{
  if(typeof fields.id!=='string'||!fields.id)throw Error('M9_COMPAT_MISSING_LEGACY_ID');
  return fields;
 }
-export function assembleSchedule(inst:ScheduleInstitution,classes:CompatibleItem[],sessions:CompatibleItem[]):{records:ScheduleRecord[];more:false;source:string}{
- const regular=[...classes,...sessions].filter(item=>item.institutionId===inst && item.recordType!=='series-change')
+export function assembleSchedule(inst:ScheduleInstitution,classes:CompatibleItem[],sessions:CompatibleItem[],events:CompatibleItem[]=[]):{records:ScheduleRecord[];more:false;source:string}{
+ // The legacy SCHEDULE partition included special events. M9 stores them separately.
+ const regular=[...classes,...sessions,...events.filter(item=>item.legacyPayload?.recordType==='special-event')].filter(item=>item.institutionId===inst && item.recordType!=='series-change')
   .map(item=>legacyRecord(item) as ScheduleRecord);
  if(inst==='shared')return {records:regular.filter(r=>r.recordType==='holiday'||r.recordType==='special-event'),more:false,source:'Sadhana DynamoDB'};
  const rules=sessions.filter(x=>x.institutionId===inst&&x.recordType==='series-change').map(x=>{
@@ -52,7 +53,7 @@ export function makeM95CompatibilityReader(client:CompatClient){
   return rows;
  };
  return {
-  async schedule(inst:ScheduleInstitution){const [classes,sessions]=await Promise.all([scan('classes'),scan('sessions')]);return assembleSchedule(inst,classes,sessions);},
+  async schedule(inst:ScheduleInstitution){const [classes,sessions,events]=await Promise.all([scan('classes'),scan('sessions'),scan('events')]);return assembleSchedule(inst,classes,sessions,events);},
   async managedEvents(inst:'raaga'|'sruti'){return assembleManagedEvents(inst,await scan('events'));},
   async inventory(){const [classes,sessions,events,venues,people]=await Promise.all(['classes','sessions','events','venues','people'].map(x=>scan(x as CompatibleEntity)));
    return {classes:classes.length,sessions:sessions.length,events:events.length,venues:venues.length,people:people.length};}

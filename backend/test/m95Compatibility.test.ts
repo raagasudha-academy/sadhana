@@ -56,3 +56,40 @@ test('pilot permits verified admin scoped schedule',async()=>{
   await assert.rejects(()=>handler({parts:['schedule'],method:'GET',query:{institution:'sruti'},claims,groups:['raaga'],inst:'sruti',event:{} as any}),/access/);
  }finally{if(prev===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=prev;}
 });
+
+test('special events stored in M9 events table remain visible in legacy schedule list',()=>{
+ const ev=base('EVT-1','special-event');
+ const result=assembleSchedule('raaga',[base('CLASS-A','class')],[base('SESSION-A','class-session')],[ev]);
+ assert.equal(result.records.length,3);
+ assert.deepEqual(result.records.filter(r=>r.recordType==='special-event').map(r=>r.id),['EVT-1']);
+});
+test('M9 schedule reader scans events table and does not double count other institutions',async()=>{
+ const commands:string[]=[];
+ const fake={send:async(command:any)=>{
+  const name=command.input.TableName as string;commands.push(name);
+  const Items=name.endsWith('-classes')?[base('CLASS-A','class')]:
+   name.endsWith('-sessions')?[base('SESSION-A','class-session')]:
+   name.endsWith('-events')?[base('E1','special-event'),base('E2','special-event','sruti')]:[];
+  return {Items};
+ }};
+ const result=await makeM95CompatibilityReader(fake).schedule('raaga');
+ assert.equal(result.records.length,3);
+ assert.equal(result.records.filter(r=>r.recordType==='special-event').length,1);
+ assert.ok(commands.some(name=>name.endsWith('-events')));
+});
+
+// Regression: real M9 event transformation does not create a top-level recordType.
+test('transferred M9 events are included by their legacyPayload recordType',()=>{
+ const original=base('E-REAL','special-event');
+ const stored={institutionId:'raaga',eventId:'E-REAL',title:'Example event',managedEvent:false,legacyPayload:original.legacyPayload};
+ const result=assembleSchedule('raaga',[],[],[stored]);
+ assert.equal(result.records.length,1);
+ assert.equal(result.records[0].id,'E-REAL');
+});
+
+test('M9 reader reconstructs transferred event with no top-level recordType',async()=>{
+ const item={institutionId:'raaga',eventId:'E-REAL',title:'Example event',legacyPayload:base('E-REAL','special-event').legacyPayload};
+ const mock={send:async(command:any)=>({Items:command.input.TableName.endsWith('-events')?[item]:[]})};
+ const result=await makeM95CompatibilityReader(mock).schedule('raaga');
+ assert.deepEqual(result.records.map(r=>r.id),['E-REAL']);
+});
