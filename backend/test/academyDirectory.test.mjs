@@ -17,6 +17,6 @@ test('stable public identifiers are used for grouping and never publish raw sub'
  assert.match(client,/publicId\?:string;photoUrl\?:string/);
 });
 test('existing learner guard remains in lambda',()=>{
- const lambda=readFileSync(new URL('../src/lambda.ts',import.meta.url),'utf8');
+ const lambda=readFileSync(new URL('../src/routes/learningRoutes.ts',import.meta.url),'utf8');
  assert.match(lambda,/await learnerIdentity\(inst,claims,studentId\);return json\(200,await academyDirectory\(inst\)\)/);
 });
