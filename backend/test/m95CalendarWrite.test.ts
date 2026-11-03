@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GetCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {GetCommand,ScanCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {makeM95CalendarWriter,utcForWallTime} from '../src/m95CalendarWrite.ts';
 import {pilotCalendarWriteRequest} from '../src/routes/m95CalendarWriteRoutes.ts';
 const claims={sub:'cognito-admin-test','cognito:groups':'raagasudha-admin'};
@@ -40,9 +40,45 @@ test('class patch retains legacy response and conditions on version and institut
  assert.equal(tx[0].Put.ExpressionAttributeValues[':inst'],'raaga');
  assert.equal(tx[1].Put.TableName,'sadhana-dev-m9-audit');
 }));
-test('cannot rename master without atomic updates to linked sessions',async()=>withPilot(async()=>{
- const client={send:async(cmd:any)=>cmd instanceof GetCommand?{Item:cmd.input.TableName==='sadhana-dev-m9-classes'?{classId:master.id,institutionId:'raaga',version:2,legacyPayload:master}:undefined}: {}};
- await assert.rejects(()=>makeM95CalendarWriter(client).patch('raaga','CLASS-TEST',{expectedVersion:2,name:'Renamed'},claims),{status:501});
+test('rename updates class and linked sessions atomically while preserving one-off overrides',async()=>withPilot(async()=>{
+ const calls:any[]=[];
+ const normal={sessionId:'SESS-TEST',classId:master.id,institutionId:'raaga',recordType:'class-session',version:1,legacyPayload:session};
+ const overridden={...normal,sessionId:'SESS-OVERRIDE',legacyPayload:{...session,id:'SESS-OVERRIDE',name:'Special lesson',sessionOverrideFields:['name']}};
+ const client={send:async(cmd:any)=>{
+  calls.push(cmd);
+  if(cmd instanceof GetCommand)return {Item:cmd.input.TableName==='sadhana-dev-m9-classes'?{classId:master.id,institutionId:'raaga',version:2,legacyPayload:master}:undefined};
+  if(cmd instanceof ScanCommand)return {Items:[normal,overridden]};
+  return {};
+ }};
+ const result=await makeM95CalendarWriter(client).patch('raaga','CLASS-TEST',{expectedVersion:2,name:'Renamed by administrator'},claims);
+ assert.equal(result.renamedSessions,1);assert.equal(result.preservedOverrides,1);
+ const tx=calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
+ assert.equal(tx.length,3);
+ assert.equal(tx[0].Put.Item.legacyPayload.name,'Renamed by administrator');
+ assert.equal(tx[1].Put.Item.legacyPayload.name,'Renamed by administrator');
+ assert.equal(tx[1].Put.ExpressionAttributeValues[':old'],1);
+ assert.equal(tx[2].Put.Item.action,'M95_RENAME_CLASS');
+}));
+test('large rename stops before writes rather than partially editing sessions',async()=>withPilot(async()=>{
+ const calls:any[]=[];
+ const client={send:async(cmd:any)=>{
+  calls.push(cmd);
+  if(cmd instanceof GetCommand)return {Item:cmd.input.TableName==='sadhana-dev-m9-classes'?{classId:master.id,institutionId:'raaga',version:2,legacyPayload:master}:undefined};
+  if(cmd instanceof ScanCommand)return {Items:Array.from({length:99},(_,i)=>({sessionId:`SESSION-${i}`,classId:master.id,institutionId:'raaga',recordType:'class-session',version:1,legacyPayload:{...session,id:`SESSION-${i}`}}))};
+  return {};
+ }};
+ await assert.rejects(()=>makeM95CalendarWriter(client).patch('raaga','CLASS-TEST',{expectedVersion:2,name:'Another name'},claims),{status:409});
+ assert.equal(calls.some(x=>x instanceof TransactWriteCommand),false);
+}));
+test('session cancellation and restoration are versioned non-destructive updates',async()=>withPilot(async()=>{
+ const calls:any[]=[];
+ const stored={sessionId:session.id,classId:master.id,institutionId:'raaga',version:1,legacyPayload:session};
+ const client={send:async(cmd:any)=>{calls.push(cmd);if(cmd instanceof GetCommand)return {Item:cmd.input.TableName==='sadhana-dev-m9-sessions'?stored:undefined};return {};}};
+ const cancelled=await makeM95CalendarWriter(client).patch('raaga',session.id,{expectedVersion:1,status:'cancelled'},claims);
+ assert.equal(cancelled.record.status,'cancelled');
+ const tx=calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
+ assert.equal(tx[0].Put.Item.status,'cancelled');assert.equal(tx[0].Put.Item.version,2);
+ assert.equal(tx[1].Put.Item.action,'M95_UPDATE_SCHEDULE');
 }));
 test('rejects wrong institution and rejects missing version',async()=>withPilot(async()=>{
  const client={send:async(cmd:any)=>cmd instanceof GetCommand?{Item:cmd.input.TableName==='sadhana-dev-m9-classes'?{classId:master.id,institutionId:'raaga',version:2,legacyPayload:master}:undefined}: {}};

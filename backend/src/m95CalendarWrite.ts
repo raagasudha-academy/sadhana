@@ -1,7 +1,7 @@
 /** M9 calendar pilot writes: isolated from the legacy table router. */
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient,GetCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {DynamoDBDocumentClient,GetCommand,ScanCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {demandInstitution,httpError} from './model.ts';
 import type {Claims} from './model.ts';
 import {scheduleChanges,validateScheduleRecord} from './scheduleModel.ts';
@@ -10,6 +10,8 @@ import type {ScheduleRecord,ScheduleInstitution} from './scheduleModel.ts';
 export type CalendarClient={send:(cmd:any)=>Promise<any>};
 const allowedFields=new Set(['recordType','name','programme','teacher','mode','location','date','endDate','startTime','endTime','allDay','status','classId','affectsClasses']);
 const idPattern=/^[-a-zA-Z0-9]{4,90}$/;
+const MAX_RENAME_SESSIONS=98; // 100 DynamoDB transaction actions minus class and audit.
+const MAX_SCAN_RECORDS=6000;
 const table=(entity:'classes'|'sessions'|'events'|'audit')=>`sadhana-dev-m9-${entity}`;
 const primaryKey=(kind:string)=>kind==='class'?'classId':kind==='special-event'?'eventId':'sessionId';
 const entityFor=(kind:string)=>kind==='class'?'classes':kind==='special-event'?'events':'sessions';
@@ -87,6 +89,44 @@ export function makeM95CalendarWriter(client:CalendarClient){
    ]}));
   }catch(e){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes((e as Error)?.name))throw httpError(409,'Record changed or already exists. Refresh and retry.');throw e;}
  };
+ const rename=async(inst:'raaga'|'sruti',stored:Record<string,any>,current:ScheduleRecord,next:ScheduleRecord,actor:string)=>{
+  const records:Record<string,any>[]=[];
+  let cursor:Record<string,any>|undefined;
+  do{
+   const result=await client.send(new ScanCommand({TableName:table('sessions'),ConsistentRead:true,ExclusiveStartKey:cursor,Limit:250}));
+   records.push(...(result.Items??[]));cursor=result.LastEvaluatedKey;
+   if(records.length>MAX_SCAN_RECORDS)throw httpError(413,'Too many sessions to verify class rename safely.');
+  }while(cursor);
+  // A session with a deliberate one-off name override must not be renamed.
+  const linked=records.filter(x=>x.institutionId===inst&&x.classId===current.id&&x.recordType==='class-session');
+  const toRename=linked.filter(x=>!x.legacyPayload?.sessionOverrideFields?.includes('name')&&x.legacyPayload?.name===current.name);
+  if(toRename.length>MAX_RENAME_SESSIONS)throw httpError(409,'Class has too many linked sessions for one atomic rename; no records changed.');
+  if(linked.some(x=>!x.legacyPayload||!Number.isInteger(x.version)||!x.sessionId))throw httpError(409,'Some linked sessions cannot be safely renamed.');
+  // Effective-dated rules can themselves rename sessions. Refuse to overwrite that intent.
+  if(records.some(x=>x.institutionId===inst&&x.classId===current.id&&x.recordType==='series-change'&&x.legacyPayload?.changes?.name!==undefined))
+   throw httpError(409,'Class has effective-dated name changes; review those before renaming.');
+  const now=new Date().toISOString();
+  const newMaster={...next,version:current.version!+1,updatedAt:now};
+  const writes:any[]=[{Put:{TableName:table('classes'),Item:target(newMaster,stored),
+   ConditionExpression:'#v=:old AND #inst=:inst',ExpressionAttributeNames:{'#v':'version','#inst':'institutionId'},
+   ExpressionAttributeValues:{':old':current.version,':inst':inst}}}];
+  for(const row of toRename){
+   const previous=row.legacyPayload as ScheduleRecord;
+   const revised={...previous,name:next.name,version:row.version+1,updatedAt:now};
+   validateScheduleRecord(revised);
+   const item={...row,version:revised.version,updatedAt:now,legacyPayload:{...row.legacyPayload,name:next.name,version:revised.version,updatedAt:now}};
+   writes.push({Put:{TableName:table('sessions'),Item:item,
+    ConditionExpression:'#v=:old AND #inst=:inst AND #class=:class',
+    ExpressionAttributeNames:{'#v':'version','#inst':'institutionId','#class':'classId'},
+    ExpressionAttributeValues:{':old':row.version,':inst':inst,':class':current.id}}});
+  }
+  writes.push({Put:{TableName:table('audit'),Item:{...audit(inst,'M95_RENAME_CLASS',current.id,actor,now),
+   previousName:current.name,newName:next.name,renamedSessions:toRename.length,preservedOverrides:linked.length-toRename.length},
+   ConditionExpression:'attribute_not_exists(auditId)'}});
+  try{await client.send(new TransactWriteCommand({TransactItems:writes}));}
+  catch(e){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes((e as Error)?.name))throw httpError(409,'Class or sessions changed. Refresh and retry.');throw e;}
+  return {record:newMaster,renamedSessions:toRename.length,preservedOverrides:linked.length-toRename.length};
+ };
  return {
   async create(inst:ScheduleInstitution,raw:Record<string,any>,claims:Claims){
    checkPilot();if(inst==='shared')throw httpError(501,'Shared calendar writes are not yet enabled for M9.');
@@ -115,7 +155,11 @@ export function makeM95CalendarWriter(client:CalendarClient){
    const current=stored.legacyPayload as ScheduleRecord;
    if(!Number.isInteger(raw.expectedVersion)||raw.expectedVersion!==stored.version||raw.expectedVersion!==current.version)throw httpError(409,'Record changed. Refresh before editing.');
    const updated=scheduleChanges(current,raw);
-   if(current.recordType==='class'&&updated.name!==current.name)throw httpError(501,'Master-class rename requires linked-session transaction support.');
+   if(current.recordType==='class'&&updated.name!==current.name){
+    if(typeof raw.name!=='string'||!raw.name.trim())throw httpError(400,'Valid class name required.');
+    if(Object.keys(raw).some(key=>!['name','expectedVersion'].includes(key)))throw httpError(400,'Rename separately from other class changes.');
+    return rename(inst as 'raaga'|'sruti',stored,current,updated,String(claims.sub));
+   }
    if(updated.teacherId!==current.teacherId)throw httpError(501,'Teacher identity changes require M9 teacher verification.');
    const now=new Date().toISOString();
    const next={...updated,version:current.version!+1,updatedAt:now};
@@ -124,7 +168,7 @@ export function makeM95CalendarWriter(client:CalendarClient){
     next.sessionOverrideFields=[...new Set([...(current.sessionOverrideFields||[]),...changed])];
    }
    await transact(current.recordType==='class'?'classes':'sessions',target(next,stored),stored.version,String(claims.sub),'M95_UPDATE_SCHEDULE');
-   return {record:next,renamedSessions:0};
+   return {record:next,renamedSessions:0,preservedOverrides:0};
   }
  };
 }
