@@ -16,6 +16,7 @@ import {registrationRoutes} from './routes/registrationRoutes.ts';
 import {operationsRoutes} from './routes/operationsRoutes.ts';
 import {calendarRoutes} from './routes/calendarRoutes.ts';
 import {m95CalendarWriteRoutes} from './routes/m95CalendarWriteRoutes.ts';
+import {m95SeriesWriteRoutes} from './routes/m95SeriesWriteRoutes.ts';
 import {m95CompatibilityRoutes} from './routes/m95CompatibilityRoutes.ts';
 import {m9Routes} from './routes/m9Routes.ts';
 import {m9WriteRoutes} from './routes/m9WriteRoutes.ts';
@@ -36,7 +37,7 @@ export function createHandler(repository: SadhanaRepository){
       const claims=event?.requestContext?.authorizer?.jwt?.claims;
       if(process.env.M95_COMPAT_MODE==='pilot' && !['GET','HEAD','OPTIONS'].includes(String(requestMethod))) {
         const p=apiRouteParts(event);
-        const calendarWrite=(requestMethod==='POST'&&p.length===1&&p[0]==='schedule') || (requestMethod==='PATCH'&&p.length===2&&p[0]==='schedule');
+        const calendarWrite=(requestMethod==='POST'&&p.length===1&&p[0]==='schedule') || (requestMethod==='PATCH'&&p.length===2&&p[0]==='schedule') || (process.env.M95_SERIES_WRITES==='enabled' && ((requestMethod==='PATCH'&&p.length===3&&p[0]==='schedule'&&p[1]==='series') || (requestMethod==='POST'&&p.length===4&&p[0]==='schedule'&&p[1]==='series'&&p[3]==='preview')));
         if(process.env.M95_CALENDAR_WRITES!=='enabled'||!calendarWrite)
           return json(503,{error:'M9 pilot: this write workflow is disabled. Switch M95_COMPAT_MODE=off to restore the legacy API.'});
       }
@@ -81,6 +82,7 @@ export function createHandler(repository: SadhanaRepository){
       {const response=await operationsRoutes(routeContext);if(response)return response;}
       if(method==='GET'&&parts[0]==='health')return json(200,{status:'ok',database:'configured',environment:'protected-api'});
       {const response=await m95CompatibilityRoutes(routeContext);if(response)return response;}
+      {const response=await m95SeriesWriteRoutes(routeContext);if(response)return response;}
       {const response=await m95CalendarWriteRoutes(routeContext);if(response)return response;}
       {const response=await calendarRoutes(routeContext);if(response)return response;}
 
