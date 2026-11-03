@@ -15,7 +15,7 @@ test('teacher API retains legacy field shapes and privately hides Cognito subjec
  assert.equal(b.records[0].cognitoSub,'');
  assert.equal(a.records[0].photoUrl,'photo/cognito-1');
  assert.equal(a.more,false);
- assert.equal(a.records[0].id,teacher.legacyPayload.id);
+ assert.equal(Reflect.get(a.records[0], 'id'),teacher.legacyPayload.id);
  await assert.rejects(()=>presentM9Teachers('sruti',admin,[teacher],photo),/access/i);
 });
 test('teacher identity uses subject equality and active institution scope',()=>{
