@@ -5,6 +5,7 @@ import {httpError,demandInstitution} from '../model.ts';
 import type {DomainRoute} from './http.ts';
 import {json,readJSON} from './http.ts';
 import {m95GuardianService} from '../m95GuardianRegistration.ts';
+import {m95ImportApprovedWebsiteRegistration} from '../m95WebsiteImport.ts';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,QueryCommand} from '@aws-sdk/lib-dynamodb';
 
@@ -15,6 +16,10 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
  if(process.env.M95_ONBOARDING_MODE!=='enabled')return json(404,{error:'Unknown endpoint.'});
  const institution=query.institution;
  if(institution!=='raaga'&&institution!=='sruti')throw httpError(400,'Select a valid institution.');
+ if(method==='POST'&&parts[1]==='website-import'&&parts.length===4&&['preview','execute'].includes(parts[3])){
+  demandInstitution(claims,institution);
+  return json(200,await m95ImportApprovedWebsiteRegistration(institution,claims,parts[2],parts[3]==='execute'));
+ }
  if(method==='GET'&&parts.length===2&&parts[1]==='status'){
   demandInstitution(claims,institution);
   return json(200,{institution,guardianRequests:'enabled',registrationMirror:'read-only',websiteImport:'legacy-authoritative',cutover:false});
