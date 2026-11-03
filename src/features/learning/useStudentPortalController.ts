@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import type {CloudSession} from '../../CloudAuth';
 import type {InstitutionId} from '../../types';
 import type {PublishedAcademy} from './StudentAcademy';
@@ -74,6 +74,7 @@ export function useStudentPortalController({
  const [students,setStudents]=useState<Array<{id:string;name:string;rollNumber:string;kind:string;relationship?:'parent'|'child'|'unknown'}>>([]);
  const showFamilyDashboard = new Set(students.map(s=>s.id)).size >= 2;
  const [activeId,setActiveId]=useState('');
+ const activeDashboardRef=useRef<{institution:InstitutionId;studentId:string}>({institution:inst,studentId:''});
  useEffect(()=>{setRsvpEditing(false)},[activeId]);
  const [homework,setHomework]=useState<Array<{id:string;classId:string;title:string;instructions:string;dueDate:string;completed:boolean;submissionStatus?:'draft'|'submitted'|null;closed?:boolean}>>([]);
  const [selectedHomework,setSelectedHomework]=useState('');
@@ -133,13 +134,47 @@ export function useStudentPortalController({
      .slice(0, 6)
    : [];
  const [classId,setClassId]=useState(''),[date,setDate]=useState(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())),[minutes,setMinutes]=useState(15),[topic,setTopic]=useState(''),[notes,setNotes]=useState('');
- const loadDetail=async(id:string)=>{setConfirmHomework(null);setSelectedHomework('');setHomeworkDrawerOpen(false);setSubmission(null);setAttachments([]);setHomeworkText('');setDetailLoading(true);setDetail(null);let timer:ReturnType<typeof setTimeout>|undefined;try{setError('');const result=await Promise.race([cloud.api.learnerDashboard(inst,id),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Student records took too long to load. Please retry or check the Network tab.')),15000)})]);if(timer)clearTimeout(timer);setDetail(result);setCalendarAnchor(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit'}).format(new Date()));setActiveId(id);setClassId(result.classes[0]?.classId||'');void loadHomework(id);void loadExtras(id)}catch(e){setError(e instanceof Error?e.message:'Unable to load student dashboard')}finally{if(timer)clearTimeout(timer);setDetailLoading(false)}};
+ const loadDetail=async(id:string)=>{setConfirmHomework(null);setSelectedHomework('');setHomeworkDrawerOpen(false);setSubmission(null);setAttachments([]);setHomeworkText('');setDetailLoading(true);if(id!==activeId)setDetail(null);let timer:ReturnType<typeof setTimeout>|undefined;try{setError('');const result=await Promise.race([cloud.api.learnerDashboard(inst,id),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Student records took too long to load. Please retry or check the Network tab.')),15000)})]);if(timer)clearTimeout(timer);setDetail(result);activeDashboardRef.current={institution:inst,studentId:id};setCalendarAnchor(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit'}).format(new Date()));setActiveId(id);setClassId(result.classes[0]?.classId||'');void loadHomework(id);void loadExtras(id)}catch(e){setError(e instanceof Error?e.message:'Unable to load student dashboard')}finally{if(timer)clearTimeout(timer);setDetailLoading(false)}};
  useEffect(()=>{if(embedded&&selectedStudentId&&students.some(x=>x.id===selectedStudentId)&&selectedStudentId!==activeId&&!detailLoading)void loadDetail(selectedStudentId)},[embedded,selectedStudentId,students,activeId,detailLoading]);
- useEffect(()=>{if(embedded&&activeId&&!selectedStudentId)onStudentChange?.(activeId)},[embedded,activeId,selectedStudentId,onStudentChange]);
+ // Embedded View As selection is owned by App; loading data must never write it back.
  const savePractice=async(e:React.FormEvent)=>{e.preventDefault();if(!activeId)return;setError('');setMessage('');try{await cloud.api.saveLearnerPractice(inst,activeId,{classId,date,minutes,topic,comments:notes},edit||undefined);setMessage('Practice saved.');setEdit(null);setTopic('');setNotes('');await loadDetail(activeId)}catch(e){setError(e instanceof Error?e.message:'Unable to save practice')}};
  const [rollNumber,setRollNumber]=useState('');const [kind,setKind]=useState<'student'|'guardian'>('guardian');const [requestBusy,setRequestBusy]=useState(false);
  const [message,setMessage]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);
- useEffect(()=>{let live=true;setLoading(true);setError('');cloud.api.myLinkedStudents(inst).then(async r=>{if(!live)return;const records=r.records;setStudents(records);setDetail(null);setExtras(null);setMedia([]);setActiveId('');if(!embedded)setTab('overview');if(records.length){try{const initial=records.find(x=>x.id===selectedStudentId)||records[0];const dashboard=await cloud.api.learnerDashboard(inst,initial.id);if(!live)return;setDetail(dashboard);setCalendarAnchor(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit'}).format(new Date()));setActiveId(initial.id);setClassId(dashboard.classes[0]?.classId||'');void loadHomework(initial.id);void loadExtras(initial.id)}catch(e){if(live)setError(e instanceof Error?e.message:'Unable to load student dashboard')}}}).catch(e=>{if(live)setError(e instanceof Error?e.message:'Unable to load your students')}).finally(()=>{if(live)setLoading(false)});return()=>{live=false}},[cloud,inst]);
+ useEffect(()=>{
+   let live=true;
+   setLoading(true);
+   setError('');
+   cloud.api.myLinkedStudents(inst).then(async r=>{
+     if(!live)return;
+     const records=r.records;
+     setStudents(records);
+     if(!embedded)setTab('overview');
+     const initial=embedded&&selectedStudentId?records.find(x=>x.id===selectedStudentId):records.find(x=>x.id===selectedStudentId)||records[0];
+     if(!initial){
+       // A successful empty list is authoritative for this academy.
+       setDetail(null);setActiveId('');setExtras(null);setMedia([]);
+       activeDashboardRef.current={institution:inst,studentId:''};
+       return;
+     }
+     const sameStudent=activeDashboardRef.current.institution===inst && activeDashboardRef.current.studentId===initial.id;
+     if(!sameStudent){
+       // Never show another student's data while a new selection loads.
+       setDetail(null);setExtras(null);setMedia([]);setActiveId('');
+     }
+     try{
+       const dashboard=await cloud.api.learnerDashboard(inst,initial.id);
+       if(!live)return;
+       setDetail(dashboard);
+       activeDashboardRef.current={institution:inst,studentId:initial.id};
+       setCalendarAnchor(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit'}).format(new Date()));
+       setActiveId(initial.id);
+       setClassId(dashboard.classes[0]?.classId||'');
+       if(!sameStudent){void loadHomework(initial.id);void loadExtras(initial.id)}
+     }catch(e){if(live)setError(e instanceof Error?e.message:'Unable to load student dashboard')}
+   }).catch(e=>{if(live)setError(e instanceof Error?e.message:'Unable to load your students')})
+     .finally(()=>{if(live)setLoading(false)});
+   return()=>{live=false};
+ },[cloud.api,inst]);
   useEffect(()=>{if(tab!=='teachers')return;let live=true;setApprovedStaffBusy(true);setApprovedStaffError('');setApprovedStaff([]);void Promise.allSettled((['sruti','raaga'] as const).map(async institution=>{const linked=await cloud.api.myLinkedStudents(institution);const approved=linked.records[0];if(!approved)return null;const result=await cloud.api.learnerAcademyDirectory(institution,approved.id);return {institution,teachers:result.teachers,administrators:result.administrators} as PublishedAcademy;})).then(results=>{if(!live)return;const rows=results.filter((r):r is PromiseFulfilledResult<PublishedAcademy|null>=>r.status==='fulfilled').map(r=>r.value).filter((r):r is PublishedAcademy=>r!==null);setApprovedStaff(rows);if(results.some(r=>r.status==='rejected'))setApprovedStaffError('Some academy staff could not be loaded. Please retry.');}).finally(()=>{if(live)setApprovedStaffBusy(false)});return()=>{live=false};},[cloud.api,cloud.staff.subject,tab]);
  useEffect(()=>{if(!activeId||tab!=='venues'){return;}let live=true;setDirectory(null);setDirectoryError('');setDirectoryBusy(true);cloud.api.learnerAcademyDirectory(inst,activeId).then(r=>{if(live)setDirectory(r)}).catch(e=>{if(live)setDirectoryError(e instanceof Error?e.message:'Directory unavailable')}).finally(()=>{if(live)setDirectoryBusy(false)});return()=>{live=false};},[cloud,inst,activeId,tab]);
  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(requestBusy)return;setError('');setMessage('');const roll=rollNumber.trim();if(students.some(s=>s.rollNumber===roll)){setMessage('You already have approved access to this student in the selected academy.');return}setRequestBusy(true);try{const result=await cloud.api.requestStudentLinkByRoll(inst,roll,kind);if(result.status==='approved')setMessage('You already have approved access to this student.');else if(!result.submitted&&result.status==='pending')setMessage('Your request is already awaiting administrator review.');else setMessage('Request submitted for independent administrator verification. Access has not been granted.');setRollNumber('');setAccessModalOpen(false)}catch(e){const msg=e instanceof Error?e.message:'Unable to submit request';setError(msg.includes('Provide student record ID')?'The live API is still using the old student-ID validator. Redeploy the v12.7.4+ backend code, then retry.':msg)}finally{setRequestBusy(false)}};

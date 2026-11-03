@@ -85,3 +85,43 @@
 .svfd-family-role{display:inline-block;border-radius:999px;background:#eef2f8;color:#28446b;padding:4px 10px;font-size:12px;font-weight:600;white-space:nowrap}
 .svfd-student-status{display:inline-flex;align-items:center;gap:5px;color:#23704b;font-size:13px;font-weight:600;white-space:nowrap}
 @media(max-width:640px){.svfd-family-body .access-table-wrap{overflow-x:auto}.svfd-family-role-v2{min-width:560px}}
+
+/* Student dashboard typography aligned with application shell */
+/* Scope to the embedded student portal; no admin/teacher styling is changed. */
+.app-shell .sv1296-embedded-root.student-portal-v119 .sv116-intro h1 {
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+.app-shell .sv1296-embedded-root.student-portal-v119 .sv116-intro p,
+.app-shell .sv1296-embedded-root.student-portal-v119 .svfd-viewing {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.app-shell .sv1296-embedded-root .svfd-next h3,
+.app-shell .sv1296-embedded-root .svfd-actions h3 {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.app-shell .sv1296-embedded-root .svfd-next h4 {
+  font-size: 17px;
+  line-height: 1.4;
+}
+.app-shell .sv1296-embedded-root .svfd-session-meta,
+.app-shell .sv1296-embedded-root .svfd-date-pill,
+.app-shell .sv1296-embedded-root .svfd-outline-btn {
+  font-size: 13px;
+}
+.app-shell .sv1296-embedded-root .svfd-action-grid strong {
+  font-size: 14px;
+}
+.app-shell .sv1296-embedded-root .svfd-action-grid span,
+.app-shell .sv1296-embedded-root .svfd-action-grid small {
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .app-shell .sv1296-embedded-root.student-portal-v119 .sv116-intro h1 {
+    font-size: 22px;
+  }
+}

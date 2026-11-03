@@ -1,5 +1,6 @@
 import './sharedShell.css';
 import './roleWorkspace.css';
+import { learnerPageMap, learnerSectionMap } from './app/learnerNavigation';
 import StudentHome from './StudentHome';
 import SadhanaMyProfile from './SadhanaMyProfile';
 import './learnerContent.css';
@@ -64,28 +65,6 @@ const ICONS = {
   'My venues': MapPin,
   'My profile': UserRound,
   'Privacy & consents': ShieldCheck,
-};
-const learnerPageMap: Record<string, import('./StudentHome').LearnerPage> = {
-  Dashboard: 'overview',
-  'My classes': 'classes',
-  'My learning': 'homework',
-  'My academy': 'teachers',
-  'My profile': 'profile',
-};
-const learnerSectionMap: Record<
-  import('./StudentHome').LearnerPage,
-  string
-> = {
-  overview: 'Dashboard',
-  classes: 'My classes',
-  calendar: 'My classes',
-  attendance: 'My classes',
-  venues: 'My classes',
-  homework: 'My learning',
-  practice: 'My learning',
-  teachers: 'My academy',
-  profile: 'My profile',
-  privacy: 'My profile',
 };
 const dayLabel = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ukToday = () => {
@@ -1138,9 +1117,11 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const [role,setRole]=useState<'admin'|'teacher'|'student'>(()=>{try{const saved=sessionStorage.getItem('sadhana:view-as');return saved==='teacher'||saved==='student'?saved:'admin';}catch{return 'admin';}});
   const [learnerInstitutions,setLearnerInstitutions]=useState<InstitutionId[]>([]);
   const [familyChoices,setFamilyChoices]=useState<Array<{institution:InstitutionId;id:string;name:string;rollNumber:string}>>([]);
-  const [chosenStudent,setChosenStudent]=useState('');
+  const [chosenStudent,setChosenStudent]=useState(()=>{try{return sessionStorage.getItem('sadhana:selected-student')||'';}catch{return '';}});
   const [familyAccessError,setFamilyAccessError]=useState('');
   const [familyAccessRetry,setFamilyAccessRetry]=useState(0);
+  // Do not treat an in-flight or failed family lookup as a confirmed access revocation.
+  const [familyAccessResolved,setFamilyAccessResolved]=useState(false);
   useEffect(()=>{if(!cloud)return;let active=true;
     // A failed guardian lookup is not proof that the family has no approved children.
     Promise.allSettled((['raaga','sruti'] as InstitutionId[]).map(async institution=>({institution,records:(await cloud.api.myLinkedStudents(institution)).records})))
@@ -1149,8 +1130,17 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
         const success=results.flatMap(result=>result.status==='fulfilled'?[result.value]:[]);
         const failed=results.flatMap((result,index)=>result.status==='rejected'?[institutions[index]]:[]);
         setFamilyAccessError(failed.length?`Could not verify approved family access for ${failed.map(i=>i==='raaga'?'Raagasudha':'Śruti Vedam').join(' and ')}. Please retry; this does not mean your approvals were removed.`:'');
-        setLearnerInstitutions(success.filter(r=>r.records.length).map(r=>r.institution));
-        setFamilyChoices(success.flatMap(r=>r.records.map(s=>({institution:r.institution,id:s.id,name:s.name,rollNumber:s.rollNumber}))));
+        // Replace only verified academies. Failed academy lookups must not clear
+        // previously approved choices or force a View As role transition.
+        setLearnerInstitutions(previous=>{
+          const verified=new Set(success.map(r=>r.institution));
+          return [...previous.filter(i=>!verified.has(i)),...success.filter(r=>r.records.length).map(r=>r.institution)];
+        });
+        setFamilyChoices(previous=>{
+          const verified=new Set(success.map(r=>r.institution));
+          return [...previous.filter(c=>!verified.has(c.institution)),...success.flatMap(r=>r.records.map(s=>({institution:r.institution,id:s.id,name:s.name,rollNumber:s.rollNumber})))];
+        });
+        if(!failed.length)setFamilyAccessResolved(true);
       });
     return()=>{active=false};
   },[cloud?.api,familyAccessRetry]);
@@ -1243,7 +1233,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const availableInstitutions: InstitutionId[]=person.institutions;
   const verifiedTeachingInstitutions=(cloud?.staff.teacherInstitutions||[]).filter(i=>availableInstitutions.includes(i));
   // A selected view cannot create a permission; it only changes navigation.
-  const currentRole=cloud?.staff.role==='learner'?'student':person.admin?(role==='student'&&learnerInstitutions.length?'student':role==='teacher'&&verifiedTeachingInstitutions.length?'teacher':'admin'):(verifiedTeachingInstitutions.length?'teacher':learnerInstitutions.length?'student':'teacher');
+  const currentRole=cloud?.staff.role==='learner'?'student':person.admin?role:(verifiedTeachingInstitutions.length?'teacher':learnerInstitutions.length?'student':'teacher');
   const studentMode=currentRole==='student';
   const teacherMode=currentRole==='teacher';
   const allowedWorkspaces=studentMode?learnerInstitutions:teacherMode?(verifiedTeachingInstitutions.length?verifiedTeachingInstitutions:availableInstitutions):person.admin&&person.institutions.length>1?['combined',...person.institutions]:person.institutions;
@@ -1268,7 +1258,16 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
   const activePage=page==='My Profile'?'My Profile':nav.some(item => item === page) ? page : 'Dashboard';
   const unread=notifications.filter(n=>!n.read&&availableInstitutions.includes(n.institution)).length;
   const switchWorkspace=(w)=>{setWorkspace(w);if(!studentMode)setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
-  const switchRole=(r:'admin'|'teacher'|'student')=>{if(r==='student'&&!learnerInstitutions.length)return;if(r==='admin'&&!person.admin)return;if(r==='teacher'&&!verifiedTeachingInstitutions.length)return;setRole(r);try{sessionStorage.setItem('sadhana:view-as',r);}catch{/* private mode */}if(r==='teacher')setWorkspace(verifiedTeachingInstitutions[0]);if(r==='student')setWorkspace(learnerInstitutions[0]);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
+  const switchRole=(r:'admin'|'teacher')=>{if(r==='admin'&&!person.admin)return;if(r==='teacher'&&!verifiedTeachingInstitutions.length)return;setRole(r);try{sessionStorage.setItem('sadhana:view-as',r);}catch{/* private mode */}if(r==='teacher')setWorkspace(verifiedTeachingInstitutions[0]);setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);};
+  // One explicit View As action selects both the student identity and its academy.
+  const switchToStudent=(choice:{institution:InstitutionId;id:string})=>{
+    if(!familyChoices.some(c=>c.institution===choice.institution&&c.id===choice.id))return;
+    setChosenStudent(choice.id);
+    setWorkspace(choice.institution);
+    setRole('student');
+    try{sessionStorage.setItem('sadhana:view-as','student');sessionStorage.setItem('sadhana:selected-student',choice.id);}catch{/* private mode */}
+    setPage('Dashboard');setStudent(null);setClassProfile(null);setMobileNav(false);
+  };
   const goPage=(p)=>{setEnrolClass('');setRegisterOpenStudent('');setPage(p);setStudent(null);setClassProfile(null);setMobileNav(false);if(p==='Families & Students'||p==='My Students'){setStudentFilter('All');setStudentQuery('');}};
   const openStudent=(s)=>{setWorkspace(s.institution);setStudent(teacherMode?s:null);setRegisterOpenStudent(teacherMode?'':s.id);setEnrolClass('');setClassProfile(null);setProfileTab('Overview');setPage(teacherMode?'My Students':'Families & Students');};
   const openClass=(c)=>{setClassProfile(c);setStudent(null);setSession(null);setProfileTab('Overview');setPage(teacherMode?'My Classes':'Classes & Timetable');};
@@ -1365,17 +1364,15 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
     </div>
   }
 </div>
-{(studentMode||person.admin&&(verifiedTeachingInstitutions.length>0||learnerInstitutions.length>0))&&<fieldset className="sadhana-view-as" aria-label="View as" style={{margin:'12px 16px 16px',padding:'11px 13px',border:'1px solid #536781',borderRadius:11,display:'grid',gap:9,color:'#eef3fb',fontSize:13}}>
+{(studentMode||person.admin&&(verifiedTeachingInstitutions.length>0||familyChoices.length>0))&&<fieldset className="sadhana-view-as" aria-label="View as" style={{margin:'12px 16px 16px',padding:'11px 13px',border:'1px solid #536781',borderRadius:11,display:'grid',gap:9,color:'#eef3fb',fontSize:13}}>
  <legend style={{padding:'0 5px',fontSize:10,letterSpacing:'.13em',fontWeight:700,color:'#c5d1e2'}}>VIEW AS</legend>
  {person.admin&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='admin'} onChange={()=>switchRole('admin')}/> Administrator</label>}
- {!studentMode&&verifiedTeachingInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='teacher'} onChange={()=>switchRole('teacher')}/> Teacher</label>}
- {studentMode? <>
-  {familyChoices.filter(child=>child.institution===currentWorkspace).map(child=><label key={`${child.institution}:${child.id}`} style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}>
-    <input type="radio" name="sadhana-learner-view-as" checked={child.id===(familyChoices.find(s=>s.institution===currentWorkspace&&s.id===chosenStudent)?.id||familyChoices.find(s=>s.institution===currentWorkspace)?.id)} onChange={()=>{setChosenStudent(child.id);setMobileNav(false)}}/>
-    <span>{child.name}</span>
-  </label>)}
-  {!familyChoices.some(child=>child.institution===currentWorkspace)&&<span>{familyAccessError?'Family access could not be verified.':'No approved students in this institution.'}</span>}
- </>:learnerInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={false} onChange={()=>switchRole('student')}/> Student</label>}
+ {person.admin&&verifiedTeachingInstitutions.length>0&&<label style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}><input type="radio" name="sadhana-view-as" checked={currentRole==='teacher'} onChange={()=>switchRole('teacher')}/> Teacher</label>}
+ {familyChoices.filter(child=>currentWorkspace==='combined'||child.institution===currentWorkspace).map(child=><label key={`${child.institution}:${child.id}`} style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}>
+   <input type="radio" name="sadhana-view-as" checked={studentMode&&currentWorkspace===child.institution&&chosenStudent===child.id} onChange={()=>switchToStudent(child)}/>
+   <span>{child.name}</span>
+ </label>)}
+ {studentMode&&!familyChoices.length&&<span>{familyAccessError?'Family access could not be verified.':'No approved students available.'}</span>}
 </fieldset>}
 <div className="sidebar-nav-scroll" tabIndex={0} aria-label="Sidebar menu, scroll for more options"><div className="sidebar-section-label">MENU</div>
       <nav aria-label="Primary navigation">{nav.map(p=>{const Icon=ICONS[p];return <button key={p} onClick={()=>goPage(p)} className={`nav-link ${activePage===p?'nav-active':''}`}><Icon size={18}/><span>{p}</span>{p==='Dashboard'&&<span className="nav-tiny-dot"/>}</button>;})}</nav>
@@ -1460,7 +1457,7 @@ export default function App({cloud}: {cloud?: CloudSession} = {}) {
         embedded
         page={learnerPageMap[activePage] || 'overview'}
         selectedStudentId={chosenStudent}
-        onStudentChange={setChosenStudent}
+        onStudentChange={(id)=>{ if(familyChoices.some(c=>c.institution===currentWorkspace&&c.id===id))switchToStudent({institution:currentWorkspace as InstitutionId,id}); }}
         onNavigate={(destination) => {
           const section: Record<import('./StudentHome').LearnerPage, string> = {
             overview: 'Dashboard',

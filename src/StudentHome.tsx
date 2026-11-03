@@ -22,6 +22,7 @@ import './handoverLayout.css';
 import './workspaceLayout.css';
 import './shellPolish.css';
 import './academyDirectory.css';
+import './studentDashboardTypography.css';
 import {useStudentPortalController} from './features/learning/useStudentPortalController';
 import {StudentPortalView} from './features/learning/StudentPortalView';
 import type {StudentPortalProps} from './features/learning/useStudentPortalController';
