@@ -1,5 +1,8 @@
 /** Isolated M9 homework and submission storage. No legacy PK/SK reads or writes. */
 import {randomUUID} from 'node:crypto';
+import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand} from '@aws-sdk/client-s3';
+import {getSignedUrl} from '@aws-sdk/s3-request-presigner';
+import {validateM9MediaSelection,validateM9MediaType,m9MediaId} from './m9MediaPolicy.mjs';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,GetCommand,QueryCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {httpError,permittedInstitutions} from './model.ts';
@@ -17,7 +20,15 @@ const conflict=(e:any)=>{if(['TransactionCanceledException','ConditionalCheckFai
 const publicHomework=(h:any)=>({id:h.homeworkId,classId:h.classId,title:h.title,instructions:h.instructions,dueDate:h.dueDate,dueTime:h.dueTime||'23:59',dueAt:h.dueAt||null,releaseAt:h.releaseAt||null,gradingEnabled:h.gradingEnabled===true,createdAt:h.createdAt,materialIds:h.materialIds||[],version:h.version||1});
 const publicSubmission=(s:any)=>({studentId:s.studentId,homeworkId:s.homeworkId,text:s.text||'',attachmentIds:s.attachmentIds||[],status:s.status,version:s.version||0,updatedAt:s.updatedAt||'',submittedAt:s.submittedAt||null,feedback:s.feedback||'',reviewedAt:s.reviewedAt||null});
 const nowIso=()=>new Date().toISOString();
-export function makeM9Homework(db:HomeworkDB){
+export type M9MediaIO={head:(bucket:string,key:string)=>Promise<any>,signPut:(bucket:string,key:string,mime:string,size:number,metadata:Record<string,string>)=>Promise<string>,signGet:(bucket:string,key:string)=>Promise<string>};
+const mediaBucket=()=>{const bucket=process.env.SADHANA_LEARNER_MEDIA_BUCKET;if(!bucket)throw httpError(503,'Private homework media bucket not configured');return bucket;};
+const mediaS3=new S3Client({requestChecksumCalculation:'WHEN_REQUIRED'});
+const realMediaIO:M9MediaIO={
+ head:(bucket,key)=>mediaS3.send(new HeadObjectCommand({Bucket:bucket,Key:key})),
+ signPut:(bucket,key,mime,size,metadata)=>getSignedUrl(mediaS3,new PutObjectCommand({Bucket:bucket,Key:key,ContentType:mime,ContentLength:size,Metadata:metadata}),{expiresIn:300,unhoistableHeaders:new Set(Object.keys(metadata).map(k=>`x-amz-meta-${k}`))}),
+ signGet:(bucket,key)=>getSignedUrl(mediaS3,new GetObjectCommand({Bucket:bucket,Key:key}),{expiresIn:180}),
+};
+export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
  const get=async(kind:string,id:string)=>(await db.send(new GetCommand({TableName:table(kind),Key:{[kind==='homework'?'homeworkId':kind==='submissions'?'submissionId':kind==='people'?'personId':kind==='classes'?'classId':kind==='enrolments'?'enrolmentId':'linkId']:id},ConsistentRead:true}))).Item||null;
  async function query(kind:string,index:string,key:string,value:string){
   const rows:any[]=[];let cursor:any;
@@ -118,19 +129,92 @@ export function makeM9Homework(db:HomeworkDB){
   if(item&&(item.institutionId!==inst||item.studentId!==studentId||item.homeworkId!==homeworkId))throw httpError(403,'Submission access denied');
   return {record:item?publicSubmission(item):{studentId,homeworkId,text:'',attachmentIds:[],status:'draft',version:0,feedback:''},editable:isHomeworkReleased(h)&&isHomeworkOpenAt(h)&&!item?.reviewedAt,dueDate:h.dueDate};
  }
+ async function mediaAccess(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string){
+  const {actor,checks}=await learner(inst,claims,studentId);
+  const {h,enrollmentCheck}=await assignment(inst,studentId,homeworkId);
+  if(!isHomeworkReleased(h)||!isHomeworkOpenAt(h))throw httpError(409,'Homework is not currently open');
+  const existing=await get('submissions',`SUBMISSION-${homeworkId}-${studentId}`);
+  if(existing?.reviewedAt)throw httpError(409,'Reviewed homework is locked');
+  return {actor,checks:[...checks,enrollmentCheck],h};
+ }
+ // Upload receipts live in the existing M9 submissions table, under unique MEDIA-* keys.
+ // They cannot appear as student submissions, and do not require a new table or legacy keys.
+ async function mediaStart(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
+  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(!isObject(body)||!allowFields(body,['mime','size'])||typeof body.mime!=='string')throw httpError(400,'Invalid media request');
+  const type=validateM9MediaType(body.mime,body.size);
+  if(!type)throw httpError(400,'Unsupported file type or size');
+  const {actor,checks}=await mediaAccess(inst,claims,studentId,homeworkId);
+  const bucket=mediaBucket();
+  const id=`MEDIA-${randomUUID()}`,key=`m9-homework-private/${inst}/${studentId}/${homeworkId}/${id}.${type.ext}`;
+  const metadata={institution:inst,student:studentId,homework:homeworkId,receipt:id};
+  const item={submissionId:id,recordType:'m9-homework-media',institutionId:inst,studentId,homeworkId,objectKey:key,mime:body.mime,size:body.size,mediaStatus:'pending',uploadedBy:claims.sub,createdAt:nowIso()};
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('submissions'),Item:item,ConditionExpression:'attribute_not_exists(submissionId)'}}]}));}catch(e){conflict(e)}
+  const uploadUrl=await mediaIO.signPut(bucket,key,body.mime,body.size,metadata);
+  return {attachmentId:id,key:id,uploadUrl,expiresIn:300,headers:{'Content-Type':body.mime,'x-amz-meta-institution':inst,'x-amz-meta-student':studentId,'x-amz-meta-homework':homeworkId,'x-amz-meta-receipt':id}};
+ }
+ async function mediaFinish(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
+  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(!isObject(body)||!allowFields(body,['key'])||!m9MediaId(body.key))throw httpError(400,'Invalid attachment ID');
+  const {checks}=await mediaAccess(inst,claims,studentId,homeworkId);
+  const receipt=await get('submissions',body.key);
+  if(!receipt||receipt.recordType!=='m9-homework-media'||receipt.institutionId!==inst||receipt.studentId!==studentId||receipt.homeworkId!==homeworkId||receipt.uploadedBy!==claims.sub)throw httpError(403,'Attachment access denied');
+  if(receipt.mediaStatus==='ready')return {attachmentId:receipt.submissionId,ready:true};
+  if(receipt.mediaStatus!=='pending')throw httpError(409,'Invalid attachment state');
+  let head:any;
+  try{head=await mediaIO.head(mediaBucket(),receipt.objectKey);}catch{throw httpError(409,'Uploaded attachment not found');}
+  if(head.ContentLength!==receipt.size||head.ContentType!==receipt.mime||head.Metadata?.institution!==inst||head.Metadata?.student!==studentId||head.Metadata?.homework!==homeworkId||head.Metadata?.receipt!==receipt.submissionId)throw httpError(409,'Uploaded attachment metadata mismatch');
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Update:{TableName:table('submissions'),Key:{submissionId:receipt.submissionId},UpdateExpression:'SET mediaStatus=:ready, verifiedAt=:now',ConditionExpression:'recordType=:type AND institutionId=:inst AND studentId=:student AND homeworkId=:homework AND mediaStatus=:pending AND uploadedBy=:actor',ExpressionAttributeValues:{':ready':'ready',':now':nowIso(),':type':'m9-homework-media',':inst':inst,':student':studentId,':homework':homeworkId,':pending':'pending',':actor':claims.sub}}}]}));}catch(e){conflict(e)}
+  return {attachmentId:receipt.submissionId,ready:true};
+ }
+ async function mediaLinks(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string){
+  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  await learner(inst,claims,studentId);await assignment(inst,studentId,homeworkId);
+  const submission=await get('submissions',`SUBMISSION-${homeworkId}-${studentId}`);
+  if(submission&&(submission.institutionId!==inst||submission.studentId!==studentId||submission.homeworkId!==homeworkId))throw httpError(403,'Submission access denied');
+  return {records:await mediaDownloadRecords(inst,studentId,homeworkId,submission?.attachmentIds||[])};
+ }
+ async function staffMediaLinks(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string,studentId:string){
+  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  await staff(inst,claims,classId);
+  const h=await get('homework',homeworkId);
+  if(!checkAssignment(inst,h)||h.classId!==classId)throw httpError(404,'Homework unavailable');
+  const submission=await get('submissions',`SUBMISSION-${homeworkId}-${studentId}`);
+  if(!submission||submission.institutionId!==inst||submission.studentId!==studentId||submission.homeworkId!==homeworkId||submission.status!=='submitted')throw httpError(404,'Submitted homework unavailable');
+  return {records:await mediaDownloadRecords(inst,studentId,homeworkId,submission.attachmentIds||[])};
+ }
+ async function mediaDownloadRecords(inst:InstitutionId,studentId:string,homeworkId:string,ids:string[]){
+  if(!Array.isArray(ids)||ids.length>4)throw httpError(409,'Invalid saved attachments');
+  const records=[];
+  for(const id of ids){
+   if(!m9MediaId(id))throw httpError(409,'Invalid stored attachment ID');
+   const receipt=await get('submissions',id);
+   if(!receipt||receipt.recordType!=='m9-homework-media'||receipt.mediaStatus!=='ready'||receipt.institutionId!==inst||receipt.studentId!==studentId||receipt.homeworkId!==homeworkId)throw httpError(403,'Attachment access denied');
+   records.push({id,mime:receipt.mime,size:receipt.size,url:await mediaIO.signGet(mediaBucket(),receipt.objectKey)});
+  }
+  return records;
+ }
  async function saveSubmission(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
   if(!isObject(body)||!allowFields(body,['text','status','expectedVersion','attachmentIds'])||typeof body.text!=='string'||body.text.length>10000||!['draft','submitted'].includes(body.status)||!Number.isInteger(body.expectedVersion)||body.expectedVersion<0||!Array.isArray(body.attachmentIds))throw httpError(400,'Invalid submission');
-  // Media metadata is a separate migration. Never accept unverified legacy attachment references.
-  if(body.attachmentIds.length)throw httpError(503,'M9 evidence uploads are not yet available');
-  if(body.status==='submitted'&&!body.text.trim())throw httpError(400,'Enter a response before submitting');
+  if(body.attachmentIds.length&&process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(body.status==='submitted'&&!body.text.trim()&&!body.attachmentIds.length)throw httpError(400,'Enter a response or attach evidence before submitting');
   const {actor,checks}=await learner(inst,claims,studentId),{h,enrollmentCheck}=await assignment(inst,studentId,homeworkId);
   if(!isHomeworkReleased(h)||!isHomeworkOpenAt(h))throw httpError(409,'Homework is not currently open');
   const id=`SUBMISSION-${homeworkId}-${studentId}`;const old=await get('submissions',id);
   if(old&&(old.institutionId!==inst||old.studentId!==studentId||old.homeworkId!==homeworkId))throw httpError(403,'Submission access denied');
   if((old?.version||0)!==body.expectedVersion)throw httpError(409,'Submission changed. Refresh first');
   if(old?.reviewedAt)throw httpError(409,'Reviewed submission is locked');
-  const now=nowIso(),item={submissionId:id,institutionId:inst,homeworkId,classId:h.classId,studentId,text:body.text.trim(),attachmentIds:[],status:body.status,version:body.expectedVersion+1,updatedAt:now,updatedBy:claims.sub,submittedAt:body.status==='submitted'?now:(old?.submittedAt||null),createdAt:old?.createdAt||now};
-  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,enrollmentCheck,{ConditionCheck:{TableName:table('homework'),Key:{homeworkId},ConditionExpression:'institutionId=:inst AND classId=:class AND #status<>:archived AND (attribute_not_exists(releaseAt) OR releaseAt<=:now) AND dueAt>=:now',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':inst':inst,':class':h.classId,':archived':'archived',':now':now}}},{Put:{TableName:table('submissions'),Item:item,ConditionExpression:old?'#version=:expected AND attribute_not_exists(reviewedAt)':'attribute_not_exists(submissionId)',...(old?{ExpressionAttributeNames:{'#version':'version'},ExpressionAttributeValues:{':expected':body.expectedVersion}}:{})}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkSubmissionSaved',id),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
+  if(!Array.isArray(body.attachmentIds)||body.attachmentIds.some((x:any)=>!m9MediaId(x))||new Set(body.attachmentIds).size!==body.attachmentIds.length||body.attachmentIds.length>4)throw httpError(400,'Invalid attachment selection');
+  const mediaChecks:any[]=[];const mimes:string[]=[];
+  for(const mediaId of body.attachmentIds){
+   const receipt=await get('submissions',mediaId);
+   if(!receipt||receipt.recordType!=='m9-homework-media'||receipt.mediaStatus!=='ready'||receipt.institutionId!==inst||receipt.homeworkId!==homeworkId||receipt.studentId!==studentId)throw httpError(403,'Unverified attachment');
+   mimes.push(receipt.mime);
+   mediaChecks.push({ConditionCheck:{TableName:table('submissions'),Key:{submissionId:mediaId},ConditionExpression:'recordType=:type AND mediaStatus=:ready AND institutionId=:inst AND homeworkId=:homework AND studentId=:student',ExpressionAttributeValues:{':type':'m9-homework-media',':ready':'ready',':inst':inst,':homework':homeworkId,':student':studentId}}});
+  }
+  if(!validateM9MediaSelection(mimes))throw httpError(400,'Too many attachments of one type');
+  const now=nowIso(),item={submissionId:id,institutionId:inst,homeworkId,classId:h.classId,studentId,text:body.text.trim(),attachmentIds:body.attachmentIds,status:body.status,version:body.expectedVersion+1,updatedAt:now,updatedBy:claims.sub,submittedAt:body.status==='submitted'?now:(old?.submittedAt||null),createdAt:old?.createdAt||now};
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,enrollmentCheck,...mediaChecks,{ConditionCheck:{TableName:table('homework'),Key:{homeworkId},ConditionExpression:'institutionId=:inst AND classId=:class AND #status<>:archived AND (attribute_not_exists(releaseAt) OR releaseAt<=:now) AND dueAt>=:now',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':inst':inst,':class':h.classId,':archived':'archived',':now':now}}},{Put:{TableName:table('submissions'),Item:item,ConditionExpression:old?'#version=:expected AND attribute_not_exists(reviewedAt)':'attribute_not_exists(submissionId)',...(old?{ExpressionAttributeNames:{'#version':'version'},ExpressionAttributeValues:{':expected':body.expectedVersion}}:{})}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkSubmissionSaved',id),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
   return {record:publicSubmission(item)};
  }
  async function complete(inst:InstitutionId,claims:Claims,studentId:string,body:any){
@@ -162,7 +246,7 @@ export function makeM9Homework(db:HomeworkDB){
   try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('submissions'),Item:updated,ConditionExpression:'#version=:expected AND institutionId=:inst AND #status=:submitted',ExpressionAttributeNames:{'#version':'version','#status':'status'},ExpressionAttributeValues:{':expected':old.version,':inst':inst,':submitted':'submitted'}}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkFeedbackSaved',id),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
   return {saved:true};
  }
- return {listClass,publish,edit,learnerList,getSubmission,saveSubmission,complete,teacherSubmissions,feedback};
+ return {listClass,publish,edit,learnerList,getSubmission,saveSubmission,complete,teacherSubmissions,feedback,mediaStart,mediaFinish,mediaLinks,staffMediaLinks};
 }
 let singleton:ReturnType<typeof makeM9Homework>|undefined;
 export function m9Homework(){return singleton??=makeM9Homework(DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}}));}

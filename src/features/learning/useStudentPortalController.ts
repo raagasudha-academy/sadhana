@@ -86,14 +86,18 @@ export function useStudentPortalController({
  const [confirmHomework,setConfirmHomework]=useState<{studentId:string;homeworkId:string}|null>(null);
  const [attachments,setAttachments]=useState<Array<{id:string;mime:string;url:string}>>([]);
  const uploadHomeworkFiles=async(files:FileList|null)=>{if(!files||!activeId||!selectedHomework||!submissionEditable||!submission)return;
-  if(submission.attachmentIds.length+files.length>3){setError('Maximum three images (5 MB each)');return;}
-  setSubmissionBusy(true);setError('');let ids=[...submission.attachmentIds];let selected=attachments.filter(x=>ids.includes(x.id)).map(x=>x.mime);try{for(const file of Array.from(files)){
-   
-   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5_000_000||file.size<=0||selected.length>=3)throw Error('Maximum three images (5 MB each)');
+  const newFiles=Array.from(files);
+  const acceptedMime=['image/jpeg','image/png','image/webp','audio/mpeg','audio/mp4','video/mp4'];
+  const maxBytes=(mime:string)=>mime.startsWith('image/')?5_000_000:mime.startsWith('audio/')?20_000_000:100_000_000;
+  let ids=[...submission.attachmentIds];let selected=attachments.filter(x=>ids.includes(x.id)).map(x=>x.mime);
+  const nextTypes=[...selected,...newFiles.map(x=>x.type)];
+  const count=(kind:string)=>nextTypes.filter(x=>x.startsWith(`${kind}/`)).length;
+  if(nextTypes.length>4||count('image')>2||count('audio')>1||count('video')>1||newFiles.some(x=>!acceptedMime.includes(x.type)||x.size<=0||x.size>maxBytes(x.type))){setError('Maximum 2 images (5 MB each), 1 MP3/M4A audio (20 MB), and 1 MP4 video (100 MB)');return;}
+  setSubmissionBusy(true);setError('');try{for(const file of newFiles){
    const signed=await cloud.api.beginHomeworkEvidence(inst,activeId,selectedHomework,file.type,file.size);
    const result=await fetch(signed.uploadUrl,{method:'PUT',headers:signed.headers,body:file});if(!result.ok)throw Error(`Private upload failed (${result.status})`);
-   const confirmed=await cloud.api.finishHomeworkEvidence(inst,activeId,selectedHomework,signed.key);ids.push(confirmed.attachmentId);selected.push(file.type);setAttachments(p=>[...p,{id:confirmed.attachmentId,mime:file.type,url:""}]);
-  }setSubmission({...submission,attachmentIds:ids});setMessage('Files uploaded. Save your draft or submit to attach them to homework.');}catch(e){setError(e instanceof Error?e.message:'Upload unavailable. Private media storage may not be configured.');setSubmission({...submission,attachmentIds:ids})}finally{setSubmissionBusy(false)}};
+   const confirmed=await cloud.api.finishHomeworkEvidence(inst,activeId,selectedHomework,signed.key);ids.push(confirmed.attachmentId);selected.push(file.type);setAttachments(a=>[...a,{id:confirmed.attachmentId,mime:file.type,url:''}]);
+  }setSubmission(old=>old?{...old,attachmentIds:ids}:old);setMessage('Files uploaded. Save your draft or submit to attach them to homework.');}catch(e){setError(e instanceof Error?e.message:'Private media upload failed.');setSubmission(old=>old?{...old,attachmentIds:ids}:old)}finally{setSubmissionBusy(false)}};
 
  const openAssignment=async(id:string)=>{if(!activeId)return;setConfirmHomework(null);setError('');setSelectedHomework(id);setHomeworkDrawerOpen(true);setSubmission(null);try{const r=await cloud.api.getHomeworkSubmission(inst,activeId,id);setSubmission(r.record);setHomeworkText(r.record.text);setSubmissionEditable(r.editable);setAttachments((await cloud.api.homeworkEvidenceLinks(inst,activeId,id)).records)}catch(e){setError(e instanceof Error?e.message:'Could not load assignment')}};
  const saveAssignment=async(status:'draft'|'submitted')=>{if(!activeId||!submission||!selectedHomework)return;

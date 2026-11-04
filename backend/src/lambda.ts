@@ -71,6 +71,7 @@ export function createHandler(repository: SadhanaRepository){
         learnerReads:process.env.M9_FINAL_LEARNER_READS==='enabled',
         learnerWrites:process.env.M9_LEARNER_WRITES==='enabled',
         homeworkWrites:process.env.M9_HOMEWORK_WRITES==='enabled',
+        media:process.env.M9_HOMEWORK_MEDIA==='enabled',
         onboarding:process.env.M95_ONBOARDING_MODE==='enabled',
         m9Routes:true,
       });

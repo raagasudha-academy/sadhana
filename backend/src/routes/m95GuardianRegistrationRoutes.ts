@@ -8,7 +8,7 @@ import {m95GuardianService} from '../m95GuardianRegistration.ts';
 import {m95ImportApprovedWebsiteRegistration,m95ReconcileWebsiteImport} from '../m95WebsiteImport.ts';
 import {m9VerifiedCognitoLink} from '../m9VerifiedCognitoLink.ts';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient,QueryCommand} from '@aws-sdk/lib-dynamodb';
+import {DynamoDBDocumentClient,QueryCommand,GetCommand,UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}));
 const service=m95GuardianService;
@@ -17,6 +17,25 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
  if(process.env.M95_ONBOARDING_MODE!=='enabled')return json(404,{error:'Unknown endpoint.'});
  const institution=query.institution;
  if(institution!=='raaga'&&institution!=='sruti')throw httpError(400,'Select a valid institution.');
+ // Sruti intake review is staff-only and never grants Cognito or guardian access.
+ if(parts[1]==='sruti-intake'&&institution==='sruti'){
+  demandInstitution(claims,'sruti');
+  if(method==='GET'&&parts.length===3){
+   const record=(await db.send(new GetCommand({TableName:'sadhana-dev-m9-registrations',Key:{registrationId:parts[2]},ConsistentRead:true}))).Item;
+   if(!record||record.source!=='sruti-website'||record.institutionId!=='sruti')throw httpError(404,'Sruti registration not found.');
+   return json(200,{record});
+  }
+  if(method==='PATCH'&&parts.length===4&&parts[3]==='review'){
+   if(process.env.M91_SRUTI_REVIEW_WRITES!=='enabled')throw httpError(403,'Sruti review writes are disabled.');
+   const body=readJSON(event.body?(event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body):'');
+   if(!['approved','discarded'].includes(body.reviewStatus)||!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1||Object.keys(body).some(k=>!['reviewStatus','expectedVersion'].includes(k)))throw httpError(400,'Invalid review decision or expected version.');
+   const now=new Date().toISOString();
+   try{await db.send(new UpdateCommand({TableName:'sadhana-dev-m9-registrations',Key:{registrationId:parts[2]},UpdateExpression:'SET reviewStatus=:next,#status=:next,updatedAt=:now,reviewedBy=:reviewer,version=:newVersion',ConditionExpression:'institutionId=:inst AND #source=:source AND reviewStatus=:pending AND importStatus=:pending AND version=:previous',ExpressionAttributeNames:{'#source':'source','#status':'status'},ExpressionAttributeValues:{':inst':'sruti',':source':'sruti-website',':pending':'pending',':next':body.reviewStatus,':now':now,':reviewer':claims.sub,':previous':body.expectedVersion,':newVersion':body.expectedVersion+1}}));}
+   catch(e:any){if(['ConditionalCheckFailedException','TransactionCanceledException'].includes(e?.name))throw httpError(409,'Registration changed; refresh and review.');throw e;}
+   return json(200,{registrationId:parts[2],reviewStatus:body.reviewStatus,version:body.expectedVersion+1,guardianAccessGranted:false});
+  }
+  return json(405,{error:'Unsupported Sruti intake operation.'});
+ }
  // Explicit bridge for website registrations already imported by the original portal.
  // Never changes the upstream website mapping and never auto-approves guardians.
  if(method==='POST'&&parts[1]==='legacy-bridge'&&parts.length===4&&['preview','execute'].includes(parts[3])){

@@ -12,7 +12,8 @@ class M9IsolatedReleaseTests(unittest.TestCase):
   self.assertIn('if not args.execute:',source)
  def test_new_isolated_role_only_m9_dynamodb(self):
   source=(ROOT/'scripts/m9IsolatedDeploy.py').read_text()
-  self.assertIn('M9DisposableWorkflowWrites',source)
+  self.assertIn('build_policy(account',source)
+  self.assertIn('M9DisposableWorkflowWrites',(ROOT/'scripts/m91IsolatedPolicy.py').read_text())
   self.assertIn("M9_PREFIX = 'sadhana-dev-m9-'",source)
   self.assertIn("'M9_STRICT_DATA_FENCE':'enabled'",source)
   self.assertIn("'M95_ONBOARDING_MODE':'disabled'",source)

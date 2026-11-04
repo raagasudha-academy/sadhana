@@ -1,108 +1,47 @@
-# Sadhana v0.7.2 — Venue Management
+# M9.1 Sruti public intake deployment — isolated-first
 
-**New in v0.7.2:** Authenticated Add and Edit on the central venue directory, saved to DynamoDB with optimistic locking and audit logging. The imported 294 timetable items are not rewritten by venue edits. See [VENUE_MANAGEMENT_V072.md](VENUE_MANAGEMENT_V072.md) for deployment and verification.
+This is an infrastructure patch **to apply on your Mac**, not a claim that AWS has been changed. It depends on the previously installed `backend/src/m91SrutiIntakePublic.ts` and `backend/src/m91SrutiIntakeCore.mjs`.
 
----
+## What it deploys
 
-# Sadhana v0.7.1 — Live Venues
+A **standalone** AWS API Gateway **REST** API at `/intake-test/register`, connected to the Sruti-only Lambda. It is completely separate from the existing JWT-protected M9 Lambda and API. IAM grants only `dynamodb:PutItem` to the *existing* `sadhana-dev-m9-registrations` table, no reads, scans, updates or deletes. Includes per-stage throttling (2 requests/sec sustained; burst 5), AWS WAF Regional CommonRuleSet and per-IP rate blocking (100 requests per evaluation window), HTTPS, 14-day Lambda log retention with no request-body logging, same-origin CORS allowlist and a disabled-by-default intake feature gate. The public frontend is not modified.
 
-This build adds three central, AWS-backed venue records and links them to the already-imported v0.7 timetable. See **VENUE_LINKING_README.md** for the one-time link steps. The original v0.7 README follows.
+**Cost alert:** A REST API, AWS WAF ACL/rules, Lambda and logs have usage-based charges. WAF provides basic common-attack and IP-rate protections, not full bot verification or CAPTCHA. CORS and the browser Origin header alone do **not** authenticate requests; abuse is still possible. Restrict access or add stronger challenge protection before a high-volume production opening. WAF association may take a few minutes to propagate.
 
----
-
-# Sadhana v0.7 — Live Academy Calendar (one-time migration)
-
-This is a complete React + TypeScript portal project **with an updated Cognito-protected AWS Lambda API** and a **one-time, administrator-operated DynamoDB import tool**. It does **not** make any Google Calendar API calls during migration, and the previous Google sync endpoint is disabled (HTTP 410). It is not a pre-deployed release: applying the ZIP locally does not itself update AWS or import events.
-
-## What is included
-
-- Sadhana-owned Month / Week / List views with individual session details and edits persisted through the protected API.
-- Editable master class details and individual session details (time, date, teacher, venue, programme, status). A master change does **not** rewrite historical sessions.
-- Complete import manifest: **7 master classes + 287 dated entries = 294 DynamoDB items**. One item per master class/session/event/holiday, **not** a single JSON dump.
-- **216 Raagasudha Singing sessions:** Middlesbrough 36 x 17:00–18:00 Sunday; Durham 36 x 08:30–11:00 Sunday; Newcastle 36 Saturdays x 4 half-hour singing slots, 13:00–15:00.
-- **36 Śruti Vedam Newcastle Vedanta sessions:** Saturdays 15:00–15:30; teacher not yet confirmed.
-- **32 informational Newcastle school-holiday records**, not automatically cancelling classes, and **3 Raagasudha events/rehearsals**.
-- Teacher for Raagasudha singing is **Mrs Praveena Srikailash**, all these teaching sessions **In-person**.
-- Source Google links, calendar IDs and Google event IDs are **not included** in DynamoDB records or the import manifest. The manifest uses deterministic Sadhana IDs and import keys to avoid duplicate inserts.
-- JunctionFarm Holidays (25) and Online Sessions (169) are excluded.
-
-**What's not done:** This ZIP has **not been deployed** to your AWS account, and **no DynamoDB import has run**. The existing family/student/practice/venue screens are still browser-only and must not be used for persistent real student data. Charu and the original Google Calendars are untouched.
-
-## Installation — local portal first
-
-Back up your existing `sadhana` project. Extract this ZIP to a fresh folder, and copy over **only your existing `.env.local`**. Do not overwrite your original project without a backup; never publish or commit `.env.local`.
+## On Mac — no writes by default
 
 ```bash
-npm install
-npm run typecheck
-npm run build
-npm run dev
+cd ~/Dev/sadhana
+unzip -o ~/Downloads/sadhana-m91-sruti-public-deployment.zip -d .
+bash scripts/deploy-sruti-public.sh
 ```
 
-Open `http://localhost:5173/` and log in normally. Until the new Lambda is deployed, the timetable will show that the v0.7 endpoint is unavailable. This is expected.
-
-## Before importing to AWS
-
-1. Confirm Cognito MFA (prefer TOTP) and appropriate administrator permissions before moving data that could contain personal information into AWS. Review UK data-transfer requirements for the existing `us-east-1` region.
-2. Ensure **DynamoDB point-in-time recovery (PITR) is enabled** on `sadhana-dev-main` and that you have reviewed the cost. The importer deliberately refuses writes if it is disabled.
-3. Deploy the updated Lambda to the existing `sadhana-dev` stack using a reviewed CloudFormation change set. **Do not create a new DynamoDB table or overwrite your currently deployed stage with unreviewed parameters.** From the project root, after `npm install --prefix backend`:
+Verify account `627821644317`, region `us-east-1`, existing M9 registrations table, stack name, and costs. **Then intentionally create the isolated disabled stack:**
 
 ```bash
-npm --prefix backend test
-npm --prefix backend run typecheck
-sam validate --lint --template-file infra/template.yaml --region us-east-1
-PATH="$PWD/backend/node_modules/.bin:$PATH" sam build --template-file infra/template.yaml --no-cached
+bash scripts/deploy-sruti-public.sh --apply
+bash scripts/test-sruti-public.sh
 ```
 
-For an existing stack, use the **same CloudFormation parameters as your last successful deployment**; set `EnablePointInTimeRecovery=true` when reviewing this change. For example, to prepare a change set **without applying it**:
+Expected unauthenticated OPTIONS 204, POST 503 (intake disabled), GET 405, foreign-origin POST 403. Smoke creates **no records**.
+
+The `--apply` command needs AWS permissions to create API Gateway REST, WAFv2 Regional, Lambda, IAM role, CloudWatch logs, CloudFormation stack and one private encrypted deployment S3 bucket. This is scoped to a new stack, and does **not** modify the protected API or existing DynamoDB items.
+
+## Controlled next step after security approval
 
 ```bash
-PATH="$PWD/backend/node_modules/.bin:$PATH" sam deploy \
-  --template-file .aws-sam/build/template.yaml \
-  --stack-name sadhana-dev --region us-east-1 --resolve-s3 \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides \
-    Stage=dev \
-    CognitoUserPoolId=us-east-1_nyQjIQasG \
-    CognitoAppClientId=5l61r0hmdb2ga2dregunoeqsqe \
-    AllowedPortalOrigin=http://localhost:5173 \
-    MiddlesbroughCredentialParameter=/sadhana/dev/google/middlesbrough-service-account \
-    EnablePointInTimeRecovery=true \
-  --no-execute-changeset
+bash scripts/deploy-sruti-public.sh --enable
+bash scripts/test-sruti-public.sh
 ```
 
-Check CloudFormation **Change sets**. Confirm the existing DynamoDB table is **not replaced/deleted** and only intended changes (Lambda code/backup flag, if not already enabled) are applied. Execute the change set only once you approve it.
+When enabled, malformed POST becomes 400; known foreign origins are rejected 403. Before enabling the live Sruti site, send **one deliberately synthetic test registration**, validate its `SR-...` record as pending through the protected admin route, review/approve, preview and execute its import with limited gates, and confirm no guardian access is granted. Document removal/reset of the synthetic records. Test all three registration modes, browser CORS, retry/duplicate handling, and monitoring. Only after that, add GitHub Pages secret `VITE_SRUTI_REGISTRATION_API_URL` pointing to the verified public endpoint and redeploy Sruti. The website currently remains non-submitting.
 
-## One-time database import — dry run, then explicit approval
+Do **not** enable `M95_WEBSITE_IMPORT_WRITES` or `M91_SRUTI_REVIEW_WRITES` for production without isolated E2E approval. Keep the strict M9 fence and existing production Lambda untouched.
 
-From the project root, use the same configured AWS CLI profile/role as your Sadhana DEV infrastructure; make sure it points to **us-east-1**. Never paste AWS credentials or login tokens in chat.
+## Remaining M9.1 acceptance gates
 
-```bash
-npm install --prefix backend
-export AWS_REGION=us-east-1
-aws sts get-caller-identity
-npm --prefix backend run import:calendar -- --table sadhana-dev-main
-```
-
-The default mode performs read-only DynamoDB checks and reports new vs already-existing records. It **never writes** without BOTH explicit flags. After reviewing the dry run and verifying PITR is enabled:
-
-```bash
-npm --prefix backend run import:calendar -- \
-  --table sadhana-dev-main --apply --confirm IMPORT-294
-```
-
-Expected initial creation: **294 records** (7 master classes + 287 dated records), minus any existing matching IDs. Imported IDs are deterministic and writes use `attribute_not_exists`, so rerunning safely skips existing records. **Existing records are never overwritten**. Partial failures can be safely retried. The importer does not delete or modify existing pilot Google-mirror records; the v0.7 timetable reads the new Sadhana-native partition only.
-
-Verify in Sadhana → **Raagasudha → Classes & Timetable → Month**; then switch to Śruti Vedam to see Newcastle Vedanta entries. Select a date to edit one session or a master class. Changes only affect Sadhana.
-
-## Scope & known limitations
-
-- The event snapshot represents the calendar data found for the period from 2000-01-01 through 2040-12-31, not an open-ended future recurrence engine. Add later sessions directly in Sadhana.
-- Holidays are informational shared events (`affectsClasses=false`) and do not cancel attendance or lessons.
-- Changes to an individual session work, but moving sessions between masters/institutions and bulk splitting a timetable need further UI workflows. You can create separately linked sessions through the protected API.
-- The home-dashboard class stats and student/practice screens are **not yet backed by the schedule master classes**; the live schedule is visible in **Classes & Timetable**.
-- As an initial import, detailed audit entries for every migrated record are not yet created; record keys, creation timestamps, deterministic import keys and conditional writes support reconciliation. Add stronger actor-based import audit before larger production migrations.
-
-## Verification status
-
-Backend's 17 existing `node --test` cases and 294-record schema validation passed in this package's preparation. Complete dependency-based npm/TypeScript/SAM checks require execution in your local environment before deployment.
+1. Live proof of isolated public intake with WAF, CORS, throttling, write-only IAM and negative tests; verify no PII logs.
+2. Sruti E2E: self, children, both, input validation, concurrent duplicate handling, review/version conflict, import, roll numbers, guardian pending access.
+3. Sruti administrator UX and notifications, plus Cognito invitations/verification and revocation E2E.
+4. Full-size MP3/M4A/MP4 homework media E2E, strict cross-institution authorization, audit and privacy review.
+5. Rollback rehearsal, target/legacy data integrity checks and deliberate controlled production cutover. No automatic cutover.

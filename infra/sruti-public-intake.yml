@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Sadhana M9.1 Sruti public registration intake: standalone API, rate limits, WAF and restricted DynamoDB writes'
+Parameters:
+  CodeBucket:
+    Type: String
+  CodeKey:
+    Type: String
+  IntakeEnabled:
+    Type: String
+    Default: disabled
+    AllowedValues: [disabled, enabled]
+  RegistrationsTable:
+    Type: String
+    Default: sadhana-dev-m9-registrations
+Resources:
+  IntakeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SrutiIntakePutOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:PutItem]
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RegistrationsTable}'
+  IntakeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      Handler: index.handler
+      Role: !GetAtt IntakeRole.Arn
+      MemorySize: 256
+      Timeout: 10
+      Code: {S3Bucket: !Ref CodeBucket, S3Key: !Ref CodeKey}
+      Environment:
+        Variables:
+          M91_SRUTI_PUBLIC_INTAKE: !Ref IntakeEnabled
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+  IntakeLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${IntakeFunction}'
+      RetentionInDays: 14
+  IntakeApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: sadhana-m91-sruti-public-intake
+      Description: 'Public registration intake only - no admin or read endpoints'
+      EndpointConfiguration: {Types: [REGIONAL]}
+      DisableExecuteApiEndpoint: false
+      BinaryMediaTypes: []
+  RegistrationResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref IntakeApi
+      ParentId: !GetAtt IntakeApi.RootResourceId
+      PathPart: register
+  RegistrationPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ResourceId: !Ref RegistrationResource
+      RestApiId: !Ref IntakeApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IntakeFunction.Arn}/invocations'
+  RegistrationOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ResourceId: !Ref RegistrationResource
+      RestApiId: !Ref IntakeApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IntakeFunction.Arn}/invocations'
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: [RegistrationPost, RegistrationOptions]
+    Properties:
+      RestApiId: !Ref IntakeApi
+      Description: M91-sruti-intake-v1
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref ApiDeployment
+      RestApiId: !Ref IntakeApi
+      StageName: intake-test
+      TracingEnabled: true
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 2
+          MetricsEnabled: true
+          LoggingLevel: 'OFF'
+          DataTraceEnabled: false
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref IntakeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${IntakeApi}/*/*/register'
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: sadhana-m91-sruti-intake-waf
+      Scope: REGIONAL
+      DefaultAction: {Allow: {}}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: SrutiIntakeWebACL
+        SampledRequestsEnabled: false
+      Rules:
+        - Name: PerIpRateLimit
+          Priority: 0
+          Action: {Block: {}}
+          Statement:
+            RateBasedStatement:
+              AggregateKeyType: IP
+              Limit: 100
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: SrutiPerIpRateLimit
+            SampledRequestsEnabled: false
+        - Name: ManagedCommonThreats
+          Priority: 1
+          OverrideAction: {None: {}}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: SrutiCommonThreats
+            SampledRequestsEnabled: false
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    DependsOn: [ApiStage]
+    Properties:
+      ResourceArn: !Sub 'arn:aws:apigateway:${AWS::Region}::/restapis/${IntakeApi}/stages/${ApiStage}'
+      WebACLArn: !GetAtt WebACL.Arn
+Outputs:
+  PublicIntakeUrl:
+    Description: Test-only public registration POST URL (do not put on Sruti live site until approved)
+    Value: !Sub 'https://${IntakeApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiStage}/register'
+  IntakeFunctionName:
+    Value: !Ref IntakeFunction
+  WebACLArn:
+    Value: !GetAtt WebACL.Arn

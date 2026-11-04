@@ -25,8 +25,8 @@ export function m9CutoverFence(parts, method, options = {}) {
       (parts.length === 3 && parts[2] === 'rsvp' && method === 'PUT')
   )) return null;
   if (options.homeworkWrites === true && (
-      (root === 'homework' && ((parts.length === 2 && ['GET','POST'].includes(method)) || (parts.length === 3 && method === 'PUT') || (parts.length === 4 && parts[2] === 'submissions' && method === 'GET') || (parts.length === 5 && parts[2] === 'feedback' && method === 'POST'))) ||
-      (root === 'learner' && ((parts.length === 3 && parts[2] === 'homework' && ['GET','POST'].includes(method)) || (parts.length === 4 && parts[2] === 'submission' && ['GET','PUT'].includes(method)) ))
+      (root === 'homework' && ((parts.length === 2 && ['GET','POST'].includes(method)) || (parts.length === 3 && method === 'PUT') || (parts.length === 5 && parts[2] === 'evidence' && method === 'GET' && options.media === true) || (parts.length === 4 && parts[2] === 'submissions' && method === 'GET') || (parts.length === 5 && parts[2] === 'feedback' && method === 'POST'))) ||
+      (root === 'learner' && ((parts.length === 3 && parts[2] === 'homework' && ['GET','POST'].includes(method)) || (parts.length === 4 && parts[2] === 'submission' && ['GET','PUT'].includes(method)) || (parts.length === 5 && parts[2] === 'submission' && parts[4] === 'evidence' && method === 'GET' && options.media === true) || (parts.length === 6 && parts[2] === 'submission' && parts[4] === 'evidence' && ['start','finish'].includes(parts[5]) && method === 'POST' && options.media === true) ))
   )) return null;
   // M9 onboarding is deliberately handled by its own explicit feature gate,
   // and does not fall through into the old onboarding handlers.

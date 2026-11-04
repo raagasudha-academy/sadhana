@@ -7,6 +7,7 @@ import {demandInstitution,httpError} from './model.ts';
 import type {Claims, InstitutionId} from './model.ts';
 import {markerId,prepareWebsiteImport} from './m95WebsiteImportCore.mjs';
 import {prepareLegacyImportBridge} from './m9LegacyImportBridge.mjs';
+import {toApprovedM9Registration} from './m91SrutiIntakeCore.mjs';
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}});
 const tables={families:'sadhana-dev-m9-families',people:'sadhana-dev-m9-people','family-links':'sadhana-dev-m9-family-links',counters:'sadhana-dev-m9-counters',registrations:'sadhana-dev-m9-registrations',audit:'sadhana-dev-m9-audit'} as const;
 const keys={families:'familyId',people:'personId','family-links':'linkId',counters:'counterId',registrations:'registrationId',audit:'auditId'} as const;
@@ -27,12 +28,13 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  demandInstitution(claims,inst);
  if(process.env.M95_ONBOARDING_MODE!=='enabled')throw fail(404,'Not enabled.');
  if(execute&&((mode==='fresh'&&process.env.M95_WEBSITE_IMPORT_WRITES!=='enabled')||(mode==='legacy-bridge'&&process.env.M9_LEGACY_BRIDGE_WRITES!=='enabled')))throw fail(403,'M9 website import writes are disabled.');
- if(inst!=='raaga')throw fail(409,'Sruti website import requires a separately verified intake integration.');
- if(!/^RS-[A-Za-z0-9_-]{1,110}$/.test(registrationId))throw fail(400,'Invalid website registration identifier.');
+ if(!((inst==='raaga'&&/^RS-[A-Za-z0-9_-]{1,110}$/.test(registrationId))||(inst==='sruti'&&mode==='fresh'&&/^SR-[A-Za-z0-9-]{1,110}$/.test(registrationId))))throw fail(400,'Invalid website registration identifier.');
  const id=markerId(inst,registrationId);
  const already=(await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId:id},ConsistentRead:true}))).Item;
- if(already){if(already.institutionId!==inst||already.externalRegistrationId!==registrationId)throw fail(409,'Registration identity collision.');return {alreadyImported:true,registrationId:id,familyId:already.familyId,studentIds:already.studentIds,externalSyncPending:already.websiteSyncStatus!=='legacy-authoritative',guardianApprovalPending:true};}
- const remote=approvedShape(await fetchWebsiteRegistration(registrationId));
+ if(already){if(already.institutionId!==inst||already.externalRegistrationId!==registrationId)throw fail(409,'Registration identity collision.');return {alreadyImported:true,registrationId:id,familyId:already.familyId,studentIds:already.studentIds,externalSyncPending:inst==='raaga'&&already.websiteSyncStatus!=='legacy-authoritative',guardianApprovalPending:true};}
+ const remote=inst==='sruti'
+  ?toApprovedM9Registration((await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId},ConsistentRead:true}))).Item)
+  :approvedShape(await fetchWebsiteRegistration(registrationId));
  if(!remote||remote.registrationId!==registrationId||remote.reviewStatus!=='approved')throw fail(409,'Website registration approval or identity mismatch.');
  const [family,student]=await Promise.all([getCounter(inst,'FAMILY_NUMBER'),getCounter(inst,'STUDENT_ROLL')]);
  const now=new Date().toISOString();
@@ -43,10 +45,11 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  // do not silently allocate another household or grant guardian access.
  const existingContact=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId:plan.contactGuardId},ConsistentRead:true}))).Item;
  if(existingContact)throw fail(409,'Primary contact belongs to an existing M9 family. Administrator family reconciliation is required.');
- if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2,readyForExecute:true,guardianApprovalPending:true};
+ if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianApprovalPending:true};
  // The registration record and identity guards participate in the SAME transaction as counters and people.
  // Conditional writes ensure concurrent retries cannot allocate the same roll number.
  const tx:any[]=[counterWrite(inst,'FAMILY_NUMBER',plan.counters.family.current,plan.counters.family.next,now),counterWrite(inst,'STUDENT_ROLL',plan.counters.student.current,plan.counters.student.next,now)];
+ if(inst==='sruti')tx.push({Update:{TableName:tables.registrations,Key:{registrationId},UpdateExpression:'SET importStatus=:imported,updatedAt=:now',ConditionExpression:'institutionId=:inst AND #source=:source AND reviewStatus=:approved AND importStatus=:pending',ExpressionAttributeNames:{'#source':'source'},ExpressionAttributeValues:{':inst':'sruti',':source':'sruti-website',':approved':'approved',':pending':'pending',':imported':'imported',':now':now}}});
  for(const {table,item} of plan.items){
   const pk=keys[table as keyof typeof keys];
   tx.push({Put:{TableName:tables[table as keyof typeof tables],Item:normalize(item),ConditionExpression:`attribute_not_exists(${pk})`}});
@@ -55,12 +58,12 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  catch(e:any){
   if(e?.name==='TransactionCanceledException'||e?.name==='ConditionalCheckFailedException'){
    const committed=(await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId:id},ConsistentRead:true}))).Item;
-   if(committed&&committed.institutionId===inst&&committed.externalRegistrationId===registrationId)return {alreadyImported:true,registrationId:id,familyId:committed.familyId,studentIds:committed.studentIds,externalSyncPending:true};
+   if(committed&&committed.institutionId===inst&&committed.externalRegistrationId===registrationId)return {alreadyImported:true,registrationId:id,familyId:committed.familyId,studentIds:committed.studentIds,externalSyncPending:inst==='raaga'};
    throw fail(409,'Import conflict or possible duplicate student. Resolve and retry.');
   }
   throw e;
  }
- return {imported:true,alreadyImported:false,registrationId:id,familyId:plan.familyId,studentIds:plan.studentMappings.map((x:any)=>x.studentId),studentRollNumbers:Object.fromEntries(plan.studentMappings.map((x:any)=>[x.sourcePersonId,x.rollNumber])),pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',provisioningPending:true,guardianApprovalPending:true};
+ return {imported:true,alreadyImported:false,registrationId:id,familyId:plan.familyId,studentIds:plan.studentMappings.map((x:any)=>x.studentId),studentRollNumbers:Object.fromEntries(plan.studentMappings.map((x:any)=>[x.sourcePersonId,x.rollNumber])),pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',provisioningPending:true,guardianApprovalPending:true};
 }
 
 /** Recoverable post-transaction website sync. Never makes guardian access approved. */

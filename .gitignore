@@ -79,3 +79,7 @@ sadhana-revoke-audit-report.json
 *.rej
 *~
 .idea/
+
+# Python generated cache
+__pycache__/
+*.pyc

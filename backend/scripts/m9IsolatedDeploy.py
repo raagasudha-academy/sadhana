@@ -4,6 +4,7 @@ Creates a *new* IAM role, Lambda and HTTP API. Never modifies existing API/Lambd
 Requires already built backend/dist/lambda.mjs and AWS CLI credentials.
 """
 import argparse, hashlib, io, json, os, pathlib, subprocess, sys, time, zipfile
+from m91IsolatedPolicy import build_policy
 
 REGION = 'us-east-1'
 LIVE_API = '6n9clqr224'
@@ -63,12 +64,7 @@ def deploy(profile, artifact, discovered):
     role=aws(profile,'iam','create-role','--role-name',ROLE_NAME,'--assume-role-policy-document',json.dumps(assume),'--description','Isolated Sadhana M9 end-to-end Lambda; no legacy DynamoDB table access')
     rolearn=role['Role']['Arn']
     aws(profile,'iam','attach-role-policy','--role-name',ROLE_NAME,'--policy-arn','arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole')
-    policy={ 'Version':'2012-10-17','Statement':[
-       {'Sid':'M9ReadOnlyTables','Effect':'Allow','Action':['dynamodb:DescribeTable','dynamodb:GetItem','dynamodb:BatchGetItem','dynamodb:Query','dynamodb:Scan','dynamodb:ConditionCheckItem'], 'Resource':[f'arn:aws:dynamodb:{REGION}:{account}:table/{M9_PREFIX}*']},
-       {'Sid':'M9DisposableWorkflowWrites','Effect':'Allow','Action':['dynamodb:PutItem','dynamodb:UpdateItem'], 'Resource':[f'arn:aws:dynamodb:{REGION}:{account}:table/{M9_PREFIX}{table}' for table in ('practice','homework','submissions','rsvps','audit')]},
-       {'Sid':'M9PrivateHomeworkMedia','Effect':'Allow','Action':['s3:GetObject','s3:PutObject'], 'Resource':f'arn:aws:s3:::{BUCKET}/*'},
-       {'Sid':'M9HomeworkMediaBucket','Effect':'Allow','Action':['s3:ListBucket'], 'Resource':f'arn:aws:s3:::{BUCKET}'}
-     ]}
+    policy=build_policy(account,REGION,envsource.get('SADHANA_COGNITO_USER_POOL_ID') or 'us-east-1_nyQjIQasG',BUCKET)
     aws(profile,'iam','put-role-policy','--role-name',ROLE_NAME,'--policy-name','M9IsolatedDataOnly','--policy-document',json.dumps(policy))
     env={
      'AWS_NODEJS_CONNECTION_REUSE_ENABLED':'1',

@@ -12,4 +12,4 @@ test('homework adapter runs before legacy learning routes',()=>{
  assert.ok(lambda.indexOf('m9HomeworkRoutes(routeContext)')<lambda.indexOf('learningRoutes(routeContext)'));
  assert.match(route,/Legacy storage is blocked/);
 });
-test('unmigrated evidence IDs cannot be saved to M9 submissions',()=>assert.match(src,/body\.attachmentIds\.length\)throw httpError\(503/));
+test('M9 media receipts must be verified and media flag enabled before submission',()=>{assert.match(src,/M9_HOMEWORK_MEDIA/);assert.match(src,/mediaStatus!=='ready'/);assert.match(src,/validateM9MediaSelection/);});
