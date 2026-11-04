@@ -1,0 +1,174 @@
+{
+  "milestone": "M9_FINAL",
+  "awsProfile": "default",
+  "region": "us-east-1",
+  "schema": 1,
+  "readOnly": true,
+  "canExecute": false,
+  "checks": {
+    "institutionsSeeded": true,
+    "operationalCounts": true,
+    "scheduleReadParity": false,
+    "teacherVenueLiveParity": false,
+    "cognitoInvitationsOnM9": false,
+    "guardianPortalEndToEnd": false,
+    "websiteBothAcademies": false,
+    "allLearningEndpointsOnM9": false,
+    "calendarWriteIamVerified": false,
+    "fullApiIamVerified": false,
+    "rollbackExercised": false,
+    "negativeAuthTestsDeployed": false
+  },
+  "tableCount": 18,
+  "counts": {
+    "institutions": 2,
+    "people": 7,
+    "families": 0,
+    "family-links": 0,
+    "classes": 22,
+    "venues": 3,
+    "enrolments": 0,
+    "sessions": 423,
+    "attendance": 0,
+    "practice": 0,
+    "homework": 0,
+    "submissions": 0,
+    "events": 6,
+    "rsvps": 0,
+    "registrations": 0,
+    "notifications": 0,
+    "audit": 0,
+    "counters": 0
+  },
+  "blockers": [
+    "UNVERIFIED_SCHEDULEREADPARITY",
+    "UNVERIFIED_TEACHERVENUELIVEPARITY",
+    "UNVERIFIED_COGNITOINVITATIONSONM9",
+    "UNVERIFIED_GUARDIANPORTALENDTOEND",
+    "UNVERIFIED_WEBSITEBOTHACADEMIES",
+    "UNVERIFIED_ALLLEARNINGENDPOINTSONM9",
+    "UNVERIFIED_CALENDARWRITEIAMVERIFIED",
+    "UNVERIFIED_FULLAPIIAMVERIFIED",
+    "UNVERIFIED_ROLLBACKEXERCISED",
+    "UNVERIFIED_NEGATIVEAUTHTESTSDEPLOYED"
+  ],
+  "blockerCount": 10,
+  "fullCutoverReady": false,
+  "seededInstitutions": [
+    "raaga",
+    "sruti"
+  ],
+  "tableStatuses": {
+    "institutions": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "people": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "families": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "family-links": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "classes": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "venues": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "enrolments": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "sessions": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "attendance": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "practice": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "homework": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "submissions": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "events": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "rsvps": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "registrations": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "notifications": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "audit": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    },
+    "counters": {
+      "status": "ACTIVE",
+      "hasPitrStatus": "not assessed",
+      "deletionProtection": true,
+      "gsis": true
+    }
+  },
+  "operationalDataTransferred": 461,
+  "legacyAuditMigrationRequested": false,
+  "notice": "Read-only audit. Unit-test success does not prove deployed Cognito/IAM, website integration, learning workflows or rollback. DO NOT CUT OVER unless all checks are independently verified."
+}

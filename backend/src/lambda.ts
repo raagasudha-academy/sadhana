@@ -10,6 +10,7 @@ import type {InstitutionId, ResourceName, HttpError} from './model.ts';
 import {json, readJSON} from './routes/http.ts';
 import type {SadhanaHttpEvent, JsonResponse} from './routes/http.ts';
 import {learningRoutes} from './routes/learningRoutes.ts';
+import {m9FinalLearnerRoutes} from './routes/m9FinalLearnerRoutes.ts';
 import {familyRoutes} from './routes/familyRoutes.ts';
 import {staffRoutes} from './routes/staffRoutes.ts';
 import {registrationRoutes} from './routes/registrationRoutes.ts';
@@ -22,6 +23,8 @@ import {m95ManagedEventWriteRoutes} from './routes/m95ManagedEventWriteRoutes.ts
 import {m95CompatibilityRoutes} from './routes/m95CompatibilityRoutes.ts';
 import {m9Routes} from './routes/m9Routes.ts';
 import {m9WriteRoutes} from './routes/m9WriteRoutes.ts';
+import {m9CutoverFence} from './m9CutoverFence.mjs';
+import {m9HomeworkRoutes} from './routes/m9HomeworkRoutes.ts';
 
 
 
@@ -62,6 +65,16 @@ export function createHandler(repository: SadhanaRepository){
       const query=event.queryStringParameters??{};
       const inst=query.institution as InstitutionId;
       const routeContext={event,parts,method,query,inst,claims,groups};
+      // Guard against silently falling back to PK/SK data when M9 testing is enabled.
+      // Do not turn on in the existing live API: blocked paths intentionally return 503.
+      const m9Fence=m9CutoverFence(parts,method,{
+        learnerReads:process.env.M9_FINAL_LEARNER_READS==='enabled',
+        learnerWrites:process.env.M9_LEARNER_WRITES==='enabled',
+        homeworkWrites:process.env.M9_HOMEWORK_WRITES==='enabled',
+        onboarding:process.env.M95_ONBOARDING_MODE==='enabled',
+        m9Routes:true,
+      });
+      if(m9Fence)return json(m9Fence.status,{error:m9Fence.error});
       if(parts[0]==='me'&&parts[1]==='profile'&&parts.length===2){
         if(method==='GET')return json(200,await getOwnProfile(claims.sub));
         if(method==='PATCH')return json(200,await saveOwnProfile(claims.sub,readJSON(event.body||'')));
@@ -79,6 +92,8 @@ export function createHandler(repository: SadhanaRepository){
       });
       {const response=await m9WriteRoutes(routeContext);if(response)return response;}
       {const response=await m9Routes(routeContext);if(response)return response;}
+      {const response=await m9FinalLearnerRoutes(routeContext);if(response)return response;}
+      {const response=await m9HomeworkRoutes(routeContext);if(response)return response;}
       {const response=await learningRoutes(routeContext);if(response)return response;}
       {const response=await familyRoutes(routeContext);if(response)return response;}
       {const response=await m95DirectoryRoutes(routeContext);if(response)return response;}

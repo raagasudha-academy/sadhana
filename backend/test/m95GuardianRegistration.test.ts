@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {makeM95GuardianService,m95Table} from '../src/m95GuardianRegistration.ts';
+import {guardianLinkId} from '../src/m95WebsiteImportCore.mjs';
 
 const admin={'sub':'admin-sub','cognito:groups':['raagasudha-admin']};
 const parent={sub:'parent-sub'};
-const validGuardian={personId:'guardian1',cognitoSub:'parent-sub',status:'active'};
+const validGuardian={personId:'guardian1',cognitoSub:'parent-sub',status:'active',familyId:'family1',institutionIds:['raaga'],personTypes:['guardian']};
 const student={personId:'student1',familyId:'family1',institutionIds:['raaga'],status:'active'};
 const family={familyId:'family1',status:'active'};
 function fakeDb(opts:{student?:any,guardian?:any,current?:any}={}){
@@ -29,6 +30,7 @@ test('self-service request creates pending only and binds Cognito sub to resolve
  assert.deepEqual(res,{status:'pending',submitted:true});
  const put=f.cmds.find(x=>x.constructor.name==='PutCommand')!.input;
  assert.equal(put.Item.accessStatus,'pending');assert.equal(put.Item.guardianPersonId,'guardian1');
+ assert.equal(put.Item.linkId,guardianLinkId('raaga','guardian1','student1'));
  assert.equal(put.Item.institutionId,'raaga');assert.equal(put.Item.relationship,'unverified');
  assert.equal(put.ConditionExpression,'attribute_not_exists(linkId)');
 });
@@ -49,7 +51,7 @@ test('administrator approval requires independent evidence',async()=>{
  assert.equal(f.cmds.some(x=>x.constructor.name==='TransactWriteCommand'),false);
 });
 test('administrator approval uses conditional transaction and separate audit',async()=>{
- const current={linkId:'example',guardianPersonId:'guardian1',studentId:'student1',institutionId:'raaga',familyId:'family1',accessStatus:'pending',version:1};
+ const current={linkId:guardianLinkId('raaga','guardian1','student1'),guardianPersonId:'guardian1',studentId:'student1',institutionId:'raaga',familyId:'family1',accessStatus:'pending',version:1};
  const f=fakeDb({current});
  const res=await makeM95GuardianService(f.db).decide('raaga',admin,{guardianPersonId:'guardian1',studentId:'student1',decision:'approved',expectedVersion:1,relationshipVerified:true,evidenceReference:'verification123'});
  assert.equal(res.status,'approved');assert.equal(res.version,2);
@@ -65,4 +67,11 @@ test('self-approval fails closed',async()=>{
 test('cross-institution decision denied before database access',async()=>{
  const f=fakeDb();await assert.rejects(makeM95GuardianService(f.db).decide('sruti',admin,{guardianPersonId:'guardian1',studentId:'student1',decision:'approved',expectedVersion:1,relationshipVerified:true,evidenceReference:'proof'}),/administrator/);
  assert.equal(f.cmds.length,0);
+});
+
+test('approval refuses a guardian without linked Cognito identity',async()=>{
+ const current={linkId:guardianLinkId('raaga','guardian1','student1'),guardianPersonId:'guardian1',studentId:'student1',institutionId:'raaga',familyId:'family1',accessStatus:'pending',version:1};
+ const f=fakeDb({guardian:{...validGuardian,cognitoSub:undefined},current});
+ await assert.rejects(makeM95GuardianService(f.db).decide('raaga',admin,{guardianPersonId:'guardian1',studentId:'student1',decision:'approved',expectedVersion:1,relationshipVerified:true,evidenceReference:'verification123'}),/Only pending requests/);
+ assert.equal(f.cmds.some(x=>x.constructor.name==='TransactWriteCommand'),false);
 });

@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "mode": "source-only",
+  "readOnly": true,
+  "deployPerformed": false,
+  "fullCutoverReady": false,
+  "statuses": {
+    "m9LearnerDashboardRouteWired": true,
+    "m9LearnerWriteRoutesWired": false,
+    "m9HomeworkWriteRoutesWired": false,
+    "m9GuardianAndOnboardingRouteWired": true,
+    "bothWebsitesDeployedAndTested": false,
+    "cognitoInvitationsDeployedAndTested": false,
+    "crossInstitutionNegativeAuthDeployed": false,
+    "rollbackExercised": false,
+    "strictLegacyLearnerFenceAvailable": true,
+    "legacyLearnerWritesStillPresent": true
+  },
+  "blockers": [
+    "M9_LEARNER_WRITES_NOT_IMPLEMENTED",
+    "M9_HOMEWORK_WRITES_NOT_IMPLEMENTED",
+    "LEGACY_LEARNER_WRITE_ROUTES_PRESENT",
+    "BOTH_WEBSITES_NOT_E2E_VERIFIED",
+    "COGNITO_INVITATIONS_NOT_E2E_VERIFIED",
+    "CROSS_INSTITUTION_NEGATIVE_AUTH_NOT_VERIFIED",
+    "ROLLBACK_NOT_EXERCISED"
+  ]
+}

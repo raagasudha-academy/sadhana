@@ -6,6 +6,7 @@ import type {DomainRoute} from './http.ts';
 import {json,readJSON} from './http.ts';
 import {m95GuardianService} from '../m95GuardianRegistration.ts';
 import {m95ImportApprovedWebsiteRegistration,m95ReconcileWebsiteImport} from '../m95WebsiteImport.ts';
+import {m9VerifiedCognitoLink} from '../m9VerifiedCognitoLink.ts';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,QueryCommand} from '@aws-sdk/lib-dynamodb';
 
@@ -16,6 +17,12 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
  if(process.env.M95_ONBOARDING_MODE!=='enabled')return json(404,{error:'Unknown endpoint.'});
  const institution=query.institution;
  if(institution!=='raaga'&&institution!=='sruti')throw httpError(400,'Select a valid institution.');
+ // Explicit bridge for website registrations already imported by the original portal.
+ // Never changes the upstream website mapping and never auto-approves guardians.
+ if(method==='POST'&&parts[1]==='legacy-bridge'&&parts.length===4&&['preview','execute'].includes(parts[3])){
+  demandInstitution(claims,institution);
+  return json(200,await m95ImportApprovedWebsiteRegistration(institution,claims,parts[2],parts[3]==='execute','legacy-bridge'));
+ }
  if(method==='POST'&&parts[1]==='website-import'&&parts.length===4&&['preview','execute'].includes(parts[3])){
   demandInstitution(claims,institution);
   return json(200,await m95ImportApprovedWebsiteRegistration(institution,claims,parts[2],parts[3]==='execute'));
@@ -23,6 +30,12 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
  if(method==='POST'&&parts[1]==='website-import'&&parts.length===4&&['sync-preview','sync'].includes(parts[3])){
   demandInstitution(claims,institution);
   return json(200,await m95ReconcileWebsiteImport(institution,claims,parts[2],parts[3]==='sync'));
+ }
+ if(method==='POST'&&parts[1]==='verified-account'&&parts.length===4&&['preview','link'].includes(parts[3])){
+  demandInstitution(claims,institution);
+  const body=readJSON(event.body?(event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body):'');
+  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(x=>x!=='expectedCognitoSub'))throw httpError(400,'Supply only expectedCognitoSub.');
+  return json(200,await m9VerifiedCognitoLink()(parts[2],institution,claims,parts[3]==='link',body.expectedCognitoSub));
  }
  if(method==='GET'&&parts.length===2&&parts[1]==='status'){
   demandInstitution(claims,institution);

@@ -5,6 +5,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,GetCommand,QueryCommand,PutCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {httpError,demandInstitution} from './model.ts';
+import {guardianLinkId} from './m95WebsiteImportCore.mjs';
 import type {Claims,InstitutionId} from './model.ts';
 
 export interface M95OnboardingDb {send(command:any):Promise<any>}
@@ -15,7 +16,7 @@ export const m95Table=(entity:'people'|'families'|'family-links'|'audit'|'regist
 };
 const validId=(v:unknown)=>typeof v==='string'&&v.length>0&&v.length<=180&&/^[A-Za-z0-9_#.:\-]+$/.test(v);
 const validInst=(v:unknown):v is InstitutionId=>v==='raaga'||v==='sruti';
-const secretKey=(inst:string,guardianId:string,studentId:string)=>'link_'+createHash('sha256').update(JSON.stringify([inst,guardianId,studentId])).digest('hex');
+const secretKey=guardianLinkId;
 const approvedScope=(x:any,inst:InstitutionId)=>Array.isArray(x?.institutionIds)&&x.institutionIds.includes(inst) || x?.institutionId===inst;
 const client=()=>DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}});
 
@@ -62,13 +63,13 @@ export function makeM95GuardianService(db:M95OnboardingDb,env:'dev'|'test'='dev'
    if(decision==='approved'&&(relationshipVerified!==true||!validId(evidenceReference)))throw httpError(400,'Independent relationship verification and evidence are required.');
    const guardian=(await db.send(new GetCommand({TableName:table('people'),Key:{personId:guardianPersonId},ConsistentRead:true}))).Item;
    const student=(await db.send(new GetCommand({TableName:table('people'),Key:{personId:studentId},ConsistentRead:true}))).Item;
-   if(!guardian||!student||!approvedScope(student,inst)||student.status==='archived'||!validId(student.familyId))throw httpError(409,'Identity or academy mismatch.');
+   if(!guardian||!student||guardian.status!=='active'||!guardian.personTypes?.includes('guardian')||!approvedScope(guardian,inst)||guardian.familyId!==student.familyId||!approvedScope(student,inst)||student.status==='archived'||!validId(student.familyId))throw httpError(409,'Identity or academy mismatch.');
    if(guardian.cognitoSub===claims.sub)throw httpError(403,'Self-approval is not permitted.');
    const linkId=secretKey(inst,String(guardianPersonId),String(studentId));
    const current=(await db.send(new GetCommand({TableName:table('family-links'),Key:{linkId},ConsistentRead:true}))).Item;
    if(!current||current.institutionId!==inst||current.studentId!==studentId||current.guardianPersonId!==guardianPersonId||current.familyId!==student.familyId)throw httpError(409,'Access request mismatch.');
    if(current.version!==expectedVersion)throw httpError(409,'Access request changed. Refresh and retry.');
-   if(decision==='approved'&&current.accessStatus!=='pending')throw httpError(409,'Only pending requests may be approved.');
+   if(decision==='approved'&&(!validId(guardian.cognitoSub)||current.accessStatus!=='pending'))throw httpError(409,'Only pending requests may be approved.');
    if(decision==='rejected'&&current.accessStatus!=='pending')throw httpError(409,'Only pending requests may be rejected.');
    if(decision==='revoked'&&current.accessStatus!=='approved')throw httpError(409,'Only approved links may be revoked.');
    const now=new Date().toISOString(), auditId=`aud_${randomUUID()}`;

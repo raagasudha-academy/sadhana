@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "readOnly": true,
+  "timestampUtc": "2026-11-03T21:48:29.188939+00:00",
+  "apiBaseUrl": "https://y3eobn1ppi.execute-api.us-east-1.amazonaws.com/m9-test/api",
+  "checks": [
+    {
+      "name": "anonymousRejected",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "name": "invalidTokenRejected",
+      "status": 401,
+      "passed": true
+    }
+  ],
+  "allExecutedChecksPassed": true,
+  "crossInstitutionAuthVerified": false,
+  "deployedWorkflowE2EVerified": false,
+  "cutoverApproved": false,
+  "note": "This verifies basic JWT denial and two-admin cross-academy GET access only; it is not the full app acceptance or rollback test."
+}

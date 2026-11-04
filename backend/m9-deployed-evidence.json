@@ -1,0 +1,162 @@
+{
+  "schema": 1,
+  "milestone": "M9_DEPLOYED_EVIDENCE",
+  "readOnly": true,
+  "canExecute": false,
+  "generatedAt": "2026-11-03T17:46:45.530Z",
+  "region": "us-east-1",
+  "accountId": "627821644317",
+  "tables": [
+    {
+      "domain": "institutions",
+      "name": "sadhana-dev-m9-institutions",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 0
+    },
+    {
+      "domain": "people",
+      "name": "sadhana-dev-m9-people",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "families",
+      "name": "sadhana-dev-m9-families",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 1
+    },
+    {
+      "domain": "family-links",
+      "name": "sadhana-dev-m9-family-links",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 3
+    },
+    {
+      "domain": "classes",
+      "name": "sadhana-dev-m9-classes",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 1
+    },
+    {
+      "domain": "venues",
+      "name": "sadhana-dev-m9-venues",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 0
+    },
+    {
+      "domain": "enrolments",
+      "name": "sadhana-dev-m9-enrolments",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "sessions",
+      "name": "sadhana-dev-m9-sessions",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 3
+    },
+    {
+      "domain": "attendance",
+      "name": "sadhana-dev-m9-attendance",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "practice",
+      "name": "sadhana-dev-m9-practice",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "homework",
+      "name": "sadhana-dev-m9-homework",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "submissions",
+      "name": "sadhana-dev-m9-submissions",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "events",
+      "name": "sadhana-dev-m9-events",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "rsvps",
+      "name": "sadhana-dev-m9-rsvps",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 2
+    },
+    {
+      "domain": "registrations",
+      "name": "sadhana-dev-m9-registrations",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 3
+    },
+    {
+      "domain": "notifications",
+      "name": "sadhana-dev-m9-notifications",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 3
+    },
+    {
+      "domain": "audit",
+      "name": "sadhana-dev-m9-audit",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 3
+    },
+    {
+      "domain": "counters",
+      "name": "sadhana-dev-m9-counters",
+      "activeProtected": true,
+      "pitrEnabled": true,
+      "gsiCount": 0
+    }
+  ],
+  "lambda": {
+    "functionName": "sadhana-dev-SadhanaApiLambda-r891ZvuYQfPh",
+    "roleArn": "arn:aws:iam::627821644317:role/sadhana-dev-SadhanaApiLambdaRole-AInfg8W5qtE7",
+    "runtime": "nodejs22.x",
+    "lastModified": "2026-11-02T20:21:17.000+0000",
+    "configFlagsPresent": [
+      "SADHANA_DATA_MODE",
+      "SADHANA_TABLE_NAME"
+    ]
+  },
+  "iamSimulation": {
+    "complete": false,
+    "error": "Command failed: aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::627821644317:role/sadhana-dev-SadhanaApiLambdaRole-AInfg8W5qtE7 --action-names dynamodb:DescribeTable dynamodb:GetItem dynamodb:Query dynamodb:Scan dynamodb:PutItem dynamodb:UpdateItem dynamodb:TransactWriteItems --re"
+  },
+  "anonymousProbe": null,
+  "decision": {
+    "infrastructureObserved": true,
+    "pitrObserved": true,
+    "lambdaIdentityObserved": true,
+    "iamSimulationObserved": false,
+    "negativeAuthSmokeObserved": false,
+    "fullCutoverReady": false,
+    "reason": "This report is evidence only; it does not verify Cognito invitation, guardian, website, learning, rollback or all deployed authorisation paths."
+  },
+  "fullCutoverReady": false
+}
