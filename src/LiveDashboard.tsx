@@ -13,22 +13,36 @@ export default function LiveDashboard({cloud,workspace,teacherMode,onChangePage}
  const [refresh,setRefresh]=useState(0);
  const [pending,setPending]=useState<number|null>(null);
  const [pendingError,setPendingError]=useState(false);
- const canReviewIntake=!teacherMode&&workspace==='raaga'&&cloud.staff.institutions.includes('raaga');
+ const [pendingMore,setPendingMore]=useState(false);
+ const canReviewIntake=!teacherMode&&(workspace==='raaga'||workspace==='sruti')&&cloud.staff.institutions.includes(workspace as InstitutionId);
  useEffect(()=>{
   let alive=true;
-  setPending(null);setPendingError(false);
+  setPending(null);setPendingError(false);setPendingMore(false);
   if(!canReviewIntake)return ()=>{alive=false;};
-  cloud.api.listWebsiteRegistrations({status:'pending',limit:'100'})
-   .then(result=>{
+  // Sruti uses the M9 institution-scoped directory; Raagasudha remains on
+  // its existing website registration API until the controlled migration.
+  const request=workspace==='sruti'
+   ? cloud.api.listSrutiWebsiteRegistrations()
+   : cloud.api.listWebsiteRegistrations({status:'pending',limit:'100'});
+  request.then(result=>{
     if(!alive)return;
-    const value=result as {registrations?:unknown[];records?:unknown[];items?:unknown[];data?:{registrations?:unknown[]}};
+    const value=result as {registrations?:unknown[];records?:unknown[];items?:unknown[];data?:{registrations?:unknown[]};more?:boolean};
+    if(workspace==='sruti'){
+     // Never show a misleading zero when the old Raagasudha handler responds.
+     if(!Array.isArray(value?.records) || value.records.some(row=>{
+      const record=row as {institutionId?:unknown;registrationId?:unknown};
+      return record?.institutionId!=='sruti'||typeof record.registrationId!=='string';
+     }))throw new Error('Unexpected Sruti registration response');
+     setPending(value.records.filter(row=>(row as {reviewStatus?:string}).reviewStatus==='pending').length);
+     setPendingMore(Boolean(value.more));
+     return;
+    }
     const rows=Array.isArray(result)?result:Array.isArray(value?.registrations)?value.registrations:Array.isArray(value?.records)?value.records:Array.isArray(value?.items)?value.items:value?.data?.registrations;
     if(!Array.isArray(rows))throw new Error('Unexpected registration response');
     setPending(rows.length);
-   })
-   .catch(()=>{if(alive)setPendingError(true);});
+   }).catch(()=>{if(alive)setPendingError(true);});
   return ()=>{alive=false;};
- },[cloud.api,canReviewIntake,refresh]);
+ },[cloud.api,canReviewIntake,workspace,refresh]);
  useEffect(()=>{
   let live=true;
   const scopes=(workspace==='combined'?cloud.staff.institutions:[workspace]).filter((x):x is InstitutionId=>(x==='raaga'||x==='sruti')&&cloud.staff.institutions.includes(x));
@@ -82,7 +96,7 @@ export default function LiveDashboard({cloud,workspace,teacherMode,onChangePage}
   {busy&&<p role="status">Refreshing live academy records…</p>}
   {(!busy||data.length>0)&&<>
    <div className="ops-summary" aria-label="Persisted academy statistics">
-    {canReviewIntake&&<div><span>Pending website registrations</span><strong>{pendingError?'—':pending===null?'…':pending===100?'100+':pending}</strong><small>{pendingError?'Unable to load · refresh to retry':pending===100?'At least 100 pending · open inbox':'Awaiting administrator review'}</small><button type="button" className="reg-secondary" onClick={()=>onChangePage('Website Registrations')}><Inbox size={15}/> Review applications</button></div>}
+    {canReviewIntake&&<div><span>Pending website registrations</span><strong>{pendingError?'—':pending===null?'…':pendingMore||pending===100?`${pending}+`:pending}</strong><small>{pendingError?'Unable to load · refresh to retry':pendingMore?'Pending count may be higher · open inbox':pending===100?'At least 100 pending · open inbox':'Awaiting administrator review'}</small><button type="button" className="reg-secondary" onClick={()=>onChangePage('Website Registrations')}><Inbox size={15}/> Review applications</button></div>}
     <div><span>Active enrolments</span><strong>{activeEnrolments}</strong></div>
     <div><span>Students</span><strong>{students}</strong></div>
     <div><span>Attendance rate</span><strong>{thisMonth.value}</strong><small>Current month · {thisMonth.label} · {thisMonth.count} recorded</small><strong style={{fontSize:'1.25rem',marginTop:8}}>{lastMonth.value}</strong><small>Last month · {lastMonth.label} · {lastMonth.count} recorded</small></div>
