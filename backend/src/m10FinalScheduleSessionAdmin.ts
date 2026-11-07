@@ -40,7 +40,8 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
  }
  const masterFor=async(inst:InstitutionId,id:string)=>{
   checkId(id);const master=await get('classes',id);
-  if(!master||master.institutionId!==inst||master.recordType!=='class')throw httpError(404,'Class not found in this academy.');
+  const recordType=master?.recordType??master?.legacyPayload?.recordType;
+  if(!master||master.institutionId!==inst||recordType!=='class')throw httpError(404,'Class not found in this academy.');
   return master;
  };
  async function teacherIdentity(inst:InstitutionId,claims:Claims){
@@ -89,6 +90,39 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
   ConditionExpression:'#v=:v AND #i=:i',ExpressionAttributeNames:{'#v':'version','#i':'institutionId'},ExpressionAttributeValues:{':v':version,':i':inst}}});
  const auditAction=(inst:InstitutionId,action:string,id:string,sub:string)=>({Put:{TableName:table('audit'),Item:audit(inst,action,id,sub),ConditionExpression:'attribute_not_exists(auditId)'}});
  return {
+  async createAdditionalSessions(inst:InstitutionId,body:Record<string,any>,claims:Claims,isAdmin:boolean){
+   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['classId','sessions'].includes(k)))throw httpError(400,'Unexpected additional session fields.');
+   if(typeof body.classId!=='string')throw httpError(400,'Choose a master class.');
+   const master=await masterFor(inst,body.classId);
+   const assignment=isAdmin?null:await assigned(inst,body.classId,claims);
+   if(['archived','paused'].includes(master.lifecycleStatus??master.legacyPayload?.lifecycleStatus)||master.status==='cancelled')throw httpError(409,'This master class is not active.');
+   if(!Array.isArray(body.sessions)||body.sessions.length<1||body.sessions.length>20)throw httpError(400,'Choose 1 to 20 additional sessions.');
+   const dateOK=(v:unknown):v is string=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+'T12:00:00Z'))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
+   const timeOK=(v:unknown):v is string=>typeof v==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+   const unique=new Set<string>();
+   const template=master.legacyPayload??{};
+   const now=new Date().toISOString();
+   const records:ScheduleRecord[]=body.sessions.map((entry:any)=>{
+    if(!entry||typeof entry!=='object'||Array.isArray(entry)||Object.keys(entry).some(k=>!['date','startTime','endTime'].includes(k)))throw httpError(400,'Invalid additional session fields.');
+    if(!dateOK(entry.date)||!timeOK(entry.startTime)||!timeOK(entry.endTime)||entry.startTime>=entry.endTime)throw httpError(400,'Each session needs a valid date and same-day time range.');
+    const key=`${entry.date}|${entry.startTime}|${entry.endTime}`;
+    if(unique.has(key))throw httpError(409,'The proposed sessions contain a duplicate.');
+    unique.add(key);
+    return validateScheduleRecord({id:`EVT-${randomUUID()}`,recordType:'class-session',classId:body.classId,institution:inst,
+     name:template.name??master.name??'',programme:template.programme??'',teacher:template.teacher??'',
+     ...(template.teacherId?{teacherId:template.teacherId}:{}),mode:template.mode??'',location:template.location??'',
+     date:entry.date,endDate:entry.date,startTime:entry.startTime,endTime:entry.endTime,
+     allDay:false,timezone:'Europe/London',status:'confirmed',version:1,createdAt:now,updatedAt:now});
+   });
+   const all=await scan('sessions');
+   if(all.some(session=>session.institutionId===inst&&session.classId===body.classId&&session.recordType==='class-session'&&session.status!=='cancelled'&&records.some(record=>session.localDate===record.date&&session.localStartTime===record.startTime&&session.localEndTime===record.endTime)))throw httpError(409,'An existing session already has the same date and time for this class. Refresh the calendar.');
+   const teacherId=typeof template.teacherId==='string'?template.teacherId:undefined;
+   const items=records.map(record=>{const item=toItem(record,undefined,teacherId);return {...item,additionalSession:true,legacyPayload:{...item.legacyPayload,additionalSession:true}};});
+   await transact([{ConditionCheck:{TableName:table('classes'),Key:{classId:body.classId},ConditionExpression:assignment?'#v=:v AND #i=:i AND (contains(#teachers,:t) OR #legacy.#tid=:t)':'#v=:v AND #i=:i',ExpressionAttributeNames:assignment?{'#v':'version','#i':'institutionId','#teachers':'teacherPersonIds','#legacy':'legacyPayload','#tid':'teacherId'}:{'#v':'version','#i':'institutionId'},ExpressionAttributeValues:assignment?{':v':master.version,':i':inst,':t':assignment.assignedTeacherKey}:{':v':master.version,':i':inst}}},
+    ...items.map(item=>({Put:{TableName:table('sessions'),Item:item,ConditionExpression:'attribute_not_exists(sessionId)'}})),
+    auditAction(inst,'ADDITIONAL_SESSIONS_CREATED',body.classId,String(claims.sub))]);
+   return {records,count:records.length};
+  },
   async createTeacherSession(inst:InstitutionId,body:Record<string,any>,claims:Claims){
    if(!body||Array.isArray(body)||Object.keys(body).some(key=>!createFields.has(key)))throw httpError(400,'Unsupported session fields.');
    if(body.recordType!=='class-session'||!ID.test(body.classId||''))throw httpError(400,'Choose an assigned master class.');

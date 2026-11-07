@@ -11,13 +11,21 @@ const idOK = x => typeof x === 'string' && /^[-a-zA-Z0-9]{4,90}$/.test(x);
 export async function finalSchedulingWriteRoute(context, dependencies, access, env = process.env) {
   if (env.SADHANA_ENTITY_TABLE_SET !== 'final') return undefined;
   const {parts, method, claims, query = {}, event} = context;
-  if (!Array.isArray(parts) || !['schedule', 'events'].includes(parts[0]) || method === 'GET') return undefined;
+  if (!Array.isArray(parts) || !['schedule', 'events', 'additional-sessions'].includes(parts[0]) || method === 'GET') return undefined;
   // Block *all* other writes here, before the legacy / M10 pilot dispatch.
   if (!['POST', 'PATCH', 'DELETE'].includes(method)) return fail('Unsupported scheduling method.', 405);
   if (!claims?.sub) return fail('Authenticated account required.', 401);
   if (env.SADHANA_DATA_MODE === 'split' || env.SADHANA_ENTITY_FINAL_ACK !== 'enabled')
     return fail('Final-table cutover has not been authorised.');
   const root = parts[0], institution = query.institution ?? context.inst;
+  if (root === 'additional-sessions') {
+    if (method !== 'POST' || parts.length !== 1) return fail('Unsupported additional-sessions action.', 405);
+    if (institution !== 'raaga' && institution !== 'sruti') return fail('Choose an academy.', 400);
+    if (env.SADHANA_FINAL_CALENDAR_WRITES !== 'enabled') return fail('This final-table scheduling write is disabled.');
+    access.view(claims, institution);
+    dependencies.assertConfigured();
+    return {status:201,body:await dependencies.sessions().createAdditionalSessions(institution, dependencies.parse(event), claims, access.permittedInstitutions(claims).includes(institution))};
+  }
   const series = root === 'schedule' && parts[1] === 'series';
   const category = root === 'events' ? 'SADHANA_FINAL_EVENT_WRITES'
     : series ? 'SADHANA_FINAL_SERIES_WRITES' : 'SADHANA_FINAL_CALENDAR_WRITES';

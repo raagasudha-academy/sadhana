@@ -39,6 +39,20 @@ test('cross-academy or unlinked teacher cannot create',async()=>withFinal(async(
  await assert.rejects(()=>x.service.createTeacherSession('sruti',{recordType:'class-session',classId:master.classId,date:'2026-11-09',endDate:'2026-11-09',startTime:'18:00',endTime:'19:00'}, {...claims,sub:'stranger'}),{status:403});
  assert.equal(x.actions.length,0);
 }));
+test('additional sessions accept canonical classes whose class type is present in legacyPayload',async()=>withFinal(async()=>{
+ const legacyShape={...master};delete legacyShape.recordType;
+ const x=make({[`classes:${master.classId}`]:legacyShape});
+ const result=await x.service.createAdditionalSessions('sruti',{classId:master.classId,sessions:[{date:'2027-02-14',startTime:'19:30',endTime:'20:30'}]},claims,true);
+ assert.equal(result.count,1);
+ assert.equal(x.actions.length,1);
+ const items=x.actions[0].flatMap((action:any)=>action.Put?.Item?[action.Put.Item]:[]);
+ const session=items.find((item:any)=>item.sessionId);
+ const audit=items.find((item:any)=>item.action==='ADDITIONAL_SESSIONS_CREATED');
+ assert.equal(session.institutionId,'sruti');
+ assert.equal(session.classId,master.classId);
+ assert.equal(session.additionalSession,true);
+ assert.equal(audit.resourceId,master.classId);
+}));
 test('class delete preview refuses any linked enrolment history',async()=>withFinal(async()=>{
  const x=make({enrolments:[{institutionId:'sruti',classId:master.classId,studentId:'PERSON-TEST',status:'inactive'}]});
  await assert.rejects(()=>x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3}),{status:409});
