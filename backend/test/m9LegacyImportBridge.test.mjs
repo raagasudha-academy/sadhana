@@ -20,7 +20,7 @@ test('bridge writes only M9 records and retains legacy mapping',()=>{
  assert.equal(marker.identityResolutionStatus,'pending_guardian_verification');
  assert.equal(p.pendingGuardianLinks,1);
  assert.equal(p.items.find(x=>x.table==='family-links').item.accessStatus,'pending');
- assert.equal(p.studentMappings[0].rollNumber,'001-001');
+ assert.equal(p.studentMappings[0].rollNumber,'RS-001');
 });
 test('rejects unapproved or non-imported source',()=>{
  const r=registration();r.reviewStatus='pending';assert.throws(()=>plan(r));

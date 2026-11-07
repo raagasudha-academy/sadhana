@@ -120,6 +120,22 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('homework'),Item:updated,ConditionExpression:'#version=:version AND institutionId=:inst AND classId=:class',ExpressionAttributeNames:{'#version':'version'},ExpressionAttributeValues:{':version':old.version,':inst':inst,':class':classId}}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkRepublished',homeworkId),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
   return {record:{id:homeworkId,classId,title:updated.title,instructions:updated.instructions,dueDate:updated.dueDate,version:updated.version}};
  }
+ async function remove(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string){
+  if(!assignmentId(homeworkId))throw httpError(400,'Invalid homework identifier');
+  const {actor,checks}=await staff(inst,claims,classId);
+  const old=await get('homework',homeworkId);
+  if(!checkAssignment(inst,old)||old.classId!==classId)throw httpError(404,'Homework unavailable');
+  const now=nowIso();
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,
+   {Update:{TableName:table('homework'),Key:{homeworkId},
+    UpdateExpression:'SET #status=:archived, archivedAt=:now, archivedBy=:actor, #version=:next',
+    ConditionExpression:'institutionId=:inst AND classId=:class AND #status<>:archived AND #version=:expected',
+    ExpressionAttributeNames:{'#status':'status','#version':'version'},
+    ExpressionAttributeValues:{':archived':'archived',':now':now,':actor':claims.sub,':inst':inst,':class':classId,':expected':old.version,':next':old.version+1}}},
+   {Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkArchived',homeworkId),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}
+  catch(e){conflict(e)}
+  return {deleted:true,archived:true};
+ }
  async function learnerList(inst:InstitutionId,claims:Claims,studentId:string){
   await learner(inst,claims,studentId);
   const enrolled=(await query('enrolments','StudentEnrolmentsIndex','studentId',studentId)).filter(e=>e.institutionId===inst&&e.status==='active');
@@ -356,7 +372,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   if(!isHomeworkReleased(h))throw httpError(403,'Assignment not released');
   return signedTeacherMaterials(inst,h);
  }
- return {listClass,publish,edit,learnerList,getSubmission,saveSubmission,complete,teacherSubmissions,feedback,mediaStart,mediaFinish,mediaLinks,staffMediaLinks,beginTeacherMaterial,finishTeacherMaterial,selectTeacherMaterials,teacherMaterialLinks,learnerMaterialLinks};
+ return {listClass,publish,edit,remove,learnerList,getSubmission,saveSubmission,complete,teacherSubmissions,feedback,mediaStart,mediaFinish,mediaLinks,staffMediaLinks,beginTeacherMaterial,finishTeacherMaterial,selectTeacherMaterials,teacherMaterialLinks,learnerMaterialLinks};
 }
 let singleton:ReturnType<typeof makeM9Homework>|undefined;
 export function m9Homework(){return singleton??=makeM9Homework(DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}}));}

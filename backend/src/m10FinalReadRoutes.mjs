@@ -13,13 +13,14 @@ export async function finalReadRoute(context, readers, access, env = process.env
   const root = parts[0];
   const ownSummary = root === 'me' && parts.length === 1;
   const teacherMe = root === 'teachers' && parts.length === 2 && parts[1] === 'me';
+  const teacherLinks = root === 'schedule' && parts.length === 2 && parts[1] === 'teacher-links';
   const plainDirectory = ['classes', 'venues', 'teachers'].includes(root) && parts.length === 1;
   const schedule = root === 'schedule' && parts.length === 1;
   const managedEvents = root === 'events' && parts.length === 1;
   const coreDirectory = ['students', 'families', 'enrolments'].includes(root) && parts.length === 1;
   const audit = root === 'audit' && parts.length === 1;
   const practice = root === 'practice' && parts.length === 1;
-  if (!(ownSummary || teacherMe || plainDirectory || schedule || managedEvents || coreDirectory || audit || practice)) return undefined;
+  if (!(ownSummary || teacherMe || teacherLinks || plainDirectory || schedule || managedEvents || coreDirectory || audit || practice)) return undefined;
 
   // The locator raises when split PK/SK routing is still selected, or the
   // explicit final cutover acknowledgement has not been enabled.
@@ -51,6 +52,11 @@ export async function finalReadRoute(context, readers, access, env = process.env
     return {status: 200, body: await readers.schedule('shared')};
   }
   if (institution !== 'raaga' && institution !== 'sruti') access.badInstitution();
+
+  if (teacherLinks) {
+    access.admin(claims, institution);
+    return {status: 200, body: await readers.directory('teacherLinks', institution, claims)};
+  }
 
   if (schedule || teacherMe || plainDirectory) {
     access.view(claims, institution);

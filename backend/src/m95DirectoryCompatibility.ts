@@ -3,6 +3,7 @@ import {entityTable} from './m10EntityTables.mjs';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,ScanCommand} from '@aws-sdk/lib-dynamodb';
 import {signedProfilePhoto} from './profilePhotos.ts';
+import {suggestedTeacherIds} from './teacherNameMatch.ts';
 import {legacyRecord,canonicalRecords} from './m95Compatibility.ts';
 import type {CompatibleItem,CompatClient} from './m95Compatibility.ts';
 import type {Claims,InstitutionId} from './model.ts';
@@ -51,6 +52,27 @@ export function sameDirectoryRows(a:ReadonlyArray<Record<string,any>>,b:Readonly
  return canonicalRecords(clean(a))===canonicalRecords(clean(b));
 }
 
+/** Read-only assignment listing from the canonical people/classes/sessions tables. */
+export async function presentFinalTeacherLinks(inst:InstitutionId,claims:Claims,people:CompatibleItem[],classes:CompatibleItem[],sessions:CompatibleItem[],photo:(sub:string)=>Promise<string>=signedProfilePhoto){
+ demandViewInstitution(claims,inst);
+ if(!permittedInstitutions(claims).includes(inst))throw Error('Administrator access required for teacher links.');
+ const directory=await presentM9Teachers(inst,claims,people,photo);
+ const all=directory.records;
+ const teachers=all.filter((row:any)=>row.active===true&&row.institutions?.includes(inst));
+ const matchTeachers: Array<{id:string;displayName:string;aliases?:string[];active:boolean}> = teachers.filter((row:any)=>typeof row.id==='string'&&typeof row.displayName==='string').map((row:any)=>({id:row.id,displayName:row.displayName,aliases:Array.isArray(row.aliases)?row.aliases.filter((x:unknown):x is string=>typeof x==='string'):[],active:true}));
+ const masters=classes.filter(item=>item.institutionId===inst).map(legacyRecord).filter(row=>row.recordType==='class'||row.recordType===undefined);
+ const index=new Map(masters.map(row=>[row.id,row]));
+ const rows=masters.map(row=>({classId:row.id,className:row.name,version:row.version,scope:'master',effectiveFrom:'',teacher:row.teacher||'',teacherId:row.teacherId||'',suggestedIds:suggestedTeacherIds(row.teacher||'',matchTeachers)}));
+ for(const item of sessions){
+  if(item.institutionId!==inst||item.recordType!=='series-change')continue;
+  const rule=item.legacyPayload;
+  if(!rule||typeof rule.classId!=='string'||!index.has(rule.classId)||typeof rule.effectiveFrom!=='string'||!rule.changes?.teacher)continue;
+  const master=index.get(rule.classId)!;
+  rows.push({classId:rule.classId,className:master.name,version:master.version,scope:'series',effectiveFrom:rule.effectiveFrom,teacher:rule.changes.teacher,teacherId:rule.changes.teacherId||'',suggestedIds:suggestedTeacherIds(rule.changes.teacher,matchTeachers)});
+ }
+ return {institution:inst,teachers:teachers.map(({id,displayName,subjects,photoUrl}:any)=>({id,displayName,subjects,photoUrl})),rows,more:false};
+}
+
 export function makeM95DirectoryReader(client:CompatClient,photo:(sub:string)=>Promise<string>=signedProfilePhoto){
  const scan=async(entity:DirectoryEntity):Promise<CompatibleItem[]>=>{
   const records:CompatibleItem[]=[];
@@ -62,9 +84,23 @@ export function makeM95DirectoryReader(client:CompatClient,photo:(sub:string)=>P
   }while(cursor);
   return records;
  };
+ const scanSessions=async():Promise<CompatibleItem[]>=>{
+  const rows:CompatibleItem[]=[];let cursor:Record<string,unknown>|undefined;
+  do {const page=await client.send(new ScanCommand({TableName:entityTable('sessions'),ConsistentRead:true,ExclusiveStartKey:cursor,Limit:200}));
+   rows.push(...(page.Items??[]));cursor=page.LastEvaluatedKey;
+   if(rows.length>6000)throw Error('FINAL_TEACHER_LINK_SESSION_LIMIT');
+  }while(cursor);
+  return rows;
+ };
  return {
   async teachers(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Teachers(inst,claims,await scan('people'),photo);},
   async teacherMe(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9TeacherIdentity(inst,claims,await scan('people'));},
+  async teacherLinks(inst:InstitutionId,claims:Claims){
+   demandViewInstitution(claims,inst);
+   if(!permittedInstitutions(claims).includes(inst))throw Error('Administrator access required for teacher links.');
+   const [people,classes,sessions]=await Promise.all([scan('people'),scan('classes'),scanSessions()]);
+   return presentFinalTeacherLinks(inst,claims,people,classes,sessions,photo);
+  },
   async venues(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Venues(inst,claims,await scan('venues'));},
   async classes(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Classes(inst,claims,await scan('classes'));},
  };

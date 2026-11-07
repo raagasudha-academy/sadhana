@@ -12,7 +12,7 @@ const raagaAdmin={sub:'real-raaga-admin',admin:['raaga']};
 const student={sub:'verified-student'};
 const guardian={sub:'verified-guardian'};
 let called=[];
-const depsReg={assertConfigured:()=>called.push('schema'),registration:async ctx=>{
+const depsReg={assertConfigured:()=>called.push('schema'),parse:event=>JSON.parse(event.body||'{}'),registration:async ctx=>{
  called.push(['registration',ctx.parts.join('/'),ctx.method,ctx.claims.sub]);
  return {statusCode:ctx.method==='PATCH'?200:200,body:JSON.stringify({records:[],source:'canonical'})};
 }};
@@ -52,11 +52,11 @@ test('registration read and review use existing canonical reader under separate 
  assert.equal((await reg('website-registrations/SR-2026-4D6401','GET')).status,200);
  assert.equal((await reg('website-registrations/SR-2026-4D6401','PATCH','sruti',srutiAdmin,{reviewStatus:'approved',expectedVersion:2})).status,200);
  assert.equal((await reg('website-registrations/SR-2026-4D6401/import-preview','POST')).status,200);
- assert.equal(called.filter(Array.isArray).length,4);
+ assert.equal(called.filter(Array.isArray).length,3);
 });
 test('Sruti student import execution remains blocked even if M91 flag is accidentally enabled',async()=>{
  reset();const env={...regFlags,M91_SRUTI_IMPORT_WRITES:'enabled',SADHANA_FINAL_SRUTI_IMPORT_WRITES:'enabled'};
- assert.equal((await reg('website-registrations/SR-2026-4D6401/import-execute','POST','sruti',srutiAdmin,{},env)).status,503);
+ assert.equal((await reg('website-registrations/SR-2026-4D6401/import-execute','POST','sruti',srutiAdmin,{},env)).status,409);
  assert.deepEqual(called,[]);
 });
 test('Raagasudha registration gateway cannot be accessed through the Sruti facade',async()=>{

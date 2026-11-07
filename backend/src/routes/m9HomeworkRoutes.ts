@@ -8,6 +8,7 @@ export const m9HomeworkRoutes:DomainRoute=async({event,parts,method,inst,claims}
  if(parts[0]==='homework'){
   if(parts.length===2){if(method==='GET')return json(200,await h.listClass(inst,claims,parts[1]));if(method==='POST')return json(201,await h.publish(inst,claims,parts[1],body()));}
   if(parts.length===3&&method==='PUT')return json(200,await h.edit(inst,claims,parts[1],parts[2],body()));
+  if(parts.length===3&&method==='DELETE')return json(200,await h.remove(inst,claims,parts[1],parts[2]));
   if(parts.length===4&&parts[2]==='submissions'&&method==='GET')return json(200,await h.teacherSubmissions(inst,claims,parts[1],parts[3]));
   if(parts.length===5&&parts[2]==='evidence'&&method==='GET')return json(200,await h.staffMediaLinks(inst,claims,parts[1],parts[3],parts[4]));
   if(parts.length===5&&parts[2]==='feedback'&&method==='POST')return json(200,await h.feedback(inst,claims,parts[1],parts[3],parts[4],body()));
