@@ -1,3 +1,4 @@
+import {entityTable} from '../m10EntityTables.mjs';
 /** Explicit M9 onboarding routes. Entirely disabled by default.
  * Existing /website-registrations and /family-access endpoints remain authoritative.
  */
@@ -21,7 +22,7 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
  if(parts[1]==='sruti-intake'&&institution==='sruti'){
   demandInstitution(claims,'sruti');
   if(method==='GET'&&parts.length===3){
-   const record=(await db.send(new GetCommand({TableName:'sadhana-dev-m9-registrations',Key:{registrationId:parts[2]},ConsistentRead:true}))).Item;
+   const record=(await db.send(new GetCommand({TableName:entityTable('registrations'),Key:{registrationId:parts[2]},ConsistentRead:true}))).Item;
    if(!record||record.source!=='sruti-website'||record.institutionId!=='sruti')throw httpError(404,'Sruti registration not found.');
    return json(200,{record});
   }
@@ -30,7 +31,7 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
    const body=readJSON(event.body?(event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body):'');
    if(!['approved','discarded'].includes(body.reviewStatus)||!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1||Object.keys(body).some(k=>!['reviewStatus','expectedVersion'].includes(k)))throw httpError(400,'Invalid review decision or expected version.');
    const now=new Date().toISOString();
-   try{await db.send(new UpdateCommand({TableName:'sadhana-dev-m9-registrations',Key:{registrationId:parts[2]},UpdateExpression:'SET reviewStatus=:next,#status=:next,updatedAt=:now,reviewedBy=:reviewer,version=:newVersion',ConditionExpression:'institutionId=:inst AND #source=:source AND reviewStatus=:pending AND importStatus=:pending AND version=:previous',ExpressionAttributeNames:{'#source':'source','#status':'status'},ExpressionAttributeValues:{':inst':'sruti',':source':'sruti-website',':pending':'pending',':next':body.reviewStatus,':now':now,':reviewer':claims.sub,':previous':body.expectedVersion,':newVersion':body.expectedVersion+1}}));}
+   try{await db.send(new UpdateCommand({TableName:entityTable('registrations'),Key:{registrationId:parts[2]},UpdateExpression:'SET reviewStatus=:next,#status=:next,updatedAt=:now,reviewedBy=:reviewer,version=:newVersion',ConditionExpression:'institutionId=:inst AND #source=:source AND reviewStatus=:pending AND importStatus=:pending AND version=:previous',ExpressionAttributeNames:{'#source':'source','#status':'status'},ExpressionAttributeValues:{':inst':'sruti',':source':'sruti-website',':pending':'pending',':next':body.reviewStatus,':now':now,':reviewer':claims.sub,':previous':body.expectedVersion,':newVersion':body.expectedVersion+1}}));}
    catch(e:any){if(['ConditionalCheckFailedException','TransactionCanceledException'].includes(e?.name))throw httpError(409,'Registration changed; refresh and review.');throw e;}
    return json(200,{registrationId:parts[2],reviewStatus:body.reviewStatus,version:body.expectedVersion+1,guardianAccessGranted:false});
   }
@@ -73,7 +74,7 @@ export const m95GuardianRegistrationRoutes:DomainRoute=async ({event,parts,metho
   demandInstitution(claims,institution);
   const limit=Number(query.limit??'30');
   if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw httpError(400,'Invalid limit.');
-  const result=await db.send(new QueryCommand({TableName:'sadhana-dev-m9-registrations',IndexName:'InstitutionRegistrationsIndex',KeyConditionExpression:'institutionId = :institution',ExpressionAttributeValues:{':institution':institution},Limit:limit}));
+  const result=await db.send(new QueryCommand({TableName:entityTable('registrations'),IndexName:'InstitutionRegistrationsIndex',KeyConditionExpression:'institutionId = :institution',ExpressionAttributeValues:{':institution':institution},Limit:limit}));
   return json(200,{records:(result.Items||[]).filter(x=>x.institutionId===institution).map(x=>({registrationId:x.registrationId,externalRegistrationId:x.externalRegistrationId,status:x.status,importStatus:x.importStatus,submittedAt:x.submittedAt})),hasMore:!!result.LastEvaluatedKey,source:'m9-internal-only'});
  }
  return json(404,{error:'Unknown M9 onboarding endpoint.'});

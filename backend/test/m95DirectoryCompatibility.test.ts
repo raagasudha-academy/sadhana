@@ -55,3 +55,29 @@ test('shadow mode returns legacy response while reading M9; pilot returns M9 and
   assert.equal(await route({...context,method:'PATCH'}),undefined);
  }finally{if(prior===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=prior;}
 });
+
+test('M9 class projection is institution-scoped and preserves legacy contract',async()=>{
+ const {presentM9Classes}=await import('../src/m95DirectoryCompatibility.ts');
+ const raagaClass={classId:'C1',institutionId:'raaga',legacyPayload:{PK:'CLASS#C1',SK:'META',id:'C1',institution:'raaga',name:'Vocal',version:1}};
+ const srutiClass={classId:'C2',institutionId:'sruti',legacyPayload:{PK:'CLASS#C2',SK:'META',id:'C2',institution:'sruti',name:'Dance',version:1}};
+ const result=presentM9Classes('raaga',viewer,[raagaClass,srutiClass]);
+ assert.deepEqual(result.records,[{id:'C1',institution:'raaga',name:'Vocal',version:1}]);
+ assert.equal(result.more,false);
+ assert.throws(()=>presentM9Classes('sruti',viewer,[raagaClass,srutiClass]),/access/i);
+});
+test('class directory shadows only and never switches reads to M9 in pilot',async()=>{
+ const prev=process.env.M95_COMPAT_MODE;
+ const {presentM9Classes}=await import('../src/m95DirectoryCompatibility.ts');
+ const raagaClass={classId:'C1',institutionId:'raaga',legacyPayload:{id:'C1',institution:'raaga',name:'Vocal'}};
+ const mockReader:any={classes:async(inst:any,claims:any)=>presentM9Classes(inst,claims,[raagaClass])};
+ const route=makeM95DirectoryRoutes(()=>mockReader,undefined,undefined,undefined,async()=>({records:[{id:'C1',institution:'raaga',name:'Vocal'}],more:false}));
+ const context:any={parts:['classes'],method:'GET',query:{institution:'raaga'},inst:'raaga',claims:viewer,event:{},groups:[]};
+ try{
+  process.env.M95_COMPAT_MODE='shadow';
+  assert.equal(JSON.parse((await route(context))!.body).records[0].name,'Vocal');
+  process.env.M95_COMPAT_MODE='pilot';
+  assert.equal(await route(context),undefined);
+  process.env.M95_COMPAT_MODE='off';
+  assert.equal(await route(context),undefined);
+ }finally{if(prev===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=prev;}
+});

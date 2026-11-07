@@ -1,7 +1,8 @@
 /** Deploy as a DISTINCT, throttled public Lambda/API, never on the JWT-only Sadhana API. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient,PutCommand} from '@aws-sdk/lib-dynamodb';
+import {DynamoDBDocumentClient,PutCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {validateSrutiSubmission,newSrutiIntakeRecord} from './m91SrutiIntakeCore.mjs';
+import {srutiWriterTables} from './m91SrutiMirrorPolicy.mjs';
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}));
 const origins=new Set(['https://sruti.co.uk','https://www.sruti.co.uk']);
 const response=(statusCode:number,body:unknown,origin:string)=>({statusCode,headers:{'content-type':'application/json','cache-control':'no-store',...(origins.has(origin)?{'access-control-allow-origin':origin,'vary':'Origin'}:{})},body:JSON.stringify(body)});
@@ -17,9 +18,30 @@ export async function handler(event:any){
   const raw=JSON.parse(event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body);
   if(raw?.website?.company) return response(202,{received:true},origin); // honeypot; no persistence
   const payload=validateSrutiSubmission(raw);
-  const record=newSrutiIntakeRecord(payload);
-  await db.send(new PutCommand({TableName:'sadhana-dev-m9-registrations',Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}));
-  return response(202,{received:true,registrationId:record.registrationId},origin);
+  // Six random hexadecimal digits match Raagasudha's concise receipt style.
+  // Every candidate is reserved by a conditional database write; retry on a
+  // real ID collision rather than overwrite a previous family's registration.
+  // Optional atomic mirror keeps the legacy admin view and the final table
+  // consistent during transition. Disabled by default; never writes just one
+  // of the two tables when the mirror setting is active.
+  const writer=srutiWriterTables(process.env);
+  for (let attempt=0;attempt<8;attempt++) {
+   const record=newSrutiIntakeRecord(payload);
+   try {
+    if(writer.mirror){
+     await db.send(new TransactWriteCommand({TransactItems:[writer.primary,writer.mirror].map(TableName=>({Put:{TableName,Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}}))}));
+    }else{
+     await db.send(new PutCommand({TableName:writer.primary,Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}));
+    }
+    return response(202,{received:true,registrationId:record.registrationId},origin);
+   } catch (error:any) {
+    if (error?.name==='ConditionalCheckFailedException') continue;
+    // A transaction may be cancelled for reasons other than an ID collision.
+    // In mirror mode we fail closed rather than silently accept a partial write.
+    throw error;
+   }
+  }
+  throw new Error('Registration reference allocation exhausted.');
  }catch(e:any){
   if(e?.status===400||e instanceof SyntaxError)return response(400,{error:'Please check your registration details.'},origin);
   console.error('Sruti intake unavailable', {errorType:e?.name||'Error'}); // never log PII

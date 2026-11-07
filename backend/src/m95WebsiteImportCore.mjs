@@ -1,5 +1,6 @@
 /** Pure, side-effect-free M9 website-import planner. No AWS or Cognito calls. */
 import {createHash} from 'node:crypto';
+import {academyRoll} from './m10AcademyRoll.mjs';
 const fail=(message)=>{throw Object.assign(new Error(message),{status:409});};
 const obj=(x)=>x&&typeof x==='object'&&!Array.isArray(x)?x:{};
 const string=(x)=>typeof x==='string'?x.trim():'';
@@ -46,11 +47,11 @@ export function prepareWebsiteImport(registration, institution, actorSub, counte
    const phone=use('phone')?string(primary.phone):string(p.phone);
    if(adult&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!/^\+[1-9]\d{7,14}$/.test(phone)))fail('Adult learner needs valid contact details.');
    const number=String(counters.student+i+1).padStart(3,'0');
-   const independent=students.length===1&&adult&&!(Array.isArray(p.roles)&&p.roles.includes('guardian'));
-   const person={personId:studentId,...nameParts(p.fullName),personTypes:sourceId===primary.personId?['guardian','student']:['student'],institutionIds:[institution],familyId,email:email.toLowerCase(),phone,address,status:'active',studentProfile:{dateOfBirth:p.dateOfBirth,foodAllergies:allergies,...(institution==='sruti'&&s.srutiLearning?{srutiLearning:s.srutiLearning}:{}),rollNumbers:{[institution]:`${independent?'000':familyNumber}-${number}`},preferredLocationId:string(s.preferredLocationId||r.preferredLocationId)||undefined,contactPreferences:contact,photoSource:s.photo?{registrationId:id,personId:sourceId}:undefined},createdAt:now,updatedAt:now,version:1,sourceWebsiteRegistrationId:id};
+   const person={personId:studentId,...nameParts(p.fullName),personTypes:sourceId===primary.personId?['guardian','student']:['student'],institutionIds:[institution],familyId,email:email.toLowerCase(),phone,address,status:'active',studentProfile:{dateOfBirth:p.dateOfBirth,foodAllergies:allergies,...(institution==='sruti'&&s.srutiLearning?{srutiLearning:s.srutiLearning}:{}),rollNumber:academyRoll(institution,counters.student+i+1),rollNumbers:{[institution]:academyRoll(institution,counters.student+i+1)},preferredLocationId:string(s.preferredLocationId||r.preferredLocationId)||undefined,contactPreferences:contact,photoSource:s.photo?{registrationId:id,personId:sourceId}:undefined},createdAt:now,updatedAt:now,version:1,sourceWebsiteRegistrationId:id};
    if(sourceId===primary.personId)Object.assign(peopleItems[0],person);else peopleItems.push(person);
    records.push({sourcePersonId:sourceId,studentId,rollNumber:person.studentProfile.rollNumbers[institution]});
    guards.push({counterId:`IDENTITY#${institution}#${identityHash}`,institutionId:institution,sequenceType:'IDENTITY_GUARD',personId:studentId,registrationId:id,createdAt:now});
+   guards.push({counterId:`ROLL_GLOBAL#${person.studentProfile.rollNumber}`,institutionId:institution,sequenceType:'ROLL_UNIQUE',personId:studentId,registrationId:id,createdAt:now});
    if(sourceId!==primary.personId){
     const linkId=guardianLinkId(institution,guardianId,studentId);
     links.push({linkId,recordType:'guardian-access',institutionId:institution,familyId,personId:guardianId,guardianPersonId:guardianId,studentId,relationship:'unverified',accessStatus:'pending',relationshipVerified:false,sourceWebsiteRegistrationId:id,createdAt:now,updatedAt:now,version:1});

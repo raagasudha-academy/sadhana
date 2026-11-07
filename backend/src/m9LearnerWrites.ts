@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** Opt-in M9 practice and RSVP writes: only M9 tables, with fresh identity checks.
  * Leave disabled on the existing deployed Lambda until isolated end-to-end tests pass.
  */
@@ -11,7 +12,7 @@ import {matchingCognitoPerson,authorisedStudent} from './m9FinalAccessCore.mjs';
 import {validatePractice,validateRsvp,isActiveEnrolment,canRsvp} from './m9LearnerWriteRules.mjs';
 
 export interface M9LearnerWriteDb {send(command:any):Promise<any>}
-const table=(domain:string)=>`sadhana-dev-m9-${domain}`;
+const table=(domain:string)=>entityTable(domain);
 const verifiedInstitution=(inst:InstitutionId)=>{if(inst!=='raaga'&&inst!=='sruti')throw httpError(400,'Choose an academy');return inst;};
 const validateId=(id:string)=>{if(typeof id!=='string'||!/^[-_a-zA-Z0-9]{4,150}$/.test(id))throw httpError(400,'Invalid learner identifier');return id;};
 const today=()=>{const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const field=(name:string)=>parts.find(p=>p.type===name)?.value||'';return `${field('year')}-${field('month')}-${field('day')}`;};
@@ -67,7 +68,7 @@ export function makeM9LearnerWrites(db:M9LearnerWriteDb){
   if(!row||row.institutionId!==inst||row.status==='archived')throw httpError(403,'Class does not belong to the academy');
  }
  async function savePractice(inst:InstitutionId,claims:Claims,studentId:string,body:any,practiceId?:string){
-  if(process.env.M9_LEARNER_WRITES!=='enabled')throw httpError(503,'M9 learner writes disabled');
+  if(process.env.SADHANA_ENTITY_TABLE_SET==='final' ? process.env.SADHANA_FINAL_LEARNER_WRITES!=='enabled' : process.env.M9_LEARNER_WRITES!=='enabled')throw httpError(503,'Learner writes disabled');
   const {actor,checks}=await identity(inst,claims,studentId);
   const input=validatePractice(body,isWithinPracticeWindow);
   await ensureClass(inst,input.classId);
@@ -90,7 +91,7 @@ export function makeM9LearnerWrites(db:M9LearnerWriteDb){
   return {record:{id,studentId,classId:input.classId,date:input.date,minutes:input.minutes,topic:input.topic,comments:input.comments,version:item.version}};
  }
  async function saveRsvp(inst:InstitutionId,claims:Claims,studentId:string,body:any){
-  if(process.env.M9_LEARNER_WRITES!=='enabled')throw httpError(503,'M9 learner writes disabled');
+  if(process.env.SADHANA_ENTITY_TABLE_SET==='final' ? process.env.SADHANA_FINAL_LEARNER_WRITES!=='enabled' : process.env.M9_LEARNER_WRITES!=='enabled')throw httpError(503,'Learner writes disabled');
   const {actor,checks}=await identity(inst,claims,studentId);
   const input=validateRsvp(body);
   const session=await get('sessions','sessionId',input.sessionId);

@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** Effective-dated M9 series-rule preview/create. Does not rewrite dated occurrences. */
 import {createHash, randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
@@ -9,10 +10,16 @@ import type {SeriesRule} from './scheduleSeries.ts';
 import type {ScheduleRecord} from './scheduleModel.ts';
 
 export type M95SeriesClient={send:(command:any)=>Promise<any>};
-const TABLE={classes:'sadhana-dev-m9-classes',sessions:'sadhana-dev-m9-sessions',people:'sadhana-dev-m9-people',audit:'sadhana-dev-m9-audit'};
+// Resolve lazily so a missing final-mode acknowledgement cannot fail Lambda cold start.
+const TABLE={get classes(){return entityTable('classes')},get sessions(){return entityTable('sessions')},get people(){return entityTable('people')},get audit(){return entityTable('audit')}};
 const MAX_SCAN=5000;
 const idPattern=/^[-a-zA-Z0-9]{4,90}$/;
 function enabled(){
+ if(process.env.SADHANA_ENTITY_TABLE_SET==='final'){
+  if(process.env.SADHANA_FINAL_SERIES_WRITES!=='enabled'||process.env.SADHANA_ENTITY_FINAL_ACK!=='enabled'||process.env.SADHANA_DATA_MODE==='split')
+   throw httpError(503,'Final series writes are disabled.');
+  return;
+ }
  if(process.env.M95_COMPAT_MODE!=='pilot'||process.env.M95_CALENDAR_WRITES!=='enabled'||process.env.M95_SERIES_WRITES!=='enabled')throw httpError(503,'M9 series edit pilot disabled.');
 }
 function ruleId(institution:string,classId:string,from:string){

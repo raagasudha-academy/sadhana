@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** M9 calendar pilot writes: isolated from the legacy table router. */
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
@@ -12,7 +13,7 @@ const allowedFields=new Set(['recordType','name','programme','teacher','mode','l
 const idPattern=/^[-a-zA-Z0-9]{4,90}$/;
 const MAX_RENAME_SESSIONS=98; // 100 DynamoDB transaction actions minus class and audit.
 const MAX_SCAN_RECORDS=6000;
-const table=(entity:'classes'|'sessions'|'events'|'audit')=>`sadhana-dev-m9-${entity}`;
+const table=(entity:string)=>entityTable(entity);
 const primaryKey=(kind:string)=>kind==='class'?'classId':kind==='special-event'?'eventId':'sessionId';
 const entityFor=(kind:string)=>kind==='class'?'classes':kind==='special-event'?'events':'sessions';
 function cleanNullIndexes(item:Record<string,unknown>){
@@ -68,6 +69,11 @@ function audit(institution:string,action:string,id:string,actor:string,now:strin
   timestamp:now,resourceType:'schedule',resourceId:id,schemaVersion:1};
 }
 function checkPilot(){
+ if(process.env.SADHANA_ENTITY_TABLE_SET==='final'){
+  if(process.env.SADHANA_FINAL_CALENDAR_WRITES!=='enabled'||process.env.SADHANA_ENTITY_FINAL_ACK!=='enabled'||process.env.SADHANA_DATA_MODE==='split')
+   throw httpError(503,'Final calendar writes are disabled.');
+  return;
+ }
  if(process.env.M95_COMPAT_MODE!=='pilot'||process.env.M95_CALENDAR_WRITES!=='enabled')throw httpError(503,'M9 calendar write pilot is disabled.');
 }
 export function makeM95CalendarWriter(client:CalendarClient){

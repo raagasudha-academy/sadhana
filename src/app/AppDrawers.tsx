@@ -28,7 +28,7 @@ export function sadhanaConfirmDialog(message:string):Promise<boolean>{
  });
 }
 
-export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEdit, canDelete }: any) {
+export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEdit, canDelete, isTeacher=false }: any) {
  const [editing,setEditing]=useState(false);
  const [scope,setScope]=useState<'one'|'following'>('one');
  const [futureSelection,setFutureSelection]=useState<'all'|'selected'>('all');
@@ -51,14 +51,14 @@ export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEd
    status:session.original?.status??'confirmed',
  });
  useEffect(()=>{
-   if(!editing||!cloud||!canEdit||!['sruti','raaga'].includes(session.institution))return;
+   if(!editing||!cloud||!canEdit||isTeacher||!['sruti','raaga'].includes(session.institution))return;
    let active=true;
    Promise.all([cloud.api.listTeachers(session.institution),cloud.api.listTeacherLinks(session.institution)])
     .then(([directory,assignment])=>{
       if(active){setTeachers(directory.records.filter((t:any)=>t.active));setLinks(assignment.rows);}
     }).catch((e:Error)=>{if(active)setError(`Cannot load registered teachers: ${e.message}`);});
    return()=>{active=false;};
- },[editing,cloud?.api,canEdit,session.institution]);
+ },[editing,cloud?.api,canEdit,isTeacher,session.institution]);
  // Never silently pin a session to a teacher when only its time/location is edited.
  // Unlinked names stay unselected until the admin explicitly chooses a registry profile.
  const selectedTeacherId=pickedTeacherId??(session.original?.teacherId||'');
@@ -78,7 +78,7 @@ export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEd
  };
  const [bulkReview,setBulkReview]=useState<any>(null);
  const deleteFuture=async()=>{
-  if(!cloud||!canDelete||!session.classId)return;
+  if(!cloud||!canDelete||isTeacher||!session.classId)return;
   setBusy(true);setError('');
   try{
    const until=futureSelection==='selected'?effectiveUntil:'9999-12-31';
@@ -97,6 +97,7 @@ export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEd
    if(!cloud||!session.sadhana||!canEdit)return;
    setBusy(true);setError('');
    try{
+     if(isTeacher&&scope==='following')throw new Error('Teachers may edit individual sessions only.');
      if(scope==='following'&&futureSelection==='selected'&&(!effectiveUntil||effectiveUntil<effectiveFrom))throw new Error('Choose an end date on or after the start date.');
      const teacherChanged=form.teacher!==original.teacher;
      const newLink=session.recordType==='class-session'&&!!selectedTeacherId&&selectedTeacherId!==(original.teacherId||'');
@@ -148,7 +149,7 @@ export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEd
  <div className={`drawer-cover ${session.institution}`}><CalendarDays size={25}/><h2>{session.name}</h2><Pill tone={session.status==='Cancelled'?'red':'green'}>{session.status}</Pill></div>
  {session.attentionItems?.length>0&&<div className="sadhana-record-issues sadhana-drawer-issues" role="note"><CircleAlert size={18}/><div><strong>Session needs attention</strong><ul>{session.attentionItems.map((issue:string)=><li key={issue}>{issue}</li>)}</ul><small>Based on the saved session. Refresh after fixing to clear this warning.</small></div></div>}
  {editing?<form className="reg-form sadhana-session-editor" onSubmit={e=>{e.preventDefault();void save();}}>
-  {session.recordType==='class-session'&&<label className="sadhana-edit-field">
+  {session.recordType==='class-session'&&!isTeacher&&<label className="sadhana-edit-field">
    <span>Which sessions should change?</span>
    <select aria-label="Which sessions should change?" value={scope} onChange={e=>{setScope(e.target.value as 'one'|'following');resetImpact();setError('');setPendingReview(null);}}>
      <option value="one">Just this session</option>
@@ -174,7 +175,7 @@ export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEd
     <input type="date" required min={effectiveFrom} value={effectiveUntil} onChange={e=>{setPendingReview(null);setEffectiveUntil(e.target.value);resetImpact();}}/>
   </label>}
  {(['name','programme','teacher','mode','location'] as const).map(k=><label key={k} className="sadhana-edit-field"><span>{k==='teacher'?'Registered teacher':k}</span>
- {k==='teacher'&&session.recordType==='class-session'?<select aria-label="Registered teacher for this assignment" value={selectedTeacherId} onChange={e=>{
+ {k==='teacher'&&isTeacher?<input readOnly value={form.teacher||''}/>:k==='teacher'&&session.recordType==='class-session'?<select aria-label="Registered teacher for this assignment" value={selectedTeacherId} onChange={e=>{
     const t=teachers.find(t=>t.id===e.target.value);
     setPendingReview(null);setPickedTeacherId(t?.id||'');update('teacher',t?.displayName||'');
   }}><option value="">{form.teacher?`Unlinked: ${form.teacher}`:'Choose registered teacher'}</option>
@@ -185,14 +186,14 @@ export function SessionDrawer({ session, onClose, onClass, cloud, onSaved, canEd
  {session.allDay?<label className="sadhana-edit-field"><span>End date (exclusive)</span><input type="date" required value={form.endDate} onChange={e=>update('endDate',e.target.value)}/></label>:<div className="sadhana-edit-time-row"><label className="sadhana-edit-field"><span>Start time</span><input type="time" required value={form.startTime} onChange={e=>update('startTime',e.target.value)} /></label><label className="sadhana-edit-field"><span>End time</span><input type="time" required value={form.endTime} onChange={e=>update('endTime',e.target.value)} /></label></div>}
  <label className="sadhana-edit-field"><span>Status</span><select value={form.status} onChange={e=>update('status',e.target.value)}><option value="confirmed">Confirmed</option><option value="tentative">Tentative</option><option value="cancelled">Cancelled</option></select></label>
  {scope==='one'&&session.dateISO<new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())&&<div className="sadhana-inline-note"><Info size={17}/><span>This is a past session. Edits here affect only this date.</span></div>}
- {scope==='following'&&<div className="sadhana-inline-note"><Info size={17}/><span>{futureSelection==='all'?`Changes will apply from ${effectiveFrom||'the selected date'} onwards. Earlier sessions are preserved.`:`Changes would apply from ${effectiveFrom||'the selected date'} through ${effectiveUntil||'the end date'}, inclusive. Earlier and later sessions retain their otherwise applicable assignments.`}</span></div>}
+ {!isTeacher&&scope==='following'&&<div className="sadhana-inline-note"><Info size={17}/><span>{futureSelection==='all'?`Changes will apply from ${effectiveFrom||'the selected date'} onwards. Earlier sessions are preserved.`:`Changes would apply from ${effectiveFrom||'the selected date'} through ${effectiveUntil||'the end date'}, inclusive. Earlier and later sessions retain their otherwise applicable assignments.`}</span></div>}
  {scope==='following'&&impact&&<div className="sadhana-inline-review" role="status"><Info size={18}/><div><strong>Review affected sessions</strong><p>{impact.changedCount} of {impact.totalSessions} stored sessions would change; {impact.protectedCount} protected by individual overrides. {impact.overlappingRules.length} overlapping later rules found.</p>{impact.protectedSessionIds.length>0&&<p>Protected session IDs: {impact.protectedSessionIds.join(', ')}</p>}{impact.overlappingRules.length>0&&<p>Other rules start: {impact.overlappingRules.map((r:any)=>r.effectiveFrom).join(', ')}. Later rules can supersede this change.</p>}<button type="button" className="sadhana-review-back" onClick={resetImpact}>Back to editing</button></div></div>}
  {pendingReview&&<div className="sadhana-inline-review" role="status" aria-live="polite"><CircleAlert size={19}/><div><strong>Review before saving</strong><p>{pendingReview==='historical'?`Correct only the session on ${session.dateISO}? Other dated sessions and rules will remain unchanged.`:`Link ${selectedTeacher?.displayName||'this teacher'} to the existing rule from ${rule?.effectiveFrom||effectiveFrom}? No sessions will be rewritten.`}</p><button className="sadhana-review-back" type="button" onClick={()=>setPendingReview(null)}>Back to editing</button></div></div>}
  {bulkReview&&scope==='following'&&<div className="sadhana-inline-review" role="status"><CircleAlert size={18}/><div><strong>Review {bulkReview.count} sessions for permanent deletion</strong><p>{bulkReview.dates.map((x:any)=>x.date).join(' · ')}</p><p>Only stored sessions for this master class are selected. The master class and rules remain.</p></div></div>}
  {error&&<p className="sadhana-sync-error" role="alert">{error}</p>}
  <div className="reg-modal-actions" style={{display:'flex',flexWrap:'wrap',alignItems:'center',justifyContent:'flex-end',gap:10}}>
  <button className="reg-secondary" style={{flex:'0 0 auto',width:'auto',margin:0}} type="button" onClick={()=>{setEditing(false);setPendingReview(null);}}>Cancel</button>
- {canDelete&&session.recordType==='class-session'&&<button style={{flex:'0 0 auto',width:'auto',margin:0}} type="button" className="reg-danger" disabled={busy} onClick={()=>void (scope==='following'?deleteFuture():deleteOne())}>{scope==='following'?(bulkReview?'Confirm delete future':'Delete future sessions'):'Delete session'}</button>}
+ {canDelete&&session.recordType==='class-session'&&<button style={{flex:'0 0 auto',width:'auto',margin:0}} type="button" className="reg-danger" disabled={busy} onClick={()=>void (!isTeacher&&scope==='following'?deleteFuture():deleteOne())}>{scope==='following'?(bulkReview?'Confirm delete future':'Delete future sessions'):'Delete session'}</button>}
  <button style={{flex:'0 0 auto',width:'auto',margin:0}} className="reg-primary" type="submit" disabled={busy||(scope==='following'&&futureSelection==='selected'&&(!effectiveUntil||effectiveUntil<effectiveFrom))}>{busy?'Saving…':pendingReview==='historical'?'Confirm correction':pendingReview==='dated-link'?'Confirm teacher link':scope==='following'&&impact?'Confirm recurring change':scope==='following'?'Preview future changes':'Save session'}</button></div>
  <p className="reg-footnote">{scope==='following'?(futureSelection==='all'?'Teacher and time changes apply from the chosen date until replaced by a later rule.':'Only sessions within the chosen inclusive date range are affected; outside it the applicable recurring schedule resumes.'):'Other sessions stay unchanged.'}</p>
  </form>:<><div className="drawer-info"><InfoRow name="Date">{ukDate(session.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</InfoRow><InfoRow name="Time">{session.allDay?'All day':`${displayTime(session.time)} – ${displayTime(session.endTime)} UK`}</InfoRow><InfoRow name="Programme">{session.programme||'—'}</InfoRow><InfoRow name="Teacher">{session.teacher}</InfoRow><InfoRow name="Delivery">{session.mode}</InfoRow><InfoRow name="Venue">{session.venue}</InfoRow>{session.venueId&&<InfoRow name="Address">{session.venueAddress}</InfoRow>}</div><div className="drawer-note"><Info size={17}/><span>{session.sadhana?'Stored in Sadhana DynamoDB. Individual sessions can be corrected without changing the rest of the timetable.':'Local-only record. Use the Sadhana-owned timetable for persistent edits.'}</span></div>{session.sadhana&&cloud&&canEdit?<button className="primary-button wide" onClick={()=>setEditing(true)}>Edit this session <ArrowRight size={16}/></button>:!session.source&&<button className="primary-button wide" onClick={()=>onClass(session)}>Open class profile <ArrowRight size={16}/></button>}</>}

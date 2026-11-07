@@ -17,13 +17,18 @@ export function makeM95DirectoryRoutes(
  getVenues?:LegacyVenueLookup,
  legacyTeachers:typeof listTeachers=listTeachers,
  legacyTeacherMe:typeof myTeacherIdentity=myTeacherIdentity,
+ getClasses?:LegacyVenueLookup,
 ):DomainRoute{
  return async({parts,method,query,inst,claims})=>{
   const mode=process.env.M95_COMPAT_MODE;
   if((mode!=='shadow'&&mode!=='pilot')||method!=='GET')return undefined;
   const isTeachers=parts[0]==='teachers'&&(parts.length===1||(parts.length===2&&parts[1]==='me'));
   const isVenues=parts[0]==='venues'&&parts.length===1;
-  if(!isTeachers&&!isVenues)return undefined;
+  const isClasses=parts[0]==='classes'&&parts.length===1;
+  if(!isTeachers&&!isVenues&&!isClasses)return undefined;
+  // Until M9 class writes and enrolment integrity are migrated, class reads
+  // must never diverge from the legacy authoritative store. Shadow only.
+  if(isClasses&&mode!=='shadow')return undefined;
   const institution=query.institution??inst;
   if(institution!=='raaga'&&institution!=='sruti')throw httpError(400,'Choose a valid institution.');
   const scope=institution;
@@ -40,6 +45,13 @@ export function makeM95DirectoryRoutes(
    const old=await legacyTeachers(scope,claims);
    try{const next=await getReader().teachers(scope,claims);console.info('M9 shadow teacher directory',{institution:scope,same:sameDirectoryRows(old.records,next.records),legacyCount:old.records.length,m9Count:next.records.length});}
    catch(e){console.warn('M9 shadow teacher directory unavailable',{institution:scope,errorName:(e as Error)?.name});}
+   return json(200,old);
+  }
+  if(isClasses){
+   if(!getClasses)throw Error('M95_DIRECTORY_CLASS_LOOKUP_MISSING');
+   const old=await getClasses(scope,claims);
+   try{const next=await getReader().classes(scope,claims);console.info('M9 shadow class directory',{institution:scope,same:sameDirectoryRows(old.records,next.records),legacyCount:old.records.length,m9Count:next.records.length});}
+   catch(e){console.warn('M9 shadow class directory unavailable',{institution:scope,errorName:(e as Error)?.name});}
    return json(200,old);
   }
   if(!getVenues)throw Error('M95_DIRECTORY_VENUE_LOOKUP_MISSING');

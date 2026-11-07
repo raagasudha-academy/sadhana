@@ -57,7 +57,7 @@ export function fieldsOnly(body: unknown,keys: readonly string[]): Draft {
 }
 export const ALLOWED_FIELDS: Record<ResourceName,readonly string[]>={
   families:['parentName','phone','createdIn'],
-  students:['name','phone','familyId','registrationType','adultConfirmed','createdIn'],
+  students:['name','email','phone','familyId','registrationType','adultConfirmed','createdIn'],
   classes:['institution','name','teacher','teacherUserId','day','time','duration','mode','venueId','startDate','endDate'],
   venues:['name','location','address','postcode','notes'],
   enrolments:['institution','studentId','classId','startDate','endDate'],

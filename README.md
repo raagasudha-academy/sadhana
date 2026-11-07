@@ -1,47 +1,43 @@
-# M9.1 Sruti public intake deployment — isolated-first
+# Sadhana final-cutover release gate — source review (7 November 2026)
 
-This is an infrastructure patch **to apply on your Mac**, not a claim that AWS has been changed. It depends on the previously installed `backend/src/m91SrutiIntakePublic.ts` and `backend/src/m91SrutiIntakeCore.mjs`.
+This is an **additive, read-only testing kit**. It does not deploy or change AWS and **does not delete tables**. It is not proof that the database retirement is finished.
 
-## What it deploys
+## What the provided source establishes
+- `backend/src/tableRouter.ts` returns its DynamoDB request unchanged outside split mode. Legacy modules can therefore still target `SADHANA_TABLE_NAME` if reachable.
+- Main `backend/src/lambda.ts` invokes final handlers ahead of `finalOnlyGate` and blocks fallback in final mode.
+- `backend/src/m10FinalOperationsEnrolmentWrite.mjs` handles DELETE via `endEnrolment`.
+- Several final handlers are explicitly behind `SADHANA_FINAL_*` switches and intentionally return HTTP 503 when disabled. Unknown/unmigrated routes also intentionally return 503. Neither source presence nor a running app makes every client method usable.
+- `sadhana-m9-isolated-e2e` is still not configured for final mode and references `sadhana-dev-main`. This is a retirement blocker pending independent IAM/runtime evidence.
 
-A **standalone** AWS API Gateway **REST** API at `/intake-test/register`, connected to the Sruti-only Lambda. It is completely separate from the existing JWT-protected M9 Lambda and API. IAM grants only `dynamodb:PutItem` to the *existing* `sadhana-dev-m9-registrations` table, no reads, scans, updates or deletes. Includes per-stage throttling (2 requests/sec sustained; burst 5), AWS WAF Regional CommonRuleSet and per-IP rate blocking (100 requests per evaluation window), HTTPS, 14-day Lambda log retention with no request-body logging, same-origin CORS allowlist and a disabled-by-default intake feature gate. The public frontend is not modified.
-
-**Cost alert:** A REST API, AWS WAF ACL/rules, Lambda and logs have usage-based charges. WAF provides basic common-attack and IP-rate protections, not full bot verification or CAPTCHA. CORS and the browser Origin header alone do **not** authenticate requests; abuse is still possible. Restrict access or add stronger challenge protection before a high-volume production opening. WAF association may take a few minutes to propagate.
-
-## On Mac — no writes by default
-
-```bash
+## Install (from ~/Downloads after downloading kit)
+```
 cd ~/Dev/sadhana
-unzip -o ~/Downloads/sadhana-m91-sruti-public-deployment.zip -d .
-bash scripts/deploy-sruti-public.sh
+unzip -oq ~/Downloads/sadhana-final-release-gate.zip -d .
+cd backend
+node --test test/finalCutoverSafety.test.mjs
+cd ..
+.venv-aws-test/bin/python backend/scripts/final_route_inventory.py --root . --out ~/Downloads/sadhana-final-route-inventory.json
 ```
 
-Verify account `627821644317`, region `us-east-1`, existing M9 registrations table, stack name, and costs. **Then intentionally create the isolated disabled stack:**
-
-```bash
-bash scripts/deploy-sruti-public.sh --apply
-bash scripts/test-sruti-public.sh
+## HTTP smoke: no mutations
+Use your actual portal origin. CORS is enforced by API Gateway rather than by the Lambda handler.
 ```
-
-Expected unauthenticated OPTIONS 204, POST 503 (intake disabled), GET 405, foreign-origin POST 403. Smoke creates **no records**.
-
-The `--apply` command needs AWS permissions to create API Gateway REST, WAFv2 Regional, Lambda, IAM role, CloudWatch logs, CloudFormation stack and one private encrypted deployment S3 bucket. This is scoped to a new stack, and does **not** modify the protected API or existing DynamoDB items.
-
-## Controlled next step after security approval
-
-```bash
-bash scripts/deploy-sruti-public.sh --enable
-bash scripts/test-sruti-public.sh
+.venv-aws-test/bin/python backend/scripts/final_live_smoke.py --origin https://YOUR-REAL-PORTAL-ORIGIN --institution sruti
 ```
+Authenticated checks are optional and should be run separately for each role using access tokens stored locally in a permission-restricted file (`chmod 600`). Never paste a token into chat or store it in Git. The script only calls GET and OPTIONS. A status of 403 is only a permitted response for role-specific operations if the given role does not have access; therefore role scenarios need separate expected-access assertions before sign-off.
 
-When enabled, malformed POST becomes 400; known foreign origins are rejected 403. Before enabling the live Sruti site, send **one deliberately synthetic test registration**, validate its `SR-...` record as pending through the protected admin route, review/approve, preview and execute its import with limited gates, and confirm no guardian access is granted. Document removal/reset of the synthetic records. Test all three registration modes, browser CORS, retry/duplicate handling, and monitoring. Only after that, add GitHub Pages secret `VITE_SRUTI_REGISTRATION_API_URL` pointing to the verified public endpoint and redeploy Sruti. The website currently remains non-submitting.
+## Fail-closed readiness
+```
+.venv-aws-test/bin/python backend/scripts/retirement_readiness.py --report ~/Downloads/sadhana-legacy-retirement-report.json
+```
+This reports blockers and exits nonzero; it cannot authorise deletion.
 
-Do **not** enable `M95_WEBSITE_IMPORT_WRITES` or `M91_SRUTI_REVIEW_WRITES` for production without isolated E2E approval. Keep the strict M9 fence and existing production Lambda untouched.
+## Remaining required for actual retirement
+1. Capture a complete route and role matrix (including API calls outside `sadhanaClient.ts`) and run authorised GETs with proper role-specific expectations.
+2. Run **isolated, controlled write tests** for POST/PATCH/PUT/DELETE, not against irreplaceable live student data.
+3. Verify preflight against the actual production UI origin and headers, at API Gateway.
+4. Verify all active writers (including external intake, jobs, WhatsApp/Charu, test Lambdas) have no reads/writes to 24 candidate tables. Disable or migrate any dependent workloads.
+5. Perform a real restore of at least the representative backups into **new temporary table names**, inspect keys/items/indexes; do not overwrite a permanent table.
+6. Run the full application suite before and after each approved retirement batch. Only delete an individually approved table following separate, explicit authorisation.
 
-## Remaining M9.1 acceptance gates
-
-1. Live proof of isolated public intake with WAF, CORS, throttling, write-only IAM and negative tests; verify no PII logs.
-2. Sruti E2E: self, children, both, input validation, concurrent duplicate handling, review/version conflict, import, roll numbers, guardian pending access.
-3. Sruti administrator UX and notifications, plus Cognito invitations/verification and revocation E2E.
-4. Full-size MP3/M4A/MP4 homework media E2E, strict cross-institution authorization, audit and privacy review.
-5. Rollback rehearsal, target/legacy data integrity checks and deliberate controlled production cutover. No automatic cutover.
+**No deletion script is included deliberately.**

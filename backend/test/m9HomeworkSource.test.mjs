@@ -4,7 +4,7 @@ const route=readFileSync(new URL('../src/routes/m9HomeworkRoutes.ts',import.meta
 const lambda=readFileSync(new URL('../src/lambda.ts',import.meta.url),'utf8');
 test('M9 homework storage never uses legacy PK/SK addresses',()=>{
  assert.doesNotMatch(src,/SADHANA_TABLE_NAME|makeRoutedClient|OPS#|\bPK\s*:|\bSK\s*:/);
- assert.match(src,/sadhana-dev-m9-/);
+ assert.match(src,/entityTable\(entity\)/);
  assert.match(src,/family-links/);assert.match(src,/enrolments/);
 });
 test('homework adapter runs before legacy learning routes',()=>{

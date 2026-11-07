@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** Isolated M9 homework and submission storage. No legacy PK/SK reads or writes. */
 import {randomUUID} from 'node:crypto';
 import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand} from '@aws-sdk/client-s3';
@@ -11,8 +12,11 @@ import {matchingCognitoPerson,authorisedStudent} from './m9FinalAccessCore.mjs';
 import {validateHomeworkSchedule,isHomeworkOpenAt,isHomeworkReleased} from './homeworkPublishingPolicy.ts';
 
 export type HomeworkDB={send:(command:any)=>Promise<any>};
-const table=(entity:string)=>`sadhana-dev-m9-${entity}`;
+const table=(entity:string)=>entityTable(entity);
 const assignmentId=(v:unknown)=>typeof v==='string'&&/^HOMEWORK-[0-9a-f-]{36}$/i.test(v);
+const teacherMaterialId=(v:unknown)=>typeof v==='string'&&/^MATERIAL#[0-9a-f-]{36}$/i.test(v);
+const teacherMaterialType=(mime:unknown,size:unknown)=>typeof mime==='string'&&['image/jpeg','image/png','image/webp'].includes(mime)&&Number.isSafeInteger(size)&&Number(size)>0&&Number(size)<=5_000_000;
+const teacherMaterialExt=(mime:string)=>({'image/jpeg':'jpg','image/png':'png','image/webp':'webp'} as Record<string,string>)[mime];
 const acceptableId=(v:unknown)=>typeof v==='string'&&/^[-a-zA-Z0-9_]{4,150}$/.test(v);
 const isObject=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const allowFields=(v:Record<string,any>,fields:string[])=>Object.keys(v).every(k=>fields.includes(k));
@@ -21,6 +25,7 @@ const publicHomework=(h:any)=>({id:h.homeworkId,classId:h.classId,title:h.title,
 const publicSubmission=(s:any)=>({studentId:s.studentId,homeworkId:s.homeworkId,text:s.text||'',attachmentIds:s.attachmentIds||[],status:s.status,version:s.version||0,updatedAt:s.updatedAt||'',submittedAt:s.submittedAt||null,feedback:s.feedback||'',reviewedAt:s.reviewedAt||null});
 const nowIso=()=>new Date().toISOString();
 export type M9MediaIO={head:(bucket:string,key:string)=>Promise<any>,signPut:(bucket:string,key:string,mime:string,size:number,metadata:Record<string,string>)=>Promise<string>,signGet:(bucket:string,key:string)=>Promise<string>};
+const mediaEnabled=()=>process.env.SADHANA_ENTITY_TABLE_SET==='final' ? process.env.SADHANA_FINAL_HOMEWORK_MEDIA==='enabled' : process.env.M9_HOMEWORK_MEDIA==='enabled';
 const mediaBucket=()=>{const bucket=process.env.SADHANA_LEARNER_MEDIA_BUCKET;if(!bucket)throw httpError(503,'Private homework media bucket not configured');return bucket;};
 const mediaS3=new S3Client({requestChecksumCalculation:'WHEN_REQUIRED'});
 const realMediaIO:M9MediaIO={
@@ -140,7 +145,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
  // Upload receipts live in the existing M9 submissions table, under unique MEDIA-* keys.
  // They cannot appear as student submissions, and do not require a new table or legacy keys.
  async function mediaStart(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
-  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(!mediaEnabled())throw httpError(503,'M9 media integration disabled');
   if(!isObject(body)||!allowFields(body,['mime','size'])||typeof body.mime!=='string')throw httpError(400,'Invalid media request');
   const type=validateM9MediaType(body.mime,body.size);
   if(!type)throw httpError(400,'Unsupported file type or size');
@@ -154,7 +159,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   return {attachmentId:id,key:id,uploadUrl,expiresIn:300,headers:{'Content-Type':body.mime,'x-amz-meta-institution':inst,'x-amz-meta-student':studentId,'x-amz-meta-homework':homeworkId,'x-amz-meta-receipt':id}};
  }
  async function mediaFinish(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
-  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(!mediaEnabled())throw httpError(503,'M9 media integration disabled');
   if(!isObject(body)||!allowFields(body,['key'])||!m9MediaId(body.key))throw httpError(400,'Invalid attachment ID');
   const {checks}=await mediaAccess(inst,claims,studentId,homeworkId);
   const receipt=await get('submissions',body.key);
@@ -168,14 +173,14 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   return {attachmentId:receipt.submissionId,ready:true};
  }
  async function mediaLinks(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string){
-  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(!mediaEnabled())throw httpError(503,'M9 media integration disabled');
   await learner(inst,claims,studentId);await assignment(inst,studentId,homeworkId);
   const submission=await get('submissions',`SUBMISSION-${homeworkId}-${studentId}`);
   if(submission&&(submission.institutionId!==inst||submission.studentId!==studentId||submission.homeworkId!==homeworkId))throw httpError(403,'Submission access denied');
   return {records:await mediaDownloadRecords(inst,studentId,homeworkId,submission?.attachmentIds||[])};
  }
  async function staffMediaLinks(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string,studentId:string){
-  if(process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(!mediaEnabled())throw httpError(503,'M9 media integration disabled');
   await staff(inst,claims,classId);
   const h=await get('homework',homeworkId);
   if(!checkAssignment(inst,h)||h.classId!==classId)throw httpError(404,'Homework unavailable');
@@ -196,7 +201,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
  }
  async function saveSubmission(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
   if(!isObject(body)||!allowFields(body,['text','status','expectedVersion','attachmentIds'])||typeof body.text!=='string'||body.text.length>10000||!['draft','submitted'].includes(body.status)||!Number.isInteger(body.expectedVersion)||body.expectedVersion<0||!Array.isArray(body.attachmentIds))throw httpError(400,'Invalid submission');
-  if(body.attachmentIds.length&&process.env.M9_HOMEWORK_MEDIA!=='enabled')throw httpError(503,'M9 media integration disabled');
+  if(body.attachmentIds.length&&!mediaEnabled())throw httpError(503,'M9 media integration disabled');
   if(body.status==='submitted'&&!body.text.trim()&&!body.attachmentIds.length)throw httpError(400,'Enter a response or attach evidence before submitting');
   const {actor,checks}=await learner(inst,claims,studentId),{h,enrollmentCheck}=await assignment(inst,studentId,homeworkId);
   if(!isHomeworkReleased(h)||!isHomeworkOpenAt(h))throw httpError(409,'Homework is not currently open');
@@ -246,7 +251,112 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('submissions'),Item:updated,ConditionExpression:'#version=:expected AND institutionId=:inst AND #status=:submitted',ExpressionAttributeNames:{'#version':'version','#status':'status'},ExpressionAttributeValues:{':expected':old.version,':inst':inst,':submitted':'submitted'}}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkFeedbackSaved',id),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
   return {saved:true};
  }
- return {listClass,publish,edit,learnerList,getSubmission,saveSubmission,complete,teacherSubmissions,feedback,mediaStart,mediaFinish,mediaLinks,staffMediaLinks};
+ // Teacher materials are private S3 objects with canonical submission receipts.
+ // Only selected, independently verified receipts are exposed on a homework.
+ // This does not create a DynamoDB table or access legacy PK/SK records.
+ const materialBucket=()=>{
+  const bucket=process.env.SADHANA_HOMEWORK_MEDIA_BUCKET;
+  if(!bucket)throw httpError(503,'Private teacher material storage not configured');
+  return bucket;
+ };
+ async function teacherAssignment(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string){
+  const permission=await staff(inst,claims,classId);
+  if(!assignmentId(homeworkId))throw httpError(400,'Invalid homework identifier');
+  const h=await get('homework',homeworkId);
+  if(!checkAssignment(inst,h)||h.classId!==classId)throw httpError(404,'Assignment unavailable');
+  return {...permission,h};
+ }
+ async function beginTeacherMaterial(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string,body:any){
+  if(!mediaEnabled())throw httpError(503,'Teacher homework materials disabled');
+  if(!isObject(body)||!allowFields(body,['mime','size'])||!teacherMaterialType(body.mime,body.size))throw httpError(400,'Invalid material type or size');
+  const {checks,h}=await teacherAssignment(inst,claims,classId,homeworkId);
+  if(!isHomeworkOpenAt(h))throw httpError(409,'Assignment deadline passed');
+  const id=`MATERIAL#${randomUUID()}`,ext=teacherMaterialExt(body.mime);
+  const key=`teacher-materials/${inst}/${classId}/${homeworkId}/${id.slice(9)}.${ext}`;
+  const metadata={institution:inst,class:classId,homework:homeworkId,receipt:id};
+  const item={submissionId:id,recordType:'teacher-homework-material',institutionId:inst,classId,homeworkId,
+   objectKey:key,mime:body.mime,size:body.size,mediaStatus:'pending',uploadedBy:claims.sub,createdAt:nowIso()};
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('submissions'),Item:item,ConditionExpression:'attribute_not_exists(submissionId)'}}]}));}catch(e){conflict(e)}
+  return {key:id,uploadUrl:await mediaIO.signPut(materialBucket(),key,body.mime,body.size,metadata),
+   headers:{'Content-Type':body.mime,'x-amz-meta-institution':inst,'x-amz-meta-class':classId,
+    'x-amz-meta-homework':homeworkId,'x-amz-meta-receipt':id}};
+ }
+ async function finishTeacherMaterial(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string,body:any){
+  if(!mediaEnabled())throw httpError(503,'Teacher homework materials disabled');
+  if(!isObject(body)||!allowFields(body,['key'])||!teacherMaterialId(body.key))throw httpError(400,'Invalid material receipt');
+  const {checks,h}=await teacherAssignment(inst,claims,classId,homeworkId);
+  if(!isHomeworkOpenAt(h))throw httpError(409,'Assignment deadline passed');
+  const receipt=await get('submissions',body.key);
+  if(!receipt||receipt.recordType!=='teacher-homework-material'||receipt.institutionId!==inst||
+     receipt.classId!==classId||receipt.homeworkId!==homeworkId||receipt.uploadedBy!==claims.sub)
+   throw httpError(403,'Material receipt does not belong to this assignment');
+  if(receipt.mediaStatus==='ready')return {record:{id:receipt.submissionId,mime:receipt.mime,size:receipt.size}};
+  if(receipt.mediaStatus!=='pending')throw httpError(409,'Invalid material state');
+  let head:any;
+  try{head=await mediaIO.head(materialBucket(),receipt.objectKey)}catch{throw httpError(409,'Uploaded material not found')}
+  if(!teacherMaterialType(head.ContentType,head.ContentLength)||head.ContentType!==receipt.mime||
+     head.ContentLength!==receipt.size||head.Metadata?.institution!==inst||head.Metadata?.class!==classId||
+     head.Metadata?.homework!==homeworkId||head.Metadata?.receipt!==receipt.submissionId)
+   throw httpError(409,'Uploaded material metadata mismatch');
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Update:{TableName:table('submissions'),Key:{submissionId:receipt.submissionId},
+   UpdateExpression:'SET mediaStatus=:ready, verifiedAt=:now',
+   ConditionExpression:'recordType=:type AND mediaStatus=:pending AND uploadedBy=:actor AND institutionId=:inst AND classId=:class AND homeworkId=:homework',
+   ExpressionAttributeValues:{':ready':'ready',':now':nowIso(),':type':'teacher-homework-material',':pending':'pending',
+    ':actor':claims.sub,':inst':inst,':class':classId,':homework':homeworkId}}}]}));}catch(e){conflict(e)}
+  return {record:{id:receipt.submissionId,mime:receipt.mime,size:receipt.size}};
+ }
+ async function selectTeacherMaterials(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string,body:any){
+  if(!mediaEnabled())throw httpError(503,'Teacher homework materials disabled');
+  if(!isObject(body)||!allowFields(body,['ids','expectedVersion'])||!Number.isSafeInteger(body.expectedVersion)||
+     body.expectedVersion<1||!Array.isArray(body.ids)||body.ids.length>3||new Set(body.ids).size!==body.ids.length||
+     body.ids.some((id:unknown)=>!teacherMaterialId(id)))throw httpError(400,'Invalid material selection');
+  const {actor,checks,h}=await teacherAssignment(inst,claims,classId,homeworkId);
+  if(!isHomeworkOpenAt(h))throw httpError(409,'Assignment deadline passed');
+  if(h.version!==body.expectedVersion)throw httpError(409,'Assignment changed. Refresh first');
+  const receiptChecks:any[]=[];
+  for(const id of body.ids){
+   const r=await get('submissions',id);
+   if(!r||r.recordType!=='teacher-homework-material'||r.mediaStatus!=='ready'||r.institutionId!==inst||
+      r.classId!==classId||r.homeworkId!==homeworkId||!teacherMaterialType(r.mime,r.size))
+    throw httpError(403,'Unverified or unrelated material receipt');
+   receiptChecks.push({ConditionCheck:{TableName:table('submissions'),Key:{submissionId:id},
+    ConditionExpression:'recordType=:type AND mediaStatus=:ready AND institutionId=:inst AND classId=:class AND homeworkId=:homework',
+    ExpressionAttributeValues:{':type':'teacher-homework-material',':ready':'ready',':inst':inst,':class':classId,':homework':homeworkId}}});
+  }
+  const updated={...h,materialIds:body.ids,version:h.version+1,updatedAt:nowIso(),updatedBy:claims.sub};
+  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,...receiptChecks,
+   {Put:{TableName:table('homework'),Item:updated,
+    ConditionExpression:'#version=:version AND institutionId=:inst AND classId=:class AND #status<>:archived',
+    ExpressionAttributeNames:{'#version':'version','#status':'status'},ExpressionAttributeValues:{':version':h.version,':inst':inst,':class':classId,':archived':'archived'}}},
+   {Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkMaterialsChanged',homeworkId),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
+  return {saved:true};
+ }
+ async function signedTeacherMaterials(inst:InstitutionId,h:any){
+  const ids=h.materialIds||[];
+  if(!Array.isArray(ids)||ids.length>3||ids.some((id:unknown)=>!teacherMaterialId(id)))throw httpError(409,'Saved materials need reconciliation');
+  const records=[];
+  for(const id of ids){
+   const r=await get('submissions',id);
+   if(!r||r.recordType!=='teacher-homework-material'||r.mediaStatus!=='ready'||r.institutionId!==inst||
+      r.classId!==h.classId||r.homeworkId!==h.homeworkId||!teacherMaterialType(r.mime,r.size))
+    throw httpError(409,'Saved material needs reconciliation');
+   records.push({id,mime:r.mime,size:r.size,url:await mediaIO.signGet(materialBucket(),r.objectKey)});
+  }
+  return {records};
+ }
+ async function teacherMaterialLinks(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string){
+  if(!mediaEnabled())throw httpError(503,'Teacher homework materials disabled');
+  const {h}=await teacherAssignment(inst,claims,classId,homeworkId);
+  return signedTeacherMaterials(inst,h);
+ }
+ async function learnerMaterialLinks(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string){
+  if(!mediaEnabled())throw httpError(503,'Teacher homework materials disabled');
+  await learner(inst,claims,studentId);
+  const {h}=await assignment(inst,studentId,homeworkId);
+  if(!isHomeworkReleased(h))throw httpError(403,'Assignment not released');
+  return signedTeacherMaterials(inst,h);
+ }
+ return {listClass,publish,edit,learnerList,getSubmission,saveSubmission,complete,teacherSubmissions,feedback,mediaStart,mediaFinish,mediaLinks,staffMediaLinks,beginTeacherMaterial,finishTeacherMaterial,selectTeacherMaterials,teacherMaterialLinks,learnerMaterialLinks};
 }
 let singleton:ReturnType<typeof makeM9Homework>|undefined;
 export function m9Homework(){return singleton??=makeM9Homework(DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}}));}

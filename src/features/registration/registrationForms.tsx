@@ -302,6 +302,7 @@ export function AddChild({ family, onSave, onClose }: any) {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [useExistingGuardian, setUseExistingGuardian] = useState(false);
   return (
     <Modal
       title="Add another student"
@@ -312,6 +313,10 @@ export function AddChild({ family, onSave, onClose }: any) {
         className="reg-form"
         onSubmit={(e) => {
           e.preventDefault();
+          if (useExistingGuardian) {
+            onSave({familyId:family.id,relationship:'parent_guardian',existingPersonRole:'primary_guardian'});
+            return;
+          }
           if (!clean(name)) return;
           const normalized = phone.replace(/[\s-]/g, '');
           if (normalized && !/^\+[1-9]\d{7,14}$/.test(normalized))
@@ -326,7 +331,13 @@ export function AddChild({ family, onSave, onClose }: any) {
           });
         }}
       >
-        <Field label="Student full name *">
+        <label className="reg-form-checkbox">
+          <input type="checkbox" checked={useExistingGuardian}
+            onChange={e=>setUseExistingGuardian(e.target.checked)}/>
+          Register the existing parent / guardian as a student
+        </label>
+        {useExistingGuardian && <p className="reg-help">The existing family contact will also become a student. Their guardian account and family links stay unchanged. You can enrol them into a class next.</p>}
+        {!useExistingGuardian && <><Field label="Student full name *">
           <input
             autoFocus
             required
@@ -345,6 +356,7 @@ export function AddChild({ family, onSave, onClose }: any) {
           />
         </Field>
         <PhoneField label="Student WhatsApp" value={phone} onChange={setPhone} optional />
+        </>}
         {error && (
           <p className="reg-error" role="alert">
             {error}
@@ -355,7 +367,7 @@ export function AddChild({ family, onSave, onClose }: any) {
             Cancel
           </button>
           <button type="submit" className="reg-primary">
-            <Plus size={16} /> Add student
+            <Plus size={16} /> {useExistingGuardian?'Register parent as student':'Add student'}
           </button>
         </div>
       </form>

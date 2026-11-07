@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** M9 opt-in conditional-write repository. Not wired to legacy repositories. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,PutCommand,UpdateCommand} from '@aws-sdk/lib-dynamodb';
@@ -18,7 +19,7 @@ function validVersion(x:unknown):x is number{return Number.isSafeInteger(x)&&typ
 export function makeM9TargetWriter(client:M9WriteClient,options:{env?:M9WriteEnvironment;enabled?:boolean}={}){
  const env=options.env??'dev';if(!['dev','test'].includes(env))throw Error('Unsupported M9 environment');
  const check=()=>enabled(options.enabled===true);
- const table=(entity:M9Entity)=>{if(!allowedEntity(entity))throw Error('Unknown M9 table');return `sadhana-${env}-m9-${entity}`;};
+ const table=(entity:M9Entity)=>{if(!allowedEntity(entity))throw Error('Unknown M9 table');return entityTable(entity,{stage:env});};
  return {
   async create(entity:M9Entity,item:M9EntityItem){
    check();if(!plainObject(item))throw Error('Record must be an object');

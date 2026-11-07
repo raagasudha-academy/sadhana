@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** M9.5 guardian workflow foundation. No website import or automatic approval.
  * Requires explicit M95_ONBOARDING_MODE=enabled; does not replace legacy family access.
  */
@@ -12,7 +13,7 @@ export interface M95OnboardingDb {send(command:any):Promise<any>}
 const environments=new Set(['dev','test']);
 export const m95Table=(entity:'people'|'families'|'family-links'|'audit'|'registrations', env='dev')=>{
  if(!environments.has(env))throw Error('Unsupported environment');
- return `sadhana-${env}-m9-${entity}`;
+ return entityTable(entity,{stage:env});
 };
 const validId=(v:unknown)=>typeof v==='string'&&v.length>0&&v.length<=180&&/^[A-Za-z0-9_#.:\-]+$/.test(v);
 const validInst=(v:unknown):v is InstitutionId=>v==='raaga'||v==='sruti';

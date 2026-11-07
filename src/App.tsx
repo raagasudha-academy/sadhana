@@ -41,6 +41,7 @@ const AcademyOperations = lazy(() => import('./AcademyOperations'));
 const PersistentRegistration = lazy(() => import('./PersistentRegistration'));
 const LiveDashboard = lazy(() => import('./LiveDashboard'));
 const WebsiteRegistrations = lazy(() => import('./WebsiteRegistrations'));
+const SrutiWebsiteRegistrations = lazy(() => import('./SrutiWebsiteRegistrations'));
 
 export default function App({cloud}: { cloud?: CloudSession } = {}) {
   const [ownPhotoUrl, setOwnPhotoUrl] = useState(cloud?.staff.photoUrl || '');
@@ -272,11 +273,20 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   ).filter(
     item =>
       item !== 'Website Registrations' ||
-      (currentWorkspace === 'raaga' && person.admin && !teacherMode)
+      ((currentWorkspace === 'raaga' || currentWorkspace === 'sruti') && person.admin && !teacherMode)
   );
   const activePage = page === 'My Profile' ? 'My Profile' : nav.some(item => item === page) ? page : 'Dashboard';
   const unread = notifications.filter(n => !n.read && availableInstitutions.includes(n.institution)).length;
+  // Keep View As scoped to the academy; preserve the selected student only
+  // when that same student has an authorised membership in the new academy.
   const switchWorkspace = (w) => {
+    if (studentMode && (w === 'raaga' || w === 'sruti')) {
+      const choices = familyChoices.filter(c => c.institution === w);
+      const next = choices.find(c => c.id === chosenStudent) || choices[0];
+      const nextId = next?.id || '';
+      setChosenStudent(nextId);
+      try { sessionStorage.setItem('sadhana:selected-student', nextId); } catch {/* private mode */}
+    }
     setWorkspace(w);
     if (!studentMode) setPage('Dashboard');
     setStudent(null);
@@ -412,6 +422,11 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
     }
     setDeletePrompt(null);
   };
+  // Derive the visible selection from the currently verified academy choices.
+  // This prevents one frame of another academy's student being passed to StudentHome.
+  const academyFamilyChoices = familyChoices.filter(c => c.institution === currentWorkspace);
+  const visibleStudentId = academyFamilyChoices.some(c => c.id === chosenStudent)
+    ? chosenStudent : (academyFamilyChoices[0]?.id || '');
   const workspaceName = currentWorkspace === 'combined' ? 'All Institutions' : institutions[currentWorkspace].name;
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'sidebar-show' : ''}`}>
@@ -496,15 +511,15 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
                                                                                                          name="sadhana-view-as"
                                                                                                          checked={currentRole === 'teacher'}
                                                                                                          onChange={() => switchRole('teacher')}/> Teacher</label>}
-            {familyChoices.filter(child => currentWorkspace === 'combined' || child.institution === currentWorkspace).map(child =>
+            {(currentWorkspace === 'combined' ? familyChoices : academyFamilyChoices).map(child =>
               <label key={`${child.institution}:${child.id}`}
                      style={{display: 'flex', gap: 9, alignItems: 'center', cursor: 'pointer'}}>
                 <input type="radio" name="sadhana-view-as"
-                       checked={studentMode && currentWorkspace === child.institution && chosenStudent === child.id}
+                       checked={studentMode && currentWorkspace === child.institution && visibleStudentId === child.id}
                        onChange={() => switchToStudent(child)}/>
                 <span>{child.name}</span>
               </label>)}
-            {studentMode && !familyChoices.length &&
+            {studentMode && !academyFamilyChoices.length &&
                 <span>{familyAccessError ? 'Family access could not be verified.' : 'No approved students available.'}</span>}
           </fieldset>}
       <div className="sidebar-nav-scroll" tabIndex={0} aria-label="Sidebar menu, scroll for more options">
@@ -611,11 +626,12 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       <main className="content"><Suspense
         fallback={<p role="status">Loading section…</p>}>{studentMode && cloud && activePage === 'My profile' ?
         <SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/> : studentMode && cloud ? <StudentHome
+          key={currentWorkspace}
           cloud={cloud}
           initialInstitution={currentWorkspace as InstitutionId}
           embedded
           page={learnerPageMap[activePage] || 'overview'}
-          selectedStudentId={chosenStudent}
+          selectedStudentId={visibleStudentId}
           onStudentChange={(id) => {
             if (familyChoices.some(c => c.institution === currentWorkspace && c.id === id)) switchToStudent({
               institution: currentWorkspace as InstitutionId,
@@ -656,7 +672,8 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
                                 onSelect={chooseAcademyForPage}/> : activePage === 'My Profile' && cloud ?
                 <SadhanaMyProfile cloud={cloud}
                                   onPhotoChange={setOwnPhotoUrl}/> : activePage === 'Fees' && person.admin && !teacherMode ?
-                  <FeesComingSoon/> : activePage === 'Website Registrations' && cloud && currentWorkspace === 'raaga' && person.admin && !teacherMode ?
+                  <FeesComingSoon/> : activePage === 'Website Registrations' && cloud && person.admin && !teacherMode && currentWorkspace === 'sruti' ?
+                    <SrutiWebsiteRegistrations cloud={cloud}/> : activePage === 'Website Registrations' && cloud && currentWorkspace === 'raaga' && person.admin && !teacherMode ?
                     <WebsiteRegistrations cloud={cloud}/> : activePage === 'Dashboard' && cloud ?
                       <LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode}
                                      onChangePage={goPage}/> : activePage === 'Dashboard' ?
@@ -723,7 +740,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
     {venueDialog && <VenueFormDialog record={venueDialog.record} venues={venues} onSave={saveVenue}
                                      onClose={() => setVenueDialog(null)}/>}
     {session &&
-        <SessionDrawer session={session} canEdit={person.admin && !teacherMode} canDelete={person.admin && !teacherMode}
+        <SessionDrawer session={session} isTeacher={teacherMode} canEdit={!!cloud && (person.admin || (teacherMode && session.recordType==='class-session'))} canDelete={!!cloud && (person.admin || (teacherMode && session.recordType==='class-session'))}
                        cloud={cloud} onSaved={() => {
           setSession(null);
           setScheduleRevision(n => n + 1);

@@ -8,7 +8,11 @@ export function matchingCognitoPerson(rows,subject,institution){
 }
 export function authorisedStudent(actor,student,links,institution){
  if(!actor||!student||student.status!=='active'||!student.personTypes?.includes('student')||!student.institutionIds?.includes(institution))deny(403,'Approved student access required.');
- if(actor.personId===student.personId && actor.personTypes?.includes('student'))return {kind:'self',studentId:student.personId};
+ // A person may be a guardian in this academy and a learner in another.
+ // Self-access requires an academy-specific student membership, not global roles.
+ if(actor.personId===student.personId && actor.personTypes?.includes('student') &&
+    typeof student.studentProfile?.rollNumbers?.[institution]==='string' &&
+    student.studentProfile.rollNumbers[institution].trim())return {kind:'self',studentId:student.personId};
  const matches=links.filter(x=>x.guardianPersonId===actor.personId && x.studentId===student.personId && x.institutionId===institution && x.accessStatus==='approved' && x.relationshipVerified===true);
  if(matches.length!==1)deny(403,'Independently verified guardian access required.');
  return {kind:'guardian',studentId:student.personId};
@@ -35,7 +39,7 @@ export function projectLearnerDashboard(student,enrolments,classes,sessions,prac
   const hits=counted.filter(m=>m.status==='present'||m.status==='late').length;
   return {classId:c.classId,className:c.className,recorded:own.length,attended:hits,counted:counted.length,percent:counted.length?Math.round(100*hits/counted.length):null};
  });
- const activity=practice.filter(p=>p.studentId===student.personId).map(p=>({id:p.practiceId,classId:p.classId,date:p.practiceDate,minutes:p.minutes,topic:p.topic||'',comments:p.comments||'',version:p.version||1,teacherComments:[]}));
+ const activity=practice.filter(p=>p.recordType!=='operational-feedback'&&p.studentId===student.personId).map(p=>({id:p.practiceId,classId:p.classId,date:p.practiceDate,minutes:p.minutes,topic:p.topic||'',comments:p.comments||'',version:p.version||1,teacherComments:(Array.isArray(p.teacherComments)?p.teacherComments:[]).map(c=>({id:c.id,comment:c.comment,createdAt:c.createdAt}))}));
  return {student:{id:student.personId,name,rollNumber:student.studentProfile?.rollNumbers?.[institution]||''},classes:cls,nextSessions:calendarSessions.filter(s=>s.date>=referenceDate).slice(0,5),calendarSessions,practice:activity,attendance:{marks,byClass:byClassStats,attended,counted:countedMarks.length,percent:countedMarks.length?Math.round(100*attended/countedMarks.length):null}};
 }
 export function buildReadinessReport(input){

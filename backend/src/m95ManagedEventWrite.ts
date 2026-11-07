@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** M9.5 managed event writes. Opt-in; never writes through the legacy table router. */
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
@@ -7,7 +8,8 @@ import type {Claims,InstitutionId} from './model.ts';
 import {utcForWallTime} from './m95CalendarWrite.ts';
 
 type Client={send:(command:any)=>Promise<any>};
-const EVENTS='sadhana-dev-m9-events',PEOPLE='sadhana-dev-m9-people',AUDIT='sadhana-dev-m9-audit';
+// Resolve lazily: final-mode acknowledgements are checked per request, not at cold start.
+const EVENTS=()=>entityTable('events'),PEOPLE=()=>entityTable('people'),AUDIT=()=>entityTable('audit');
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 const TIME=/^([01]\d|2[0-3]):[0-5]\d$/;
 const ID=/^[a-zA-Z0-9_-]{4,100}$/;
@@ -20,6 +22,11 @@ export function isPilotManagedEventRequest(method:string|undefined,parts:readonl
     (parts.length===3&&parts[1]==='shared'&&['PATCH','DELETE'].includes(method||'')));
 }
 function enabled(){
+ if(process.env.SADHANA_ENTITY_TABLE_SET==='final'){
+  if(process.env.SADHANA_FINAL_EVENT_WRITES!=='enabled'||process.env.SADHANA_ENTITY_FINAL_ACK!=='enabled'||process.env.SADHANA_DATA_MODE==='split')
+   throw httpError(503,'Final managed event writes are disabled.');
+  return;
+ }
  if(process.env.M95_COMPAT_MODE!=='pilot'||process.env.M95_MANAGED_EVENT_WRITES!=='enabled')
   throw httpError(503,'M9 managed event writes are disabled.');
 }
@@ -92,13 +99,13 @@ function eventAudit(inst:InstitutionId|string,id:string,actor:string,action:stri
   resourceType:'event',resourceId:id,timestamp:now,schemaVersion:1};
 }
 function conditions(item:Record<string,any>,old?:Record<string,any>){
- return {TableName:EVENTS,Item:item,ConditionExpression:old?(old.version===undefined?'attribute_not_exists(#v) AND #i=:inst':'#v=:old AND #i=:inst'):'attribute_not_exists(eventId)',
+ return {TableName:EVENTS(),Item:item,ConditionExpression:old?(old.version===undefined?'attribute_not_exists(#v) AND #i=:inst':'#v=:old AND #i=:inst'):'attribute_not_exists(eventId)',
   ...(old?{ExpressionAttributeNames:{'#v':'version','#i':'institutionId'},ExpressionAttributeValues:{...(old.version===undefined?{}:{':old':old.version}),':inst':item.institutionId}}:{})};
 }
 export function makeM95ManagedEventWriter(client:Client){
  const scanPeople=async()=>{
   const rows:any[]=[];let cursor:Record<string,unknown>|undefined;
-  do{const r=await client.send(new ScanCommand({TableName:PEOPLE,ConsistentRead:true,Limit:250,ExclusiveStartKey:cursor}));rows.push(...r.Items||[]);cursor=r.LastEvaluatedKey;if(rows.length>1500)throw httpError(409,'Teacher directory exceeds safe lookup limit.');}while(cursor);
+  do{const r=await client.send(new ScanCommand({TableName:PEOPLE(),ConsistentRead:true,Limit:250,ExclusiveStartKey:cursor}));rows.push(...r.Items||[]);cursor=r.LastEvaluatedKey;if(rows.length>1500)throw httpError(409,'Teacher directory exceeds safe lookup limit.');}while(cursor);
   return rows;
  };
  const teacher=async(inst:InstitutionId,claims:Claims)=>{
@@ -110,13 +117,13 @@ export function makeM95ManagedEventWriter(client:Client){
   return {admin:false,self:rows[0]};
  };
  const assignee=async(inst:InstitutionId,id:string)=>{
-  const res=await client.send(new GetCommand({TableName:PEOPLE,Key:{personId:id},ConsistentRead:true}));
+  const res=await client.send(new GetCommand({TableName:PEOPLE(),Key:{personId:id},ConsistentRead:true}));
   const row=res.Item;
   if(!row||row.status!=='active'||!row.personTypes?.includes('teacher')||!row.institutionIds?.includes(inst))throw httpError(400,'Choose an active teacher in this academy.');
   return row;
  };
  const get=async(inst:InstitutionId,id:string)=>{
-  const res=await client.send(new GetCommand({TableName:EVENTS,Key:{eventId:id},ConsistentRead:true}));
+  const res=await client.send(new GetCommand({TableName:EVENTS(),Key:{eventId:id},ConsistentRead:true}));
   const row=res.Item;
   if(!row||row.institutionId!==inst||!row.managedEvent||row.legacyPayload?.recordType!=='special-event'||row.legacyPayload?.sharedEvent)
    throw httpError(404,'Managed event not found.');
@@ -126,7 +133,7 @@ export function makeM95ManagedEventWriter(client:Client){
   const now=new Date().toISOString();
   try{await client.send(new TransactWriteCommand({TransactItems:[
    ...items.map(({item,old})=>({Put:conditions(item,old)})),
-   {Put:{TableName:AUDIT,Item:eventAudit(auditInst,id,sub,action,now),ConditionExpression:'attribute_not_exists(auditId)'}}
+   {Put:{TableName:AUDIT(),Item:eventAudit(auditInst,id,sub,action,now),ConditionExpression:'attribute_not_exists(auditId)'}}
   ]}));}catch(e){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes((e as Error).name))throw httpError(409,'Event changed or already exists. Refresh and retry.');throw e;}
  };
  return {
@@ -167,7 +174,7 @@ export function makeM95ManagedEventWriter(client:Client){
    const {expectedVersion,...fields}=input;
    if(id&&!ID.test(id))throw httpError(400,'Invalid event ID.');
    const old= id? await Promise.all((['raaga','sruti'] as const).map(async inst=>{
-    const result=await client.send(new GetCommand({TableName:EVENTS,Key:{eventId:`${id}__${inst}`},ConsistentRead:true}));return result.Item;
+    const result=await client.send(new GetCommand({TableName:EVENTS(),Key:{eventId:`${id}__${inst}`},ConsistentRead:true}));return result.Item;
    })):undefined;
    if(id&&(!old||old.some((row,index)=>!row||row.institutionId!==(['raaga','sruti'][index])||row.sharedGroupId!==id||row.legacyPayload?.id!==id||row.legacyPayload?.sharedEvent!==true)||effectiveVersion(old[0])!==effectiveVersion(old[1])))throw httpError(409,'Shared event pair is incomplete or inconsistent.');
    if(id&&(!Number.isInteger(expectedVersion)||effectiveVersion(old![0])!==expectedVersion))throw httpError(409,'Shared event changed; refresh.');

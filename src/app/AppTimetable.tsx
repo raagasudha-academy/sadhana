@@ -10,6 +10,13 @@ import { ManagedEvents } from "./AppManagedEvents";
 
 export function Timetable({ workspace, isTeacher, classView, setClassView, onSession, cloud, revision, venues }: any) {
   const [search,setSearch]=useState('');
+  const [createSessionOpen,setCreateSessionOpen]=useState(false);
+  const [createSessionClass,setCreateSessionClass]=useState('');
+  const [createSessionDate,setCreateSessionDate]=useState('');
+  const [createSessionStart,setCreateSessionStart]=useState('10:00');
+  const [createSessionEnd,setCreateSessionEnd]=useState('11:00');
+  const [createSessionError,setCreateSessionError]=useState('');
+  const [createSessionBusy,setCreateSessionBusy]=useState(false);
   const [masterStatusFilter,setMasterStatusFilter]=useState<'all'|'active'|'paused'|'archived'>('all');
   const [lifecycleBusy,setLifecycleBusy]=useState(false);
   const [lifecycleError,setLifecycleError]=useState('');
@@ -101,6 +108,21 @@ export function Timetable({ workspace, isTeacher, classView, setClassView, onSes
     const state=lifecycleByClass.get(r.classId);
     return state!=='archived'||(r.date&&r.date<currentUkDate);
   });
+  const addTeacherSession=async()=>{
+    if(!cloud||!isTeacher)return;
+    const cls=classes.find((c:any)=>c.id===createSessionClass);
+    if(!cls||!insts.includes(cls.institution)){setCreateSessionError('Choose one of your assigned classes.');return;}
+    if(!createSessionDate||createSessionStart>=createSessionEnd){setCreateSessionError('Choose a date and valid start/end times.');return;}
+    setCreateSessionBusy(true);setCreateSessionError('');
+    try{
+      await cloud.api.createSchedule(cls.institution,{recordType:'class-session',classId:cls.id,name:cls.name,
+        programme:cls.programme||'',mode:cls.mode||'',location:cls.location||'',
+        date:createSessionDate,endDate:createSessionDate,startTime:createSessionStart,endTime:createSessionEnd,
+        status:'confirmed',allDay:false});
+      setCreateSessionOpen(false);setRefreshCounter(n=>n+1);
+    }catch(error){setCreateSessionError(error instanceof Error?error.message:'Unable to create session.');}
+    finally{setCreateSessionBusy(false);}
+  };
   const orderedCalendarClasses=[...classes].sort((a:any,b:any)=>
     String(a.name||'').localeCompare(String(b.name||''),'en-GB') || String(a.institution||'').localeCompare(String(b.institution||'')));
   // A workspace change must not leave an inaccessible class filter selected.
@@ -204,6 +226,19 @@ export function Timetable({ workspace, isTeacher, classView, setClassView, onSes
   return <>
     <PageHeader kicker="LIVE" title="Academy Calandar" description={loading?'Loading calendar…':`${records.filter(x=>x.recordType!=='class').length} dated entries · ${classes.length} master classes · ${records.filter(x=>x.recordType==='special-event').length} events`} right={<Pill>Time Zone: Europe/London</Pill>}/>
     {apiError&&<p className="sadhana-sync-error" role="alert">{apiError}</p>}{isTeacher&&teacherScopeError&&<p className="sadhana-sync-error" role="alert">{teacherScopeError}</p>}{noLinkedClasses&&<p className="sadhana-sync-error" role="status">Your teacher login is verified, but no master classes in this academy reference your registered teacher ID. An administrator can review the master-class assignment; existing class records have not been changed.</p>}
+    {isTeacher&&!!cloud&&classes.length>0&&<section className="surface" style={{padding:16,marginBottom:12}}>
+      <button type="button" className="reg-secondary" onClick={()=>setCreateSessionOpen(v=>!v)}><Plus size={15}/> {createSessionOpen?'Close session form':'Add session to assigned class'}</button>
+      {createSessionOpen&&<form className="reg-form" onSubmit={e=>{e.preventDefault();void addTeacherSession();}} style={{marginTop:14}}>
+        <label className="reg-field"><span>Assigned class</span><select required value={createSessionClass} onChange={e=>{const id=e.target.value;setCreateSessionClass(id);const chosen=classes.find((c:any)=>c.id===id);if(chosen){setCreateSessionStart(chosen.startTime||'10:00');setCreateSessionEnd(chosen.endTime||'11:00');}}}>
+          <option value="">Select class</option>{classes.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select></label>
+        <label className="reg-field"><span>Date</span><input type="date" required value={createSessionDate} onChange={e=>setCreateSessionDate(e.target.value)}/></label>
+        <label className="reg-field"><span>Start</span><input type="time" required value={createSessionStart} onChange={e=>setCreateSessionStart(e.target.value)}/></label>
+        <label className="reg-field"><span>End</span><input type="time" required value={createSessionEnd} onChange={e=>setCreateSessionEnd(e.target.value)}/></label>
+        {createSessionError&&<p role="alert" className="sadhana-sync-error">{createSessionError}</p>}
+        <button className="reg-primary" disabled={createSessionBusy} type="submit">{createSessionBusy?'Saving…':'Create session'}</button>
+      </form>}
+    </section>}
     {!loading&&!apiError&&classIssueCount>0&&<p className="sadhana-attention-summary"><CircleAlert size={15}/> {classIssueCount} master class{classIssueCount===1?' needs':'es need'} attention · Select a red icon to see missing details.</p>}
     {!loading&&!apiError&&records.length===0&&<p>No calendar records found for this workspace.</p>}
     <section className="surface calendar-surface"><div className="calendar-toolbar"><div className="week-controls"><button className="icon-button" title="Previous period" onClick={()=>shift(-1)}><ChevronLeft size={18}/></button><div><strong>{rangeLabel}</strong><span>{view==='week'?'Weekly timetable':'Monthly timetable'}</span></div><button className="icon-button" title="Next period" onClick={()=>shift(1)}><ChevronRight size={18}/></button><button className="today-button" onClick={()=>setAnchor(ukToday())}>Today</button></div><div style={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:12}}><label className="sadhana-calendar-class-filter" style={{display:'inline-flex',alignItems:'center',gap:8,margin:0}}>

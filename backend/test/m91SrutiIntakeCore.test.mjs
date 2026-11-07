@@ -33,3 +33,15 @@ test('rejects duplicate adult, arbitrary body and bad email',()=>{
  assert.throws(()=>validateSrutiSubmission({...base,extra:'unexpected'}));
  assert.throws(()=>validateSrutiSubmission({...base,guardian:{...guardian,email:'bad'}}));
 });
+
+test('new public registration references are concise and distinguishable',()=>{
+ const normalized=validateSrutiSubmission(input('child',[student('Child','child')]));
+ const refs=new Set();
+ for(let i=0;i<50;i++){
+  const record=newSrutiIntakeRecord(normalized,'2026-11-04T12:00:00Z');
+  assert.match(record.registrationId,/^SR-2026-[A-F0-9]{6}$/);
+  assert.equal(record.institutionId,'sruti');
+  refs.add(record.registrationId);
+ }
+ assert.ok(refs.size>1);
+});

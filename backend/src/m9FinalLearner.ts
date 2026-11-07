@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** Optional M9 learner dashboard read adapter. Never reads the legacy PK/SK tables.
  * No writes are offered; all access is resolved from verified Cognito subject IDs
  * and independently approved, strongly re-checked family links.
@@ -9,7 +10,7 @@ import type {Claims,InstitutionId} from './model.ts';
 import {matchingCognitoPerson,authorisedStudent,projectLearnerDashboard} from './m9FinalAccessCore.mjs';
 
 export interface M9FinalDb {send(command:any):Promise<any>}
-const table=(entity:string)=>`sadhana-dev-m9-${entity}`;
+const table=(entity:string)=>entityTable(entity);
 const MAX_ITEMS=2000;
 const ukToday=()=>{
  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
@@ -29,7 +30,7 @@ export function makeM9FinalLearner(db:M9FinalDb){
  const get=async(entity:string,key:string,value:string)=>(await db.send(new GetCommand({TableName:table(entity),Key:{[key]:value},ConsistentRead:true}))).Item??null;
  return {
   async dashboard(institution:InstitutionId,claims:Claims,studentId:string){
-   if(process.env.M9_FINAL_LEARNER_READS!=='enabled')throw httpError(404,'M9 learner integration disabled.');
+   if(process.env.SADHANA_ENTITY_TABLE_SET==='final' ? process.env.SADHANA_FINAL_LEARNER_READS!=='enabled' : process.env.M9_FINAL_LEARNER_READS!=='enabled')throw httpError(404,'Learner integration disabled.');
    if(!['raaga','sruti'].includes(institution)||!claims.sub||typeof studentId!=='string'||!/^[-_a-zA-Z0-9]{4,150}$/.test(studentId))throw httpError(403,'Approved student access required.');
    const identities=await query('people','CognitoIdentityIndex','cognitoSub',claims.sub);
    const actor=matchingCognitoPerson(identities,claims.sub,institution);

@@ -1,5 +1,5 @@
 /** Validated Sruti public registration -> approved M9 website-import contract. Pure/no AWS. */
-import {randomUUID} from 'node:crypto';
+import {randomBytes} from 'node:crypto';
 const reject=(message)=>{throw Object.assign(new Error(message),{status:400});};
 const plain=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const str=(x,max=200)=>{if(typeof x!=='string'||x.length>max)reject('Invalid field length/type.');return x.trim();};
@@ -27,7 +27,7 @@ export function validateSrutiSubmission(value){
  if(students.some(x=>x.applicantType==='self'&&(x.firstName.toLowerCase()!==firstName.toLowerCase()||x.lastName.toLowerCase()!==lastName.toLowerCase())))reject('Adult applicant must match the primary contact.');
  return {institution:'sruti',registrationType:value.registrationType,guardian,students,consents:{registration:true,photography:value.consents.photography===true}};
 }
-export function newSrutiIntakeRecord(payload,now=new Date().toISOString(),registrationId='SR-'+randomUUID()){
+export function newSrutiIntakeRecord(payload,now=new Date().toISOString(),registrationId='SR-'+new Date(now).getUTCFullYear()+'-'+randomBytes(3).toString('hex').toUpperCase()){
  if(!/^SR-[A-Za-z0-9-]{1,110}$/.test(registrationId))reject('Invalid registration ID.');
  return {registrationId,institutionId:'sruti',source:'sruti-website',status:'submitted',reviewStatus:'pending',importStatus:'pending',registrationType:payload.registrationType,submittedAt:now,createdAt:now,updatedAt:now,version:1,submission:payload};
 }

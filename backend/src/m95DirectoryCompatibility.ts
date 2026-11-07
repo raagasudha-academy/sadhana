@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** Read-only M9 teacher/venue compatibility, independent of the legacy router. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,ScanCommand} from '@aws-sdk/lib-dynamodb';
@@ -7,8 +8,8 @@ import type {CompatibleItem,CompatClient} from './m95Compatibility.ts';
 import type {Claims,InstitutionId} from './model.ts';
 import {demandViewInstitution,permittedInstitutions} from './model.ts';
 
-export type DirectoryEntity='people'|'venues';
-const MAX_ROWS:Record<DirectoryEntity,number>={people:1000,venues:500};
+export type DirectoryEntity='people'|'venues'|'classes';
+const MAX_ROWS:Record<DirectoryEntity,number>={people:1000,venues:500,classes:1500};
 const teacherSub=(row:Record<string,any>)=>typeof row.cognitoSub==='string'?row.cognitoSub:'';
 
 /** Old /teachers projection, without leaking a teacher's Cognito subject to viewers. */
@@ -35,6 +36,15 @@ export function presentM9Venues(inst:InstitutionId,claims:Claims,items:Compatibl
  return {records:items.map(x=>{const {GSI1PK,GSI1SK,GSI2PK,GSI2SK,...publicVenue}=legacyRecord(x);return publicVenue;}),more:false as const};
 }
 
+/** Old /classes contract. Shadow only until class writes and enrolment integrity migrate. */
+export function presentM9Classes(inst:InstitutionId,claims:Claims,items:CompatibleItem[]){
+ demandViewInstitution(claims,inst);
+ const records=items.filter(item=>item.institutionId===inst)
+  .map(item=>legacyRecord(item))
+  .filter(row=>row.institution===inst && typeof row.id==='string' && row.id.length>0);
+ return {records,more:false as const};
+}
+
 /** Compare business data rather than signed S3 URLs (which can change on each request). */
 export function sameDirectoryRows(a:ReadonlyArray<Record<string,any>>,b:ReadonlyArray<Record<string,any>>){
  const clean=(rows:ReadonlyArray<Record<string,any>>)=>rows.map(({photoUrl,...rest})=>rest);
@@ -46,7 +56,7 @@ export function makeM95DirectoryReader(client:CompatClient,photo:(sub:string)=>P
   const records:CompatibleItem[]=[];
   let cursor:Record<string,unknown>|undefined;
   do{
-   const res=await client.send(new ScanCommand({TableName:`sadhana-dev-m9-${entity}`,ConsistentRead:true,ExclusiveStartKey:cursor,Limit:200}));
+   const res=await client.send(new ScanCommand({TableName:entityTable(entity),ConsistentRead:true,ExclusiveStartKey:cursor,Limit:200}));
    records.push(...(res.Items??[])); cursor=res.LastEvaluatedKey;
    if(records.length>MAX_ROWS[entity])throw Error(`M95_DIRECTORY_LIMIT_EXCEEDED_${entity}`);
   }while(cursor);
@@ -56,6 +66,7 @@ export function makeM95DirectoryReader(client:CompatClient,photo:(sub:string)=>P
   async teachers(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Teachers(inst,claims,await scan('people'),photo);},
   async teacherMe(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9TeacherIdentity(inst,claims,await scan('people'));},
   async venues(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Venues(inst,claims,await scan('venues'));},
+  async classes(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Classes(inst,claims,await scan('classes'));},
  };
 }
 export type M95DirectoryReader=ReturnType<typeof makeM95DirectoryReader>;

@@ -120,14 +120,22 @@ export default function RegistrationModule({
     setWriteError('');
     try {
       await work();
-      await reload();
-      after?.();
-      setDialog(null);
-      setFlash(success);
     } catch (e) {
       setWriteError(e instanceof Error ? e.message : 'Could not save to DynamoDB.');
+      setWriting(false);
+      return;
+    }
+    // The write has succeeded. A failed list refresh must not leave the modal
+    // open (or falsely report that the student/enrolment was not saved).
+    setDialog(null);
+    setFlash(success);
+    try {
+      await reload();
+    } catch {
+      setFlash(`${success} The directory could not refresh; reload the page to see the saved record.`);
     } finally {
       setWriting(false);
+      after?.();
     }
   };
   const [editEnrol, setEditEnrol] = useState(null);
@@ -551,14 +559,20 @@ export default function RegistrationModule({
     );
   const addChild = (values: any) =>
     void persist(async () => {
-      await operationsApi.createOperation('student', workspace, {
-        name: values.name,
-        email: values.email || '',
-        phone: values.phone || '',
-        familyId: familyFocus,
-        relationship: 'child',
-      });
-    }, 'Student added to family in DynamoDB.');
+      if(values.existingPersonRole==='primary_guardian') {
+        if(!familyFocus || values.familyId!==familyFocus)
+          throw Error('Choose the correct existing family.');
+        await operationsApi.createOperation('student',workspace,{
+          existingPersonRole:'primary_guardian',familyId:familyFocus,
+          relationship:'parent_guardian'
+        });
+      } else {
+        await operationsApi.createOperation('student',workspace,{
+          name:values.name,email:values.email||'',phone:values.phone||'',
+          familyId:familyFocus,relationship:'child'
+        });
+      }
+    }, 'Student registration saved. Select a class to enrol the learner.');
   const saveEnrol = (values: any) =>
     void persist(
       async () => {

@@ -1,3 +1,4 @@
+import {entityTable} from './m10EntityTables.mjs';
 /** M9.5 compatibility reader for the transferred operational setup.
  * Deliberately separate from the current PK/SK tableRouter. Read-only.
  */
@@ -46,7 +47,7 @@ export function makeM95CompatibilityReader(client:CompatClient){
  const scan=async(entity:CompatibleEntity):Promise<CompatibleItem[]>=>{
   const rows:CompatibleItem[]=[];let cursor:Record<string,unknown>|undefined;
   do{
-   const result=await client.send(new ScanCommand({TableName:`sadhana-dev-m9-${entity}`,ConsistentRead:true,ExclusiveStartKey:cursor,Limit:250}));
+   const result=await client.send(new ScanCommand({TableName:entityTable(entity),ConsistentRead:true,ExclusiveStartKey:cursor,Limit:250}));
    rows.push(...(result.Items??[]));cursor=result.LastEvaluatedKey;
    if(rows.length>limits[entity])throw Error(`M9_COMPAT_LIMIT_EXCEEDED_${entity}`);
   }while(cursor);
