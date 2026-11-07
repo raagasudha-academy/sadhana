@@ -28,7 +28,7 @@ const depsLearn={
   savePractice:async(inst,who,id,body,practiceId)=>(called.push(['savePractice',inst,who.sub,id,body,practiceId]),{record:{id:'practice'}}),
   saveRsvp:async(inst,who,id,body)=>(called.push(['saveRsvp',inst,who.sub,id,body]),{saved:true})
  }),
- homework:()=>Object.fromEntries(['listClass','publish','edit','learnerList','complete','teacherSubmissions','staffMediaLinks','feedback','getSubmission','saveSubmission','mediaLinks','mediaStart','mediaFinish','beginTeacherMaterial','finishTeacherMaterial','selectTeacherMaterials','teacherMaterialLinks','learnerMaterialLinks'].map(name=>[name,async(...args)=>(called.push(['homework',name,...args]),{saved:true})])),
+ homework:()=>Object.fromEntries(['listClass','publish','edit','remove','learnerList','complete','teacherSubmissions','staffMediaLinks','feedback','getSubmission','saveSubmission','mediaLinks','mediaStart','mediaFinish','beginTeacherMaterial','finishTeacherMaterial','selectTeacherMaterials','teacherMaterialLinks','learnerMaterialLinks'].map(name=>[name,async(...args)=>(called.push(['homework',name,...args]),name==='remove'?{deleted:true,archived:true}:{saved:true})])),
  learnerMedia:()=>Object.fromEntries(['start','finish','list'].map(name=>[name,async(...args)=>(called.push(['learner-media',name,...args]),name==='list'?{records:[]}:{key:'private'})])),
  teacherPractice:async context=>(called.push(['teacherPractice',context.method,context.claims.sub]),{statusCode:context.method==='GET'?200:201,body:JSON.stringify({records:[]})})
 };
@@ -96,6 +96,7 @@ test('homework read, publish and learner submission reuse existing identity-chec
   ['homework/CLASS-1001','GET','listClass'],
   ['homework/CLASS-1001','POST','publish'],
   ['homework/CLASS-1001/HOMEWORK-1001','PUT','edit'],
+  ['homework/CLASS-1001/HOMEWORK-1001','DELETE','remove'],
   ['learner/STUDENT-1001/homework','GET','learnerList'],
   ['learner/STUDENT-1001/homework','POST','complete'],
   ['learner/STUDENT-1001/submission/HOMEWORK-1001','GET','getSubmission'],
@@ -105,6 +106,11 @@ test('homework read, publish and learner submission reuse existing identity-chec
  ];
  for(const [path,method] of paths)assert.ok([200,201].includes((await learn(path,method)).status));
  assert.deepEqual(called.filter(x=>x[0]==='homework').map(x=>x[1]),paths.map(x=>x[2]));
+ assert.deepEqual(called.filter(x=>x[0]==='homework'&&x[1]==='remove'),[['homework','remove','raaga',student,'CLASS-1001','HOMEWORK-1001']]);
+});
+test('homework DELETE rejects malformed IDs and respects the final write opt-in',async()=>{
+ reset();assert.equal((await learn('homework/CLASS-1001/invalid!','DELETE')).status,400);assert.deepEqual(called,[]);
+ assert.equal((await learn('homework/CLASS-1001/HOMEWORK-1001','DELETE','raaga',student,{}, {...learnFlags,SADHANA_FINAL_HOMEWORK_WRITES:''})).status,503);assert.deepEqual(called,[]);
 });
 test('media endpoints require an independent media flag and never fall back',async()=>{
  reset();const path='learner/STUDENT-1001/submission/HOMEWORK-1001/evidence/start';

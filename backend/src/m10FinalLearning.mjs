@@ -109,6 +109,10 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     if (parts.length===2 && method==='GET') return one('listClass',[institution,claims,id]);
     if (parts.length===2 && method==='POST') return one('publish',[institution,claims,id,body()],201);
     if (parts.length===3 && method==='PUT' && idOk(parts[2])) return one('edit',[institution,claims,id,parts[2],body()]);
+    if (parts.length===3 && method==='DELETE') {
+      if (!idOk(parts[2])) return refuse('Invalid homework identifier.',400);
+      return one('remove',[institution,claims,id,parts[2]]);
+    }
     if (parts.length===4 && parts[2]==='submissions' && method==='GET' && idOk(parts[3]))
       return one('teacherSubmissions',[institution,claims,id,parts[3]]);
     if (parts.length===5 && parts[2]==='evidence' && method==='GET' && idOk(parts[3]) && idOk(parts[4]))

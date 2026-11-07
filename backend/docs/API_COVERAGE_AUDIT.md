@@ -36,3 +36,10 @@ The matrix separates evidence from assumptions. Every route except the two live-
 - The matrix inventory is not yet exhaustive for every path discovered by a full static dispatch walk; it includes the handover baseline plus the source additions above. Continue expanding it as dispatch analysis finds additional routes.
 - Candidate test filenames do not establish coverage. All exact test titles and coverage categories other than the focused calendar slice remain to be audited.
 - Infrastructure files in this checkout have unrelated uncommitted differences from deployed AWS configuration. Do not deploy CloudFormation based on them.
+
+## CRUD findings to implement next
+
+- `DELETE /homework/{classId}/{homeworkId}` now dispatches in the final-mode facade, reusing the final homework-write flag and the assigned-teacher/admin service guard. Route tests cover dispatch, malformed identifiers and the disabled flag; service tests cover archive, audit, assignment checks and preserving submissions. The unified backend suites passed and the code-only Lambda deploy succeeded. Live archive behavior remains unverified because the signed-in teacher view has zero verified assigned classes; retry with an assigned teacher and an empty-roster class.
+- `DELETE /operations/enrolment/{id}` is implemented as a versioned canonical end/archive with an audit record; its route/service tests exist, but live behavior and some negative cases still need verification.
+- `DELETE /operations/family/{id}` remains blocked in final mode. The legacy implementation is not reachable and must stay that way. The final-mode family/student deactivate workflow and route semantics are not defined yet; design a canonical preview/archive flow that preserves links and history before implementation.
+- The handover's admin student/family delete work is a planned feature, not an existing endpoint. Do not invent a live route or hard-delete records as part of this audit.
