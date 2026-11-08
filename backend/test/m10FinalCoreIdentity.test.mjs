@@ -59,6 +59,11 @@ test('final core creates and updates use JWT identity, academy and M10 service',
   ['update','enrolments','raaga','real-jwt-sub','ENROLMENT-123',{expectedVersion:4,startDate:'2026-11-06'}]
  ]);
 });
+test('canonical students POST is administrator-scoped and delegates to the core writer',async()=>{
+ reset();const result=await run('students','POST','raaga',raaga,{name:'Student One',createdIn:'raaga',familyId:'FAMILY-1'});
+ assert.equal(result.status,201);assert.deepEqual(result.body,{record:{id:'new'}});
+ assert.deepEqual(calls.filter(Array.isArray),[['create','students','raaga','real-jwt-sub',{name:'Student One',createdIn:'raaga',familyId:'FAMILY-1'}]]);
+});
 test('admin cannot cross academy and guardian cannot create student records',async()=>{
  reset();await assert.rejects(()=>run('students','POST','sruti',raaga),{status:403});
  await assert.rejects(()=>run('families','POST','raaga',guardian),{status:403});

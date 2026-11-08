@@ -16,7 +16,7 @@ test('final mode refuses PK/SK identity/profile routes before early handlers',()
   assert.equal(finalOnlyGate(['schedule'],'GET','early',final),null);
 });
 test('final mode never falls back to generic repository or legacy routes',()=>{
-  for(const root of ['students','classes','venues','schedule','events','registrations','audit','practice','family-access','website-registrations','homework','teachers'])
+  for(const root of ['students','classes','venues','schedule','events','registrations','audit','practice','family-access','website-registrations','homework','teachers','m9-onboarding'])
     assert.equal(finalOnlyGate([root],'GET','fallback',final)?.status,503);
   assert.equal(finalOnlyGate(['health'],'GET','fallback',final),null);
   assert.equal(finalOnlyGate(['health'],'POST','fallback',final)?.status,503);
