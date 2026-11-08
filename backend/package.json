@@ -7,8 +7,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test:ts": "node --import tsx --test test/*.test.ts tests/*.test.ts",
-    "test:mjs": "node --test test/*.test.mjs",
+    "test:ts": "node --import tsx --test src/__tests__/*.test.ts",
+    "test:mjs": "node --test src/__tests__/*.test.mjs",
     "test": "npm run test:ts && npm run test:mjs",
     "test:e2e": "node --import tsx --test ../test/e2e-tests/backend/*.test.ts",
     "typecheck": "tsc --noEmit",

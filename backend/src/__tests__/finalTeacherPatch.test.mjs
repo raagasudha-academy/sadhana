@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {finalTeacherPatchRoute} from '../finalTeacherPatch.mjs';
+const id='TEACHER-540b1a18-5df6-45de-a343-93a3f88e432d';
+const ctx=(method='PATCH')=>({parts:['teachers',id],method,claims:{sub:'admin'},query:{institution:'raaga'},event:{body:'{}'}});
+const env={SADHANA_ENTITY_TABLE_SET:'final',SADHANA_ENTITY_FINAL_ACK:'enabled',SADHANA_DATA_MODE:'final',SADHANA_FINAL_CORE_WRITES:'enabled'};
+const access={admin(_claims,inst){assert.equal(inst,'raaga');}};
+const deps={parse:()=>({expectedVersion:3}),patch:async()=>({id,version:4})};
+test('PATCH reaches canonical updater',async()=>assert.deepEqual(await finalTeacherPatchRoute(ctx(),deps,access,env),{status:200,body:{record:{id,version:4}}}));
+test('GET not intercepted',async()=>assert.equal(await finalTeacherPatchRoute(ctx('GET'),deps,access,env),undefined));
+test('final only',async()=>assert.equal(await finalTeacherPatchRoute(ctx(),deps,access,{}),undefined));
+test('final acknowledgement required',async()=>assert.equal((await finalTeacherPatchRoute(ctx(),deps,access,{...env,SADHANA_ENTITY_FINAL_ACK:'unset'})).status,503));
+test('absent auth denied',async()=>assert.equal((await finalTeacherPatchRoute({...ctx(),claims:null},deps,access,env)).status,401));
+test('other institution denied by access',async()=>assert.rejects(()=>finalTeacherPatchRoute({...ctx(),query:{institution:'sruti'}},deps,access,env)));

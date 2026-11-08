@@ -12,5 +12,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "test", "tests", "../test/e2e-tests/backend"]
+  "include": ["src", "../test/e2e-tests/backend"]
 }

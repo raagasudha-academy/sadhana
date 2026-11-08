@@ -22,7 +22,7 @@
 
 - Finish API behavioral and access-control coverage, including role permissions and academy isolation; verify each new DELETE operation.
 - Complete live administrator, teacher, student and guardian UI acceptance, including broader responsive and accessibility checks.
-- Finish the repository layout cleanup, including the planned backend test placement, and reconcile unrelated local infrastructure/script changes before a clean commit.
+- Reconcile unrelated local infrastructure/script changes before release; backend TypeScript/MJS regression tests now live under `backend/src/__tests__/`.
 - Complete profile and directory acceptance, release parity, rollback and monitoring checks.
 - **Before the production deployment:** write administrator and teacher user guides with release-matching screenshots. Decide later whether to deliver these as a tutorial site or a document.
 - Resolve Charu's live dependencies, API/auth/write-back contract, consent and safeguarding requirements before considering integration.

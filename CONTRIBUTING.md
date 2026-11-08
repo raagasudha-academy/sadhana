@@ -8,8 +8,10 @@ Sadhana is a **modular monolith**: a Vite/React frontend and an AWS Lambda backe
 - `src/features/<domain>/`: domain-specific UI, hooks and local CSS.
 - `src/components/`: presentation components reused across features.
 - `src/api/`: shared frontend API boundary.
-- `backend/src/`: modular domain logic behind a single existing Lambda entrypoint initially.
-- `test/` and `backend/test/`: tests; don't put test files alongside `src/`.
+- `backend/src/`: modular domain logic behind a single Lambda entrypoint; backend TypeScript/MJS regression tests are grouped under `backend/src/__tests__/`.
+- `app/tests/`: frontend unit tests grouped by role and feature.
+- `test/e2e-tests/`: backend HTTP end-to-end tests; `test/playwrighttests/`: browser tests grouped by page.
+- `backend/test/`: Python helper-script tests only.
 
 These are target boundaries. Move files only when their dependencies have been examined.
 

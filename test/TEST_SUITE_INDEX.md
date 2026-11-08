@@ -14,7 +14,7 @@ npm test
 
 ## Backend API and service regression tests
 
-Backend TypeScript and MJS tests live under `backend/test/`; one scheduling test is under `backend/tests/`. The current `backend/test/` inventory has 91 `*.test.ts` files and 65 `*.test.mjs` files. They exercise route wiring, policies, services, validation, security rules and regressions. Most are unit, component or handler-level tests; they do not prove every live API route end to end.
+Backend TypeScript and MJS unit, service and handler tests are colocated under `backend/src/__tests__/`. They exercise route wiring, policies, validation, security rules, transaction commands and regressions. Selected Python tests for backend helper scripts remain in `backend/test/`.
 
 Run both backend suites with:
 
