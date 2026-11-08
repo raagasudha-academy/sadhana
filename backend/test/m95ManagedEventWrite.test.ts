@@ -53,6 +53,7 @@ test('academy event create/edit/cancel retains legacy payload with transactional
   assert.equal(updated.record.version,2);
   const cancelled=await writer.cancel('raaga',raagaAdmin,id,2);
   assert.equal(cancelled.record.status,'cancelled');assert.equal(cancelled.record.version,3);
+  for(const key of ['PK','SK','entityType','GSI1PK','cognitoSub','email','phone','address'])assert.equal(key in cancelled.record,false,key);
   const cancellation=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').at(-1);
   const eventWrite=cancellation.input.TransactItems.find((x:any)=>x.Put?.Item?.eventId);
   const auditWrite=cancellation.input.TransactItems.find((x:any)=>x.Put?.Item?.action==='M95_CANCEL_MANAGED_EVENT');
@@ -93,6 +94,7 @@ test('shared events require dual-admin scope and write two distinct physical key
   assert.ok(f.items.get(`sadhana-dev-m9-events|${group}__sruti`));
   const cancelled=await writer.shared(dualAdmin,{expectedVersion:1},group,true);
   assert.ok(cancelled.records.every(x=>x.status==='cancelled'));
+  for(const record of cancelled.records)for(const key of ['PK','SK','entityType','GSI1PK','cognitoSub','email','phone','address'])assert.equal(key in record,false,key);
   const last=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').at(-1);
   assert.equal(last.input.TransactItems.length,3);
   const cancelledCopies=last.input.TransactItems.filter((x:any)=>x.Put?.Item?.eventId);

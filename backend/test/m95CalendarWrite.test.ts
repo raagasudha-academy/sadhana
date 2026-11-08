@@ -33,6 +33,7 @@ test('class patch retains legacy response and conditions on version and institut
  }};
  const result=await makeM95CalendarWriter(client).patch('raaga','CLASS-TEST',{expectedVersion:2,programme:'Singing basics'},claims);
  assert.equal(result.record.programme,'Singing basics');
+ for(const key of ['PK','SK','entityType','GSI1PK','GSI2PK','cognitoSub','email','phone','address','studentProfile'])assert.equal(key in result.record,false,key);
  const tx=calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
  assert.equal(tx.length,2);
  assert.equal(tx[0].Put.TableName,'sadhana-dev-m9-classes');
@@ -90,6 +91,7 @@ test('session create checks M9 master and writes correct session schema',async()
  const body={recordType:'class-session',name:session.name,programme:session.programme,teacher:session.teacher,mode:session.mode,location:session.location,date:session.date,endDate:session.endDate,startTime:session.startTime,endTime:session.endTime,status:session.status,classId:session.classId};
  const response=await makeM95CalendarWriter(client).create('raaga',body,claims);
  assert.equal(response.record.recordType,'class-session');
+ for(const key of ['PK','SK','entityType','GSI1PK','GSI2PK','cognitoSub','email','phone','address','studentProfile'])assert.equal(key in response.record,false,key);
  const tx=calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
  assert.equal(tx[0].Put.TableName,'sadhana-dev-m9-sessions');
  assert.equal(tx[0].Put.Item.startAt,'2026-11-11T10:00:00.000Z');
