@@ -7,7 +7,7 @@ test.beforeEach(async ({page})=>{
     if ((u.hostname==='127.0.0.1'||u.hostname==='localhost') && u.port==='4179') return route.continue();
     return route.abort('blockedbyclient');
   });
-  await page.goto('/tests/e2e/visual.html');
+  await page.goto('/tests/e2e-tests/fixtures/visual.html');
   await expect(page.getByRole('heading',{name:'Sadhana — Directory visual fixture'})).toBeVisible();
 });
 

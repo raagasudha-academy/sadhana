@@ -7,7 +7,7 @@ test.beforeEach(async({page})=>{
     if(url.protocol==='http:' && url.hostname==='127.0.0.1' && url.port==='4179')return route.continue();
     throw new Error(`BLOCKED non-fixture request: ${url.origin}`);
   });
-  await page.goto('/tests/e2e/portal.html');
+  await page.goto('/tests/e2e-tests/fixtures/portal.html');
   await expect(page.getByText('Test Meera').first()).toBeVisible();
 });
 async function chooseFilter(page:Page,name:string){

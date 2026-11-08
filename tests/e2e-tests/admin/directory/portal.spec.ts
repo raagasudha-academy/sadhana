@@ -7,7 +7,7 @@ test.beforeEach(async({page})=>{
     if(url.hostname==='127.0.0.1'&&url.port==='4179'&&['http:','ws:'].includes(url.protocol))return route.continue();
     throw new Error(`E2E blocked unexpected network access: ${url.origin}`);
   });
-  await page.goto('/tests/e2e/portal.html');
+  await page.goto('/tests/e2e-tests/fixtures/portal.html');
 });
 
 test('real portal renders synthetic students in registration directory',async({page})=>{

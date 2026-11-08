@@ -3,10 +3,10 @@
  */
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import App from '../../src/App';
-import type {CloudSession} from '../../src/CloudAuth';
-import type {SadhanaApiClient} from '../../src/api/sadhanaClient';
-import '../../src/styles.css';
+import App from '../../../src/App';
+import type {CloudSession} from '../../../src/CloudAuth';
+import type {SadhanaApiClient} from '../../../src/api/sadhanaClient';
+import '../../../src/styles.css';
 
 // Synthetic state lives in sessionStorage so a browser reload exercises persistence.
 // Each Playwright test gets its own fresh browser context and isolated storage.

@@ -10,7 +10,7 @@ for(const size of sizes){
    if(url.hostname==='127.0.0.1'&&url.port==='4179'&&['http:','ws:'].includes(url.protocol))return route.continue();
    throw new Error(`Blocked network request to ${url.origin}`);
   });
-  await page.goto('/tests/e2e/portal.html');
+  await page.goto('/tests/e2e-tests/fixtures/portal.html');
   await expect(page.getByText('Test Meera').first()).toBeVisible();
   const overflow=await page.evaluate(()=>({viewport:document.documentElement.clientWidth,document:document.documentElement.scrollWidth}));
   expect(overflow.document,`Horizontal overflow at ${size.name}: ${JSON.stringify(overflow)}`).toBeLessThanOrEqual(overflow.viewport+2);

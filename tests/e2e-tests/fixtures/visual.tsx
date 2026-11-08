@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DirectoryDataMenu, StudentCardBadges } from '../../src/DirectoryComponents';
-import { filterFamiliesByLocation, filterStudentsByLocation, sortDirectoryStudents } from '../../src/directorySelectors';
-import '../../src/styles.css';
+import { DirectoryDataMenu, StudentCardBadges } from '../../../src/DirectoryComponents';
+import { filterFamiliesByLocation, filterStudentsByLocation, sortDirectoryStudents } from '../../../src/directorySelectors';
+import '../../../src/styles.css';
 
 type Student = {id:string;name:string;roll:string;location:string;archived:boolean};
 const initial: Student[] = [
