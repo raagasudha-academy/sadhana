@@ -5,7 +5,7 @@
 ### How to use this register
 - **Evidence:** `Confirmed` = explicitly discussed, demonstrated, or found in supplied source; `Historical context` = recorded in project conversation but not currently source-verified; `Needs source` = original requirement or contract has not yet been recovered.
 - **Delivery state:** `Implemented / verified` includes a specified verification scope; `Implemented / acceptance pending` is not equivalent to production sign-off; `Planned` is not implemented; `Deferred` is consciously postponed.
-- **Do not invent requirements:** Charu's purpose, interfaces, auth, data model, and ownership are **not yet confirmed**. Recover original design before implementing it.
+- **Do not invent requirements:** Charu's purpose and high-level user policies are now captured from [the Charu requirements baseline](docs/Sadhana_Charu_Requirements_v1.7.md). Its API, runtime, Sheets dependencies, and technical architecture are not verified against source. The document records requirements but does not authorize migration or integration.
 - Update the **Decision log** whenever a requirement or priority changes. Never delete a requirement silently; mark `Superseded` and link the replacement.
 
 ## A. Verified baseline
@@ -25,10 +25,10 @@
 ## B. Previously identified workstreams / gaps
 | ID | Area | Requirement | Delivery state | Evidence | Priority | Acceptance gate |
 |---|---|---|---|---|---|---|
-| INT-CHARU-01 | Charu | **Charu integration** explicitly identified as omitted from shortened roadmap | **Requirements recovery required** | User explicitly recalled prior requirements; no precise contract available in accessible sources | High | Locate original Charu requirement discussion and integration/API design before implementing |
+| INT-CHARU-01 | Charu | Replace Charu's Google Sheets dependencies with purpose-specific Sadhana APIs; preserve existing reminders, attendance replies, practice workflows and rollback until parity is accepted | Requirements captured; current-state discovery and technical contract pending. Integration/migration not authorized by requirements document. | [Charu requirements v1.7](docs/Sadhana_Charu_Requirements_v1.7.md) (8 Nov 2026); requirements are conversation-confirmed, while technical proposals are not code/runtime verified | High, after current P0 API security work | Inventory live sheets/jobs/triggers and Charu runtime; confirm API/auth/write-back contract, map workflows and test parity before any cutover |
 | COM-01 | Communications | Academy-specific announcements | Planned | Previous App communications placeholder | Medium/High | Recipients/permissions, delivery audit and opt-out specification |
-| COM-02 | Communications | WhatsApp delivery records and failed messages | Planned | App placeholder and prior roadmap | Medium/High | Provider contract, message states, failure/retry handling |
-| COM-03 | Communications | Reminder Service integration/status | Planned | App placeholder | Medium/High | Confirm provider/API, consent, schedules and idempotency |
+| COM-02 | Communications | Optional outbound Charu WhatsApp notifications from supported admin/teacher actions, with delivery history | Policy requirements captured; not implemented; provider/runtime contract and retention still open | Charu v1.7 confirms opt-in checkbox unchecked by default, generated preview, unique eligible recipient count, explicit confirmation, action-success-before-queue, teacher assigned-class scope, in-app independence and truthful delivery states | High, after API/security and provider/consent contracts | Confirm Charu transport/API, safeguarding/opt-out eligibility, approved templates, persistence/outbox, retries, status callbacks and retention |
+| COM-03 | Communications | General Sadhana Notification Centre and any separate Reminder Service integration | Planned; distinct from Charu WhatsApp | Charu v1.7 distinguishes general Email/SMS channels from Charu WhatsApp; reminder provider/API is not specified | Medium/High | Confirm provider/API, consent, schedules, channel ownership and idempotency |
 | CONSENT-01 | Privacy | Versioned notices, acknowledgements and privacy preferences | Planned | Student portal explicit placeholder | High | Guardian rights and audit/versioning approved |
 | CONSENT-02 | Privacy | Recording/photo permissions by student | Planned | Prior scope discussion | High | Appropriate consent and revocation implementation |
 | REPORT-01 | Insights | Academy attendance/enrolment/practice/homework reports | Planned | Prior roadmap | Medium | Roles, institution filters and exports spec |
@@ -41,36 +41,51 @@
 | SMS-02 | Account | Synchronise verified contact number only after confirmation | **Deferred** | Prior discussion | Low | No premature mutation of contacts |
 | DOC-01 | Homework | Document upload | **Deferred / out of current scope** | Explicit user decision; use instructions links | Low | Reconsider only when needed |
 
-## C. Charu integration discovery checklist — unresolved, not assumptions
+## C. Charu requirements recovery and technical discovery
+
+Requirements source recovered: [Sadhana_Charu_Requirements_v1.7.md](docs/Sadhana_Charu_Requirements_v1.7.md), copied from the supplied document with only trailing-whitespace normalization and updated 8 November 2026. It consolidates agreed conversation decisions, separates proposed technical design from confirmed policy, and explicitly states that it does not authorize migration or integration. Requirements are not evidence of implementation.
+
+### Captured policy and scope
+
+- Sadhana is intended to become Charu's authoritative source for academy data; Google Sheets dependencies should be retired only after workflow parity, acceptance and rollback are established.
+- Existing class attendance reminders/replies, class reports/teacher confirmation, practice reminders/logging, schedules, holidays/reschedules and identity mapping must be inventoried and preserved during migration.
+- Charu outbound messages use WhatsApp, not SMS. General Sadhana Email/SMS and Cognito phone verification are separate concerns.
+- Supported admin/teacher actions may offer a WhatsApp option, unchecked by default. The backend resolves eligible unique recipients; the user sees a generated preview/count and explicitly confirms. Queue only after the underlying action succeeds; retain in-app notifications if WhatsApp fails.
+- Teachers may message only their assigned classes. Both guardian and student may be recipients only when individually eligible and authorised; shared numbers receive one campaign message. Verified phone alone is not consent or safeguarding permission.
+- The in-app Charu chat widget remains paused until Sheets migration and existing automations are stable and validated.
+
+### Open implementation contracts — not confirmed by the requirements document
+
 | Decision needed | Present state |
 |---|---|
-| What Charu is, and which users interact with it | Handover context says Charu provides WhatsApp practice assistance and its opt-in default is OFF. Exact user journeys, provider/API, data ownership, and operating responsibilities remain unknown; recover original discussion. |
-| Integration purpose and user journeys | Unknown |
-| Ownership of student, parent, teacher or learning records | Unknown |
-| API/event endpoints, payloads, schemas, credentials | Unknown |
-| Data direction and frequency; conflict/reconciliation rules | Unknown |
-| Consent, safeguarding, retention and data permissions | Unknown |
-| Error handling, replay/idempotency, test environment | Unknown |
-| Rollout, rollback and operational monitoring | Unknown |
+| Live Google Sheets inventory, tabs, columns, formulas, cron jobs, triggers, and write-backs | Not supplied; discover from the actual Charu environment |
+| Charu runtime, WhatsApp provider/library, hosting, queues and persistence | Not supplied; inspect current runtime before designing an adapter |
+| API endpoints, service authentication/scopes, payloads, webhooks, errors and limits | Open; the example payload in v1.7 is illustrative only and is not an existing API contract |
+| Attendance/practice reply formats and authorised write-back | Open; map every inbound workflow and identity join |
+| Recipient age/safeguarding, consent, opt-out and student-direct-message policy | Open; verified phone is insufficient proof of WhatsApp eligibility |
+| Approved message templates, branding and provider delivery statuses | Open |
+| Retention/deletion for message bodies, notifications and delivery/audit history | Open |
+| Retry, alerting, reconciliation, rate limits and cutover/rollback ownership | Proposed direction captured; actual operational design and owners are open |
+| Database cleanup dependency | v1.7 mentions a selective test-data cleanup as a dependency, but it requires a separate inventory, dry run and explicit approval; it is outside this roadmap's authorized work |
 
-**Decision:** Charu is a high-priority workstream. The available handover only confirms the high-level practice/WhatsApp context and opt-in default; it is not a connector contract. Do not build a speculative integration. Reconcile original agreed specifications first. Mark recovered lines as Confirmed, unresolved decisions as Open.
+**Decision:** use v1.7 as the recovered requirements baseline. Treat its high-level policies as agreed requirements, its technical architecture as a proposal, and all unspecified contracts as open. Do not implement endpoints, migrate Sheets, change AWS/database state, or disable existing jobs based on this document alone.
 
 ## D. Next implementation bundle — proposed v13.10 Foundation & Acceptance
 1. **Repository/deployment reconciliation:** ensure the locally fixed administrator-title code is committed and the frontend source branch aligns with published Pages; avoid destructive Git operations.
 2. **Profile and directory regression:** title display, signed photo fallback/expiry, stable identity merge, fresh login photo, 3/2/1 responsive card columns.
 3. **Access-isolation regression:** a Śruti-only account must not fetch Raagasudha records, dual accounts only see approved records, revoked guardian links fail every learner endpoint. Use negative tests; no permission expansion.
-4. **Requirements recovery:** import original Charu and communications decisions into this register, with status/owner/acceptance criteria; implement Charu only after the contract is recovered.
+4. **Charu discovery after API P0:** inventory the live Sheets/runtime dependencies; document identity/data mappings, all workflows and API/write-back contracts; verify safeguarding, consent, templates, delivery states, rollback and owners. Implement only after these gates are reviewed.
 
 ### Out of bundle
-No new role grants, direct Cognito group changes, parent link creation, record migration, automatic SMS enablement, or new Charu API endpoints without confirmed design.
+No new role grants, direct Cognito group changes, parent link creation, record migration/cleanup, disabling Sheets jobs, automatic SMS enablement, or new Charu API endpoints without confirmed design and explicit authorization.
 
 ## E. Delivery waves (order, not calendar promises)
 | Wave | Milestone | Entry gate | Exit gate |
 |---|---|---|---|
 | 1 | v13.10 Foundation & Acceptance | Baseline verified | Profile/directory, security negative tests, clean commit/deploy parity |
-| 2 | Charu requirements reconciliation | Original specification obtained | Confirmed architecture and acceptance tests |
-| 3 | Charu integration implementation | Wave 2 approved | End-to-end tests, retry/observability, no access regression |
-| 4 | Communications and reminder workflows | Provider and consent requirements approved | Delivery/failure audits and role checks |
+| 2 | Charu current-state discovery and contract | API P0 security work complete; access to Charu/Sheets inventory | Dependency inventory, API/auth/write-back contract, workflow mapping, safeguarding and rollback plan reviewed |
+| 3 | Charu migration and WhatsApp implementation | Wave 2 contract approved and implementation separately authorized | Workflow-by-workflow parity, notifications meet NOTIF acceptance tests, retries/observability, no access regression |
+| 4 | General communications and reminder workflows | Provider and consent requirements approved; separate from Charu WhatsApp | Delivery/failure audits and role checks |
 | 5 | Consent, reports, learning operations | Priorities confirmed | Explicit acceptance for each module |
 | 6 | v14.0 release readiness | Feature freeze | Cross-role E2E, mobile, security, rollback, monitoring |
 
@@ -82,6 +97,7 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 | 2026-11-02 | Staff directory separated by role, merged affiliations, three-card desktop grid and photographs | User acceptance; confirmed |
 | 2026-11-02 | Administrator titles must reflect Cognito name | User acceptance after backend deployment; confirmed |
 | 2026-11-02 | Keep Charu and earlier requirement gathering in master roadmap | User decision; confirmed |
+| 2026-11-08 | Adopt `docs/Sadhana_Charu_Requirements_v1.7.md` as the recovered conversation-requirements baseline; distinguish confirmed policy from proposed technical design | User-supplied document copied with trailing-whitespace normalization; migration/integration explicitly not authorized by the document |
 
 ## G. Progress update — 8 November 2026
 
@@ -89,12 +105,13 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 - **Live page behavior:** timetable settled to 316 dated entries, 16 master classes and 5 events. Practice & Reports briefly showed its initial empty state while requests were pending, then loaded 5 students, 3 enrolments, 1 practice entry, 1 RSVP and eligible class rosters. This is not a confirmed data mismatch, though an explicit loading state would improve clarity.
 - **Feature status:** Communications, Fees and Settings open their planned-feature previews; they are not implemented workflows. Teacher and student account navigation and mobile/accessibility acceptance remain unchecked.
 - **API regression work:** the working route matrix still inventories 158 method/path rows and is not complete behavioral coverage. New focused event validation/version cases are recorded in `backend/docs/api-coverage-audit.csv`. Current local verification: 391 backend TypeScript tests and 466 MJS tests pass; backend typecheck and bundle build pass. Frontend `npm run verify` passes lint, typecheck, 53 tests and Vite build. No Lambda or infrastructure deployment was made for these test/document changes.
-- **Next action:** finish P0 behavioral gaps and security boundaries in the API audit, then complete profile/directory and access-isolation acceptance. Do not start speculative Charu, WhatsApp, reminder or consent integrations before their requirements and provider/privacy contracts are recovered.
+- **Charu requirements:** recovered and reconciled from [docs/Sadhana_Charu_Requirements_v1.7.md](docs/Sadhana_Charu_Requirements_v1.7.md). Confirmed user policies are recorded separately from proposed architecture and open runtime/API/Sheets/consent contracts. This document does not authorize integration or migration.
+- **Next action:** finish P0 behavioral gaps and security boundaries in the API audit, then complete profile/directory and access-isolation acceptance. Charu live dependency/API discovery follows; no implementation or cutover until its open contracts are resolved and separately authorized.
 
 ## H. Source recovery procedure
-1. Search past Sadhana/Charu chats, documents and design notes for exact `Charu`, `Reminder Service`, `WhatsApp`, `consent`, and `roadmap` discussions.
-2. Transcribe requirements without reinterpretation, recording original wording and decisions in a separate Charu specification section.
-3. Compare with current code and deployed endpoints; classify as Done / Partial / Pending / Deferred / Superseded.
+1. Treat `docs/Sadhana_Charu_Requirements_v1.7.md` as the consolidated conversation baseline; check for later decisions before changing confirmed policy.
+2. Recover the live Charu/Sheets/runtime facts and resolve the open API, consent, safeguarding, retention, template and operations contracts without assuming the proposed design is implemented.
+3. Compare the confirmed requirements with current code and deployed endpoints; classify each as Done / Partial / Pending / Deferred / Superseded.
 4. Do not declare a wave complete from passing unit tests alone; record local build, deployment, API and user acceptance separately.
 
-**Known gap:** This baseline uses currently accessible project context and provided files only. It is not an assertion that all historic project requirements have been recovered.
+**Known gap:** Charu conversation requirements are now captured, but the live integration specification, dependency inventory, and full historic Sadhana requirements may still be incomplete.
