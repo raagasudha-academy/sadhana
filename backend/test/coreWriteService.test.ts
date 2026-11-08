@@ -168,3 +168,25 @@ test('family student create allocates a roll and keeps guardian access pending i
  assert.equal(tx[6].Put.TableName,'sadhana-dev-m9-audit');
  assert.equal(tx[6].Put.Item.action,'ACADEMY_STUDENT_CREATED');
 });
+
+test('repeated family student create with the same normalized name or email returns conflict without a second write',async()=>{
+ const family={familyId:'FAMILY-1',institutionIds:['raaga'],status:'active',version:2,primaryContactPersonId:'PERSON-GUARDIAN-1'};
+ const guardian={personId:'PERSON-GUARDIAN-1',familyId:'FAMILY-1',institutionIds:['raaga'],personTypes:['guardian'],status:'active',version:3};
+ for(const existing of [
+  {personId:'PERSON-STUDENT-1',familyId:'FAMILY-1',displayName:'Asha Student',email:''},
+  {personId:'PERSON-STUDENT-2',familyId:'FAMILY-OTHER',displayName:'Different Student',email:'asha@example.org'},
+ ]){
+  const calls:any[]=[];const db={send:async(command:any)=>{
+   calls.push(command);
+   if(command instanceof GetCommand)return {Item:command.input.Key.familyId?family:guardian};
+   if(command instanceof ScanCommand)return {Items:[existing]};
+   if(command instanceof TransactWriteCommand)return {};
+   throw new Error(`Unexpected command ${command.constructor.name}`);
+  }};
+  const service=makeM10CoreWriteService(db);
+  const body={name:existing.email?'New Student':'  Asha   Student ',email:existing.email?' ASHA@example.org ':'',
+   phone:'',familyId:'FAMILY-1',registrationType:'family',createdIn:'raaga'};
+  await assert.rejects(service.create('students','raaga',{sub:'student-create-admin'},body),{status:409});
+  assert.equal(calls.some(x=>x instanceof TransactWriteCommand),false);
+ }
+});

@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test:ts": "tsx --test test/*.test.ts",
+    "test:ts": "node --import tsx --test test/*.test.ts",
     "test:mjs": "node --test test/*.test.mjs",
     "test": "npm run test:ts && npm run test:mjs",
     "typecheck": "tsc --noEmit",

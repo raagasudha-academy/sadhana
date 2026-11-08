@@ -44,7 +44,7 @@
 ## C. Charu integration discovery checklist — unresolved, not assumptions
 | Decision needed | Present state |
 |---|---|
-| What Charu is, and which users interact with it | Unknown — locate original discussion |
+| What Charu is, and which users interact with it | Handover context says Charu provides WhatsApp practice assistance and its opt-in default is OFF. Exact user journeys, provider/API, data ownership, and operating responsibilities remain unknown; recover original discussion. |
 | Integration purpose and user journeys | Unknown |
 | Ownership of student, parent, teacher or learning records | Unknown |
 | API/event endpoints, payloads, schemas, credentials | Unknown |
@@ -53,7 +53,7 @@
 | Error handling, replay/idempotency, test environment | Unknown |
 | Rollout, rollback and operational monitoring | Unknown |
 
-**Decision:** Charu is a high-priority workstream, but do not build a speculative connector. Reconcile original agreed specifications first. Mark recovered lines as Confirmed, unresolved decisions as Open.
+**Decision:** Charu is a high-priority workstream. The available handover only confirms the high-level practice/WhatsApp context and opt-in default; it is not a connector contract. Do not build a speculative integration. Reconcile original agreed specifications first. Mark recovered lines as Confirmed, unresolved decisions as Open.
 
 ## D. Next implementation bundle — proposed v13.10 Foundation & Acceptance
 1. **Repository/deployment reconciliation:** ensure the locally fixed administrator-title code is committed and the frontend source branch aligns with published Pages; avoid destructive Git operations.
@@ -83,7 +83,15 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 | 2026-11-02 | Administrator titles must reflect Cognito name | User acceptance after backend deployment; confirmed |
 | 2026-11-02 | Keep Charu and earlier requirement gathering in master roadmap | User decision; confirmed |
 
-## G. Source recovery procedure
+## G. Progress update — 8 November 2026
+
+- **Live admin navigation:** signed in to the published GitHub Pages portal using an administrator account and opened the dashboard, website registrations, families/students, timetable, practice/reports, communications, teachers, venues, administrators, account access, fees and settings. Read-only navigation only; no records were changed.
+- **Live page behavior:** timetable settled to 316 dated entries, 16 master classes and 5 events. Practice & Reports briefly showed its initial empty state while requests were pending, then loaded 5 students, 3 enrolments, 1 practice entry, 1 RSVP and eligible class rosters. This is not a confirmed data mismatch, though an explicit loading state would improve clarity.
+- **Feature status:** Communications, Fees and Settings open their planned-feature previews; they are not implemented workflows. Teacher and student account navigation and mobile/accessibility acceptance remain unchecked.
+- **API regression work:** the working route matrix still inventories 158 method/path rows and is not complete behavioral coverage. New focused event validation/version cases are recorded in `backend/docs/api-coverage-audit.csv`. Current local verification: 391 backend TypeScript tests and 466 MJS tests pass; backend typecheck and bundle build pass. Frontend `npm run verify` passes lint, typecheck, 53 tests and Vite build. No Lambda or infrastructure deployment was made for these test/document changes.
+- **Next action:** finish P0 behavioral gaps and security boundaries in the API audit, then complete profile/directory and access-isolation acceptance. Do not start speculative Charu, WhatsApp, reminder or consent integrations before their requirements and provider/privacy contracts are recovered.
+
+## H. Source recovery procedure
 1. Search past Sadhana/Charu chats, documents and design notes for exact `Charu`, `Reminder Service`, `WhatsApp`, `consent`, and `roadmap` discussions.
 2. Transcribe requirements without reinterpretation, recording original wording and decisions in a separate Charu specification section.
 3. Compare with current code and deployed endpoints; classify as Done / Partial / Pending / Deferred / Superseded.

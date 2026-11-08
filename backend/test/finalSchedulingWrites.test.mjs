@@ -69,6 +69,25 @@ test('shared managed event writes delegate dual-admin enforcement to existing wr
  assert.deepEqual(calls.filter(Array.isArray).map(x=>x[0]),['events.shared','events.shared','events.shared']);
  await assert.rejects(()=>run('events/shared','POST','raaga',student),{status:403});
 });
+test('calendar facade rejects unsupported IDs and missing academy before writer calls',async()=>{
+ reset();
+ for(const [path,method] of [['schedule/no!','PATCH'],['events/no!','PATCH'],['events/shared/no!','DELETE']])
+  assert.equal((await run(path,method)).status,503);
+ const missingAcademy={...context('schedule','POST'),query:{},inst:undefined};
+ assert.equal((await finalSchedulingWriteRoute(missingAcademy,deps,access,enabled)).status,400);
+ assert.equal(calls.filter(Array.isArray).length,0);
+});
+test('managed event cancellation requires a positive safe integer version before calling its writer',async()=>{
+ for(const version of [undefined,0,-1,1.5,'1',Number.MAX_SAFE_INTEGER+1,null]){
+  reset();
+  const body=version===undefined?{}:{expectedVersion:version};
+  assert.equal((await run('events/EVT-1234','DELETE','raaga',admin,body)).status,400,`version ${String(version)}`);
+  assert.equal(calls.filter(Array.isArray).length,0,`version ${String(version)} reached a writer`);
+ }
+ reset();
+ assert.equal((await run('events/EVT-1234','DELETE','raaga',admin,{expectedVersion:1})).status,200);
+ assert.deepEqual(calls.filter(Array.isArray),[['events.cancel','raaga','valid-sub','EVT-1234',1]]);
+});
 test('unsupported calendar and event writes never fall back',async()=>{
  reset();for(const path of ['schedule/unknown/path','events/one/two/three','schedule/series/bad','events/invalid!',
   'schedule/teacher-links/CLASS-1234','schedule/master/CLASS-1234/lifecycle']){

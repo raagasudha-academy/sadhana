@@ -33,6 +33,37 @@ test('strict event fields, BST timestamps, invalid dates and times rejected',()=
  assert.throws(()=>validateM95ManagedEvent({...event,date:'2026-02-30'},'raaga'));
  assert.throws(()=>validateM95ManagedEvent({...event,endTime:'09:00'},'raaga'));
 });
+test('managed event create validates the full payload before any transaction',async()=>{
+ const f=fixture(),writer=makeM95ManagedEventWriter(f.client);
+ const a=process.env.M95_COMPAT_MODE,b=process.env.M95_MANAGED_EVENT_WRITES;
+ process.env.M95_COMPAT_MODE='pilot';process.env.M95_MANAGED_EVENT_WRITES='enabled';
+ try{
+  for(const invalid of [
+   {...event,unexpected:'field'},
+   {...event,name:' '.repeat(151)},
+   {...event,date:'2026-02-30'},
+   {...event,startTime:'12:00',endTime:'11:00'},
+   {...event,programme:'Vocal'},
+   {...event,expectedVersion:1},
+  ])await assert.rejects(writer.save('raaga',raagaAdmin,invalid),{status:400});
+  assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,0);
+ }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
+  if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
+});
+test('managed event PATCH rejects bad fields and stale expectedVersion without a transaction',async()=>{
+ const f=fixture(),writer=makeM95ManagedEventWriter(f.client);
+ const a=process.env.M95_COMPAT_MODE,b=process.env.M95_MANAGED_EVENT_WRITES;
+ process.env.M95_COMPAT_MODE='pilot';process.env.M95_MANAGED_EVENT_WRITES='enabled';
+ try{
+  const created=await writer.save('raaga',raagaAdmin,event);
+  const id=created.record.id;
+  const before=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length;
+  await assert.rejects(writer.save('raaga',raagaAdmin,{...event,unexpected:true,expectedVersion:1},id),{status:400});
+  await assert.rejects(writer.save('raaga',raagaAdmin,{...event,expectedVersion:0},id),{status:409});
+  assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,before);
+ }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
+  if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
+});
 test('flags fail closed before any DynamoDB calls',async()=>{
  const f=fixture(),writer=makeM95ManagedEventWriter(f.client);
  const previous=process.env.M95_COMPAT_MODE,enabled=process.env.M95_MANAGED_EVENT_WRITES;
@@ -104,6 +135,21 @@ test('shared events require dual-admin scope and write two distinct physical key
   assert.equal(audit.Put.Item.institutionId,'shared');assert.equal(audit.Put.Item.resourceId,group);
   await assert.rejects(writer.shared(dualAdmin,{expectedVersion:1},group,true),/changed/);
   assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,2);
+ }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
+  if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
+});
+test('shared event create and update validate event-only payloads and version without writing',async()=>{
+ const f=fixture(),writer=makeM95ManagedEventWriter(f.client);
+ const a=process.env.M95_COMPAT_MODE,b=process.env.M95_MANAGED_EVENT_WRITES;
+ process.env.M95_COMPAT_MODE='pilot';process.env.M95_MANAGED_EVENT_WRITES='enabled';
+ try{
+  await assert.rejects(writer.shared(dualAdmin,{...event,unknown:'field'}),{status:400});
+  await assert.rejects(writer.shared(dualAdmin,{...event,eventKind:'class',programme:'Singing'}),{status:400});
+  const created=await writer.shared(dualAdmin,event);
+  const id=created.record.id;
+  const before=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length;
+  await assert.rejects(writer.shared(dualAdmin,{...event,expectedVersion:0},id),{status:409});
+  assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,before);
  }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
   if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
 });
