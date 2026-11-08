@@ -53,9 +53,30 @@ test('academy event create/edit/cancel retains legacy payload with transactional
   assert.equal(updated.record.version,2);
   const cancelled=await writer.cancel('raaga',raagaAdmin,id,2);
   assert.equal(cancelled.record.status,'cancelled');assert.equal(cancelled.record.version,3);
+  const cancellation=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').at(-1);
+  const eventWrite=cancellation.input.TransactItems.find((x:any)=>x.Put?.Item?.eventId);
+  const auditWrite=cancellation.input.TransactItems.find((x:any)=>x.Put?.Item?.action==='M95_CANCEL_MANAGED_EVENT');
+  assert.equal(eventWrite.Put.Item.status,'cancelled');assert.equal(eventWrite.Put.Item.version,3);
+  assert.equal(eventWrite.Put.ConditionExpression,'#v=:old AND #i=:inst');
+  assert.equal(auditWrite.Put.Item.institutionId,'raaga');
+  assert.equal(auditWrite.Put.Item.resourceId,id);
+  assert.equal(auditWrite.Put.Item.actorCognitoSub,raagaAdmin.sub);
   await assert.rejects(writer.cancel('raaga',raagaAdmin,id,2),/changed/);
   assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,3);
   assert.equal(f.items.get(`sadhana-dev-m9-events|${id}`).legacyPayload.recordType,'special-event');
+ }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
+  if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
+});
+test('event cancellation rejects cross-academy and missing managed events without a write',async()=>{
+ const f=fixture(),writer=makeM95ManagedEventWriter(f.client);
+ const a=process.env.M95_COMPAT_MODE,b=process.env.M95_MANAGED_EVENT_WRITES;
+ process.env.M95_COMPAT_MODE='pilot';process.env.M95_MANAGED_EVENT_WRITES='enabled';
+ try{
+  await assert.rejects(writer.cancel('raaga',raagaAdmin,'EVT-MISSING-1',1),{status:404});
+  const created=await writer.save('raaga',raagaAdmin,event);
+  const transactions=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length;
+  await assert.rejects(writer.cancel('sruti',raagaAdmin,created.record.id,1),{status:403});
+  assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,transactions);
  }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
   if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
 });
@@ -74,6 +95,13 @@ test('shared events require dual-admin scope and write two distinct physical key
   assert.ok(cancelled.records.every(x=>x.status==='cancelled'));
   const last=f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').at(-1);
   assert.equal(last.input.TransactItems.length,3);
+  const cancelledCopies=last.input.TransactItems.filter((x:any)=>x.Put?.Item?.eventId);
+  const audit=last.input.TransactItems.find((x:any)=>x.Put?.Item?.action==='M95_CANCEL_SHARED_EVENT');
+  assert.equal(cancelledCopies.length,2);
+  assert.deepEqual(cancelledCopies.map((x:any)=>[x.Put.Item.institutionId,x.Put.Item.status,x.Put.Item.version]),[['raaga','cancelled',2],['sruti','cancelled',2]]);
+  assert.equal(audit.Put.Item.institutionId,'shared');assert.equal(audit.Put.Item.resourceId,group);
+  await assert.rejects(writer.shared(dualAdmin,{expectedVersion:1},group,true),/changed/);
+  assert.equal(f.calls.filter(x=>x.constructor.name==='TransactWriteCommand').length,2);
  }finally{if(a===undefined)delete process.env.M95_COMPAT_MODE;else process.env.M95_COMPAT_MODE=a;
   if(b===undefined)delete process.env.M95_MANAGED_EVENT_WRITES;else process.env.M95_MANAGED_EVENT_WRITES=b;}
 });
