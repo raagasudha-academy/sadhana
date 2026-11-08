@@ -276,7 +276,14 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       ((currentWorkspace === 'raaga' || currentWorkspace === 'sruti') && person.admin && !teacherMode)
   );
   const activePage = page === 'My Profile' ? 'My Profile' : nav.some(item => item === page) ? page : 'Dashboard';
-  const unread = notifications.filter(n => !n.read && availableInstitutions.includes(n.institution)).length;
+  const notificationInstitutions:InstitutionId[] = person.admin && currentRole === 'admin'
+    ? availableInstitutions
+    : teacherMode
+      ? verifiedTeachingInstitutions
+      : studentMode
+        ? learnerInstitutions
+        : [];
+  const unread = notifications.filter(n => !n.read && notificationInstitutions.includes(n.institution)).length;
   // Keep View As scoped to the academy; preserve the selected student only
   // when that same student has an authorised membership in the new academy.
   const switchWorkspace = (w) => {
@@ -573,7 +580,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
 
               <div className="topbar-account-tools">
 
-                {person.admin && (
+                {cloud && (
                   <button
                     type="button"
                     className="notification-trigger topbar-tool"
@@ -746,7 +753,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
           setScheduleRevision(n => n + 1);
         }} onClose={() => setSession(null)} onClass={openClass}/>}
     {notifsOpen && <NotificationDrawer notifications={notifications} setNotifications={setNotifications}
-                                       allowed={availableInstitutions} filter={notifFilter} setFilter={setNotifFilter}
+                                       allowed={notificationInstitutions} filter={notifFilter} setFilter={setNotifFilter}
                                        onClose={() => setNotifsOpen(false)}/>}
   </div>;
 }

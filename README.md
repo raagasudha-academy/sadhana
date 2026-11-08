@@ -13,13 +13,17 @@ Portal for Raagasudha and Śruti Vedam, with a React/Vite frontend and a Node/AW
 ## Project areas
 
 - `app/src/` — frontend application
-- `app/tests/` — frontend unit tests grouped by role and feature
+- `app/tests/` — frontend unit tests grouped by role and feature, with shared/architecture suites
 - `app/public/` and `app/index.html` — frontend static assets and entry point
-- `backend/src/` — backend Lambda and feature modules; backend tests are still in `backend/test/` pending their move beside source
-- `test/e2e-tests/` — reserved for backend end-to-end scenarios; no suite is organized here yet
-- `test/playwrighttests/` — Playwright browser and visual tests, grouped by role and feature
+- `backend/src/` — backend Lambda and feature modules
+- `backend/test/` — backend TypeScript and MJS unit, service and handler regression tests
+- `test/e2e-tests/backend/` — authenticated HTTP API end-to-end tests using synthetic claims and an in-memory store
+- `test/playwrighttests/pages/` — browser and visual tests organized by page, with role cases in each page suite
+- `test/playwrighttests/fixtures/` — shared synthetic role sessions and network guards
 - `test/test_isolated_release.py` — release-script regression check
 - `infra/` — infrastructure source
+
+Backend tests remain in `backend/test/`; moving them beside production modules is still outstanding. The backend end-to-end suite is local and isolated: it does not exercise deployed AWS authorization or persistence.
 
 The detailed completed and outstanding work is tracked in the [master roadmap](Sadhana_Master_Roadmap_and_Requirements.md).
 

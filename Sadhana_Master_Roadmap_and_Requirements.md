@@ -13,15 +13,16 @@
 ### Completed or verified
 
 - Calendar API 503 fixes were deployed and the additional-session flow was live-tested.
-- API endpoint inventory and regression work are in place; local backend typecheck, build and recorded TypeScript/MJS suites passed. The 158-route matrix remains an inventory, not proof of full behavioral coverage.
-- Frontend local verification passed, and the administrator portal was reviewed live in read-only mode across its available sections.
+- API endpoint inventory and regression work are in place. Local verification currently passes backend typecheck/build, 390 TypeScript tests, 471 MJS tests and 4 isolated HTTP API E2E scenarios. The 158-route matrix remains traceability, not proof of full behavioral coverage.
+- Frontend verification currently passes lint, typecheck, 80 Vitest tests, Vite build and 49 Playwright tests across 34 screenshot baselines. The administrator portal was also reviewed live in read-only mode across its available sections.
+- The notification bell and institution scope are now present for signed-in admin, teacher, student and guardian roles in local code. The feed and read state remain unconnected to a backend notification service; this UI change has not been deployed.
 - Charu requirements v1.7 were recovered as a policy baseline. No Charu integration or migration was authorized.
 
 ### Remaining or awaiting acceptance
 
 - Finish API behavioral and access-control coverage, including role permissions and academy isolation; verify each new DELETE operation.
-- Complete administrator, teacher, student and guardian UI acceptance, including responsive and accessibility checks.
-- Finish the repository layout cleanup and verify the reorganized frontend and backend suites.
+- Complete live administrator, teacher, student and guardian UI acceptance, including broader responsive and accessibility checks.
+- Finish the repository layout cleanup, including the planned backend test placement, and reconcile unrelated local infrastructure/script changes before a clean commit.
 - Complete profile and directory acceptance, release parity, rollback and monitoring checks.
 - **Before the production deployment:** write administrator and teacher user guides with release-matching screenshots. Decide later whether to deliver these as a tutorial site or a document.
 - Resolve Charu's live dependencies, API/auth/write-back contract, consent and safeguarding requirements before considering integration.
@@ -126,7 +127,7 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 - **Live admin navigation:** signed in to the published GitHub Pages portal using an administrator account and opened the dashboard, website registrations, families/students, timetable, practice/reports, communications, teachers, venues, administrators, account access, fees and settings. Read-only navigation only; no records were changed.
 - **Live page behavior:** timetable settled to 316 dated entries, 16 master classes and 5 events. Practice & Reports briefly showed its initial empty state while requests were pending, then loaded 5 students, 3 enrolments, 1 practice entry, 1 RSVP and eligible class rosters. This is not a confirmed data mismatch, though an explicit loading state would improve clarity.
 - **Feature status:** Communications, Fees and Settings open their planned-feature previews; they are not implemented workflows. Teacher and student account navigation and mobile/accessibility acceptance remain unchecked.
-- **API regression work:** the working route matrix still inventories 158 method/path rows and is not complete behavioral coverage. New focused event validation/version cases are recorded in `backend/docs/api-coverage-audit.csv`. Current local verification: 391 backend TypeScript tests and 466 MJS tests pass; backend typecheck and bundle build pass. Frontend `npm run verify` passes lint, typecheck, 53 tests and Vite build. No Lambda or infrastructure deployment was made for these test/document changes.
+- **API regression work:** the working route matrix inventories 158 method/path rows and is not complete behavioral coverage. The coverage gate verifies that each row points to an executable test file, but important per-route security, validation, audit and mutation assertions remain open. Current local verification: 390 backend TypeScript tests, 471 MJS tests, 4 backend HTTP E2E scenarios, 80 frontend unit tests and 49 Playwright tests pass; frontend lint/typecheck/build and backend typecheck/build pass. The latest notification UI and screenshot changes are local only and were not deployed.
 - **Charu requirements:** recovered and reconciled from [docs/Sadhana_Charu_Requirements_v1.7.md](docs/Sadhana_Charu_Requirements_v1.7.md). Confirmed user policies are recorded separately from proposed architecture and open runtime/API/Sheets/consent contracts. This document does not authorize integration or migration.
 - **Next action:** finish P0 behavioral gaps and security boundaries in the API audit, then complete profile/directory and access-isolation acceptance. Charu live dependency/API discovery follows; no implementation or cutover until its open contracts are resolved and separately authorized.
 

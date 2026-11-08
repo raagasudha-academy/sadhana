@@ -7,9 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "test:ts": "node --import tsx --test test/*.test.ts",
+    "test:ts": "node --import tsx --test test/*.test.ts tests/*.test.ts",
     "test:mjs": "node --test test/*.test.mjs",
     "test": "npm run test:ts && npm run test:mjs",
+    "test:e2e": "node --import tsx --test ../test/e2e-tests/backend/*.test.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test",
     "build": "esbuild src/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/lambda.mjs --external:@aws-sdk/* --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",

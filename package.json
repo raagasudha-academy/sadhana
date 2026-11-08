@@ -17,6 +17,7 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test:e2e": "playwright test",
     "test:e2e:update": "playwright test --update-snapshots",
+    "test:e2e:backend": "npm --prefix backend run test:e2e",
     "deploy:backend": "bash scripts/deploy-sadhana-safe.sh",
     "deploy:frontend": "bash scripts/deploy-pages.sh",
     "lint:fix": "eslint app/src backend/src --fix",

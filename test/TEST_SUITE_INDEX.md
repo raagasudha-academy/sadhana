@@ -1,6 +1,6 @@
 # Sadhana test suite map
 
-This file records where tests currently live and what they cover. The repository layout is still being reorganized; see the [master roadmap](../Sadhana_Master_Roadmap_and_Requirements.md) for the remaining work.
+This index describes the current test locations and what each suite verifies. The API coverage audit is tracked separately in [`backend/docs/api-coverage-audit.csv`](../backend/docs/api-coverage-audit.csv).
 
 ## Frontend unit and component tests
 
@@ -10,40 +10,54 @@ Vitest tests are under `app/tests/`, grouped by role and feature. Run them with:
 npm test
 ```
 
-The full frontend check is `npm run verify`; it runs lint, typecheck, Vitest and the Vite production build.
+`npm run verify` runs frontend lint, typecheck, Vitest and the Vite production build.
 
 ## Backend API and service regression tests
 
-The backend suite is currently in `backend/test/`, with one scheduling test under `backend/tests/`. Most tests use Node's test runner and `tsx`; Python `unittest` files cover selected helper scripts. These tests have not yet been moved beside `backend/src/`.
+Backend TypeScript and MJS tests live under `backend/test/`; one scheduling test is under `backend/tests/`. The current `backend/test/` inventory has 91 `*.test.ts` files and 65 `*.test.mjs` files. They exercise route wiring, policies, services, validation, security rules and regressions. Most are unit, component or handler-level tests; they do not prove every live API route end to end.
 
-Run the TypeScript and MJS suites with:
+Run both backend suites with:
 
 ```sh
 npm --prefix backend test
 ```
 
-Run the Python tests with:
+That command runs `test:ts` and then `test:mjs`. Selected Python helper-script tests can be run with:
 
 ```sh
 python3 -m unittest discover -s backend/test -p 'test_*.py'
 ```
 
-`backend/docs/api-coverage-audit.csv` maps route/method entries to test candidates. The 158 route entries are an inventory, not evidence of complete behavioral coverage.
-
 ## Backend end-to-end tests
 
-There is not yet a backend end-to-end suite organized under `test/e2e-tests/`. The direct AWS helper in `backend/scripts/coreWritesAwsE2E.ts` is not an authenticated API E2E test; read [its safety note](../backend/scripts/CORE_WRITES_AWS_E2E.md) before using it.
+The local authenticated API E2E suite is under `test/e2e-tests/backend/`. It starts an ephemeral HTTP server around the real Lambda handler, injects synthetic API Gateway authorizer claims, runs the real `SadhanaRepository` against an in-memory DynamoDB DocumentClient double, and verifies create/read/update/audit flows, permission denials, academy isolation, input validation, health mode contracts, final-mode route blocking and retired calendar sync. It makes no AWS calls and does not verify a deployed API Gateway authorizer or Lambda environment.
+
+Run it with:
+
+```sh
+npm run test:e2e:backend
+```
+
+`backend/scripts/coreWritesAwsE2E.ts` is a separate guarded AWS helper; read [`backend/scripts/CORE_WRITES_AWS_E2E.md`](../backend/scripts/CORE_WRITES_AWS_E2E.md) before using it.
 
 ## Playwright browser tests
 
-Playwright specs are under `test/playwrighttests/`, grouped by role and feature. Current coverage is the synthetic administrator registration directory: student/family views, filters, archive/restore, CSV controls, visual states and viewport overflow. Teacher and student authenticated UI workflows are not yet covered. The fixtures use synthetic data and block requests outside the local Vite server.
+Playwright tests are organized by page/feature under `test/playwrighttests/pages/<feature>/`, with role cases grouped inside each page suite. Examples include `dashboard/`, `classes-timetable/`, `families-students/`, `my-learning/` and `my-profile/`. Shared synthetic sessions and network restrictions are in `test/playwrighttests/fixtures/`.
 
-Run the browser suite with:
+Each role/page navigation spec has a matching screenshot baseline beside it in a `page.spec.ts-snapshots/` folder. The current suite has 34 screenshot baselines across admin, teacher, student and guardian views, plus interaction, responsive and visual regression tests for the administrator family/student directory. The full current Playwright run passes 49 tests. All role fixtures use synthetic data and block requests outside the local Vite server.
+
+Run browser tests and compare them with the screenshots using:
 
 ```sh
 npm run test:e2e
 ```
 
+Refresh screenshot baselines intentionally with:
+
+```sh
+npm run test:e2e:update
+```
+
 ## Coverage status
 
-The route audit and existing tests leave behavioral and security gaps. In particular, role permissions, academy isolation, guardian revocation, input validation, write/audit effects and all DELETE operations still need endpoint-by-endpoint acceptance. Do not treat a passing suite as API-wide coverage; the audit and roadmap track those gaps.
+The route audit has a regression gate: every one of its 158 unique method/path rows must point to an existing test file, all referenced files must resolve, and no row may claim its route execution test is missing. This proves traceability, not complete behavioral coverage. The backend suites currently contain 390 TypeScript tests and 471 MJS tests; the HTTP API E2E suite has 4 scenarios. Continue closing per-route gaps for permissions, academy isolation, guardian revocation, validation, writes/audits and DELETE behavior. Deployed AWS behavior remains separately verified.
