@@ -1,12 +1,32 @@
 # Sadhana Academy & Learning Portal
 ## Master Roadmap & Requirements Register
-**Baseline:** 2 November 2026 | **Scope:** Raagasudha and Śruti Vedam | **Status:** Working baseline; not a complete recovered historical specification
+**Baseline:** 2 November 2026 | **Updated:** 8 November 2026 | **Scope:** Raagasudha and Śruti Vedam | **Status:** Working baseline; not a complete recovered historical specification
 
 ### How to use this register
 - **Evidence:** `Confirmed` = explicitly discussed, demonstrated, or found in supplied source; `Historical context` = recorded in project conversation but not currently source-verified; `Needs source` = original requirement or contract has not yet been recovered.
 - **Delivery state:** `Implemented / verified` includes a specified verification scope; `Implemented / acceptance pending` is not equivalent to production sign-off; `Planned` is not implemented; `Deferred` is consciously postponed.
 - **Do not invent requirements:** Charu's purpose and high-level user policies are now captured from [the Charu requirements baseline](docs/Sadhana_Charu_Requirements_v1.7.md). Its API, runtime, Sheets dependencies, and technical architecture are not verified against source. The document records requirements but does not authorize migration or integration.
 - Update the **Decision log** whenever a requirement or priority changes. Never delete a requirement silently; mark `Superseded` and link the replacement.
+
+## Current delivery snapshot — 8 November 2026
+
+### Completed or verified
+
+- Calendar API 503 fixes were deployed and the additional-session flow was live-tested.
+- API endpoint inventory and regression work are in place; local backend typecheck, build and recorded TypeScript/MJS suites passed. The 158-route matrix remains an inventory, not proof of full behavioral coverage.
+- Frontend local verification passed, and the administrator portal was reviewed live in read-only mode across its available sections.
+- Charu requirements v1.7 were recovered as a policy baseline. No Charu integration or migration was authorized.
+
+### Remaining or awaiting acceptance
+
+- Finish API behavioral and access-control coverage, including role permissions and academy isolation; verify each new DELETE operation.
+- Complete administrator, teacher, student and guardian UI acceptance, including responsive and accessibility checks.
+- Finish the repository layout cleanup and verify the reorganized frontend and backend suites.
+- Complete profile and directory acceptance, release parity, rollback and monitoring checks.
+- **Before the production deployment:** write administrator and teacher user guides with release-matching screenshots. Decide later whether to deliver these as a tutorial site or a document.
+- Resolve Charu's live dependencies, API/auth/write-back contract, consent and safeguarding requirements before considering integration.
+
+This snapshot distinguishes completed local or live checks from work that still needs acceptance. A passing local suite does not by itself establish production readiness.
 
 ## A. Verified baseline
 | ID | Area | Requirement / current finding | Delivery state | Evidence / limitation | Priority | Next action |
@@ -40,6 +60,7 @@
 | SMS-01 | Account | SMS phone verification production delivery | **Deferred** | AWS Cognito `SNSSandbox`, account `SANDBOX`; user deferred | Low | Exit sandbox, UK sender compliance, delivery tests |
 | SMS-02 | Account | Synchronise verified contact number only after confirmation | **Deferred** | Prior discussion | Low | No premature mutation of contacts |
 | DOC-01 | Homework | Document upload | **Deferred / out of current scope** | Explicit user decision; use instructions links | Low | Reconsider only when needed |
+| DOC-02 | Release documentation | Admin and teacher user guides with screenshots for common workflows | Planned; required before production deployment. Delivery format (tutorial site or document) undecided. | User decision, 8 Nov 2026 | High, pre-production | Prepare role-specific, task-based guidance with screenshots matching the release; choose and review the delivery format before production sign-off |
 
 ## C. Charu requirements recovery and technical discovery
 
@@ -87,7 +108,7 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 | 3 | Charu migration and WhatsApp implementation | Wave 2 contract approved and implementation separately authorized | Workflow-by-workflow parity, notifications meet NOTIF acceptance tests, retries/observability, no access regression |
 | 4 | General communications and reminder workflows | Provider and consent requirements approved; separate from Charu WhatsApp | Delivery/failure audits and role checks |
 | 5 | Consent, reports, learning operations | Priorities confirmed | Explicit acceptance for each module |
-| 6 | v14.0 release readiness | Feature freeze | Cross-role E2E, mobile, security, rollback, monitoring |
+| 6 | v14.0 release readiness | Feature freeze | Cross-role E2E, mobile, security, rollback, monitoring, and approved administrator/teacher guides with release-matching screenshots completed before production deployment |
 
 ## F. Decision log
 | Date | Decision | Source / status |
@@ -98,6 +119,7 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 | 2026-11-02 | Administrator titles must reflect Cognito name | User acceptance after backend deployment; confirmed |
 | 2026-11-02 | Keep Charu and earlier requirement gathering in master roadmap | User decision; confirmed |
 | 2026-11-08 | Adopt `docs/Sadhana_Charu_Requirements_v1.7.md` as the recovered conversation-requirements baseline; distinguish confirmed policy from proposed technical design | User-supplied document copied with trailing-whitespace normalization; migration/integration explicitly not authorized by the document |
+| 2026-11-08 | Add administrator and teacher user guides with screenshots as a required pre-production task; defer site-versus-document format decision | User decision |
 
 ## G. Progress update — 8 November 2026
 

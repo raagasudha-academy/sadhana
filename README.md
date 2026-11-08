@@ -1,43 +1,37 @@
-# Sadhana final-cutover release gate — source review (7 November 2026)
+# Sadhana Academy & Learning Portal
 
-This is an **additive, read-only testing kit**. It does not deploy or change AWS and **does not delete tables**. It is not proof that the database retirement is finished.
+Portal for Raagasudha and Śruti Vedam, with a React/Vite frontend and a Node/AWS backend.
 
-## What the provided source establishes
-- `backend/src/tableRouter.ts` returns its DynamoDB request unchanged outside split mode. Legacy modules can therefore still target `SADHANA_TABLE_NAME` if reachable.
-- Main `backend/src/lambda.ts` invokes final handlers ahead of `finalOnlyGate` and blocks fallback in final mode.
-- `backend/src/finalOperationsEnrolmentWrite.mjs` handles DELETE via `endEnrolment`.
-- Several final handlers are explicitly behind `SADHANA_FINAL_*` switches and intentionally return HTTP 503 when disabled. Unknown/unmigrated routes also intentionally return 503. Neither source presence nor a running app makes every client method usable.
-- `sadhana-m9-isolated-e2e` is still not configured for final mode and references `sadhana-dev-main`. This is a retirement blocker pending independent IAM/runtime evidence.
+## Start here
 
-## Install (from ~/Downloads after downloading kit)
-```
-cd ~/Dev/sadhana
-unzip -oq ~/Downloads/sadhana-final-release-gate.zip -d .
-cd backend
-node --test test/finalCutoverSafety.test.mjs
-cd ..
-.venv-aws-test/bin/python backend/scripts/final_route_inventory.py --root . --out ~/Downloads/sadhana-final-route-inventory.json
-```
+- [Master roadmap and requirements](Sadhana_Master_Roadmap_and_Requirements.md)
+- [API coverage audit](backend/docs/API_COVERAGE_AUDIT.md) and [endpoint matrix](backend/docs/api-coverage-audit.csv)
+- [Charu requirements](docs/Sadhana_Charu_Requirements_v1.7.md)
+- [Test suite map](test/TEST_SUITE_INDEX.md)
+- [Contributing and source conventions](CONTRIBUTING.md)
 
-## HTTP smoke: no mutations
-Use your actual portal origin. CORS is enforced by API Gateway rather than by the Lambda handler.
-```
-.venv-aws-test/bin/python backend/scripts/final_live_smoke.py --origin https://YOUR-REAL-PORTAL-ORIGIN --institution sruti
-```
-Authenticated checks are optional and should be run separately for each role using access tokens stored locally in a permission-restricted file (`chmod 600`). Never paste a token into chat or store it in Git. The script only calls GET and OPTIONS. A status of 403 is only a permitted response for role-specific operations if the given role does not have access; therefore role scenarios need separate expected-access assertions before sign-off.
+## Project areas
 
-## Fail-closed readiness
-```
-.venv-aws-test/bin/python backend/scripts/retirement_readiness.py --report ~/Downloads/sadhana-legacy-retirement-report.json
-```
-This reports blockers and exits nonzero; it cannot authorise deletion.
+- `app/src/` — frontend application
+- `app/tests/` — frontend unit tests grouped by role and feature
+- `app/public/` and `app/index.html` — frontend static assets and entry point
+- `backend/src/` — backend Lambda and feature modules; backend tests are still in `backend/test/` pending their move beside source
+- `test/e2e-tests/` — reserved for backend end-to-end scenarios; no suite is organized here yet
+- `test/playwrighttests/` — Playwright browser and visual tests, grouped by role and feature
+- `test/test_isolated_release.py` — release-script regression check
+- `infra/` — infrastructure source
 
-## Remaining required for actual retirement
-1. Capture a complete route and role matrix (including API calls outside `sadhanaClient.ts`) and run authorised GETs with proper role-specific expectations.
-2. Run **isolated, controlled write tests** for POST/PATCH/PUT/DELETE, not against irreplaceable live student data.
-3. Verify preflight against the actual production UI origin and headers, at API Gateway.
-4. Verify all active writers (including external intake, jobs, WhatsApp/Charu, test Lambdas) have no reads/writes to 24 candidate tables. Disable or migrate any dependent workloads.
-5. Perform a real restore of at least the representative backups into **new temporary table names**, inspect keys/items/indexes; do not overwrite a permanent table.
-6. Run the full application suite before and after each approved retirement batch. Only delete an individually approved table following separate, explicit authorisation.
+The detailed completed and outstanding work is tracked in the [master roadmap](Sadhana_Master_Roadmap_and_Requirements.md).
 
-**No deletion script is included deliberately.**
+See the test suite map for commands and coverage limits. The endpoint matrix is an audit inventory, not proof that every route is fully covered.
+
+## Deploy
+
+- Backend code-only Lambda update: `npm run deploy:backend`. It verifies the expected AWS account and Lambda, runs backend checks/build, downloads a rollback bundle, asks for a typed confirmation, updates Lambda code only, then verifies the deployed hash and unchanged environment/role. Preview without a code update using `npm run deploy:backend -- --dry-run`.
+- Frontend GitHub Pages release: `npm run deploy:frontend`. It dispatches the Pages workflow for the current branch after checking that the frontend files are committed and the remote branch points to the same commit. GitHub Actions runs verification and publishes the site.
+
+Neither command deploys CloudFormation or changes IAM/database resources. Do not run either command until you have reviewed the source changes being deployed.
+
+## Production documentation gate
+
+Before the production deployment, prepare a practical user guide for administrators and teachers, with screenshots that match the release. The guide will cover the common role-specific workflows. Whether to publish it as a tutorial site or a document remains undecided; choose the format during that roadmap task.

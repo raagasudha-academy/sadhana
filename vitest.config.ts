@@ -7,8 +7,8 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      '**/tests/e2e-tests/**',
+      '**/playwrighttests/**',
       '**/playwright-report/**',
       '**/test-results/**',
-    ], environment: 'jsdom', include: ['tests/**/*.{test,spec}.{ts,tsx}'], clearMocks: true },
+    ], environment: 'jsdom', include: ['app/tests/**/*.{test,spec}.{ts,tsx,mjs}'], clearMocks: true },
 });

@@ -10,16 +10,18 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build",
     "icon:install": "tsx scripts/installIcon.ts",
-    "lint": "eslint src",
+    "lint": "eslint app/src",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test:e2e": "playwright test",
     "test:e2e:update": "playwright test --update-snapshots",
-    "lint:fix": "eslint src backend/src --fix",
-    "format:check": "prettier --check src backend/src",
-    "format": "prettier --write src backend/src"
+    "deploy:backend": "bash scripts/deploy-sadhana-safe.sh",
+    "deploy:frontend": "bash scripts/deploy-pages.sh",
+    "lint:fix": "eslint app/src backend/src --fix",
+    "format:check": "prettier --check app/src backend/src",
+    "format": "prettier --write app/src backend/src"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
