@@ -58,3 +58,37 @@ test('class delete preview refuses any linked enrolment history',async()=>withFi
  await assert.rejects(()=>x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3}),{status:409});
  assert.equal(x.actions.length,0);
 }));
+test('administrator session delete conditionally removes the academy row and writes audit atomically',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-1',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:4};
+ const x=make({['sessions:'+session.sessionId]:session});
+ const result=await x.service.deleteSession('sruti',session.sessionId,{expectedVersion:4},{sub:'admin-sub'} as any,true);
+ assert.deepEqual(result,{deleted:true,id:session.sessionId});
+ assert.equal(x.actions.length,1);
+ const actions=x.actions[0];
+ const deletion=actions.find((action:any)=>action.Delete);
+ const audit=actions.find((action:any)=>action.Put?.Item?.action==='CLASS_SESSION_DELETED');
+ assert.equal(deletion.Delete.Key.sessionId,session.sessionId);
+ assert.match(deletion.Delete.ConditionExpression,/#v=:v AND #i=:i/);
+ assert.equal(deletion.Delete.ExpressionAttributeValues[':v'],4);
+ assert.equal(deletion.Delete.ExpressionAttributeValues[':i'],'sruti');
+ assert.equal(audit.Put.Item.actorCognitoSub,'admin-sub');
+}));
+test('session with attendance history cannot be deleted and emits no transaction',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-2',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:2};
+ const x=make({['sessions:'+session.sessionId]:session,attendance:[{institutionId:'sruti',sessionId:session.sessionId,studentId:'PERSON-1'}]});
+ await assert.rejects(()=>x.service.deleteSession('sruti',session.sessionId,{expectedVersion:2},{sub:'admin-sub'} as any,true),{status:409});
+ assert.equal(x.actions.length,0);
+}));
+test('master class delete commits class removal and audit together after a fresh preview',async()=>withFinal(async()=>{
+ const x=make();
+ const preview=await x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3});
+ const result=await x.service.deleteClass('sruti',master.classId,{expectedVersion:3,confirm:true,signature:preview.signature},{sub:'admin-sub'} as any);
+ assert.deepEqual(result,{deleted:true,classId:master.classId,sessionCount:0,ruleCount:0});
+ assert.equal(x.actions.length,1);
+ const actions=x.actions[0];
+ const deletion=actions.find((action:any)=>action.Delete?.Key.classId===master.classId);
+ const audit=actions.find((action:any)=>action.Put?.Item?.action==='MASTER_CLASS_DELETED');
+ assert.equal(deletion.Delete.ConditionExpression,'#v=:v AND #i=:i');
+ assert.equal(deletion.Delete.ExpressionAttributeValues[':i'],'sruti');
+ assert.equal(audit.Put.Item.resourceId,master.classId);
+}));
