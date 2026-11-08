@@ -34,6 +34,17 @@ test('DELETE rejects nested or malformed routes',async()=>{
  const d=setup();const a=await route(ctx('DELETE','sruti','bad space'),d.dependencies,d.access,env);
  assert.equal(a.status,405);assert.equal(d.calls.length,0);
 });
+test('DELETE requires authentication before configuration or storage access',async()=>{
+ let touched=0;const d=setup();
+ const response=await route({...ctx(),claims:{}},{...d.dependencies,assertConfigured(){touched++;},parse(){touched++;},core(){touched++;}},d.access,env);
+ assert.equal(response.status,401);assert.equal(touched,0);assert.equal(d.calls.length,0);
+});
+test('DELETE requires an administrator of the selected academy before storage access',async()=>{
+ const d=setup();let touched=0;
+ await assert.rejects(route(ctx('DELETE','raaga'),{...d.dependencies,assertConfigured(){touched++;},parse(){touched++;},core(){touched++;}},
+  {admin(){throw Object.assign(new Error('forbidden'),{status:403});}},env),{status:403});
+ assert.equal(touched,0);assert.equal(d.calls.length,0);
+});
 test('existing POST remains supported',async()=>{
  const d=setup({studentId:'s',classId:'c',startDate:'2026-11-07'});
  const response=await route({parts:['operations','enrolment'],method:'POST',claims:{sub:'admin'},query:{institution:'sruti'},event:{}},d.dependencies,d.access,env);

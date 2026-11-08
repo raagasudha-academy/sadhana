@@ -190,3 +190,91 @@ test('repeated family student create with the same normalized name or email retu
   assert.equal(calls.some(x=>x instanceof TransactWriteCommand),false);
  }
 });
+
+function enrolmentEndService(record:Record<string,any>|undefined,lock:Record<string,any>|undefined,fail=false){
+ const calls:any[]=[];
+ const db={send:async(command:any)=>{
+  calls.push(command);
+  if(command instanceof GetCommand){
+   return {Item:command.input.TableName.endsWith('-enrolments')?record:lock};
+  }
+  if(command instanceof TransactWriteCommand){
+   if(fail)throw Object.assign(new Error('conditional write failed'),{name:'TransactionCanceledException'});
+   return {};
+  }
+  throw new Error(`Unexpected command ${command.constructor.name}`);
+ }};
+ return {service:makeM10CoreWriteService(db),calls};
+}
+
+const activeEnrolment={enrolmentId:'ENROLMENT-1',institutionId:'raaga',studentId:'PERSON-1',classId:'CLASS-1',
+ status:'active',version:3,legacyPayload:{id:'ENROLMENT-1',archived:false,version:3}};
+const enrolmentLock={counterId:'ENROLMENT_PAIR#raaga#PERSON-1#CLASS-1',enrolmentId:'ENROLMENT-1'};
+
+test('ending enrolment archives the record, releases its own pair lock and audits atomically',async()=>{
+ const {service,calls}=enrolmentEndService(activeEnrolment,enrolmentLock);
+ const result=await service.endEnrolment('raaga',{sub:'enrolment-admin'},'ENROLMENT-1',{confirm:'DELETE',expectedVersion:3});
+ assert.deepEqual(result,{deleted:true,enrolmentId:'ENROLMENT-1'});
+ const tx=calls.find(x=>x instanceof TransactWriteCommand)?.input.TransactItems;
+ assert.equal(tx.length,3);
+ assert.equal(tx[0].Put.TableName,'sadhana-dev-m9-enrolments');
+ assert.equal(tx[0].Put.Item.status,'archived');assert.equal(tx[0].Put.Item.version,4);
+ assert.equal(tx[0].Put.Item.legacyPayload.archived,true);assert.equal(tx[0].Put.Item.legacyPayload.version,4);
+ assert.match(tx[0].Put.ConditionExpression,/#v=:v AND #i=:inst AND #s=:active/);
+ assert.equal(tx[0].Put.ExpressionAttributeValues[':v'],3);
+ assert.equal(tx[1].Put.TableName,'sadhana-dev-m9-audit');
+ assert.equal(tx[1].Put.Item.action,'ACADEMY_ENROLMENT_ENDED');
+ assert.equal(tx[1].Put.Item.actorCognitoSub,'enrolment-admin');
+ assert.equal(tx[1].Put.Item.resourceId,'ENROLMENT-1');
+ assert.equal(tx[2].Delete.TableName,'sadhana-dev-m9-counters');
+ assert.match(tx[2].Delete.ConditionExpression,/#e=:id/);
+});
+
+test('ending enrolment rejects cross-academy, missing, archived and stale records without a write',async()=>{
+ const cases=[
+  {record:{...activeEnrolment,institutionId:'sruti'},status:403},
+  {record:undefined,status:404},
+  {record:{...activeEnrolment,status:'archived'},status:409},
+  {record:{...activeEnrolment,version:4},status:409},
+ ];
+ for(const c of cases){
+  const {service,calls}=enrolmentEndService(c.record,enrolmentLock);
+  await assert.rejects(service.endEnrolment('raaga',{sub:'enrolment-admin'},'ENROLMENT-1',
+   {confirm:'DELETE',expectedVersion:3}),{status:c.status});
+  assert.equal(calls.some(x=>x instanceof TransactWriteCommand),false);
+ }
+});
+
+test('ending enrolment fails closed if a pair lock belongs to another record',async()=>{
+ const {service,calls}=enrolmentEndService(activeEnrolment,{...enrolmentLock,enrolmentId:'ENROLMENT-OTHER'});
+ await assert.rejects(service.endEnrolment('raaga',{sub:'enrolment-admin'},'ENROLMENT-1',
+  {confirm:'DELETE',expectedVersion:3}),{status:409});
+ assert.equal(calls.some(x=>x instanceof TransactWriteCommand),false);
+});
+
+test('ending enrolment maps a conditional transaction race to conflict',async()=>{
+ const {service}=enrolmentEndService(activeEnrolment,enrolmentLock,true);
+ await assert.rejects(service.endEnrolment('raaga',{sub:'enrolment-admin'},'ENROLMENT-1',
+  {confirm:'DELETE',expectedVersion:3}),{status:409});
+});
+
+test('ending enrolment rejects malformed confirmation before reading storage',async()=>{
+ const {service,calls}=enrolmentEndService(activeEnrolment,enrolmentLock);
+ for(const body of [
+  {confirm:'delete',expectedVersion:3},
+  {confirm:'DELETE',expectedVersion:0},
+  {confirm:'DELETE',expectedVersion:3,force:true},
+ ]){
+  await assert.rejects(service.endEnrolment('raaga',{sub:'enrolment-admin'},'ENROLMENT-1',body),{status:400});
+ }
+ assert.equal(calls.length,0);
+});
+
+test('ending an imported enrolment without a pair lock keeps history and audits',async()=>{
+ const {service,calls}=enrolmentEndService(activeEnrolment,undefined);
+ await service.endEnrolment('raaga',{sub:'enrolment-admin'},'ENROLMENT-1',{confirm:'DELETE',expectedVersion:3});
+ const tx=calls.find(x=>x instanceof TransactWriteCommand)?.input.TransactItems;
+ assert.equal(tx.length,2);
+ assert.equal(tx[0].Put.Item.status,'archived');
+ assert.equal(tx[1].Put.Item.action,'ACADEMY_ENROLMENT_ENDED');
+});
