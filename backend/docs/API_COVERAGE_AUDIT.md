@@ -1,12 +1,12 @@
 # Sadhana API coverage audit — working inventory
 
-Updated 7 November 2026. This is the first audit deliverable, not a claim that 158 endpoints are fully tested.
+Updated 8 November 2026. This remains a working audit, not a claim that all 158 inventoried endpoints are fully tested.
 
 ## Evidence and scope
 
 `api-coverage-audit.csv` contains 158 distinct method + route-pattern rows: the 150 expanded entries from handover section 5 plus four source-discovered `m10-academy` writes and four public Sruti intake methods (`POST`/`OPTIONS` at `/` and `/register`) found in `infra/sruti-public-intake.yml`. The public intake rows describe local infrastructure source only; deployment must be checked against AWS before using them as live contracts.
 
-The matrix separates evidence from assumptions. Every route except the two live-verified calendar operations remains `UNASSESSED`; candidate handler and test filenames are leads, not proof. Exact existing test names, status/schema contracts, permissions, and per-category behavioural evidence still need review. The matrix deliberately does not calculate a coverage percentage from test counts.
+The matrix separates evidence from assumptions. 151 of 158 rows still have no route-execution evidence; candidate handler and test filenames are leads, not proof. The calendar operations are live-verified, and several route slices now have source/test evidence in their individual rows. Exact status/schema contracts, permissions, and per-category behavioral evidence remain to be reviewed for most routes. The matrix deliberately does not calculate a coverage percentage from test counts.
 
 ## Live calendar gate now closed
 
@@ -43,3 +43,17 @@ The matrix separates evidence from assumptions. Every route except the two live-
 - `DELETE /operations/enrolment/{id}` is implemented as a versioned canonical end/archive with an audit record; its route/service tests exist, but live behavior and some negative cases still need verification.
 - `DELETE /operations/family/{id}` remains blocked in final mode. The legacy implementation is not reachable and must stay that way. The final-mode family/student deactivate workflow and route semantics are not defined yet; design a canonical preview/archive flow that preserves links and history before implementation.
 - The handover's admin student/family delete work is a planned feature, not an existing endpoint. Do not invent a live route or hard-delete records as part of this audit.
+
+## Student-detail edit authorization audit
+
+- **Administrator official name edit:** `PATCH /students/{id}` is supported by the final core identity facade only when `SADHANA_FINAL_CORE_WRITES=enabled`. It requires an authenticated administrator of the selected academy and an `expectedVersion`. The service's update allowlist accepts `name` only, preserves academy scope, increments the person version, updates the compatibility projection, and writes an audit item transactionally (`ACADEMY_STUDENTS_UPDATED`). Direct service tests now assert this behavior. Cross-academy admins are denied; people shared across academies are refused for reconciliation.
+- **Administrator contact phone edit:** the Registration UI exposes a “Change student phone” action, but the final core update service allowlist is `students: ['name']`. A `{phone}` PATCH therefore fails as an unsupported/protected field in this path. The UI and final backend contract disagree. Do not widen the write allowlist casually: the service comment explicitly reserves contact changes for a dedicated workflow. Resolve the product/data ownership rule and add a transactional phone update with uniqueness/audit safeguards, or remove/disable the unsupported UI action.
+- **Student self edit:** `PATCH /learner/{studentId}/profile` edits only `preferredName`, profile `phone`, and `about`; it does not change legal name, login email, roll number, date of birth, family relationship, or official student contact. Self access requires the exact active Cognito-linked student identity and a roll number for that academy.
+- **Parent/guardian edit:** the same limited preference route accepts an on-behalf edit only when the actor is an active guardian in that academy and has a fresh approved, relationship-verified link to that student, with matching family IDs. A family association or a historical “student self” link alone is insufficient. Other student IDs and cross-academy links are denied.
+- **Verification evidence:** focused tests passed: 5 core frontend route tests, 14 final core identity tests, 12 final learner-profile tests, and 4 new core-write service tests (35 total). The core facade tests use service mocks; new core-write tests inspect the DynamoDB transaction command; learner-profile tests exercise authorization but mock the DynamoDB transaction adapter. AWS configuration lookup failed because the Lambda endpoint was unreachable, so the deployed feature-flag state and live permissions remain unverified.
+- **Next audit slice:** add final DynamoDB adapter tests for learner-preference writes and missing/archived student update cases; reconcile the phone-edit mismatch; then continue the P0 route inventory with exact dispatcher, contract and test evidence.
+
+## Audit progress
+
+- The route matrix remains 158 method/path rows. Focused audit evidence now covers the two calendar live checks, homework archive routing, enrolment/family deletion boundaries, administrator student-name editing, and student/verified-guardian preference editing. The current test evidence for student writes is code-level; its final-mode feature flags could not be read from AWS during this audit because the Lambda endpoint was unreachable.
+- Next batch: finish direct learner-preference adapter tests and the P0 guardian, registration, homework, enrolment, and family route rows. Then continue through remaining P0/P1/P2 entries, replacing each `UNASSESSED` field only when the dispatcher or a test provides evidence.
