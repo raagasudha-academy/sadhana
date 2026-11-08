@@ -86,6 +86,7 @@ test('unsupported core paths and deletion fail closed',async()=>{
  reset();assert.equal((await run('students','DELETE')).status,405);
  assert.equal((await run('students/abc','POST')).status,405);
  assert.equal((await run('students/../../etc','PATCH')).status,405);
+ assert.equal((await run('family-access/links','GET')).status,503);
  assert.deepEqual(calls,[]);
 });
 test('guardian request remains pending and uses authenticated requester identity',async()=>{

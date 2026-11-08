@@ -13,6 +13,7 @@ test('normal M9/live mode is completely unaffected',()=>{
 test('final mode refuses PK/SK identity/profile routes before early handlers',()=>{
   for(const root of ['me','photos','identities'])
     assert.equal(finalOnlyGate([root],'GET','early',final)?.status,503);
+  assert.equal(finalOnlyGate(['identities','search'],'GET','early',final)?.status,503);
   assert.equal(finalOnlyGate(['schedule'],'GET','early',final),null);
 });
 test('final mode never falls back to generic repository or legacy routes',()=>{
@@ -20,6 +21,12 @@ test('final mode never falls back to generic repository or legacy routes',()=>{
     assert.equal(finalOnlyGate([root],'GET','fallback',final)?.status,503);
   assert.equal(finalOnlyGate(['health'],'GET','fallback',final),null);
   assert.equal(finalOnlyGate(['health'],'POST','fallback',final)?.status,503);
+});
+test('unsupported recurring-class routes cannot fall through to calendar legacy handlers',()=>{
+  for(const [method,parts] of [
+    ['POST',['recurring-classes']],
+    ['POST',['recurring-classes','preview']],
+  ])assert.equal(finalOnlyGate(parts,method,'fallback',final)?.status,503);
 });
 test('boundary occurs before legacy handlers in the real Lambda dispatcher',()=>{
   const code=readFileSync(new URL('../src/lambda.ts',import.meta.url),'utf8');

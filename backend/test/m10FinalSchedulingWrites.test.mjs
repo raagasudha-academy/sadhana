@@ -70,9 +70,12 @@ test('shared managed event writes delegate dual-admin enforcement to existing wr
  await assert.rejects(()=>run('events/shared','POST','raaga',student),{status:403});
 });
 test('unsupported calendar and event writes never fall back',async()=>{
- reset();for(const path of ['schedule/unknown/path','events/one/two/three','schedule/series/bad','events/invalid!']){
+ reset();for(const path of ['schedule/unknown/path','events/one/two/three','schedule/series/bad','events/invalid!',
+  'schedule/teacher-links/CLASS-1234','schedule/master/CLASS-1234/lifecycle']){
   const result=await run(path,'PATCH');assert.equal(result.status,503);
  }
+ for(const path of ['schedule/teacher-links/CLASS-1234','schedule/master/CLASS-1234/lifecycle'])
+  assert.equal((await run(path,'PATCH','raaga',admin,{}, {...enabled,SADHANA_FINAL_CALENDAR_WRITES:''})).status,503);
  assert.equal((await run('events/EVT-1234','DELETE','raaga',admin,{})).status,400);
  assert.equal((await run('schedule','PUT')).status,405);
  assert.deepEqual(calls.filter(Array.isArray),[]);

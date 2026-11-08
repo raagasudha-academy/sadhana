@@ -30,4 +30,9 @@ test('import previews are read-only, execution is denied even with flags',async(
 });
 test('no legacy fallback or unapproved operation',async()=>{
  const {deps,calls}=harness();const r=await finalRaagaIntakeRoute({...base,parts:['website-registrations','RS-42','provision-parent'],method:'POST'},deps,env);assert.equal(r.status,503);assert.equal(calls.length,0);
+ for(const [method,action] of [['GET','revoke-preview'],['POST','revoke'],['POST','revoke-cancel']]){
+  const blocked=await finalRaagaIntakeRoute({...base,method,parts:['website-registrations','RS-42',action]},deps,env);
+  assert.equal(blocked.status,405,`${method} ${action} remains unsupported`);
+ }
+ assert.equal(calls.length,0);
 });
