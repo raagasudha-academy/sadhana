@@ -28,6 +28,7 @@ export const ICONS = {
   'My teachers': UsersRound,
   'My venues': MapPin,
   'My profile': UserRound,
+  'My Profile': UserRound,
   'Privacy & consents': ShieldCheck,
 };
 export const dayLabel = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

@@ -44,7 +44,7 @@ npm run test:e2e:backend
 
 Playwright tests are organized by page/feature under `test/playwrighttests/pages/<feature>/`, with role cases grouped inside each page suite. Examples include `dashboard/`, `classes-timetable/`, `families-students/`, `my-learning/` and `my-profile/`. Shared synthetic sessions and network restrictions are in `test/playwrighttests/fixtures/`.
 
-Each role/page navigation spec has a matching screenshot baseline beside it in a `page.spec.ts-snapshots/` folder. The current suite has 34 screenshot baselines across admin, teacher, student and guardian views, plus interaction, responsive and visual regression tests for the administrator family/student directory. The full current Playwright run passes 49 tests. All role fixtures use synthetic data and block requests outside the local Vite server.
+Each role/page navigation spec has a matching screenshot baseline beside it in a `page.spec.ts-snapshots/` folder. The current suite has 36 screenshot baselines across admin, teacher, student and guardian views, plus interaction, responsive and visual regression tests for the administrator family/student directory. The full current Playwright run passes 51 tests, including administrator and teacher My Profile access. All role fixtures use synthetic data and block requests outside the local Vite server.
 
 Run browser tests and compare them with the screenshots using:
 

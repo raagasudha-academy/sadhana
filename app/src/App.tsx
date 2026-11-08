@@ -268,8 +268,8 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
         'My profile',
       ]
       : teacherMode
-        ? ['Dashboard', 'My Classes', 'My Students', 'Teachers', 'Venues']
-        : [...adminPages.slice(0, -1), 'Account Access', 'Fees', ...adminPages.slice(-1)]
+        ? ['Dashboard', 'My Classes', 'My Students', 'Teachers', 'Venues', 'My Profile']
+        : [...adminPages.slice(0, -1), 'Account Access', 'Fees', ...adminPages.slice(-1), 'My Profile']
   ).filter(
     item =>
       item !== 'Website Registrations' ||
