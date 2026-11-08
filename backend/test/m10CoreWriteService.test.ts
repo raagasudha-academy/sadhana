@@ -64,3 +64,28 @@ test('administrator student update converts transaction races to conflict',async
  const {service}=serviceFor(record(),true);
  await assert.rejects(service.update('students','raaga',{sub:'admin-sub'},'PERSON-STUDENT-1',{expectedVersion:3,name:'Asha New'}),{status:409});
 });
+
+test('administrator family name edit updates primary contact and audit in one conditional transaction',async()=>{
+ const family={familyId:'FAMILY-1',institutionIds:['raaga'],status:'active',version:2,primaryContactPersonId:'PERSON-GUARDIAN-1',
+  legacyPayload:{id:'FAMILY-1',createdIn:'raaga',visibleIn:['raaga'],parentName:'Old Guardian',phone:'+447700900111',version:2,archived:false}};
+ const guardian={personId:'PERSON-GUARDIAN-1',familyId:'FAMILY-1',institutionIds:['raaga'],personTypes:['guardian'],status:'active',version:4,
+  firstName:'Old',lastName:'Guardian',displayName:'Old Guardian'};
+ const calls:any[]=[];const db={send:async(command:any)=>{
+  calls.push(command);
+  if(command instanceof GetCommand)return {Item:command.input.Key.familyId?family:guardian};
+  if(command instanceof TransactWriteCommand)return {};
+  throw new Error(`Unexpected command ${command.constructor.name}`);
+ }};
+ const service=makeM10CoreWriteService(db);
+ const result=await service.update('families','raaga',{sub:'family-admin-sub'},'FAMILY-1',{expectedVersion:2,parentName:'New Primary Guardian'});
+ assert.equal(result.parentName,'New Primary Guardian');assert.equal(result.version,3);
+ const items=calls.find(x=>x instanceof TransactWriteCommand)?.input.TransactItems;
+ assert.equal(items.length,3);
+ assert.equal(items[0].Put.TableName,'sadhana-dev-m9-families');
+ assert.equal(items[0].Put.Item.version,3);
+ assert.equal(items[1].Put.TableName,'sadhana-dev-m9-people');
+ assert.equal(items[1].Put.Item.firstName,'New');assert.equal(items[1].Put.Item.lastName,'Primary Guardian');
+ assert.equal(items[2].Put.TableName,'sadhana-dev-m9-audit');
+ assert.equal(items[2].Put.Item.actorCognitoSub,'family-admin-sub');
+ assert.equal(items[2].Put.Item.action,'ACADEMY_FAMILY_UPDATED');
+});
