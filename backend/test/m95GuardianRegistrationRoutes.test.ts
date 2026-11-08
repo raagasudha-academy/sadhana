@@ -48,3 +48,13 @@ test('Sruti review validates decision and version before storage and maps write 
  await assert.rejects(()=>route(ctx({reviewStatus:'discarded',expectedVersion:1})),(e:any)=>e.status===409);
  assert.equal(calls,1);
 }));
+
+test('Sruti review cannot update another academy registration or a missing registration',async()=>withFlags(async()=>{
+ const route=makeM95GuardianRegistrationRoutes({send:async(command:any)=>{
+  assert.ok(command instanceof UpdateCommand);
+  assert.equal(command.input.ExpressionAttributeValues[':inst'],'sruti');
+  throw Object.assign(new Error('conditional write rejected'),{name:'ConditionalCheckFailedException'});
+ }} as any);
+ await assert.rejects(()=>route(ctx({reviewStatus:'approved',expectedVersion:2})),(e:any)=>e.status===409);
+ await assert.rejects(()=>route(ctx({reviewStatus:'discarded',expectedVersion:2})),(e:any)=>e.status===409);
+}));
