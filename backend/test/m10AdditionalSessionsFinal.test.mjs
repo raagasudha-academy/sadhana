@@ -18,6 +18,12 @@ test('additional sessions reject other methods without writer invocation',async(
  const response=await finalSchedulingWriteRoute({...ctx(),method:'DELETE'}, {}, access, env);
  assert.equal(response.status,405);
 });
+test('unauthenticated additional-session request returns 401 before configuration or writer access',async()=>{
+ let configured=0,written=0;
+ const dependencies={assertConfigured:()=>configured++,sessions:()=>({createAdditionalSessions:async()=>{written++;}})};
+ const response=await finalSchedulingWriteRoute(ctx(null),dependencies,access,env);
+ assert.equal(response.status,401);assert.equal(configured,0);assert.equal(written,0);
+});
 test('additional sessions deny cross-academy before write',async()=>{
  const response=await finalSchedulingWriteRoute({...ctx(),query:{institution:'wrong'}},{},access,env);
  assert.equal(response.status,400);

@@ -57,6 +57,30 @@ test('additional sessions accept canonical classes whose class type is present i
  assert.equal(session.additionalSession,true);
  assert.equal(audit.resourceId,master.classId);
 }));
+test('only the assigned teacher can create additional sessions and the transaction rechecks assignment',async()=>withFinal(async()=>{
+ const body={classId:master.classId,sessions:[{date:'2027-02-15',startTime:'19:30',endTime:'20:30'}]};
+ const x=make();
+ const result=await x.service.createAdditionalSessions('sruti',body,claims,false);
+ assert.equal(result.count,1);
+ const items=x.actions[0];
+ const condition=items.find((action:any)=>action.ConditionCheck?.TableName.endsWith('-classes'));
+ const audit=items.find((action:any)=>action.Put?.Item?.action==='ADDITIONAL_SESSIONS_CREATED');
+ assert.ok(condition.ConditionCheck.ConditionExpression.includes('contains(#teachers,:t)'));
+ assert.equal(condition.ConditionCheck.ExpressionAttributeValues[':t'],teacherId);
+ assert.equal(audit.Put.Item.actorCognitoSub,claims.sub);
+ const stranger=make();
+ await assert.rejects(()=>stranger.service.createAdditionalSessions('sruti',body,{sub:'stranger'} as any,false),{status:403});
+ assert.equal(stranger.actions.length,0);
+}));
+test('additional-session validation, duplicates, and cross-academy class fail before writes',async()=>withFinal(async()=>{
+ const x=make();
+ await assert.rejects(()=>x.service.createAdditionalSessions('sruti',{classId:master.classId,sessions:[{date:'2027-02-30',startTime:'19:30',endTime:'20:30'}]},claims,true),{status:400});
+ await assert.rejects(()=>x.service.createAdditionalSessions('sruti',{classId:master.classId,sessions:[{date:'2027-02-15',startTime:'19:30',endTime:'20:30'},{date:'2027-02-15',startTime:'19:30',endTime:'20:30'}]},claims,true),{status:409});
+ await assert.rejects(()=>x.service.createAdditionalSessions('sruti',{classId:'CLASS-MISSING-1',sessions:[{date:'2027-02-15',startTime:'19:30',endTime:'20:30'}]},claims,true),{status:404});
+ const foreign=make({['classes:'+master.classId]:{...master,institutionId:'raaga'}});
+ await assert.rejects(()=>foreign.service.createAdditionalSessions('sruti',{classId:master.classId,sessions:[{date:'2027-02-15',startTime:'19:30',endTime:'20:30'}]},claims,true),{status:404});
+ assert.equal(x.actions.length,0);assert.equal(foreign.actions.length,0);
+}));
 test('class delete preview refuses any linked enrolment history',async()=>withFinal(async()=>{
  const x=make({enrolments:[{institutionId:'sruti',classId:master.classId,studentId:'PERSON-TEST',status:'inactive'}]});
  await assert.rejects(()=>x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3}),{status:409});
