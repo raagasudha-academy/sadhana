@@ -27,6 +27,17 @@ test('unsupported operations compatibility methods fail closed by exact method a
     assert.match(response.error,/legacy database fallback blocked/);
   }
 });
+test('legacy practice mutation routes fail closed by exact method and path',()=>{
+  for(const [method,parts] of [
+    ['POST',['practice']],
+    ['PATCH',['practice','PRACTICE-1']],
+    ['PATCH',['practice','STUDENT-1','2026-11-08']],
+  ]){
+    const response=finalOnlyGate(parts,method,'fallback',env);
+    assert.equal(response.status,503,`${method} /${parts.join('/')} must not fall through`);
+    assert.match(response.error,/legacy database fallback blocked/);
+  }
+});
 test('enrolment deletion is handled via canonical service',async()=>{
   let touched=0;
   const result=await finalOperationsEnrolmentWriteRoute({parts:['operations','enrolment','ENROLMENT-1'],method:'DELETE',claims:{sub:'verified'},query:{institution:'sruti'},event:{body:'{"confirm":"DELETE","expectedVersion":1}'}},{assertConfigured(){},parse:e=>JSON.parse(e.body),core:()=>({endEnrolment:async()=>{touched++;return {deleted:true,enrolmentId:'ENROLMENT-1'};}})},{admin(){}},env);

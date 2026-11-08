@@ -59,6 +59,16 @@ test('final core creates and updates use JWT identity, academy and M10 service',
   ['update','enrolments','raaga','real-jwt-sub','ENROLMENT-123',{expectedVersion:4,startDate:'2026-11-06'}]
  ]);
 });
+test('canonical family PATCH and enrolment POST keep exact entity, route ID and academy',async()=>{
+ reset();
+ const family=await run('families/FAMILY-123','PATCH','raaga',raaga,{expectedVersion:2,parentName:'Primary Guardian'});
+ const enrolment=await run('enrolments','POST','sruti',sruti,{studentId:'STUDENT-123',classId:'CLASS-123',startDate:'2026-11-08'});
+ assert.equal(family.status,200);assert.equal(enrolment.status,201);
+ assert.deepEqual(calls.filter(Array.isArray),[
+  ['update','families','raaga','real-jwt-sub','FAMILY-123',{expectedVersion:2,parentName:'Primary Guardian'}],
+  ['create','enrolments','sruti','sruti-sub',{studentId:'STUDENT-123',classId:'CLASS-123',startDate:'2026-11-08'}]
+ ]);
+});
 test('canonical students POST is administrator-scoped and delegates to the core writer',async()=>{
  reset();const result=await run('students','POST','raaga',raaga,{name:'Student One',createdIn:'raaga',familyId:'FAMILY-1'});
  assert.equal(result.status,201);assert.deepEqual(result.body,{record:{id:'new'}});

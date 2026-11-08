@@ -37,11 +37,12 @@ test('lists only institution partition and filters results defensively',async()=
  assert.deepEqual(calls,[['query','classes','InstitutionClassesIndex','raaga',50]]);
  delete process.env.M9_API_ENABLED;
 });
-test('record reads never reveal another institution and writes stay blocked',async()=>{
+test('record reads never reveal another institution and POST/PATCH writes stay blocked',async()=>{
  process.env.M9_API_ENABLED='read-only';
  const {reader,calls}=fakeReader();const route=makeM9Routes(()=>reader as any);
  const r=await route(makeContext(['m9','record','classes','c2']));assert.equal((r as any).statusCode,404);
- const w=await route(makeContext(['m9','record','classes','c2'],'POST'));assert.equal((w as any).statusCode,405);
+ const post=await route(makeContext(['m9','record','classes','c2'],'POST'));assert.equal((post as any).statusCode,405);
+ const patch=await route(makeContext(['m9','record','classes','c2'],'PATCH'));assert.equal((patch as any).statusCode,405);
  assert.equal(calls.length,1);delete process.env.M9_API_ENABLED;
 });
 test('status reports explicitly read-only integration',async()=>{
