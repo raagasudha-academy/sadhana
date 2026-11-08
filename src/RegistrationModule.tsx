@@ -37,7 +37,7 @@ import { lastFourWeeks, reportForStudent } from './practiceMath';
 import {clean, familyLabel, readableLocation, studentLabel, Status, Modal, Field, StudentAvatar, NoResults, relationshipLabel, fmtDate} from './features/registration/registrationShared';
 import {RegisterFamily, RegisterIndependent, AddChild} from './features/registration/registrationForms';
 import {EnrolModal, EditName, ConfirmRemove, EditEnrolment} from './features/registration/registrationEnrolment';
-import {FamilyDetail, UpdateFamily, ConvertToFamily, ChangeStudentPhone} from './features/registration/registrationFamilies';
+import {FamilyDetail, UpdateFamily, ConvertToFamily} from './features/registration/registrationFamilies';
 import {StudentRecord} from './features/registration/registrationStudents';
 
 export default function RegistrationModule({
@@ -670,7 +670,6 @@ export default function RegistrationModule({
         : 'Record archived in DynamoDB; IDs and history preserved.',
     );
   };
-  const [phoneForStudent, setPhoneForStudent] = useState('');
   const family = families.find((f) => f.id === familyFocus);
   const person = members.find((m) => m.id === studentFocus);
   return (
@@ -787,10 +786,6 @@ export default function RegistrationModule({
           onBack={() => setStudentFocus(null)}
           onEnrol={(id) => openEnrol(id)}
           classes={classes}
-          onEditMobile={(id) => {
-            setPhoneForStudent(id);
-            setDialog('student-phone');
-          }}
           onEditName={() => setDialog('student-name')}
           onConvert={() => setDialog('convert-family')}
           onRemove={() => setArchiveTarget({ kind: 'student', record: person, restore: false })}
@@ -1574,20 +1569,6 @@ export default function RegistrationModule({
             if (newEnrolStudents.length) void reload();
             setDialog(null);
           }}
-        />
-      )}
-      {dialog === 'student-phone' && phoneForStudent && (
-        <ChangeStudentPhone
-          student={members.find((m) => m.id === phoneForStudent)}
-          onClose={() => setDialog(null)}
-          onSave={(phone) =>
-            updateRecord(
-              'student',
-              members.find((m) => m.id === phoneForStudent),
-              { phone },
-              'Student contact saved to DynamoDB.',
-            )
-          }
         />
       )}
       {dialog === 'update-family' && family && (

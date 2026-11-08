@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {ArrowLeft, GraduationCap, Info, Plus, ShieldCheck, X, Trash2, Pencil, Archive, RotateCcw} from 'lucide-react';
+import {ArrowLeft, GraduationCap, Plus, ShieldCheck, X, Trash2, Pencil, Archive, RotateCcw} from 'lucide-react';
 import { DirectoryDataMenu, StudentCardBadges } from '../../DirectoryComponents';
 import {getEnrolmentStatus,maskPhone,newId,ukISODate} from '../../registry';
 import PhoneField from '../../PhoneField';
@@ -377,57 +377,6 @@ export function ConvertToFamily({ student, onClose, onSave }: any) {
           </button>
           <button type="submit" className="reg-primary">
             Create family & link student
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-export function ChangeStudentPhone({ student, onClose, onSave }: any) {
-  const [value, setValue] = useState(student?.phone || '');
-  const [error, setError] = useState('');
-  return (
-    <Modal
-      title="Student WhatsApp contact"
-      subtitle={`Optional personal number for ${student?.name}. Parent contact remains unchanged.`}
-      onClose={onClose}
-    >
-      <form
-        className="reg-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const phone = value.replace(/[\s-]/g, '');
-          if (phone && !/^\+[1-9]\d{7,14}$/.test(phone))
-            return setError('Use international format, or leave blank to use the parent number.');
-          onSave(phone);
-        }}
-      >
-        <PhoneField
-          label="Student mobile"
-          value={value}
-          onChange={setValue}
-          optional
-          hint="Leave blank to use the family contact."
-        />
-        <div className="reg-info">
-          <Info size={17} />
-          <span>
-            Setting a mobile number does not activate WhatsApp reminders or grant permission.
-            Consent and contact authorisation are handled later.
-          </span>
-        </div>
-        {error && (
-          <p className="reg-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="reg-modal-actions">
-          <button className="reg-secondary" type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="reg-primary" type="submit">
-            Save student contact
           </button>
         </div>
       </form>

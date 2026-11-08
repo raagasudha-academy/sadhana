@@ -13,7 +13,6 @@ export function StudentRecord({
   classes,
   onBack,
   onEnrol,
-  onEditMobile,
   onEditName,
   onConvert,
   onRemove,
