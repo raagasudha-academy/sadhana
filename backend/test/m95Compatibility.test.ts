@@ -7,7 +7,7 @@ import {makeM95CompatibilityRoutes} from '../src/routes/m95CompatibilityRoutes.t
 const base=(id:string,recordType:string,institution='raaga')=>({
  institutionId:institution,recordType,
  legacyPayload:{
-  PK:`SCHEDULE#${institution}`,SK:`ITEM#${id}`,entityType:'schedule',
+  PK:`SCHEDULE#${institution}`,SK:`ITEM#${id}`,GSI1PK:`LOOKUP#${id}`,GSI1SK:`INDEX#${id}`,GSI2PK:`SECONDARY#${id}`,GSI2SK:`INDEX#${id}`,entityType:'schedule',
   id,recordType,institution,name:id,
   programme:'Carnatic Vocal',teacher:'',mode:'in-person',location:'Newcastle',
   ...(recordType==='class'?{}:{date:'2026-11-07',endDate:'2026-11-07'}),
@@ -21,7 +21,7 @@ test('legacy schedule reconstructs original endpoint shape without private keys'
  const result=assembleSchedule('raaga',[base('CLASS-A','class')],[base('SESSION-A','class-session'),base('HOLIDAY','holiday','shared')]);
  assert.equal(result.records.length,2);
  assert.equal(result.more,false);
- assert.ok(!('PK' in result.records[0]));
+ for(const key of ['PK','SK','GSI1PK','GSI1SK','GSI2PK','GSI2SK','entityType'])assert.equal(key in result.records[0],false,key);
 });
 test('shared schedule shows holidays but not class records',()=>{
  const result=assembleSchedule('shared',[base('CLASS-A','class')],[base('H1','holiday','shared')]);
@@ -36,7 +36,9 @@ test('series changes project on dated sessions',()=>{
 });
 test('managed event list retains legacy endpoint payload and filters by scope',()=>{
  const row={...base('E1','special-event'),legacyPayload:{...base('E1','special-event').legacyPayload,managedEvent:true}};
- assert.deepEqual(assembleManagedEvents('raaga',[row,base('H1','holiday')]).records.map(x=>x.id),['E1']);
+ const records=assembleManagedEvents('raaga',[row,base('H1','holiday')]).records;
+ assert.deepEqual(records.map(x=>x.id),['E1']);
+ for(const key of ['PK','SK','GSI1PK','GSI1SK','GSI2PK','GSI2SK','entityType'])assert.equal(key in records[0],false,key);
 });
 test('canonical comparison ignores ordering and attribute insertion order',()=>{
  assert.equal(canonicalRecords([{id:'a',name:'A'},{name:'B',id:'b'}]),canonicalRecords([{id:'b',name:'B'},{name:'A',id:'a'}]));

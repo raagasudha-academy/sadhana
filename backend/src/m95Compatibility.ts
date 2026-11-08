@@ -15,7 +15,7 @@ const limits:Record<CompatibleEntity,number>={classes:1500,sessions:6000,events:
 export function legacyRecord(item:CompatibleItem):Record<string,any>{
  if(!item || !item.legacyPayload || typeof item.legacyPayload!=='object' || Array.isArray(item.legacyPayload))
   throw Error('M9_COMPAT_MISSING_LEGACY_PAYLOAD');
- const {PK,SK,entityType,...fields}=item.legacyPayload;
+ const {PK,SK,GSI1PK,GSI1SK,GSI2PK,GSI2SK,entityType,...fields}=item.legacyPayload;
  if(typeof fields.id!=='string'||!fields.id)throw Error('M9_COMPAT_MISSING_LEGACY_ID');
  return fields;
 }
