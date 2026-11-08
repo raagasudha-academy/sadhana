@@ -12,7 +12,11 @@ function make(rows:Record<string,Item[]|Item|null>={}) {
  const actions:any[]=[];
  const db={send:async (cmd:any)=>{
   const input=cmd.input;
-  if(input.TransactItems){actions.push(input.TransactItems);return {}};
+  if(input.TransactItems){
+   actions.push(input.TransactItems);
+   for(const action of input.TransactItems){if(!action.Delete)continue;const entity=String(action.Delete.TableName).split('sadhana-dev-').at(-1)!;const id=String(action.Delete.Key.classId??action.Delete.Key.sessionId);delete rows[`${entity}:${id}`];if(Array.isArray(rows[entity]))rows[entity]=(rows[entity] as Item[]).filter(item=>String(item.classId??item.sessionId)!==id);}
+   return {};
+  }
   const table=String(input.TableName).replace('sadhana-dev-audit-records','audit');
   const entity=table.split('sadhana-dev-').at(-1)!;
   if(input.Key){const id=String(input.Key.classId??input.Key.sessionId);return {Item:rows[`${entity}:${id}`]??(entity==='classes'&&id===master.classId?master:undefined)}};
@@ -77,6 +81,57 @@ test('session with attendance history cannot be deleted and emits no transaction
  const session={sessionId:'SESSION-SRUTI-2',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:2};
  const x=make({['sessions:'+session.sessionId]:session,attendance:[{institutionId:'sruti',sessionId:session.sessionId,studentId:'PERSON-1'}]});
  await assert.rejects(()=>x.service.deleteSession('sruti',session.sessionId,{expectedVersion:2},{sub:'admin-sub'} as any,true),{status:409});
+ assert.equal(x.actions.length,0);
+}));
+test('session delete rejects stale versions and repeated deletion after success',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-3',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:2};
+ const x=make({['sessions:'+session.sessionId]:session});
+ await assert.rejects(()=>x.service.deleteSession('sruti',session.sessionId,{expectedVersion:1},{sub:'admin-sub'} as any,true),{status:409});
+ assert.equal(x.actions.length,0);
+ assert.deepEqual(await x.service.deleteSession('sruti',session.sessionId,{expectedVersion:2},{sub:'admin-sub'} as any,true),{deleted:true,id:session.sessionId});
+ await assert.rejects(()=>x.service.deleteSession('sruti',session.sessionId,{expectedVersion:2},{sub:'admin-sub'} as any,true),{status:404});
+ const missing=make();
+ await assert.rejects(()=>missing.service.deleteSession('sruti',session.sessionId,{expectedVersion:2},{sub:'admin-sub'} as any,true),{status:404});
+ assert.equal(x.actions.length,1);assert.equal(missing.actions.length,0);
+}));
+test('ranged session deletion requires the exact preview signature and audits in the transaction',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-4',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:5,localDate:'2026-11-20',legacyPayload:{name:'Vedam'}};
+ const x=make({sessions:[session]});
+ const preview=await x.service.previewDeleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30'});
+ await assert.rejects(()=>x.service.deleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30',confirm:true,signature:'stale-signature'},{sub:'admin-sub'} as any),{status:409});
+ assert.equal(x.actions.length,0);
+ const result=await x.service.deleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30',confirm:true,signature:preview.signature},{sub:'admin-sub'} as any);
+ assert.deepEqual(result,{deleted:true,count:1});
+ assert.equal(x.actions.length,1);
+ const actions=x.actions[0];
+ assert.equal(actions.filter((action:any)=>action.Delete?.Key.sessionId===session.sessionId).length,1);
+ assert.equal(actions.find((action:any)=>action.Put?.Item?.action==='CLASS_SESSION_RANGE_DELETED').Put.Item.resourceId,master.classId);
+}));
+test('master delete includes linked sessions and class audit in one transaction',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-5',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:1,localDate:'2026-11-20'};
+ const x=make({sessions:[session]});
+ const preview=await x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3});
+ const result=await x.service.deleteClass('sruti',master.classId,{expectedVersion:3,confirm:true,signature:preview.signature},{sub:'admin-sub'} as any);
+ assert.deepEqual(result,{deleted:true,classId:master.classId,sessionCount:1,ruleCount:0});
+ const actions=x.actions[0];
+ assert.equal(actions.filter((action:any)=>action.Delete).length,2);
+ assert.ok(actions.some((action:any)=>action.Delete?.Key.classId===master.classId));
+ assert.ok(actions.some((action:any)=>action.Delete?.Key.sessionId===session.sessionId));
+ assert.ok(actions.some((action:any)=>action.Put?.Item?.action==='MASTER_CLASS_DELETED'));
+}));
+test('master deletion rejects stale previews, missing classes, and sessions with learning history',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-6',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:1,localDate:'2026-11-20'};
+ const x=make({sessions:[session],attendance:[{institutionId:'sruti',sessionId:session.sessionId,studentId:'PERSON-1'}]});
+ await assert.rejects(()=>x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:2}),{status:409});
+ await assert.rejects(()=>x.service.deleteClass('sruti',master.classId,{expectedVersion:3,confirm:true,signature:'stale'},{sub:'admin-sub'} as any),{status:409});
+ await assert.rejects(()=>x.service.previewDeleteClass('sruti','CLASS-MISSING-1',{expectedVersion:3}),{status:404});
+ await assert.rejects(()=>x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3}),{status:409});
+ assert.equal(x.actions.length,0);
+}));
+test('ranged deletion refuses sessions with learning history before writing',async()=>withFinal(async()=>{
+ const session={sessionId:'SESSION-SRUTI-7',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:1,localDate:'2026-11-20'};
+ const x=make({sessions:[session],homework:[{institutionId:'sruti',sessionId:session.sessionId,homeworkId:'HW-1'}]});
+ await assert.rejects(()=>x.service.previewDeleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30'}),{status:409});
  assert.equal(x.actions.length,0);
 }));
 test('master class delete commits class removal and audit together after a fresh preview',async()=>withFinal(async()=>{
