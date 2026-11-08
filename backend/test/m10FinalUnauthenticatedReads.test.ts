@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHandler} from '../src/lambda.ts';
 
-test('sensitive final-table list routes return 401 before repository or reader access',async()=>{
+test('sensitive final-table routes require authentication and legacy identity search stays blocked',async()=>{
  const keys=['SADHANA_ENTITY_TABLE_SET'] as const;
  const prior=keys.map(k=>process.env[k]);
  const calls:string[]=[];
@@ -19,6 +19,12 @@ test('sensitive final-table list routes return 401 before repository or reader a
    assert.equal(result.statusCode,401,path);
    assert.match(result.body,/Authenticated Cognito access token required/,path);
   }
+  const blocked=await handler({
+   pathParameters:{proxy:'identities/search'},requestContext:{http:{method:'GET'},authorizer:{jwt:{claims:{sub:'admin-sub','cognito:groups':['raagasudha-admin']}}}},
+   queryStringParameters:{institution:'raaga'}
+  } as any);
+  assert.equal(blocked.statusCode,503);
+  assert.match(blocked.body,/identity\/profile route not migrated/);
   assert.deepEqual(calls,[]);
  }finally{
   keys.forEach((k,i)=>prior[i]===undefined?delete process.env[k]:process.env[k]=prior[i]);
