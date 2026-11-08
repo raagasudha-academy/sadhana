@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {GetCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {GetCommand,QueryCommand,ScanCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {makeM10CoreWriteService} from '../src/m10CoreWriteService.ts';
 
 const record=(overrides:Record<string,any>={})=>({
@@ -88,4 +88,83 @@ test('administrator family name edit updates primary contact and audit in one co
  assert.equal(items[2].Put.TableName,'sadhana-dev-m9-audit');
  assert.equal(items[2].Put.Item.actorCognitoSub,'family-admin-sub');
  assert.equal(items[2].Put.Item.action,'ACADEMY_FAMILY_UPDATED');
+});
+
+test('family create allocates sequence and writes family, guardian, phone guard and audit atomically',async()=>{
+ const calls:any[]=[];const db={send:async(command:any)=>{
+  calls.push(command);
+  if(command instanceof GetCommand)return {Item:{lastAllocated:4}};
+  if(command instanceof TransactWriteCommand)return {};
+  throw new Error(`Unexpected command ${command.constructor.name}`);
+ }};
+ const service=makeM10CoreWriteService(db);
+ const result:any=await service.create('families','raaga',{sub:'family-create-admin'},{parentName:'New Guardian',phone:'+447700900111',createdIn:'raaga'});
+ assert.equal(result.familyNumber,'005');assert.equal(result.createdIn,'raaga');
+ const tx=calls.find(x=>x instanceof TransactWriteCommand)?.input.TransactItems;
+ assert.equal(tx.length,5);
+ assert.equal(tx[1].Put.TableName,'sadhana-dev-m9-families');
+ assert.deepEqual(tx[1].Put.Item.institutionIds,['raaga']);
+ assert.equal(tx[1].Put.Item.primaryContactPersonId,tx[2].Put.Item.personId);
+ assert.deepEqual(tx[2].Put.Item.personTypes,['guardian']);
+ assert.equal(tx[3].Put.Item.sequenceType,'FAMILY_PHONE_GUARD');
+ assert.equal(tx[4].Put.TableName,'sadhana-dev-m9-audit');
+ assert.equal(tx[4].Put.Item.actorCognitoSub,'family-create-admin');
+ assert.equal(tx[4].Put.Item.action,'ACADEMY_FAMILY_CREATED');
+});
+
+test('enrolment create checks active same-academy parties and audits the pair lock transaction',async()=>{
+ const calls:any[]=[];const student={personId:'PERSON-STUDENT-1',personTypes:['student'],institutionIds:['raaga'],status:'active',version:2};
+ const cls={classId:'CLASS-1',institutionId:'raaga',status:'active',version:3};
+ const db={send:async(command:any)=>{
+  calls.push(command);
+  if(command instanceof GetCommand)return {Item:command.input.Key.personId?student:cls};
+  if(command instanceof QueryCommand)return {Items:[]};
+  if(command instanceof TransactWriteCommand)return {};
+  throw new Error(`Unexpected command ${command.constructor.name}`);
+ }};
+ const service=makeM10CoreWriteService(db);
+ const result=await service.create('enrolments','raaga',{sub:'enrolment-admin'},
+  {institution:'raaga',studentId:student.personId,classId:cls.classId,startDate:'2026-11-08',endDate:''});
+ assert.equal(result.archived,false);assert.ok(result.id);
+ const tx=calls.find(x=>x instanceof TransactWriteCommand)?.input.TransactItems;
+ assert.equal(tx.length,5);
+ assert.equal(tx[0].ConditionCheck.TableName,'sadhana-dev-m9-people');
+ assert.equal(tx[1].ConditionCheck.TableName,'sadhana-dev-m9-classes');
+ assert.equal(tx[2].Put.Item.sequenceType,'ENROLMENT_PAIR_GUARD');
+ assert.equal(tx[3].Put.TableName,'sadhana-dev-m9-enrolments');
+ assert.equal(tx[4].Put.TableName,'sadhana-dev-m9-audit');
+ assert.equal(tx[4].Put.Item.actorCognitoSub,'enrolment-admin');
+ assert.equal(tx[4].Put.Item.action,'ACADEMY_ENROLMENT_CREATED');
+});
+
+test('family student create allocates a roll and keeps guardian access pending in audited transaction',async()=>{
+ const family={familyId:'FAMILY-1',institutionIds:['raaga'],status:'active',version:2,primaryContactPersonId:'PERSON-GUARDIAN-1'};
+ const guardian={personId:'PERSON-GUARDIAN-1',familyId:'FAMILY-1',institutionIds:['raaga'],personTypes:['guardian'],status:'active',version:3};
+ const calls:any[]=[];const db={send:async(command:any)=>{
+  calls.push(command);
+  if(command instanceof GetCommand){
+   if(command.input.Key.familyId)return {Item:family};
+   if(command.input.Key.personId)return {Item:guardian};
+   return {Item:{lastAllocated:0}};
+  }
+  if(command instanceof ScanCommand)return {Items:[]};
+  if(command instanceof TransactWriteCommand)return {};
+  throw new Error(`Unexpected command ${command.constructor.name}`);
+ }};
+ const service=makeM10CoreWriteService(db);
+ const result:any=await service.create('students','raaga',{sub:'student-create-admin'},
+  {name:'Asha Student',email:'',phone:'',familyId:'FAMILY-1',registrationType:'family',createdIn:'raaga'});
+ assert.equal(result.name,'Asha Student');assert.match(result.rollNumber,/^RS-/);
+ const tx=calls.find(x=>x instanceof TransactWriteCommand)?.input.TransactItems;
+ assert.equal(tx.length,7);
+ assert.equal(tx[0].Update.TableName,'sadhana-dev-m9-counters');
+ assert.equal(tx[1].Put.Item.sequenceType,'ROLL_UNIQUE');
+ assert.equal(tx[2].ConditionCheck.TableName,'sadhana-dev-m9-families');
+ assert.equal(tx[3].ConditionCheck.TableName,'sadhana-dev-m9-people');
+ assert.equal(tx[4].Put.TableName,'sadhana-dev-m9-people');
+ assert.equal(tx[5].Put.TableName,'sadhana-dev-m9-family-links');
+ assert.equal(tx[5].Put.Item.accessStatus,'pending');
+ assert.equal(tx[5].Put.Item.relationshipVerified,false);
+ assert.equal(tx[6].Put.TableName,'sadhana-dev-m9-audit');
+ assert.equal(tx[6].Put.Item.action,'ACADEMY_STUDENT_CREATED');
 });
