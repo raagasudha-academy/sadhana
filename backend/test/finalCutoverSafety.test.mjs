@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {finalOnlyGate} from '../src/m10FinalBoundary.mjs';
-import {finalOperationsEnrolmentWriteRoute} from '../src/m10FinalOperationsEnrolmentWrite.mjs';
+import {finalOnlyGate} from '../src/finalBoundary.mjs';
+import {finalOperationsEnrolmentWriteRoute} from '../src/finalOperationsEnrolmentWrite.mjs';
 const env={SADHANA_DATA_MODE:'final',SADHANA_ENTITY_TABLE_SET:'final',SADHANA_ENTITY_FINAL_ACK:'enabled',SADHANA_FINAL_CORE_WRITES:'enabled'};
 test('unknown final route fails closed rather than entering legacy repository',()=>{
   assert.equal(finalOnlyGate(['totally-unknown'],'GET','fallback',env).status,503);
