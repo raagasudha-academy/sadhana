@@ -6,7 +6,8 @@ import {srutiWriterTables} from './m91SrutiMirrorPolicy.mjs';
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}));
 const origins=new Set(['https://sruti.co.uk','https://www.sruti.co.uk']);
 const response=(statusCode:number,body:unknown,origin:string)=>({statusCode,headers:{'content-type':'application/json','cache-control':'no-store',...(origins.has(origin)?{'access-control-allow-origin':origin,'vary':'Origin'}:{})},body:JSON.stringify(body)});
-export async function handler(event:any){
+export function makeM91SrutiIntakeHandler(dbClient:{send:(command:any)=>Promise<any>}=db){
+ return async function handler(event:any){
  const origin=event.headers?.origin||event.headers?.Origin||'';
  const method=event.requestContext?.http?.method||event.httpMethod;
  if(!origins.has(origin))return response(403,{error:'Origin not allowed.'},origin);
@@ -29,9 +30,9 @@ export async function handler(event:any){
    const record=newSrutiIntakeRecord(payload);
    try {
     if(writer.mirror){
-     await db.send(new TransactWriteCommand({TransactItems:[writer.primary,writer.mirror].map(TableName=>({Put:{TableName,Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}}))}));
+     await dbClient.send(new TransactWriteCommand({TransactItems:[writer.primary,writer.mirror].map(TableName=>({Put:{TableName,Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}}))}));
     }else{
-     await db.send(new PutCommand({TableName:writer.primary,Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}));
+     await dbClient.send(new PutCommand({TableName:writer.primary,Item:record,ConditionExpression:'attribute_not_exists(registrationId)'}));
     }
     return response(202,{received:true,registrationId:record.registrationId},origin);
    } catch (error:any) {
@@ -48,3 +49,5 @@ export async function handler(event:any){
   return response(503,{error:'Registration service unavailable.'},origin);
  }
 }
+}
+export const handler=makeM91SrutiIntakeHandler();
