@@ -16,7 +16,7 @@ command -v node >/dev/null || { echo 'Node.js required' >&2; exit 1; }
 ACTUAL="$(aws sts get-caller-identity --query Account --output text --region "$REGION")"
 [[ "$ACTUAL" == "$ACCOUNT" ]] || { echo "Wrong AWS account: $ACTUAL" >&2; exit 1; }
 aws dynamodb describe-table --table-name "$TABLE" --region "$REGION" --query 'Table.TableStatus' --output text | grep -qx ACTIVE || { echo 'M9 table not ACTIVE' >&2; exit 1; }
-[[ -f "$BACKEND/src/m91SrutiIntakePublic.ts" ]] || { echo 'Missing M9.1 public handler; apply previous Sruti integration patch first' >&2; exit 1; }
+[[ -f "$BACKEND/src/srutiIntakePublic.ts" ]] || { echo 'Missing M9.1 public handler; apply previous Sruti integration patch first' >&2; exit 1; }
 [[ -f "$TEMPLATE" ]] || { echo 'Missing infra template' >&2; exit 1; }
 if [[ "$MODE" == --dry-run ]]; then
   echo "DRY RUN: account=$ACTUAL region=$REGION stack=$STACK table=$TABLE"
@@ -32,9 +32,9 @@ fi
 ENABLED=disabled
 [[ "$MODE" == --enable ]] && ENABLED=enabled
 # Avoid stale assets by keying each immutable code bundle by hash.
-(cd "$BACKEND" && npx --no-install esbuild src/m91SrutiIntakePublic.ts --bundle --platform=node --target=node22 --format=esm --outfile=/tmp/sadhana-m91-sruti-intake-index.mjs --external:@aws-sdk/*)
+(cd "$BACKEND" && npx --no-install esbuild src/srutiIntakePublic.ts --bundle --platform=node --target=node22 --format=esm --outfile=/tmp/sadhana-sruti-intake-index.mjs --external:@aws-sdk/*)
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-cp /tmp/sadhana-m91-sruti-intake-index.mjs "$WORK/index.mjs"
+cp /tmp/sadhana-sruti-intake-index.mjs "$WORK/index.mjs"
 (cd "$WORK" && zip -q intake.zip index.mjs)
 KEY="sruti-intake/$(shasum -a 256 "$WORK/intake.zip" | awk '{print $1}').zip"
 BUCKET="sadhana-m91-intake-deploy-${ACCOUNT}-${REGION}"

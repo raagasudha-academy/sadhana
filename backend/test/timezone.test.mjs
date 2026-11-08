@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {wallClockToUtc} from '../scripts/timezone.mjs';
+const london=(date,time)=>wallClockToUtc(date,time,'Europe/London');
+test('BST summer converts to UTC minus one hour',()=>assert.deepEqual(london('2026-07-03','10:00'),{status:'converted',instant:'2026-07-03T09:00:00.000Z'}));
+test('GMT winter remains UTC',()=>assert.deepEqual(london('2026-12-03','10:00'),{status:'converted',instant:'2026-12-03T10:00:00.000Z'}));
+test('spring DST gap never invents an instant',()=>assert.equal(london('2026-03-29','01:30').status,'nonexistent'));
+test('autumn DST fold explicitly flags ambiguity',()=>{const x=london('2026-10-25','01:30');assert.equal(x.status,'ambiguous');assert.deepEqual(x.candidates,['2026-10-25T00:30:00.000Z','2026-10-25T01:30:00.000Z']);});
+test('invalid date cannot silently overflow',()=>assert.equal(london('2026-02-30','11:00').status,'invalid'));
+test('missing times remain unresolved',()=>assert.equal(london('2026-12-03',null).status,'missing'));

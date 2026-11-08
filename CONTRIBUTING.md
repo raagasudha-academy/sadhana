@@ -18,7 +18,7 @@ These are target boundaries. Move files only when their dependencies have been e
 - React components and their component-specific CSS: `PascalCase.tsx`, `PascalCase.css`.
 - Other TS modules, hooks and utilities: `camelCase.ts`, e.g. `useStudentCalendar.ts`.
 - Test files: `<subject>.test.ts` or `<subject>.test.tsx`.
-- Avoid version numbers in source filenames. Record releases in Git commits and tags.
+- Do not put migration milestone labels such as `M8`, `M9`, `M10`, `M91`, or `M95` in project filenames. Name files for their domain or purpose; record milestones in Git history and documentation content.
 - Don't commit `.zip`, `.bak`, `.orig`, `.rej`, editor swap files or generated build outputs.
 - Use Git for rollback; don't create local backup trees in the repo.
 

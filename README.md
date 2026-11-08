@@ -5,7 +5,7 @@ This is an **additive, read-only testing kit**. It does not deploy or change AWS
 ## What the provided source establishes
 - `backend/src/tableRouter.ts` returns its DynamoDB request unchanged outside split mode. Legacy modules can therefore still target `SADHANA_TABLE_NAME` if reachable.
 - Main `backend/src/lambda.ts` invokes final handlers ahead of `finalOnlyGate` and blocks fallback in final mode.
-- `backend/src/m10FinalOperationsEnrolmentWrite.mjs` handles DELETE via `endEnrolment`.
+- `backend/src/finalOperationsEnrolmentWrite.mjs` handles DELETE via `endEnrolment`.
 - Several final handlers are explicitly behind `SADHANA_FINAL_*` switches and intentionally return HTTP 503 when disabled. Unknown/unmigrated routes also intentionally return 503. Neither source presence nor a running app makes every client method usable.
 - `sadhana-m9-isolated-e2e` is still not configured for final mode and references `sadhana-dev-main`. This is a retirement blocker pending independent IAM/runtime evidence.
 
