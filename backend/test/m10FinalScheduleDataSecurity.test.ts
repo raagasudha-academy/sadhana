@@ -25,6 +25,12 @@ function make(rows:Record<string,Item[]|Item|null>={}) {
  }};
  return {service:makeM10FinalScheduleSessionAdmin(db),actions};
 }
+function assertScheduleProjection(value:unknown,expectedKeys:string[]){
+ assert.deepEqual(Object.keys(value as object).sort(),expectedKeys.sort());
+ const serialized=JSON.stringify(value);
+ for(const field of ['PK','SK','GSI1PK','GSI1SK','GSI2PK','GSI2SK','entityType','cognitoSub','actorCognitoSub','email','phone','address'])
+  assert.equal(serialized?.includes(`\"${field}\"`),false,`${field} must not appear in a schedule response`);
+}
 async function withFinal(fn:()=>Promise<void>){const old={...process.env};Object.assign(process.env,{SADHANA_ENTITY_STAGE:'dev',SADHANA_ENTITY_TABLE_SET:'final',SADHANA_ENTITY_FINAL_ACK:'enabled',SADHANA_DATA_MODE:'final'});try{await fn()}finally{process.env=old}}
 
 test('only linked teacher creates a session; identity and class are server verified',async()=>withFinal(async()=>{
@@ -122,9 +128,12 @@ test('ranged session deletion requires the exact preview signature and audits in
  const session={sessionId:'SESSION-SRUTI-4',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:5,localDate:'2026-11-20',legacyPayload:{name:'Vedam'}};
  const x=make({sessions:[session]});
  const preview=await x.service.previewDeleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30'});
+ assertScheduleProjection(preview,['count','from','until','dates','signature']);
+ assertScheduleProjection(preview.dates[0],['date','name','id']);
  await assert.rejects(()=>x.service.deleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30',confirm:true,signature:'stale-signature'},{sub:'admin-sub'} as any),{status:409});
  assert.equal(x.actions.length,0);
  const result=await x.service.deleteSeries('sruti',master.classId,{expectedVersion:3,effectiveFrom:'2026-11-01',effectiveUntil:'2026-11-30',confirm:true,signature:preview.signature},{sub:'admin-sub'} as any);
+ assertScheduleProjection(result,['deleted','count']);
  assert.deepEqual(result,{deleted:true,count:1});
  assert.equal(x.actions.length,1);
  const actions=x.actions[0];
@@ -135,7 +144,9 @@ test('master delete includes linked sessions and class audit in one transaction'
  const session={sessionId:'SESSION-SRUTI-5',institutionId:'sruti',recordType:'class-session',classId:master.classId,version:1,localDate:'2026-11-20'};
  const x=make({sessions:[session]});
  const preview=await x.service.previewDeleteClass('sruti',master.classId,{expectedVersion:3});
+ assertScheduleProjection(preview,['classId','name','masterVersion','sessionCount','ruleCount','dates','signature']);
  const result=await x.service.deleteClass('sruti',master.classId,{expectedVersion:3,confirm:true,signature:preview.signature},{sub:'admin-sub'} as any);
+ assertScheduleProjection(result,['deleted','classId','sessionCount','ruleCount']);
  assert.deepEqual(result,{deleted:true,classId:master.classId,sessionCount:1,ruleCount:0});
  const actions=x.actions[0];
  assert.equal(actions.filter((action:any)=>action.Delete).length,2);
