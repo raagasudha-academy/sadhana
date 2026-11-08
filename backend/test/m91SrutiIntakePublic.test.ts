@@ -65,3 +65,29 @@ test('mirror mode uses one atomic transaction and retries an ID collision',async
   assert.ok(command.input.TransactItems.every((x:any)=>x.Put.ConditionExpression==='attribute_not_exists(registrationId)'));
  }
 }));
+
+test('public intake rejects unsupported methods and oversized bodies before storage',async()=>withEnv({M91_SRUTI_PUBLIC_INTAKE:'enabled'},async()=>{
+ let calls=0;const handler=makeM91SrutiIntakeHandler({send:async()=>{calls++;return {};}} as any);
+ assert.equal((await handler(event('GET'))).statusCode,405);
+ assert.equal((await handler(event('POST','x'.repeat(25001)))).statusCode,413);
+ assert.equal(calls,0);
+}));
+
+test('repeated collisions and storage errors fail closed without logging registration data',async()=>withEnv({
+ M91_SRUTI_PUBLIC_INTAKE:'enabled',M91_SRUTI_REGISTRATIONS_TABLE:undefined,M91_SRUTI_REGISTRATIONS_MIRROR_TABLE:undefined
+},async()=>{
+ const original=console.error;const logs:any[]=[];console.error=(...args:any[])=>{logs.push(args);};
+ try{
+  let collisionCalls=0;
+  const collisionHandler=makeM91SrutiIntakeHandler({send:async()=>{
+   collisionCalls++;throw Object.assign(new Error('test@example.org collision'),{name:'ConditionalCheckFailedException'});
+  }} as any);
+  assert.equal((await collisionHandler(event('POST',JSON.stringify(valid)))).statusCode,503);
+  assert.equal(collisionCalls,8);
+  const failedHandler=makeM91SrutiIntakeHandler({send:async()=>{throw new Error('test@example.org storage failure');}} as any);
+  assert.equal((await failedHandler(event('POST',JSON.stringify(valid)))).statusCode,503);
+  assert.ok(logs.length>=2);
+  assert.equal(logs.every(args=>!JSON.stringify(args).includes('test@example.org')),true);
+  assert.ok(logs.every(args=>args[1]&&Object.keys(args[1]).join(',')==='errorType'));
+ }finally{console.error=original;}
+}));
