@@ -38,11 +38,15 @@ test('only series preview/patch paths intercepted',()=>{
 test('preview validates affected session and performs no writes',async()=>pilot(async()=>{
  const c=client();const result=await makeM95SeriesWriter(c).preview('raaga',classId,input,claims);
  assert.equal(result.affectedSessionCount,1);assert.equal(result.masterVersion,2);
+ assert.deepEqual(Object.keys(result).sort(),['affectedSessionCount','changes','classId','effectiveFrom','effectiveUntil','masterVersion','readOnly'].sort());
+ assertNoStorageOrIdentityFields(result);
  assert.equal(c.calls.some(x=>x instanceof TransactWriteCommand),false);
 }));
 test('change atomically increments master, creates rule, creates audit',async()=>pilot(async()=>{
  const c=client();const result=await makeM95SeriesWriter(c).change('raaga',classId,input,claims);
  assert.equal(result.masterVersion,3);
+ assert.deepEqual(Object.keys(result).sort(),['changes','classId','effectiveFrom','effectiveUntil','masterVersion'].sort());
+ assertNoStorageOrIdentityFields(result);
  const tx=c.calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
  assert.equal(tx.length,3);
  assert.equal(tx[0].Update.TableName,'sadhana-dev-m9-classes');
@@ -52,6 +56,12 @@ test('change atomically increments master, creates rule, creates audit',async()=
  assert.equal(tx[1].Put.Item.legacyPayload.changes.startTime,'09:30');
  assert.equal(tx[2].Put.TableName,'sadhana-dev-m9-audit');
 }));
+
+function assertNoStorageOrIdentityFields(value:unknown){
+ const serialized=JSON.stringify(value);
+ for(const field of ['PK','SK','GSI1PK','GSI1SK','GSI2PK','GSI2SK','entityType','cognitoSub','actorCognitoSub','email','phone'])
+  assert.equal(serialized?.includes(`\"${field}\"`),false,`${field} must not appear in the writer response`);
+}
 test('repeated effective date is rejected before write',async()=>pilot(async()=>{
  const c=client({rule:true});await assert.rejects(()=>makeM95SeriesWriter(c).change('raaga',classId,input,claims),{status:409});
  assert.equal(c.calls.some(x=>x instanceof TransactWriteCommand),false);
