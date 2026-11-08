@@ -45,6 +45,8 @@ test('calendar reads for each institution and shared holidays require staff',asy
  assert.deepEqual(calls.filter(x=>x[0]==='schedule'),[['schedule','raaga'],['schedule','shared']]);
  await assert.rejects(()=>run('schedule',{query:{institution:'shared'},claims:{sub:'one',groups:[]}}),{status:403});
  await assert.rejects(()=>run('schedule',{query:{institution:'sruti'}}),{status:403});
+ await assert.rejects(()=>run('schedule',{query:{institution:'unknown'}}),{status:400});
+ assert.deepEqual(calls.filter(x=>x[0]==='schedule'),[['schedule','raaga'],['schedule','shared']]);
 });
 test('class and venue reads use canonical directory, not repository',async()=>{
  reset();const c=await run('classes');const v=await run('venues');
@@ -65,6 +67,10 @@ test('managed events, identities and audit require administrator grant',async()=
   reset();await assert.rejects(()=>run(root,{query:{institution:'raaga',studentId:'student-001'}}),{status:403});
   assert.equal(calls.some(x=>['core','events','audit','practice'].includes(x[0])),false);
  }
+ reset();
+ await assert.rejects(()=>run('events',{claims:{sub:'raaga-admin',groups:['raaga'],admin:['raaga']},query:{institution:'sruti'}}),{status:403});
+ await assert.rejects(()=>run('events',{claims:{sub:'raaga-admin',groups:['raaga'],admin:['raaga']},query:{institution:'unknown'}}),{status:400});
+ assert.equal(calls.some(x=>x[0]==='events'),false);
 });
 test('administrator operations dispatch to canonical readers with academy scope',async()=>{
  const claims={sub:'admin-sub',groups:['raaga','sruti'],admin:['raaga','sruti']};
