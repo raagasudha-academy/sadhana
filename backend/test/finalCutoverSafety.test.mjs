@@ -11,6 +11,22 @@ test('unknown final route fails closed rather than entering legacy repository',(
 test('legacy fallback never opens in final mode for unsupported writes',()=>{
   for(const method of ['POST','PUT','PATCH','DELETE'])assert.equal(finalOnlyGate(['unmigrated'],method,'fallback',env).status,503);
 });
+test('unsupported operations compatibility methods fail closed by exact method and path',()=>{
+  for(const [method,parts] of [
+    ['POST',['operations','family']],
+    ['POST',['operations','attendance']],
+    ['POST',['operations','practice']],
+    ['POST',['operations','rsvp']],
+    ['PATCH',['operations','attendance','ATT-1']],
+    ['PATCH',['operations','practice','PRACTICE-1']],
+    ['PATCH',['operations','rsvp','RSVP-1']],
+    ['PATCH',['operations','student','STUDENT-1']],
+  ]){
+    const response=finalOnlyGate(parts,method,'fallback',env);
+    assert.equal(response.status,503,`${method} /${parts.join('/')} must not fall through`);
+    assert.match(response.error,/legacy database fallback blocked/);
+  }
+});
 test('enrolment deletion is handled via canonical service',async()=>{
   let touched=0;
   const result=await finalOperationsEnrolmentWriteRoute({parts:['operations','enrolment','ENROLMENT-1'],method:'DELETE',claims:{sub:'verified'},query:{institution:'sruti'},event:{body:'{"confirm":"DELETE","expectedVersion":1}'}},{assertConfigured(){},parse:e=>JSON.parse(e.body),core:()=>({endEnrolment:async()=>{touched++;return {deleted:true,enrolmentId:'ENROLMENT-1'};}})},{admin(){}},env);

@@ -47,6 +47,17 @@ test('frontend class create validates old UI fields and writes only canonical M9
   await assert.rejects(()=>route(makeContext('POST',['classes'],{...input,PK:'bad'})),{status:400});
  });
 });
+test('frontend venue create validates legacy fields and writes a canonical M9 item',async()=>{
+ const {calls,route}=fake();await flags(async()=>{
+  const answer=await route(makeContext('POST',['venues'],{name:'Community Hall',location:'Leeds',address:'12 Main St',postcode:'LS1 1AA',notes:''})) as any;
+  assert.equal(answer.statusCode,201);
+  const record=JSON.parse(answer.body).record;
+  assert.equal(record.name,'Community Hall');assert.match(record.id,/^VENUE-/);
+  assert.equal(calls[0][0],'create');assert.equal(calls[0][1],'venues');
+  assert.equal(calls[0][2].venueId,record.id);assert.equal(calls[0][2].institutionId,'raaga');
+  assert.ok(!('PK' in calls[0][2]));
+ });
+});
 test('frontend PATCH preserves previous record, version and institution guard',async()=>{
  const {calls,route}=fake();await flags(async()=>{
   const answer=await route(makeContext('PATCH',['classes',sample.id],{expectedVersion:1,name:'New Vocal'})) as any;
@@ -60,6 +71,16 @@ test('frontend PATCH preserves previous record, version and institution guard',a
   const moved=await route(makeContext('PATCH',['classes',sample.id],{expectedVersion:1,institution:'sruti'})) as any;
   assert.equal(moved.statusCode,403);
  });
+});
+test('frontend GET reads both class and venue directories through the selected academy',async()=>{
+ const {calls,route}=fake();await flags(async()=>{
+  for(const entity of ['classes','venues']){
+   const answer=await route(makeContext('GET',[entity])) as any;
+   assert.equal(answer.statusCode,200);
+   assert.equal(JSON.parse(answer.body).records[0].id,sample.id);
+  }
+ });
+ assert.equal(calls.length,2);
 });
 test('venue without institutionId fails closed on edit (shared legacy venue)',async()=>{
  const venue={id:'VENUE-1',name:'Community Hall',location:'Leeds',address:'12 Main St',postcode:'LS1 1AA',notes:'',version:1,createdAt:'2026-11-02',updatedAt:'2026-11-02',archived:false};

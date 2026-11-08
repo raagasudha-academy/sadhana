@@ -32,3 +32,19 @@ test('M10 uses M9 writer for validated institution-scoped class updates',async()
  });
  assert.deepEqual(calls[1],['classes','CLS-1',1,{name:'New'},'raaga']);
 });
+test('M10 venue create and update use the same scoped writer contract',async()=>{
+ const calls:any[]=[];const route=makeM10AcademyWriteRoutes(()=>({
+  create:async(...args:any[])=>{calls.push(['create',...args]);return {venueId:'VEN-1'};},
+  update:async(...args:any[])=>{calls.push(['update',...args]);return {venueId:'VEN-1',version:2};}
+ } as any));
+ await env('enabled','enabled',async()=>{
+  const created=await route(context(['m10-academy','venues'],'POST',{venueId:'VEN-1',institutionId:'raaga',name:'Hall'}) as any);
+  assert.equal(created?.statusCode,201);
+  const changed=await route(context(['m10-academy','venues','VEN-1'],'PATCH',{expectedVersion:1,changes:{name:'Main Hall'}}) as any);
+  assert.equal(changed?.statusCode,200);
+ });
+ assert.deepEqual(calls,[
+  ['create','venues',{venueId:'VEN-1',institutionId:'raaga',name:'Hall'}],
+  ['update','venues','VEN-1',1,{name:'Main Hall'},'raaga'],
+ ]);
+});

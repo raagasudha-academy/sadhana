@@ -6,7 +6,7 @@ Updated 8 November 2026. This remains a working audit, not a claim that all 158 
 
 `api-coverage-audit.csv` contains 158 distinct method + route-pattern rows: the 150 expanded entries from handover section 5 plus four source-discovered `m10-academy` writes and four public Sruti intake methods (`POST`/`OPTIONS` at `/` and `/register`) found in `infra/sruti-public-intake.yml`. The public intake rows describe local infrastructure source only; deployment must be checked against AWS before using them as live contracts.
 
-The matrix separates evidence from assumptions. 140 of 158 rows still have no route-execution evidence; candidate handler and test filenames are leads, not proof. The calendar operations are live-verified, and route slices have source/test evidence in their individual rows. Exact status/schema contracts, permissions, and per-category behavioral evidence remain to be reviewed for most routes. The matrix deliberately does not calculate a coverage percentage from test counts.
+The matrix separates evidence from assumptions. As of 8 November, 70 of 158 rows still have no route-execution assessment; candidate handler and test filenames are leads, not proof. Route execution evidence does not imply full category coverage or deployed/live verification. The matrix deliberately does not calculate a coverage percentage from test counts.
 
 ## Live calendar gate now closed
 
@@ -24,12 +24,12 @@ The matrix separates evidence from assumptions. 140 of 158 rows still have no ro
 
 ## Immediate audit sequence
 
-1. Replace candidate file names with exact test names and classify each test as handler-level, service-level, static, integration, or live E2E.
-2. Inspect `lambda.ts` dispatch ordering and feature flags for every route; classify final-mode live, legacy blocked, feature-gated, retired, and source-only.
-3. Complete P0 rows first: calendar, homework, enrolment/family destructive operations, guardian decisions, and registration/revocation flows. Add real route-handler tests for missing categories; assert side effects, audit records, academy isolation, and fail-closed legacy boundaries.
-4. Audit remaining P1/P2 routes and design/document the not-yet-specified student/family deletion workflows before adding API rows for them.
-5. Add `npm run test:ts`, `npm run test:mjs`, and unified `npm test`; measure handler coverage only after instrumentation runs over those handlers.
-6. Commit audit/test changes in small local increments; begin Playwright only after API contracts and P0 gaps are closed.
+1. Continue exact route and test-title mapping through P1 then P2 rows; classify each test as handler-level, service-level, static, integration, or live E2E.
+2. Inspect `lambda.ts` dispatch ordering and feature flags for each remaining route; distinguish final-mode live, legacy blocked, feature-gated, retired, and source-only.
+3. For supported mutations, map canonical writer/adapters and assert side effects, audit records, academy isolation and version conflicts; for unsupported legacy paths, keep exact fail-closed route assertions.
+4. Design/document the not-yet-specified student/family deactivation workflows before adding or enabling APIs.
+5. Run the unified backend suites after adding test batches; add handler coverage instrumentation only after all route fixtures are ready.
+6. Commit audit/test changes in small local increments; begin Playwright after API contracts and behavioral coverage gaps are closed.
 
 ## Current known limitations
 
@@ -56,5 +56,6 @@ The matrix separates evidence from assumptions. 140 of 158 rows still have no ro
 ## Audit progress
 
 - The route matrix remains 158 method/path rows. Focused audit evidence now covers the two calendar live checks, homework archive routing, enrolment/family deletion boundaries, administrator student-name editing, and student/verified-guardian preference editing. The current test evidence for student writes is code-level; its final-mode feature flags could not be read from AWS during this audit because the Lambda endpoint was unreachable.
-- All 61 P0 method/path rows now have some route-execution evidence; 95 of 158 rows overall remain unassessed in that column. The calendar/event and core-directory/identity slices have source/test mappings. This is not full P0 coverage: several rows still depend on mocked services, omit adapter-side effects/audit assertions, or are deliberately fail-closed without an exact event test. `/family-access/links`, registration revocation, schedule teacher-link PATCH, master lifecycle PATCH and recurring-class routes remain unsupported in final mode and need explicit route tests or approved canonical replacements.
-- Next batch: add direct behavioral tests for canonical family/student creation, calendar deletion audit/version guards and exact blocked legacy routes. Then finish the P0 validation/side-effect categories and continue through P1/P2 entries, replacing each `UNASSESSED` field only when the dispatcher or a test provides evidence.
+- All 61 P0 method/path rows have route-execution evidence; 70 of 158 rows overall remain unassessed in that column. Evidence remains mixed: some paths have mocked facade tests, some have service transaction assertions, and some are explicitly blocked by the final-only boundary. `/family-access/links`, registration revocation, schedule teacher-link PATCH, master lifecycle PATCH and recurring-class routes remain unsupported in final mode and need explicit route tests or approved canonical replacements.
+- P1 operations audit is now mapped: all seven `/operations/*` GETs have facade tests; student and enrolment POST plus feedback POST/PATCH have canonical behavior; unsupported legacy writes have exact final-boundary assertions. Enrolment DELETE is separately covered. P1 M10 class and venue create/update paths have facade tests, including new venue writer-argument coverage; their writer transaction/audit semantics and live flags remain unverified. Existing `/classes` and `/venues` read/write facade rows now have exact read, create, update, academy, version, and shared-venue denial tests; these mock the target writer, so they do not verify its deployed audit transaction. Sixteen learner/homework P1 write rows now map to the final facade tests; those tests prove whitelisted dispatch and feature flags, while identity/role, enrolment, storage, and audit behavior remain delegated to service tests and still need tighter endpoint mapping.
+- The operations and M10 route test batch passed (54 MJS tests); the full TypeScript suite passed (357 tests). There are 48 route-execution rows still unassessed (19 P1, 28 P2, and 1 P3). Continue replacing `UNASSESSED` only when dispatch or tests provide evidence, then fill behavioral category gaps before Playwright.
