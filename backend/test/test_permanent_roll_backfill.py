@@ -3,7 +3,7 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location('roll', Path(__file__).resolve().parents[1] / 'scripts/m10PermanentRollBackfill.py')
+spec = importlib.util.spec_from_file_location('roll', Path(__file__).resolve().parents[1] / 'scripts/permanentRollBackfill.py')
 roll = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(roll)
 

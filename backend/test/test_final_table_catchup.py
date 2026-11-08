@@ -3,7 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-import m10FinalTableCatchup as mod
+import finalTableCatchup as mod
 
 
 class CutoverCatchupTests(unittest.TestCase):

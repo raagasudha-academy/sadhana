@@ -1,5 +1,5 @@
 import importlib.util, pathlib, unittest
-p=pathlib.Path(__file__).resolve().parents[1]/'scripts/m91Closeout.py'
+p=pathlib.Path(__file__).resolve().parents[1]/'scripts/closeout.py'
 spec=importlib.util.spec_from_file_location('closeout',p)
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 class CloseoutTests(unittest.TestCase):

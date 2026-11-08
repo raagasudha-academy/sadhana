@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1] / 'scripts'))
-import m91MiddlesbroughEnrol as m
+import middlesbroughEnrol as m
 
 class EnrolTests(unittest.TestCase):
     def test_deterministic_ids_are_distinct(self):

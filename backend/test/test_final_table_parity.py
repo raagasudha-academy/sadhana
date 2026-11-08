@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-script = Path(__file__).resolve().parents[1] / 'scripts/m10FinalTableParity.py'
+script = Path(__file__).resolve().parents[1] / 'scripts/finalTableParity.py'
 spec = importlib.util.spec_from_file_location('m10_final_table_parity', script)
 parity = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(parity)

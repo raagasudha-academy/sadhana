@@ -4,7 +4,7 @@ import pathlib
 import unittest
 from unittest.mock import patch, Mock
 
-PATH = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'm91MiddlesbroughGate.py'
+PATH = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'middlesbroughGate.py'
 spec = importlib.util.spec_from_file_location('m91_gate', PATH)
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)

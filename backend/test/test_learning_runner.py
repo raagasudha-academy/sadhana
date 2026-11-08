@@ -2,7 +2,7 @@ import importlib.util
 import pathlib
 import unittest
 from unittest.mock import patch
-PATH=pathlib.Path(__file__).parents[1]/'scripts'/'m91LearningE2E.py'
+PATH=pathlib.Path(__file__).parents[1]/'scripts'/'learningE2E.py'
 spec=importlib.util.spec_from_file_location('learning',PATH)
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class LearningRunnerTests(unittest.TestCase):

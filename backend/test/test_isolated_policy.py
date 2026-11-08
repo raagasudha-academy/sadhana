@@ -1,7 +1,7 @@
 import pathlib,sys,unittest
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts'))
-from m91IsolatedPolicy import build_policy,policy_diff
+from isolatedPolicy import build_policy,policy_diff
 
 class IsolatedPolicy(unittest.TestCase):
     def test_exact_expected_statements(self):
@@ -22,7 +22,7 @@ class IsolatedPolicy(unittest.TestCase):
     def test_wrong_account_rejected(self):
         with self.assertRaises(ValueError): build_policy('000000000000')
     def test_creation_script_uses_versioned_policy(self):
-        self.assertIn('build_policy(account', (ROOT/'scripts/m9IsolatedDeploy.py').read_text())
-        self.assertNotIn("'update-function-code'", (ROOT/'scripts/m9IsolatedDeploy.py').read_text())
+        self.assertIn('build_policy(account', (ROOT/'scripts/isolatedDeploy.py').read_text())
+        self.assertNotIn("'update-function-code'", (ROOT/'scripts/isolatedDeploy.py').read_text())
 
 if __name__=='__main__':unittest.main()

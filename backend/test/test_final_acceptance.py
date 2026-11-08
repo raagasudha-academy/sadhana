@@ -2,7 +2,7 @@ import importlib.util
 import pathlib
 import unittest
 
-P=pathlib.Path(__file__).resolve().parents[1]/'scripts'/'m91FinalAcceptance.py'
+P=pathlib.Path(__file__).resolve().parents[1]/'scripts'/'finalAcceptance.py'
 spec=importlib.util.spec_from_file_location('m91_final_acceptance',P)
 m=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)

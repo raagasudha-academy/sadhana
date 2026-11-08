@@ -3,7 +3,7 @@ import importlib.util
 import pathlib
 import unittest
 
-SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'm10FinalRaagaAccountLinkAudit.py'
+SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'finalRaagaAccountLinkAudit.py'
 spec = importlib.util.spec_from_file_location('account_link_audit', SCRIPT)
 audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
