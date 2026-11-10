@@ -1,0 +1,66 @@
+/** Typed client for the deployed Cognito-protected Sadhana API.
+ * Requires a verified Cognito access token. Never embed AWS credentials in Vite.
+ * The calendar is live; other CRUD screens remain browser-only for now.
+ */
+import type { InstitutionId } from '../types';
+
+export type ResourceName = 'families' | 'students' | 'classes' | 'venues' | 'enrolments' | 'practice';
+export type ResourcePayload = Record<string, unknown>;
+export type ScheduleInstitution = 'raaga' | 'sruti' | 'shared';
+export interface ScheduleRecord {
+  id: string; recordType: 'class'|'class-session'|'holiday'|'special-event';
+  institution:ScheduleInstitution; name:string;programme:string;teacher:string;
+  mode:string;location:string;venueId?:string;date?:string;endDate?:string;startTime:string;endTime:string;
+  allDay?:boolean;status?:'confirmed'|'tentative'|'cancelled';classId?:string;
+  timezone:'Europe/London';version?:number;affectsClasses?:boolean;
+}
+
+export type ApiRecord = ResourcePayload & { id?: string; version?: number };
+export interface ListResponse { records: ApiRecord[]; more: boolean }
+export interface SearchResponse {
+  families: Array<{id:string;parentName:string;phoneLast4:string}>;
+  students: Array<{id:string;name:string;familyId:string|null}>;
+  more: boolean;
+}
+export interface StaffResponse { subject: string; institutions: InstitutionId[]; role: 'admin' | 'viewer'; displayName?: string }
+export interface SadhanaApiOptions {
+  baseUrl: string;
+  getAccessToken: () => Promise<string | null> | string | null;
+}
+interface RequestOptions { institution?: InstitutionId; body?: ResourcePayload; params?: Record<string,string> }
+
+export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
+  if (!/^https:\/\//.test(baseUrl)) throw new Error('The API must use HTTPS.');
+  if (typeof getAccessToken !== 'function') throw new Error('Provide a Cognito access-token function.');
+  const request = async <T>(method: string, path: string, {institution,body,params}: RequestOptions = {}): Promise<T> => {
+    const token=await getAccessToken();
+    if(!token) throw new Error('Please sign in to Sadhana.');
+    const query=new URLSearchParams(params||{});
+    if(institution) query.set('institution',institution);
+    const suffix=query.toString()?`?${query}`:'';
+    const res=await fetch(`${baseUrl.replace(/\/$/,'')}${path}${suffix}`,{
+      method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},
+      ...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'
+    });
+    const payload: unknown=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(typeof payload==='object'&&payload!==null&&'error' in payload ? String(payload.error):`Request failed (${res.status})`);
+    return payload as T;
+  };
+  return {
+    listSchedule:(institution:ScheduleInstitution)=>request<{records:ScheduleRecord[];more:boolean;source:string}>('GET','/schedule',{params:{institution}}),
+    updateSchedule:(institution:ScheduleInstitution,id:string,changes:ResourcePayload,expectedVersion:number)=>request<{record:ScheduleRecord}>('PATCH',`/schedule/${encodeURIComponent(id)}`,{params:{institution},body:{...changes,expectedVersion}}),
+    createSchedule:(institution:ScheduleInstitution,data:ResourcePayload)=>request<{record:ScheduleRecord}>('POST','/schedule',{params:{institution},body:data}),
+    listMiddlesbroughCalendar:()=>request<{events:import('../middlesbroughCalendar').CalendarEntry[];source:string}>('GET','/calendar/middlesbrough'),
+    previewMiddlesbroughSync:()=>request<import('../middlesbroughCalendar').CalendarSyncPreview>('POST','/calendar/middlesbrough/sync',{body:{mode:'preview'}}),
+    applyMiddlesbroughSync:(expectedFingerprint:string)=>request<{mode:string;written:number;counts:Record<string,number>}>('POST','/calendar/middlesbrough/sync',{body:{mode:'apply',confirm:true,expectedFingerprint}}),
+    currentStaff:()=>request<StaffResponse>('GET','/me'),
+    health:()=>request<{status:string;database:string;environment:string}>('GET','/health'),
+    list:(resource: ResourceName,institution: InstitutionId,params?:Record<string,string>)=>request<ListResponse>('GET',`/${encodeURIComponent(resource)}`,{institution,params}),
+    searchIdentity:(q: string)=>request<SearchResponse>('GET','/identities/search',{params:{q}}),
+    create:(resource: ResourceName,institution: InstitutionId,data: ResourcePayload)=>request<{record:ApiRecord}>('POST',`/${encodeURIComponent(resource)}`,{institution,body:data}),
+    update:(resource: ResourceName,id: string,institution: InstitutionId,changes: ResourcePayload,expectedVersion: number)=>request<{record:ApiRecord}>('PATCH',`/${encodeURIComponent(resource)}/${encodeURIComponent(id)}`,{institution,body:{...changes,expectedVersion}}),
+    correctPractice:(institution: InstitutionId,studentId: string,date: string,changes: ResourcePayload,expectedVersion: number)=>request<{record:ApiRecord}>('PATCH',`/practice/${encodeURIComponent(studentId)}/${encodeURIComponent(date)}`,{institution,body:{...changes,expectedVersion}}),
+    voidPractice:(institution: InstitutionId,studentId: string,date: string,reason: string,expectedVersion: number)=>request<{record:ApiRecord}>('PATCH',`/practice/${encodeURIComponent(studentId)}/${encodeURIComponent(date)}`,{institution,body:{action:'void',reason,expectedVersion}}),
+  };
+}
+export type SadhanaApiClient = ReturnType<typeof createSadhanaApi>;
