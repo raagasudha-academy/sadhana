@@ -13,7 +13,7 @@ for(const role of ['admin','teacher','student','guardian'] as const){
     await expect(drawer.getByRole('button',{name:'Śruti Vedam',exact:true})).toBeVisible();
     if(role==='admin')await expect(drawer.getByRole('button',{name:'Raagasudha',exact:true})).toBeVisible();
     else await expect(drawer.getByRole('button',{name:'Raagasudha',exact:true})).toHaveCount(0);
-    await expect(drawer.getByText('Notifications aren’t connected yet.')).toBeVisible();
+    await expect(drawer.getByText('There is no message activity for this filter.')).toBeVisible();
     await expect(page).toHaveScreenshot(`${role}-notification-centre.png`,{animations:'disabled'});
   });
 }

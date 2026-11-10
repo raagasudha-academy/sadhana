@@ -36,6 +36,7 @@ const table=()=>{if(!process.env.SADHANA_TABLE_NAME)throw Error('Missing table')
 const validInst=(v:string):InstitutionId=>{if(v!=='raaga'&&v!=='sruti')throw httpError(400,'Choose an academy');return v};
 const validSub=isAccountSubject;
 const validStudent=isStudentRecordId;
+export const isSupportedAccessRollNumber=(value:unknown):value is string=>typeof value==='string'&&/^(?:\d{3}-\d{3}|(?:RS|SR)-\d{3,})$/i.test(value.trim());
 const key=(inst:InstitutionId,sub:string,studentId:string)=>({PK:`ACCESS#${inst}#${sub}`,SK:`STUDENT#${studentId}`});
 const publicLink=(x:any)=>({studentId:x.studentId,institution:x.institution,kind:x.kind,status:x.status,version:x.version,updatedAt:x.updatedAt});
 export async function myStudentLinks(instRaw:string,claims:Claims){
@@ -48,11 +49,12 @@ export async function myStudentLinks(instRaw:string,claims:Claims){
 // Resolve the public roll number only on the server. Never disclose student names
 // or details to an unapproved parent requesting a link.
 async function studentIdForRoll(rollNumber:string):Promise<string>{
- if(!/^\d{3}-\d{3}$/.test(rollNumber))throw httpError(400,'Enter a valid roll number (for example 001-002)');
+ if(!isSupportedAccessRollNumber(rollNumber))throw httpError(400,'Enter a valid academy roll number (for example RS-006 or 001-002)');
+ const normalized=rollNumber.trim().toUpperCase();
  let cursor:any;const matches:string[]=[];let examined=0;
  do{
   const page=await db.send(new QueryCommand({TableName:table(),KeyConditionExpression:'PK=:pk',ExpressionAttributeValues:{':pk':'OPS#GLOBAL#STUDENT'},ConsistentRead:true,ExclusiveStartKey:cursor,Limit:100}));
-  for(const item of page.Items||[]){examined++;if(item.rollNumber===rollNumber&&!item.archived&&validStudent(item.id))matches.push(item.id);}
+  for(const item of page.Items||[]){examined++;if(typeof item.rollNumber==='string'&&item.rollNumber.trim().toUpperCase()===normalized&&!item.archived&&validStudent(item.id))matches.push(item.id);}
   if(examined>10000)throw httpError(503,'Student directory lookup unavailable; contact the academy');
   cursor=page.LastEvaluatedKey;
  }while(cursor);

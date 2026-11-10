@@ -35,7 +35,8 @@ export function projectM10Directory(entity,items,inst,people=[]){
   }else{
    if(item.institutionId!==inst)continue;
    const legacy=cleanLegacy(item.legacyPayload);
-   if(legacy){result.push(legacy);continue;}
+   if(legacy){result.push({...legacy,id:item.enrolmentId,institution:inst,studentId:item.studentId,classId:item.classId,
+    startDate:item.startDate,endDate:item.endDate||'',archived:item.status==='archived',version:item.version??legacy.version??1});continue;}
    if(!requiredText(item.enrolmentId)||!requiredText(item.studentId)||!requiredText(item.classId)||!requiredText(item.startDate))throw Error('M10_INCOMPLETE_ENROLMENT');
    result.push({id:item.enrolmentId,institution:inst,studentId:item.studentId,classId:item.classId,startDate:item.startDate,
     endDate:item.endDate||'',archived:item.status==='archived',version:item.version??1});

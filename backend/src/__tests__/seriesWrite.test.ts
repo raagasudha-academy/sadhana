@@ -19,7 +19,7 @@ function client(options:{rule?:boolean,wrongScope?:boolean}={}){
   }
   if(cmd instanceof ScanCommand)return {Items:[
    {sessionId:'SESSION-TEST',recordType:'class-session',classId,institutionId:'raaga',legacyPayload:session},
-   ...(options.rule?[{sessionId:'RULE-EXISTING',recordType:'series-change',classId,institutionId:'raaga',effectiveFrom:input.effectiveFrom,changes:{startTime:'09:00'}}]:[])
+   ...(options.rule?[{sessionId:'RULE-EXISTING',recordType:'series-change',classId,institutionId:'raaga',effectiveFrom:input.effectiveFrom,changes:{startTime:'09:00'},updatedAt:'2026-11-02T10:00:00Z'}]:[])
   ]};
   return {};
  }};
@@ -62,9 +62,21 @@ function assertNoStorageOrIdentityFields(value:unknown){
  for(const field of ['PK','SK','GSI1PK','GSI1SK','GSI2PK','GSI2SK','entityType','cognitoSub','actorCognitoSub','email','phone'])
   assert.equal(serialized?.includes(`\"${field}\"`),false,`${field} must not appear in the writer response`);
 }
-test('repeated effective date is rejected before write',async()=>pilot(async()=>{
- const c=client({rule:true});await assert.rejects(()=>makeM95SeriesWriter(c).change('raaga',classId,input,claims),{status:409});
+test('preview allows replacing the rule already stored for the selected effective date',async()=>pilot(async()=>{
+ const c=client({rule:true});const result=await makeM95SeriesWriter(c).preview('raaga',classId,input,claims);
+ assert.equal(result.effectiveFrom,input.effectiveFrom);assert.equal(result.readOnly,true);
  assert.equal(c.calls.some(x=>x instanceof TransactWriteCommand),false);
+}));
+test('same-date rule replacement is atomic, conditional and audited with old and new values',async()=>pilot(async()=>{
+ const c=client({rule:true});const result=await makeM95SeriesWriter(c).change('raaga',classId,input,claims);
+ assert.equal(result.masterVersion,3);
+ const tx=c.calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
+ assert.equal(tx.length,3);
+ assert.equal(tx[1].Put.Item.sessionId,'RULE-EXISTING');
+ assert.equal(tx[1].Put.Item.changes.startTime,'09:30');
+ assert.match(tx[1].Put.ConditionExpression,/#updated=:oldUpdated/);
+ assert.equal(tx[2].Put.Item.action,'replaceClassSeriesRule');
+ assert.deepEqual(tx[2].Put.Item.previousChanges,{startTime:'09:00'});
 }));
 test('wrong institution and stale version blocked',async()=>pilot(async()=>{
  await assert.rejects(()=>makeM95SeriesWriter(client({wrongScope:true})).change('raaga',classId,input,claims),{status:404});

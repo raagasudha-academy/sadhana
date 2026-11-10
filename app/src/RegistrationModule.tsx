@@ -51,6 +51,9 @@ export default function RegistrationModule({
   setEnrolments,
   initialClass = null,
   initialStudent = null,
+  initialArea,
+  initialFilter,
+  initialView,
   practiceLogs = [],
   setPracticeLogs = () => {},
   operationsApi = null,
@@ -58,6 +61,7 @@ export default function RegistrationModule({
 }: any) {
   const [area, setArea] = useState(() => {
     try {
+      if(initialArea)return initialArea;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:area`) || 'students';
     } catch {
       return 'students';
@@ -66,6 +70,7 @@ export default function RegistrationModule({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(() => {
     try {
+      if(initialFilter!==undefined)return initialFilter;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:filter`) || 'All';
     } catch {
       return 'All';
@@ -73,6 +78,7 @@ export default function RegistrationModule({
   });
   const [view, setView] = useState<'list' | 'table'>(() => {
     try {
+      if(initialView)return initialView;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:view`) === 'table'
         ? 'table'
         : 'list';
@@ -809,9 +815,7 @@ export default function RegistrationModule({
             <div>
               <p className="reg-kicker">FAMILY & STUDENT MANAGEMENT</p>
               <h1>All Students</h1>
-              <p>
-                View every learner once. Family relationships remain available as a linked view for {institutions[workspace].name}.
-              </p>
+              <p>Browse students and linked family records for {institutions[workspace].name}.</p>
             </div>
           </div>
           <section className="surface reg-section">

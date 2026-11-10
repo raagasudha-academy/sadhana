@@ -1,5 +1,5 @@
 /** Pure canonical parent invitation state machine (no AWS calls or source-table fallback).
- * A Cognito invitation is NEVER guardian approval or a verified identity link.
+ * A Cognito invitation is not itself a verified identity link or a completed sign-in.
  */
 import {createHash} from 'node:crypto';
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
@@ -50,7 +50,7 @@ export function createCanonicalRaagaInvitationFlow(ops,env=process.env,now=()=>n
    try{await ops.completeInvite(reg,operationId,username,email,subject,now());}
    catch{fail(409,'Cognito accepted an invitation, but the canonical receipt needs reconciliation. Do not retry creation.');}
    return {status:'INVITATION_SENT',invitationSent:true,guardianAccessGranted:false,
-    message:'Cognito accepted the invitation request. Email delivery is not guaranteed; guardian access remains separate.'};
+    message:'Cognito accepted the invitation request. Email delivery is not guaranteed; the parent must finish sign-in and account linking before viewing student records.'};
   },
   async resend(reg,guardian,actorSub){
    if(!enabled(env,'SADHANA_FINAL_RAAGA_PARENT_RESENDS'))fail(503,'Canonical invitation resends are disabled.');

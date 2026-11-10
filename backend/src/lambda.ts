@@ -12,6 +12,7 @@ import type {InstitutionId, ResourceName, HttpError} from './model.ts';
 import {json, readJSON, readPhotoJSON} from './routes/http.ts';
 import type {SadhanaHttpEvent, JsonResponse} from './routes/http.ts';
 import {learningRoutes} from './routes/learningRoutes.ts';
+import {learningResourcesRoutes} from './routes/learningResourcesRoutes.ts';
 import {m10LearningCutoverRoutes} from './routes/learningCutoverRoutes.ts';
 import {m10TeacherPracticeRoutes} from './routes/teacherPracticeRoutes.ts';
 import {m9FinalLearnerRoutes} from './routes/finalLearnerRoutes.ts';
@@ -43,6 +44,8 @@ import {finalOperationsRoute} from './finalOperations.mjs';
 import {finalOperationsEnrolmentWriteRoute} from './finalOperationsEnrolmentWrite.mjs';
 import {finalTeacherPatchRoute} from './finalTeacherPatch.mjs';
 import {finalTeacherPatch} from './finalTeacherPatchData.ts';
+import {finalTeacherCreateRoute} from './finalTeacherCreate.mjs';
+import {finalTeacherCreate} from './finalTeacherCreateData.ts';
 import {finalOperationsHistory} from './finalOperationsHistory.ts';
 import {finalOperationsFeedback} from './finalOperationsFeedback.ts';
 import {finalAttendance} from './finalAttendance.ts';
@@ -60,11 +63,15 @@ import {m10FinalRaagaParentAction} from './finalRaagaParentActionsData.ts';
 import {fetchWebsiteRegistration,reviewWebsiteRegistration} from './websiteRegistrationGateway.ts';
 import {m95ImportApprovedWebsiteRegistration,m95ReconcileWebsiteImport} from './websiteImport.ts';
 import {finalLearningRoute} from './finalLearning.mjs';
+import {finalMessagesRoute} from './finalMessages.mjs';
+import {isMessageRoute} from './messageRoutePolicy.mjs';
 import {finalAdministratorRoute} from './finalAdministrator.mjs';
 import {listAdministrators,inviteAdministrator,changeAdministratorAccess,updateAdministratorProfile} from './adminDirectory.ts';
 import {requireAdminManager} from './adminPolicy.ts';
 import {m10FinalLearnerProfiles} from './finalLearnerProfilesData.ts';
 import {m10FinalLearnerMedia} from './finalLearnerMedia.ts';
+import {filterVenuesForInstitution} from './venueVisibility.ts';
+import {finalMessages} from './finalMessages.ts';
 import {m9FinalLearner} from './finalLearner.ts';
 import {m9LearnerWrites} from './learnerWrites.ts';
 import {m9Homework} from './legacyHomework.ts';
@@ -153,13 +160,16 @@ export function createHandler(repository: SadhanaRepository){
       // uploadProfilePhoto validates the payload and derives identity from claims.sub.
       const isOwnPhotoRoute=requestMethod==='POST' && routeParts.length===2 &&
         routeParts[0]==='photos' && routeParts[1]==='me';
-      const isAccessRoute=['family-access','me','learner','m9-onboarding'].includes(routeParts[0]) || isOwnPhotoRoute;
+      // Learner and guardian messaging is authenticated by Cognito here, then
+      // restricted to the verified person, institution and class in finalMessagesRoute.
+      const isAccessRoute=['family-access','me','learner','m9-onboarding','learning-resources'].includes(routeParts[0]) || isOwnPhotoRoute || isMessageRoute(requestMethod,routeParts);
       if(!viewed.length&&!isAccessRoute)return json(403,{error:'Staff role required.'});
       const parts=apiRouteParts(event);
       const method=event.requestContext?.http?.method ?? event.httpMethod;
       const query=event.queryStringParameters??{};
       const inst=query.institution as InstitutionId;
       const routeContext={event,parts,method,query,inst,claims,groups};
+      {const response=await learningResourcesRoutes(routeContext);if(response)return response;}
       // Final-schema read dispatch has priority over legacy/M9 pilot fallbacks.
       // Only the exact audited GET endpoints are allowed here.
       if(process.env.SADHANA_ENTITY_TABLE_SET==='final'){
@@ -180,6 +190,11 @@ export function createHandler(repository: SadhanaRepository){
         parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):'{}'),
         patch:finalTeacherPatch(),
       },{admin:demandInstitution});if(teacherPatch)return json(teacherPatch.status,teacherPatch.body);}
+      {const teacherCreate=await finalTeacherCreateRoute(routeContext,{
+        assertConfigured:()=>{entityTable('people');entityTable('counters');entityTable('audit');},
+        parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):'{}'),
+        create:finalTeacherCreate(),
+      },{admin:demandInstitution});if(teacherCreate)return json(teacherCreate.status,teacherCreate.body);}
       // The learner portal must discover its verified students before loading
       // dashboard or homework. Read canonical people/approved guardian links only.
       {const family=await finalFamilyAccessRoute(routeContext,{
@@ -242,6 +257,12 @@ export function createHandler(repository: SadhanaRepository){
       } satisfies Parameters<typeof finalLearningRoute>[1] & {learnerProfiles:typeof m10FinalLearnerProfiles;learnerMedia:typeof m10FinalLearnerMedia};
       const result=await finalLearningRoute(routeContext,learningDependencies);
       if(result)return json(result.status,result.body);}
+      {const result=await finalMessagesRoute(routeContext,{
+        assertConfigured:()=>{entityTable('people');entityTable('classes');entityTable('enrolments');entityTable('notifications');entityTable('audit');},
+        service:finalMessages,
+        permittedInstitutions,
+        parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):'')
+      });if(result)return json(result.status,result.body);}
       // Administrator directory and account controls are Cognito-only. They
       // retain the protected designated-manager check and independent opt-ins.
       {const result=await finalAdministratorRoute(routeContext,{
@@ -340,7 +361,14 @@ export function createHandler(repository: SadhanaRepository){
       }
       const resource=parts[0] as ResourceName;
       if(!RESOURCES.includes(resource))return json(404,{error:'Unknown endpoint.'});
-      if(method==='GET'&&parts.length===1)return json(200,await repository.list(resource,inst,claims,{studentId:query.studentId}));
+      if(method==='GET'&&parts.length===1){
+        const result=await repository.list(resource,inst,claims,{studentId:query.studentId});
+        if(resource==='venues'){
+          const classes=await repository.list('classes',inst,claims);
+          result.records=filterVenuesForInstitution(inst,result.records,classes.records);
+        }
+        return json(200,result);
+      }
       const data=readJSON(event.body?event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body:'');
       if(method==='POST'&&parts.length===1)return json(201,{record:await repository.create(resource,data,inst,claims)});
       if(method==='PATCH'&&resource==='practice'&&parts.length===3){

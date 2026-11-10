@@ -5,10 +5,14 @@ import {readFileSync} from 'node:fs';
 const component=readFileSync('app/src/features/learning/StudentAcademy.tsx','utf8');
 const controller=readFileSync('app/src/features/learning/useStudentPortalController.ts','utf8');
 
-test('separate teachers and administrators, labelled by academy',()=>{
+test('single people directory labels each academy role',()=>{
  assert.match(component,/function ApprovedAcademiesStaffDirectory/);
- assert.match(component,/All Teachers/);
- assert.match(component,/All Administrators/);
+ assert.match(component,/<span className="sv1396c-eyebrow">ACADEMY DIRECTORY<\/span>/);
+ assert.match(component,/>Teachers<\/button>/);
+ assert.match(component,/>Directors \/ Admin<\/button>/);
+ assert.match(component,/Teacher/);
+ assert.match(component,/Administrator/);
+ assert.doesNotMatch(component,/All Teachers|All Administrators/);
  assert.match(component,/Śruti Vedam/);
  assert.match(component,/Raagasudha/);
 });

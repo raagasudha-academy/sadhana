@@ -70,7 +70,9 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
    links=(await Promise.all(candidates.filter(x=>x.studentId===studentId&&x.institutionId===inst).map(x=>get('family-links',x.linkId)))).filter(Boolean);
   }
   authorisedStudent(actor,student,links,inst);
-  const checks:any[]=[check,{ConditionCheck:{TableName:table('people'),Key:{personId:studentId},ConditionExpression:'#status=:active AND contains(institutionIds,:inst) AND contains(personTypes,:student)',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':inst':inst,':student':'student'}}}];
+  const checks:any[]=actor.personId===studentId?
+   [{ConditionCheck:{TableName:table('people'),Key:{personId:studentId},ConditionExpression:'#status=:active AND cognitoSub=:sub AND contains(institutionIds,:inst) AND contains(personTypes,:student)',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':sub':claims.sub,':inst':inst,':student':'student'}}}]:
+   [check,{ConditionCheck:{TableName:table('people'),Key:{personId:studentId},ConditionExpression:'#status=:active AND contains(institutionIds,:inst) AND contains(personTypes,:student)',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':inst':inst,':student':'student'}}}];
   if(actor.personId!==studentId){
    const link=links.find(x=>x.guardianPersonId===actor.personId&&x.studentId===studentId&&x.institutionId===inst&&x.accessStatus==='approved'&&x.relationshipVerified===true);
    checks.push({ConditionCheck:{TableName:table('family-links'),Key:{linkId:link.linkId},ConditionExpression:'guardianPersonId=:g AND studentId=:s AND institutionId=:i AND accessStatus=:approved AND relationshipVerified=:yes',ExpressionAttributeValues:{':g':actor.personId,':s':studentId,':i':inst,':approved':'approved',':yes':true}}});
@@ -83,7 +85,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   for(const candidate of choices){
    const fresh=await get('enrolments',candidate.enrolmentId);
    if(!fresh||fresh.institutionId!==inst||fresh.studentId!==studentId||fresh.classId!==classId||fresh.status!=='active'||(fresh.startDate&&fresh.startDate>dueDate)||(fresh.endDate&&fresh.endDate<dueDate))continue;
-   return {ConditionCheck:{TableName:table('enrolments'),Key:{enrolmentId:fresh.enrolmentId},ConditionExpression:'#status=:active AND institutionId=:inst AND studentId=:student AND classId=:class AND (attribute_not_exists(startDate) OR startDate<=:date) AND (attribute_not_exists(endDate) OR endDate>=:date)',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':inst':inst,':student':studentId,':class':classId,':date':dueDate}}};
+   return {ConditionCheck:{TableName:table('enrolments'),Key:{enrolmentId:fresh.enrolmentId},ConditionExpression:'#status=:active AND institutionId=:inst AND studentId=:student AND classId=:class AND (attribute_not_exists(startDate) OR attribute_type(startDate,:nullType) OR startDate=:empty OR startDate<=:date) AND (attribute_not_exists(endDate) OR attribute_type(endDate,:nullType) OR endDate=:empty OR endDate>=:date)',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':inst':inst,':student':studentId,':class':classId,':date':dueDate,':empty':'',':nullType':'NULL'}}};
   }
   throw httpError(403,'Student is not enrolled in this class');
  }
@@ -218,7 +220,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
  async function saveSubmission(inst:InstitutionId,claims:Claims,studentId:string,homeworkId:string,body:any){
   if(!isObject(body)||!allowFields(body,['text','status','expectedVersion','attachmentIds'])||typeof body.text!=='string'||body.text.length>10000||!['draft','submitted'].includes(body.status)||!Number.isInteger(body.expectedVersion)||body.expectedVersion<0||!Array.isArray(body.attachmentIds))throw httpError(400,'Invalid submission');
   if(body.attachmentIds.length&&!mediaEnabled())throw httpError(503,'M9 media integration disabled');
-  if(body.status==='submitted'&&!body.text.trim()&&!body.attachmentIds.length)throw httpError(400,'Enter a response or attach evidence before submitting');
+  if(body.status==='submitted'&&!body.text.trim()&&!body.attachmentIds.length)throw httpError(400,'Enter a response or attach media before submitting');
   const {actor,checks}=await learner(inst,claims,studentId),{h,enrollmentCheck}=await assignment(inst,studentId,homeworkId);
   if(!isHomeworkReleased(h)||!isHomeworkOpenAt(h))throw httpError(409,'Homework is not currently open');
   const id=`SUBMISSION-${homeworkId}-${studentId}`;const old=await get('submissions',id);

@@ -17,10 +17,25 @@ export async function assertRolePage(page:Page,role:PortalRole,label:string){
   page.on('pageerror',error=>runtimeErrors.push(error.message));
   await openRoleSession(page,role);
   const navigation=page.getByRole('navigation',{name:'Primary navigation'});
-  const link=navigation.getByRole('button',{name:label,exact:true});
-  await expect(link,`${role} navigation should include ${label}`).toBeVisible();
+  let link=navigation.getByRole('button',{name:label,exact:true});
+  if(await link.count()===0&&role==='admin'){
+    const group=['Families & Students','Website Registrations','Account Access'].includes(label)
+      ?'People & Access'
+      :['Classes & Timetable','Practice & Reports','Communications','Settings'].includes(label)
+        ?'Academy Workspace'
+        :undefined;
+    if(group){
+      const groupButton=navigation.getByRole('button',{name:group,exact:true});
+      await expect(groupButton,`${role} navigation should include ${group}`).toBeVisible();
+      await groupButton.click();
+      const tablist=page.getByRole('tablist',{name:group});
+      link=tablist.getByRole('tab',{name:label,exact:true});
+    }
+  }
+  await expect(link,`${role} navigation or section tabs should include ${label}`).toBeVisible();
   await link.click();
-  await expect(link).toHaveClass(/active|nav-active/);
+  if(await link.getAttribute('role')==='tab')await expect(link).toHaveAttribute('aria-selected','true');
+  else await expect(link).toHaveClass(/active|nav-active/);
   await expect(page.getByText('Loading section…')).toBeHidden();
   await expect(page.locator('main').last()).toBeVisible();
   const screenshotName=`${role}-${label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}.png`;

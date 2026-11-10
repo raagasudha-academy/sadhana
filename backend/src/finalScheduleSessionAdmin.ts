@@ -156,6 +156,24 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
     auditAction(inst,'TEACHER_SESSION_UPDATED',id,String(claims.sub))]);
    return {record:next};
   },
+  async respondToTeacherSession(inst:InstitutionId,id:string,body:Record<string,any>,claims:Claims){
+   checkId(id);checkVersion(body?.expectedVersion);
+   if(Object.keys(body).some(k=>!['response','expectedVersion'].includes(k))||body.response!=='attending')throw httpError(400,'Invalid teacher response.');
+   const current=await get('sessions',id);
+   if(!current||current.institutionId!==inst||current.recordType!=='class-session')throw httpError(404,'Class session not found.');
+   const {master,teacherId,assignedTeacherKey}=await assigned(inst,current.classId,claims);
+   if(body.expectedVersion!==current.version)throw httpError(409,'Session changed. Refresh before responding.');
+   const record=current.legacyPayload as ScheduleRecord;
+   if(!record)throw httpError(409,'Session requires data reconciliation.');
+   if(current.status==='cancelled')throw httpError(409,'This class session was cancelled.');
+   if(Date.parse(utcForWallTime(record.date!,record.startTime))<=Date.now())throw httpError(409,'Teacher confirmation is only available before the class starts.');
+   const now=new Date().toISOString();
+   const next={...record,teacherResponse:'attending' as const,version:current.version+1,updatedAt:now};
+   await transact([{ConditionCheck:{TableName:table('classes'),Key:{classId:current.classId},ConditionExpression:'#v=:v AND (contains(#teachers,:t) OR #legacy.#tid=:t)',ExpressionAttributeNames:{'#v':'version','#teachers':'teacherPersonIds','#legacy':'legacyPayload','#tid':'teacherId'},ExpressionAttributeValues:{':v':master.version,':t':assignedTeacherKey}}},
+    {Put:{TableName:table('sessions'),Item:toItem(next,current,teacherId),ConditionExpression:'#v=:v AND #i=:i AND #class=:c AND #status<>:cancelled',ExpressionAttributeNames:{'#v':'version','#i':'institutionId','#class':'classId','#status':'status'},ExpressionAttributeValues:{':v':current.version,':i':inst,':c':current.classId,':cancelled':'cancelled'}}},
+    auditAction(inst,'TEACHER_SESSION_ATTENDANCE_CONFIRMED',id,String(claims.sub))]);
+   return {record:next};
+  },
   async deleteSession(inst:InstitutionId,id:string,body:Record<string,any>,claims:Claims,isAdmin:boolean){
    checkId(id);checkVersion(body?.expectedVersion);
    const session=await get('sessions',id);

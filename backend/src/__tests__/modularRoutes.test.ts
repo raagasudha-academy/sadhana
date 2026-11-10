@@ -15,9 +15,9 @@ test('registration revocation routes retain administrator gate',()=>{
   assert.match(registration,/revoke-cancel/);
   assert.match(registration,/cancelFencedWebsiteRevocation/);
 });
-test('learner academy directory still checks verified student identity',()=>{
+test('learner academy directory checks verified identity and scopes results to the student',()=>{
   const learning=read('../routes/learningRoutes.ts');
-  assert.match(learning,/await learnerIdentity\(inst,claims,studentId\);return json\(200,await academyDirectory\(inst\)\)/);
+  assert.match(learning,/await learnerIdentity\(inst,claims,studentId\);return json\(200,await academyDirectory\(inst,studentId\)\)/);
 });
 test('generic repository authorization and error redaction remain in Lambda',()=>{
   assert.match(entry,/repository\.list\(resource,inst,claims/);

@@ -28,6 +28,14 @@ export function makeM10FinalGuardianQueueReader(db:{send:(command:any)=>Promise<
   },
   async link(id:string){return (await db.send(new GetCommand({TableName:entityTable('family-links'),Key:{linkId:id},ConsistentRead:true}))).Item??null;},
   async person(id:string){return (await db.send(new GetCommand({TableName:entityTable('people'),Key:{personId:id},ConsistentRead:true}))).Item??null;},
+  async studentForRoll(inst:'raaga'|'sruti',rollNumber:string){
+   const normalized=rollNumber.trim().toUpperCase();
+   const counter=(await db.send(new GetCommand({TableName:entityTable('counters'),Key:{counterId:`ROLL_GLOBAL#${normalized}`},ConsistentRead:true}))).Item;
+   if(typeof counter?.personId!=='string')return null;
+   const student=(await db.send(new GetCommand({TableName:entityTable('people'),Key:{personId:counter.personId},ConsistentRead:true}))).Item;
+   return student?.status==='active'&&student.institutionIds?.includes(inst)&&student.personTypes?.includes('student')&&
+    student.studentProfile?.rollNumbers?.[inst]?.trim().toUpperCase()===normalized?student.personId:null;
+  },
   async peopleForSubject(subject:string){
    const result=await db.send(new QueryCommand({TableName:entityTable('people'),IndexName:'CognitoIdentityIndex',
     KeyConditionExpression:'cognitoSub=:sub',ExpressionAttributeValues:{':sub':subject},Limit:3}));

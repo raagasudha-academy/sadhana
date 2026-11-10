@@ -1,4 +1,4 @@
-/** Pure, side-effect-free M9 website-import planner. No AWS or Cognito calls. */
+/** Pure, side-effect-free website-import planner. No AWS or Cognito calls. */
 import {createHash} from 'node:crypto';
 import {academyRoll} from './academyRoll.mjs';
 const fail=(message)=>{throw Object.assign(new Error(message),{status:409});};
@@ -54,15 +54,18 @@ export function prepareWebsiteImport(registration, institution, actorSub, counte
    guards.push({counterId:`ROLL_GLOBAL#${person.studentProfile.rollNumber}`,institutionId:institution,sequenceType:'ROLL_UNIQUE',personId:studentId,registrationId:id,createdAt:now});
    if(sourceId!==primary.personId){
     const linkId=guardianLinkId(institution,guardianId,studentId);
-    links.push({linkId,recordType:'guardian-access',institutionId:institution,familyId,personId:guardianId,guardianPersonId:guardianId,studentId,relationship:'unverified',accessStatus:'pending',relationshipVerified:false,sourceWebsiteRegistrationId:id,createdAt:now,updatedAt:now,version:1});
+    const submittedRelationship=(Array.isArray(r.relationships)?r.relationships:[])
+     .find(x=>x?.guardianPersonId===primary.personId&&x?.studentPersonId===sourceId)?.relationship;
+    const relationship=submittedRelationship==='parent'?'parent':'guardian';
+    links.push({linkId,recordType:'guardian-access',institutionId:institution,familyId,personId:guardianId,guardianPersonId:guardianId,studentId,relationship,accessStatus:'approved',relationshipVerified:true,verificationSource:'approved-website-registration',evidenceReference:`website-registration:${id}`,reviewedBy:actorSub,reviewedAt:now,sourceWebsiteRegistrationId:id,createdAt:now,updatedAt:now,version:1});
    }
  }
  const family={familyId,familyNumber,primaryContactPersonId:guardianId,institutionIds:[institution],address:obj(primary.address),status:'active',createdAt:now,updatedAt:now,version:1,sourceWebsiteRegistrationId:id};
  const registrationId=markerId(institution,id);
- const reg={registrationId,institutionId:institution,source:'website',externalRegistrationId:id,externalRegistrationKey:`${institution}#website#${id}`,registrationType:r.registrationType||'website',status:'imported',reviewStatus:'approved',importStatus:'imported',identityResolutionStatus:'pending_guardian_verification',familyId,studentIds:records.map(s=>s.studentId),sourceStudentIds:Object.fromEntries(records.map(s=>[s.sourcePersonId,s.studentId])),websiteSyncStatus:institution==='sruti'?'not-required':'pending',provisioningStatus:'NOT_INVITED',submittedAt:r.submittedAt||now,importedAt:now,updatedAt:now,version:1,createdAt:now};
- const audit={auditId:`aud_${hash(institution,id,'import')}`,institutionId:institution,actorCognitoSub:actorSub,action:'WEBSITE_REGISTRATION_IMPORTED',resourceType:'registration',resourceId:registrationId,result:'success',timestamp:now,metadata:{studentCount:records.length},schemaVersion:1};
+ const reg={registrationId,institutionId:institution,source:'website',externalRegistrationId:id,externalRegistrationKey:`${institution}#website#${id}`,registrationType:r.registrationType||'website',status:'imported',reviewStatus:'approved',importStatus:'imported',identityResolutionStatus:'registration_relationships_verified',familyId,studentIds:records.map(s=>s.studentId),sourceStudentIds:Object.fromEntries(records.map(s=>[s.sourcePersonId,s.studentId])),websiteSyncStatus:institution==='sruti'?'not-required':'pending',provisioningStatus:'NOT_INVITED',submittedAt:r.submittedAt||now,importedAt:now,updatedAt:now,version:1,createdAt:now};
+ const audit={auditId:`aud_${hash(institution,id,'import')}`,institutionId:institution,actorCognitoSub:actorSub,action:'WEBSITE_REGISTRATION_IMPORTED',resourceType:'registration',resourceId:registrationId,result:'success',timestamp:now,metadata:{studentCount:records.length,verifiedGuardianLinks:links.length,relationshipEvidence:'approved-website-registration'},schemaVersion:1};
  const items=[{table:'families',item:family},...peopleItems.map(item=>({table:'people',item})),...links.map(item=>({table:'family-links',item})),{table:'counters',item:{counterId:contactGuardId,institutionId:institution,sequenceType:'CONTACT_GUARD',personId:guardianId,familyId,registrationId:id,createdAt:now}},...guards.map(item=>({table:'counters',item})),{table:'registrations',item:reg},{table:'audit',item:audit}];
  // 20 students + guards + links + family + audit + registration + guardian + counters <= 100
  if(items.length+2>100)fail('Registration exceeds DynamoDB transaction limit.');
- return {institution,registrationId,externalRegistrationId:id,familyId,familyNumber,contactGuardId,studentMappings:records,items,counters:{family:{current:counters.family,next:counters.family+1},student:{current:counters.student,next:counters.student+students.length}},pendingGuardianLinks:links.length,externalSyncPending:true};
+ return {institution,registrationId,externalRegistrationId:id,familyId,familyNumber,contactGuardId,studentMappings:records,items,counters:{family:{current:counters.family,next:counters.family+1},student:{current:counters.student,next:counters.student+students.length}},verifiedGuardianLinks:links.length,externalSyncPending:true};
 }

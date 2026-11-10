@@ -37,3 +37,8 @@ test('M9 strict fence permits only opted-in learner practice and RSVP writes',()
   assert.equal(m9CutoverFence(['learner','STUDENT-1','homework'],'POST',enabled).status,503);
   assert.equal(m9CutoverFence(['learner','STUDENT-1','practice'],'POST',{strict:true}).status,503);
 });
+test('teacher practice recordings remain behind assigned teacher feature gate',()=>{
+ assert.equal(m9CutoverFence(['teacher-practice','PRACTICE-1','media'],'GET',{strict:true,teacherPractice:true}),null);
+ assert.equal(m9CutoverFence(['teacher-practice','PRACTICE-1','media'],'GET',{strict:true,teacherPractice:false}).status,503);
+ assert.equal(m9CutoverFence(['teacher-practice','PRACTICE-1','media'],'POST',{strict:true,teacherPractice:true}).status,503);
+});

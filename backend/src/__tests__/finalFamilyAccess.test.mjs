@@ -34,6 +34,13 @@ test('existing learner portal contract: only active approved guardian students',
  const {deps}=harness();const r=await finalFamilyAccessRoute(ctx(),deps,env);
  assert.deepEqual(r.body,{records:[{id:'PER_STUDENT',name:'Asha K',rollNumber:'001-002',kind:'guardian',relationship:'child'}]});
 });
+test('approved guardian link can bridge separate family records without moving either person',async()=>{
+ const otherFamilyGuardian={...actor,familyId:'FAM_PARENT'};
+ const crossLink={...link,familyId:'FAM_SHARED',guardianFamilyId:'FAM_PARENT'};
+ const reader={...base,peopleForSubject:async()=>[otherFamilyGuardian],person:async id=>id===otherFamilyGuardian.personId?otherFamilyGuardian:student,
+  linksForGuardian:async()=>[crossLink],link:async()=>crossLink};
+ assert.deepEqual(await finalLinkedStudents(inst,subject,reader),{records:[{id:student.personId,name:'Asha K',rollNumber:'001-002',kind:'guardian',relationship:'child'}]});
+});
 test('no access from pending, revoked, unverified, mismatched and stale GSI links',async()=>{
  const cases=[{accessStatus:'pending'},{accessStatus:'revoked'},{relationshipVerified:false},
    {familyId:'FAM_DIFFERENT'},{institutionId:'raaga'}, {studentId:'PER_WRONG'}];
@@ -51,7 +58,7 @@ test('only JWT subject identity is resolved; ambiguous identities fail closed',a
 });
 test('student self-access needs active verified student person, not email or guardian link',async()=>{
  const self={...student,cognitoSub:subject};const reader={...base,peopleForSubject:async()=>[self],person:async()=>self,linksForGuardian:async()=>{throw Error('not needed');}};
- assert.deepEqual(await finalLinkedStudents(inst,subject,reader),{records:[{id:'PER_STUDENT',name:'Asha K',rollNumber:'001-002',kind:'student',relationship:'unknown'}]});
+ assert.deepEqual(await finalLinkedStudents(inst,subject,reader),{records:[{id:'PER_STUDENT',name:'Asha K',rollNumber:'001-002',kind:'student',relationship:'self'}]});
 });
 test('cross-academy, invalid route and unauthenticated request fail before database',async()=>{
  for(const context of [ctx(['family-access','mine'],'POST'),ctx(['family-access','mine'],'GET','shared'),ctx(['family-access','mine'],'GET',inst,'')]){

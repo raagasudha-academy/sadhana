@@ -4,7 +4,10 @@ export const learnerPageMap: Record<string, LearnerPage> = {
   Dashboard: 'overview',
   'My classes': 'classes',
   'My learning': 'homework',
+  'My Syllabus': 'resources',
   'My academy': 'teachers',
+  Venues: 'venues',
+  Messages: 'messages',
   'My profile': 'profile',
 };
 export const learnerSectionMap: Record<
@@ -18,7 +21,9 @@ export const learnerSectionMap: Record<
   venues: 'My classes',
   homework: 'My learning',
   practice: 'My learning',
+  resources: 'My Syllabus',
   teachers: 'My academy',
   profile: 'My profile',
   privacy: 'My profile',
+  messages: 'Messages',
 };

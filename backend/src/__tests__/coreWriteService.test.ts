@@ -137,7 +137,7 @@ test('enrolment create checks active same-academy parties and audits the pair lo
  assert.equal(tx[4].Put.Item.action,'ACADEMY_ENROLMENT_CREATED');
 });
 
-test('family student create allocates a roll and keeps guardian access pending in audited transaction',async()=>{
+test('parent Add Student create allocates a roll and keeps guardian access pending for admin review',async()=>{
  const family={familyId:'FAMILY-1',institutionIds:['raaga'],status:'active',version:2,primaryContactPersonId:'PERSON-GUARDIAN-1'};
  const guardian={personId:'PERSON-GUARDIAN-1',familyId:'FAMILY-1',institutionIds:['raaga'],personTypes:['guardian'],status:'active',version:3};
  const calls:any[]=[];const db={send:async(command:any)=>{

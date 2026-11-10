@@ -1,5 +1,6 @@
 import './sharedShell.css';
 import './roleWorkspace.css';
+import './workspaceVisualConsistency.css';
 import {learnerPageMap} from './app/learnerNavigation';
 import './learnerContent.css';
 import './sessionFooter.css';
@@ -23,7 +24,10 @@ import {initialEnrolments, initialFamilies, initialMembers} from './registry';
 import AcademyBrandIcon from './AcademyBrandIcon';
 import type {CloudSession} from './CloudAuth';
 import type {InstitutionId} from './types';
-import {adminPages, needsAcademySelection} from './workspacePolicy';
+import MessagesWidget from './MessagesWidget';
+import MessagesPage from './MessagesPage';
+import {messageThreadNotifications} from './messageNotifications';
+import {adminNavigationGroup, adminPeopleTabs, adminSidebarPages, adminWorkspaceTabs, needsAcademySelection} from './workspacePolicy';
 
 import {ICONS} from "./app/appShared";
 import {Dashboard} from "./app/AppOverview";
@@ -42,6 +46,7 @@ const PersistentRegistration = lazy(() => import('./PersistentRegistration'));
 const LiveDashboard = lazy(() => import('./LiveDashboard'));
 const WebsiteRegistrations = lazy(() => import('./WebsiteRegistrations'));
 const SrutiWebsiteRegistrations = lazy(() => import('./SrutiWebsiteRegistrations'));
+const SyllabusLibrary = lazy(() => import('./features/learning/SyllabusLibrary'));
 
 export default function App({cloud}: { cloud?: CloudSession } = {}) {
   const [ownPhotoUrl, setOwnPhotoUrl] = useState(cloud?.staff.photoUrl || '');
@@ -64,7 +69,13 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   const [syncError, setSyncError] = useState('');
   const [workspace, setWorkspace] = useState(() => {
     try {
-      return sessionStorage.getItem('sadhana:v095:workspace') || 'combined';
+      const saved=sessionStorage.getItem('sadhana:v095:workspace');
+      const savedView=sessionStorage.getItem('sadhana:view-as');
+      if(cloud?.staff.role==='admin'&&savedView!=='teacher'&&savedView!=='student'){
+        if(saved&&saved!=='combined')return saved;
+        return cloud.staff.institutions[0]||'raaga';
+      }
+      return saved || 'combined';
     } catch {
       return 'combined';
     }
@@ -84,6 +95,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
     id: string;
     name: string;
     rollNumber: string
+    kind: string;
   }>>([]);
   const [chosenStudent, setChosenStudent] = useState(() => {
     try {
@@ -122,7 +134,8 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
             institution: r.institution,
             id: s.id,
             name: s.name,
-            rollNumber: s.rollNumber
+            rollNumber: s.rollNumber,
+            kind: s.kind,
           })))];
         });
         if (!failed.length) setFamilyAccessResolved(true);
@@ -133,7 +146,10 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   }, [cloud?.api, familyAccessRetry]);
   const [page, setPage] = useState(() => {
     try {
-      return sessionStorage.getItem('sadhana:v095:page') || 'Dashboard';
+      const savedView=sessionStorage.getItem('sadhana:view-as');
+      if(cloud?.staff.role==='admin'&&savedView!=='teacher'&&savedView!=='student')return 'Families & Students';
+      const savedPage=sessionStorage.getItem('sadhana:v095:page');
+      return savedPage==='Syllabus & Starter Pack'?'Syllabus & Resources':savedPage || 'Dashboard';
     } catch {
       return 'Dashboard';
     }
@@ -153,7 +169,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   const [scheduleRevision, setScheduleRevision] = useState(0);
   const [studentFilter, setStudentFilter] = useState('All');
   const [studentQuery, setStudentQuery] = useState('');
-  const [classView, setClassView] = useState('month');
+  const [classView, setClassView] = useState('week');
   const [weekOffset, setWeekOffset] = useState(0);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState('all');
@@ -258,32 +274,68 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   const teacherMode = currentRole === 'teacher';
   const allowedWorkspaces = studentMode ? learnerInstitutions : teacherMode ? (verifiedTeachingInstitutions.length ? verifiedTeachingInstitutions : availableInstitutions) : person.admin && person.institutions.length > 1 ? ['combined', ...person.institutions] : person.institutions;
   const currentWorkspace = allowedWorkspaces.includes(workspace) ? workspace : (allowedWorkspaces[0] || 'sruti');
+  const academyFamilyChoices = familyChoices.filter(c => c.institution === currentWorkspace);
+  const visibleStudentId = academyFamilyChoices.some(c => c.id === chosenStudent)
+    ? chosenStudent : (academyFamilyChoices[0]?.id || '');
   const nav = (
     studentMode
       ? [
         'Dashboard',
         'My classes',
         'My learning',
+        'My Syllabus',
+        'Messages',
         'My academy',
         'My profile',
       ]
       : teacherMode
-        ? ['Dashboard', 'My Classes', 'My Students', 'Teachers', 'Venues', 'My Profile']
-        : [...adminPages.slice(0, -1), 'Account Access', 'Fees', ...adminPages.slice(-1), 'My Profile']
+        ? ['Dashboard', 'My Classes', 'My Students', 'Syllabus & Resources', 'Messages', 'Teachers', 'Venues', 'My Profile']
+      : [...adminSidebarPages, 'Fees', 'My Profile']
   ).filter(
     item =>
       item !== 'Website Registrations' ||
       ((currentWorkspace === 'raaga' || currentWorkspace === 'sruti') && person.admin && !teacherMode)
   );
-  const activePage = page === 'My Profile' ? 'My Profile' : nav.some(item => item === page) ? page : 'Dashboard';
+  const isAdminPage=person.admin&&!teacherMode&&((adminPeopleTabs as readonly string[]).includes(page)||(adminWorkspaceTabs as readonly string[]).includes(page));
+  const activePage = page === 'My Profile' || nav.includes(page) || isAdminPage ? page : 'Dashboard';
+  const activeNavPage=adminNavigationGroup(activePage);
+  const adminTabPages=(adminPeopleTabs as readonly string[]).includes(activePage)?adminPeopleTabs:
+    (adminWorkspaceTabs as readonly string[]).includes(activePage)?adminWorkspaceTabs:undefined;
   const notificationInstitutions:InstitutionId[] = person.admin && currentRole === 'admin'
     ? availableInstitutions
     : teacherMode
       ? verifiedTeachingInstitutions
       : studentMode
-        ? learnerInstitutions
+        ? [...new Set(familyChoices.filter(c=>c.id===visibleStudentId).map(c=>c.institution))]
         : [];
-  const unread = notifications.filter(n => !n.read && notificationInstitutions.includes(n.institution)).length;
+  const notificationScopeKey=notificationInstitutions.join('|');
+  useEffect(()=>{
+    let active=true;
+    const scopes=notificationScopeKey?notificationScopeKey.split('|') as InstitutionId[]:[];
+    if(!cloud||!scopes.length){setNotifications([]);return ()=>{active=false;};}
+    const refreshMessageActivity=async()=>{
+      const results=await Promise.allSettled(scopes.map(institution=>cloud.api.listMessageThreads(institution,studentMode?visibleStudentId:undefined)));
+      if(!active)return;
+      const activity=results.flatMap((result,index)=>result.status==='fulfilled'
+        ?messageThreadNotifications(scopes[index],result.value.records,studentMode?visibleStudentId:undefined):[]);
+      setNotifications(activity);
+    };
+    void refreshMessageActivity();
+    const refreshWhenVisible=()=>{if(document.visibilityState==='visible')void refreshMessageActivity();};
+    const timer=window.setInterval(refreshWhenVisible,30000);
+    window.addEventListener('focus',refreshWhenVisible);
+    document.addEventListener('visibilitychange',refreshWhenVisible);
+    return ()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',refreshWhenVisible);document.removeEventListener('visibilitychange',refreshWhenVisible);};
+  },[cloud?.api,notificationScopeKey,studentMode,visibleStudentId]);
+  const unread = notifications.filter(n => !n.read && notificationInstitutions.includes(n.institution)).reduce((total,n)=>total+Math.max(1,Number(n.unreadCount)||0),0);
+  const selectNotification=async(notification:any)=>{
+    const thread=notification.messageThread;
+    if(thread&&cloud){
+      try{await cloud.api.markMessageThreadRead(notification.institution,thread.threadId,thread.peerId,thread.classId,thread.studentId);}
+      catch{return;}
+    }
+    setNotifications(previous=>previous.map(item=>item.id===notification.id?{...item,read:true,unreadCount:0}:item));
+  };
   // Keep View As scoped to the academy; preserve the selected student only
   // when that same student has an authorised membership in the new academy.
   const switchWorkspace = (w) => {
@@ -333,7 +385,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   const goPage = (p) => {
     setEnrolClass('');
     setRegisterOpenStudent('');
-    setPage(p);
+    setPage(p==='People & Access'?'Families & Students':p==='Academy Workspace'?'Classes & Timetable':p==='Syllabus & Starter Pack'?'Syllabus & Resources':p);
     setStudent(null);
     setClassProfile(null);
     setMobileNav(false);
@@ -431,9 +483,6 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   };
   // Derive the visible selection from the currently verified academy choices.
   // This prevents one frame of another academy's student being passed to StudentHome.
-  const academyFamilyChoices = familyChoices.filter(c => c.institution === currentWorkspace);
-  const visibleStudentId = academyFamilyChoices.some(c => c.id === chosenStudent)
-    ? chosenStudent : (academyFamilyChoices[0]?.id || '');
   const workspaceName = currentWorkspace === 'combined' ? 'All Institutions' : institutions[currentWorkspace].name;
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'sidebar-show' : ''}`}>
@@ -534,7 +583,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
         <nav aria-label="Primary navigation">{nav.map(p => {
           const Icon = ICONS[p];
           return <button key={p} onClick={() => goPage(p)}
-                         className={`nav-link ${activePage === p ? 'nav-active' : ''}`}><Icon
+                         className={`nav-link ${activeNavPage === p ? 'nav-active' : ''}`}><Icon
             size={18}/><span>{p}</span>{p === 'Dashboard' && <span className="nav-tiny-dot"/>}</button>;
         })}</nav>
         <div className="sidebar-bottom">
@@ -630,9 +679,12 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
             setSyncError('');
           }} aria-label="Dismiss sync message"><X size={14}/></button>
       </div>}
-      <main className="content"><Suspense
+      <main className="content">{!studentMode&&!teacherMode&&person.admin&&activeNavPage==='People & Access'&&<header className="people-access-heading"><p>{currentWorkspace==='combined'?'RAAGASUDHA × ŚRUTI VEDAM':institutions[currentWorkspace as InstitutionId]?.name?.toLocaleUpperCase('en-GB')} · ADMINISTRATOR</p><h1>People &amp; Access</h1></header>}{!studentMode&&!teacherMode&&person.admin&&adminTabPages&&<nav className="admin-page-tabs" role="tablist" aria-label={activeNavPage}>
+        {adminTabPages.map(tab=><button key={tab} type="button" role="tab" aria-selected={activePage===tab} aria-controls="admin-page-tab-panel" onClick={()=>goPage(tab)}>{tab}</button>)}
+      </nav>}<div {...(adminTabPages?{role:'tabpanel' as const,id:'admin-page-tab-panel'}:{})}><Suspense
         fallback={<p role="status">Loading section…</p>}>{studentMode && cloud && activePage === 'My profile' ?
-        <SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}/> : studentMode && cloud ? <StudentHome
+        <SadhanaMyProfile cloud={cloud} onPhotoChange={setOwnPhotoUrl}
+          familyStudents={familyChoices.filter(c=>c.kind==='guardian')}/> : studentMode && cloud ? <StudentHome
           key={currentWorkspace}
           cloud={cloud}
           initialInstitution={currentWorkspace as InstitutionId}
@@ -654,9 +706,11 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
               venues: 'My classes',
               homework: 'My learning',
               practice: 'My learning',
+              resources: 'My Syllabus',
               teachers: 'My academy',
               profile: 'My profile',
               privacy: 'My profile',
+              messages: 'Messages',
             };
 
             goPage(section[destination]);
@@ -675,11 +729,12 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
                            isTeacher={teacherMode} onEnrolFromClass={enrolFromClass} onEditClass={editClass}
                            onDeleteClass={requestDeleteClass}
                            cloud={cloud}/> : needsAcademySelection(currentWorkspace, activePage) ?
-              <AcademySelection page={activePage} allowed={availableInstitutions}
+              <AcademySelection page={activePage} allowed={teacherMode ? verifiedTeachingInstitutions : availableInstitutions}
                                 onSelect={chooseAcademyForPage}/> : activePage === 'My Profile' && cloud ?
                 <SadhanaMyProfile cloud={cloud}
                                   onPhotoChange={setOwnPhotoUrl}/> : activePage === 'Fees' && person.admin && !teacherMode ?
-                  <FeesComingSoon/> : activePage === 'Website Registrations' && cloud && person.admin && !teacherMode && currentWorkspace === 'sruti' ?
+                  <FeesComingSoon/> : activePage === 'Website Registrations' && person.admin && currentWorkspace === 'combined' ?
+                    <AcademySelection page="Website Registrations" allowed={availableInstitutions} onSelect={chooseAcademyForPage}/> : activePage === 'Website Registrations' && cloud && person.admin && !teacherMode && currentWorkspace === 'sruti' ?
                     <SrutiWebsiteRegistrations cloud={cloud}/> : activePage === 'Website Registrations' && cloud && currentWorkspace === 'raaga' && person.admin && !teacherMode ?
                     <WebsiteRegistrations cloud={cloud}/> : activePage === 'Dashboard' && cloud ?
                       <LiveDashboard cloud={cloud} workspace={currentWorkspace} teacherMode={teacherMode}
@@ -687,18 +742,20 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
                         <Dashboard workspace={currentWorkspace} isTeacher={teacherMode} onOpenStudent={openStudent}
                                    onChangePage={goPage} onSelectInstitution={switchWorkspace} allClasses={classes}
                                    members={members} enrolments={enrolments}
-                                   practiceLogs={practiceLogs}/> : activePage === 'Families & Students' || activePage === 'My Students' ? (teacherMode ?
+                            practiceLogs={practiceLogs}/> : activePage === 'Messages' && cloud ?
+                              <MessagesPage cloud={cloud} workspace={currentWorkspace as InstitutionId}/> : activePage === 'Families & Students' || activePage === 'My Students' ? (teacherMode ?
                           <AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId}
                                              teacherMode={true} initialArea="enrolment"/> :
                           <PersistentRegistration cloud={cloud!} workspace={currentWorkspace as InstitutionId}
                                                   initialClass={enrolClass}
-                                                  initialStudent={registerOpenStudent}/>) : activePage === 'Classes & Timetable' || activePage === 'My Classes' ?
+                                                  initialStudent={registerOpenStudent} initialArea="students" initialFilter="All" initialView="list"/>) : activePage === 'Classes & Timetable' || activePage === 'My Classes' ?
                           <Timetable workspace={currentWorkspace} isTeacher={teacherMode} classView={classView}
                                      setClassView={setClassView} weekOffset={weekOffset} setWeekOffset={setWeekOffset}
                                      onSession={setSession} onClass={openClass} allClasses={classes}
                                      onCreateClass={() => setClassDialog({record: null})} onEditClass={editClass}
                                      onDeleteClass={requestDeleteClass} cloud={cloud} revision={scheduleRevision}
-                                     venues={venues}/> : activePage === 'Practice & Reports' ?
+                                     venues={venues}/> : activePage === 'Syllabus & Resources' && cloud ?
+                              <SyllabusLibrary cloud={cloud} institution={currentWorkspace as InstitutionId} canEditSyllabus={person.admin&&!teacherMode} canManageResources={person.admin&&!teacherMode||teacherMode} showHeading/> : activePage === 'Practice & Reports' ?
                             <AcademyOperations cloud={cloud} workspace={currentWorkspace as InstitutionId}
                                                teacherMode={teacherMode}
                                                initialArea="practice"/> : activePage === 'Communications' ?
@@ -715,7 +772,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
                                                           onSelect={switchWorkspace}/> :
                                         <AccountAccess cloud={cloud} institution={currentWorkspace as InstitutionId}/>) :
                                       <SettingsPage workspace={currentWorkspace}/>}</>}
-      </Suspense></main>
+              </Suspense></div></main>
       <footer className="main-footer">
         <span>Sadhana · Academy & Learning Portal</span><span>{cloud ? "Live timetable and venues · other records awaiting import" : "No backend session"}</span>
       </footer>
@@ -752,8 +809,13 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
           setSession(null);
           setScheduleRevision(n => n + 1);
         }} onClose={() => setSession(null)} onClass={openClass}/>}
-    {notifsOpen && <NotificationDrawer notifications={notifications} setNotifications={setNotifications}
+    {notifsOpen && <NotificationDrawer notifications={notifications} onSelect={selectNotification}
                                        allowed={notificationInstitutions} filter={notifFilter} setFilter={setNotifFilter}
                                        onClose={() => setNotifsOpen(false)}/>}
+    {cloud&&(teacherMode||studentMode||person.admin&&currentRole==='admin')&&<MessagesWidget cloud={cloud}
+      institutions={teacherMode?verifiedTeachingInstitutions:studentMode?learnerInstitutions:availableInstitutions}
+      studentId={studentMode?visibleStudentId:undefined}
+      defaultInstitution={currentWorkspace==='raaga'||currentWorkspace==='sruti'?currentWorkspace:undefined}
+      canChooseInstitution={!teacherMode}/>}
   </div>;
 }

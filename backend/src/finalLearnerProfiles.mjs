@@ -47,7 +47,7 @@ export function makeM10FinalLearnerProfiles(io){
    links=(await Promise.all(possible.map(x=>io.link(x.linkId)))).filter(x=>
      x&&x.guardianPersonId===actor.personId&&x.studentId===studentId&&x.institutionId===inst&&
      x.accessStatus==='approved'&&x.relationshipVerified===true&&
-     x.familyId&&x.familyId===actor.familyId&&x.familyId===student?.familyId);
+     x.familyId&&x.familyId===student?.familyId&&(x.guardianFamilyId||x.familyId)===actor.familyId);
   }
   authorisedStudent(actor,student,links,inst);
   return {actor,student,link:actor.personId===studentId?null:links[0]};
@@ -98,7 +98,7 @@ export function makeM10FinalLearnerProfiles(io){
  }
  async function academyDirectory(inst,claims,studentId){
   await authorised(inst,claims,studentId);
-  return io.publicDirectory(inst);
+  return io.publicDirectory(inst,studentId);
  }
  return {extras,saveProfile,academyDirectory,authorise:authorised};
 }

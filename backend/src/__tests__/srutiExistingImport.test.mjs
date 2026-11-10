@@ -43,9 +43,9 @@ test('preview reuses guardian and both exact child IDs without writing',async()=
  assert.deepEqual(result.studentMappings.map(s=>s.personId),children.map(s=>s.personId));
  assert.equal(db.writes.length,0);
 });
-test('execute performs atomic membership/link/registration/audit updates with pending Sruti links',async()=>{
+test('execute atomically imports membership with verified relationships from the approved registration',async()=>{
  const db=mockDb();const result=await srutiExistingIdentityImport(db,ref,'actor-123',body,true);
- assert.equal(result.imported,true);assert.equal(result.pendingGuardianLinks,2);
+ assert.equal(result.imported,true);assert.equal(result.verifiedGuardianLinks,2);
  assert.equal(db.writes.length,1);const tx=db.writes[0];
  assert.equal(tx.some(w=>w.Update?.Key?.counterId==='sruti#STUDENT_ROLL'),false);
  assert.equal(tx.some(w=>w.Put?.Item?.sequenceType==='ROLL_UNIQUE'),false);
@@ -53,7 +53,9 @@ test('execute performs atomic membership/link/registration/audit updates with pe
  assert.equal(tx.filter(w=>w.Put?.TableName==='sadhana-dev-people').length,3);
  const guardianMembership=tx.find(w=>w.Put?.TableName==='sadhana-dev-people'&&w.Put.Item.personId===guardian.personId);
  assert.deepEqual(guardianMembership.Put.Item.institutionIds,['raaga','sruti']);
- assert.equal(tx.filter(w=>w.Put?.TableName==='sadhana-dev-family-links'&&w.Put.Item.accessStatus==='pending').length,2);
+ const createdLinks=tx.filter(w=>w.Put?.TableName==='sadhana-dev-family-links').map(w=>w.Put.Item);
+ assert.equal(createdLinks.length,2);
+ assert(createdLinks.every(x=>x.accessStatus==='approved'&&x.relationshipVerified===true&&x.verificationSource==='approved-website-registration'&&x.evidenceReference===body.evidenceReference&&x.reviewedBy==='actor-123'));
  assert.equal(tx.filter(w=>w.Put?.TableName==='sadhana-dev-registrations').length,1);
  assert.equal(tx.filter(w=>w.Update?.TableName==='sadhana-dev-registrations').length,1);
  assert.equal(tx.filter(w=>w.Put?.TableName==='sadhana-dev-audit-records').length,1);

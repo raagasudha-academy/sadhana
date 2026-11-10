@@ -1,6 +1,6 @@
 /** Canonical-only Raagasudha parent handoff for the existing website registration UI.
- * The import itself creates pending guardian links; this facade never invents
- * relationships, grants access, creates a second family, or falls back to PK/SK.
+ * Approved website imports create verified family relationships; this facade
+ * handles account identity only and never creates a second family or falls back to PK/SK.
  */
 import {markerId,guardianLinkId} from './websiteImportCore.mjs';
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
@@ -60,11 +60,12 @@ export async function canonicalRaagaParentAction(action,externalId,body,claims,r
   if(!['EXISTING_ACCOUNT_LINKED','ACCOUNT_FOUND','ACTIVE'].includes(status))
    fail(409,'Verified parent account required before guardian review.');
   await verifiedLink();
+  const relationshipsVerified=links.every(x=>x.accessStatus==='approved'&&x.relationshipVerified===true);
   // Import already created these review records. Never duplicate a pending link
   // or reset a rejected/revoked/approved independent administrator decision.
-  return {queued:0,alreadyExists:links.length,pending:links.filter(x=>x.accessStatus==='pending').length,
+   return {queued:0,alreadyExists:links.length,pending:links.filter(x=>x.accessStatus==='pending').length,
     approved:links.filter(x=>x.accessStatus==='approved'&&x.relationshipVerified===true).length,
-    requiresIndependentReview:true,guardianAccessGranted:false};
+    requiresIndependentReview:!relationshipsVerified,guardianRelationshipsVerified:relationshipsVerified,guardianAccessGranted:false};
  }
  if(action==='provision-parent'){
   if(['EXISTING_ACCOUNT_LINKED','ACCOUNT_FOUND','ACTIVE'].includes(status)){

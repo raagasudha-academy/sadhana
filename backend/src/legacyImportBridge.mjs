@@ -25,6 +25,15 @@ export function prepareLegacyImportBridge(remote,institution,actorSub,counters,n
  // All person/contact/student validation, counter guards and independent approval
  // requirements remain in force.
  const plan=prepareWebsiteImport({...remote,institution:'raaga',sadhanaImport:undefined},institution,actorSub,counters,now);
+ // The legacy bridge is a reconciliation workflow, not a fresh import. Keep
+ // its links pending so the new-registration policy cannot approve old mappings.
+ const legacyLinks=plan.items.filter(x=>x.table==='family-links');
+ for(const {item} of legacyLinks){
+  item.relationship='unverified';item.accessStatus='pending';item.relationshipVerified=false;
+  delete item.verificationSource;delete item.evidenceReference;delete item.reviewedBy;delete item.reviewedAt;
+ }
+ plan.verifiedGuardianLinks=0;
+ plan.pendingGuardianLinks=legacyLinks.length;
  const record=plan.items.find(x=>x.table==='registrations')?.item;
  if(!record)fail('Registration planner produced no registration marker.');
  record.websiteSyncStatus='legacy-authoritative';

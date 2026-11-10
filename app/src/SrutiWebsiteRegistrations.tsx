@@ -101,7 +101,7 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
     setReviewBusy(true);setReviewError('');setReviewMessage('');
     try{
       const result=await cloud.api.reviewSrutiWebsiteRegistration(detail.registrationId,decision,detail.version!);
-      setReviewMessage(result.reviewStatus==='approved'?'Registration approved. Import and family access are separate steps.':'Registration rejected. No students or families were changed.');
+      setReviewMessage(result.reviewStatus==='approved'?'Registration approved. Importing learners into Sadhana is a separate step.':'Registration rejected. No students or families were changed.');
       setFilter('all');
       setDecision(null);
       await reload();
@@ -142,7 +142,7 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
       const result=await cloud.api.executeSrutiWebsiteImport(detail.registrationId,existingMapping);
       if(!result.imported&&!result.alreadyImported)throw new Error('Import result could not be confirmed. Check before retrying.');
       setImportMessage(result.alreadyImported?'Registration was already imported; no duplicates were created.':
-        `Imported into Sruti. ${result.studentIds?.length||0} student(s) linked to a family. Guardian access remains pending.`);
+        `Imported into Sruti. ${result.studentIds?.length||0} student(s) linked to a family with verified relationships.`);
       setImportPreview(null);setExistingMapping(null);setConfirmImport(false);setTypedReference('');setDuplicateCheck(false);setFilter('all');
       await reload();setDetailRefresh(v=>v+1);
     }catch(e){setImportError(e instanceof Error?e.message:'Import could not be completed. Refresh before retrying.');setConfirmImport(false);}
@@ -158,17 +158,17 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
     Number.isSafeInteger(detail?.version) && Number(detail?.version)>=1;
   return <section className="wr-page">
     <div className="wr-heading">
-      <div><p className="wr-kicker">ŚRUTI · ADMINISTRATOR</p><h1>Website Registrations</h1><p>Review and approve applications. Importing learners into Sadhana is a separate step.</p></div>
+      <div><h1>Website Registrations</h1><p>Review applications and activate approved learners.</p></div>
       <button type="button" className="wr-refresh" disabled={loading} onClick={()=>void reload()}><RefreshCw size={16}/> Refresh</button>
     </div>
-    <div className="wr-banner"><ShieldCheck size={18}/><span>Review and approval are separate from activating student records in Sadhana.</span></div>
+    <div className="wr-banner"><ShieldCheck size={18}/><span>Approval and portal activation are separate steps.</span></div>
     <div className="wr-toolbar">
       <label>Status <select value={filter} onChange={e=>{setFilter(e.target.value);setSelected('');}}>
         <option value="pending">Pending</option><option value="approved">Approved</option><option value="discarded">Discarded</option><option value="all">All</option>
       </select></label>
       <label className="wr-search"><Search size={16}/><input aria-label="Search applications" placeholder="Search names or ID" value={search} onChange={e=>setSearch(e.target.value)}/></label>
     </div>
-    {error&&<div className="wr-error" role="alert">{error} Check that the updated Sadhana API is deployed and your account has Sruti administrator access.</div>}
+    {error&&<div className="wr-error" role="alert">{error}</div>}
     {reviewMessage&&<div className="wr-banner" role="status"><CheckCircle2 size={18}/>{reviewMessage}</div>}
     {importMessage&&<div className="wr-banner" role="status"><CheckCircle2 size={18}/>{importMessage}</div>}
     {more&&<p role="status">Showing the first 100 registrations. More records exist; pagination is not yet enabled.</p>}
@@ -224,10 +224,10 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
             {importPreview?.readyForExecute&&<div className="wr-card" role="status">
               <strong>Import preview</strong>
               <p>Existing family: {importPreview.existingFamilyId||'Not supplied'}</p>
-              <p>Existing students: {importPreview.studentCount??0} · Sruti guardian access: pending independent approval.</p>
+              <p>Existing students: {importPreview.studentCount??0} · Family links will be verified from the approved registration.</p>
               <p>No new person, family or Cognito account is created. Raagasudha membership and learning data remain unchanged.</p>
               {importPreview.studentMappings?.map(m=><p key={m.sourcePersonId}>{m.sourcePersonId} → existing person {m.personId} · Sruti roll {m.rollNumber}</p>)}
-              <p><strong>Review the mapping and independent verification evidence before continuing.</strong> A Sruti administrator must still approve guardian links separately.</p>
+              <p><strong>Review the identity mapping before continuing.</strong> The approved registration supplies the family relationship; this import verifies the exact existing people and records that evidence.</p>
               <button type="button" className="reg-primary" disabled={importBusy} onClick={()=>setConfirmImport(true)}>Continue to confirmation</button>
             </div>}
           </div>
@@ -249,7 +249,6 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
             <p>Medical or support notes: {value(s.medicalNotes)}</p>
             <div className="wr-allergy"><strong>Food allergy information</strong><p>{s.allergies?.trim().toLowerCase()==='none'?'No food allergies reported':value(s.allergies)}</p></div>
           </article>)}
-          <div className="wr-banner"><ShieldCheck size={16}/> Reported guardian-child relationships require independent verification before family access can be granted.</div>
         </>:null}
       </div>
     </div>
@@ -258,10 +257,10 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
         <div className="wr-modal-icon"><ShieldCheck size={22}/></div>
         <h2 id="sruti-import-confirm-title">Import approved learners into Sruti?</h2>
         <p>Registration: <strong>{detail.registrationId}</strong> · Students: {importPreview.studentCount}</p>
-        <p>This links existing verified people and family to Sruti and assigns Sruti roll numbers. No new people or Cognito accounts are created; guardian access remains pending separate approval.</p>
+        <p>This adds the confirmed existing people to Sruti, verifies the submitted family links and assigns Sruti roll numbers. No new people or accounts are created.</p>
         <label style={{display:'block',margin:'12px 0'}}>
           <input type="checkbox" checked={duplicateCheck} onChange={e=>setDuplicateCheck(e.target.checked)}/>
-          {' '}I independently verified the existing person IDs and guardian-child relationships and checked for Sruti duplicates.
+          {' '}I verified the existing person IDs and checked that these students are not already linked to Sruti.
         </label>
         <label style={{display:'block',margin:'12px 0'}}>Type registration reference to confirm
           <input style={{display:'block',width:'100%'}} value={typedReference} onChange={e=>setTypedReference(e.target.value)} placeholder={detail.registrationId}/>

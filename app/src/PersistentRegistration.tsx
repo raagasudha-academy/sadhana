@@ -7,7 +7,7 @@ const calendarCache = new Map<string,{at:number,records:any[]}>();
 /** UI adapter for the original registration experience.
  * Never use the old local setters as a persistence substitute.
  */
-export default function PersistentRegistration({cloud,workspace,initialClass='',initialStudent=''}:{cloud:CloudSession;workspace:InstitutionId;initialClass?:string;initialStudent?:string}) {
+export default function PersistentRegistration({cloud,workspace,initialClass='',initialStudent='',initialArea,initialFilter,initialView}:{cloud:CloudSession;workspace:InstitutionId;initialClass?:string;initialStudent?:string;initialArea?:'students'|'families';initialFilter?:string;initialView?:'list'|'table'}) {
   const [families,setFamilies]=useState<any[]>([]);
   const [members,setMembers]=useState<any[]>([]);
   const [enrolments,setEnrolments]=useState<any[]>([]);
@@ -50,7 +50,7 @@ export default function PersistentRegistration({cloud,workspace,initialClass='',
       workspace={workspace} families={families} members={members} enrolments={enrolments}
       classes={classes} setFamilies={setFamilies} setMembers={setMembers}
       setEnrolments={setEnrolments} initialClass={initialClass||null} initialStudent={initialStudent||null}
-      operationsApi={cloud.api} reload={reload}/>
+      operationsApi={cloud.api} reload={reload} initialArea={initialArea} initialFilter={initialFilter} initialView={initialView}/>
     }
   </div>;
 }

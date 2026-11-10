@@ -25,8 +25,8 @@ test('read detail/photo requires valid registration and person ID',async()=>{
 test('review accepts only approved/discarded, uses JWT subject',async()=>{
  const {deps,calls}=harness();const out=await finalRaagaIntakeRoute({...base,method:'PATCH',parts:['website-registrations','RS-42'],event:{body:'{"reviewStatus":"approved"}'}},deps,env);assert.equal(out.status,200);assert.deepEqual(calls[1],['review','RS-42','approved','sub']);const denied=await finalRaagaIntakeRoute({...base,method:'PATCH',parts:['website-registrations','RS-42'],event:{body:'{"reviewStatus":"approved","reviewer":"other"}'}},deps,env);assert.equal(denied.status,400);
 });
-test('import previews are read-only, execution is denied even with flags',async()=>{
- const {deps,calls}=harness();const route={...base,method:'POST',parts:['website-registrations','RS-42','import']};assert.equal((await finalRaagaIntakeRoute({...route,event:{body:'{"preview":true}'}},deps,env)).status,200);assert.deepEqual(calls[1],['preview','RS-42','sub']);assert.equal((await finalRaagaIntakeRoute({...route,event:{body:'{"preview":false}'}},deps,env)).status,503);assert.equal((await finalRaagaIntakeRoute({...route,event:{body:'{}'}},deps,env)).status,503);assert.equal(calls.length,2);
+test('import previews are read-only, execution requires exact reference confirmation',async()=>{
+ const {deps,calls}=harness();const route={...base,method:'POST',parts:['website-registrations','RS-42','import']};assert.equal((await finalRaagaIntakeRoute({...route,event:{body:'{"preview":true}'}},deps,env)).status,200);assert.deepEqual(calls[1],['preview','RS-42','sub']);assert.equal((await finalRaagaIntakeRoute({...route,event:{body:'{"preview":false}'}},deps,env)).status,400);assert.equal((await finalRaagaIntakeRoute({...route,event:{body:'{}'}},deps,env)).status,400);assert.equal(calls.length,2);
 });
 test('no legacy fallback or unapproved operation',async()=>{
  const {deps,calls}=harness();const r=await finalRaagaIntakeRoute({...base,parts:['website-registrations','RS-42','provision-parent'],method:'POST'},deps,env);assert.equal(r.status,503);assert.equal(calls.length,0);

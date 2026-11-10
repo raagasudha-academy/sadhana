@@ -9,6 +9,7 @@ import {adminPhotoUrl,ownProfilePhoto} from './profilePhotos.ts';
 import {entityTable} from './entityTables.mjs';
 import {httpError} from './model.ts';
 import {makeM10FinalLearnerProfiles} from './finalLearnerProfiles.mjs';
+import {filterVenuesForClasses} from './venueVisibility.ts';
 
 const validId=(id:unknown)=>typeof id==='string'&&/^[A-Za-z0-9_-]{4,150}$/.test(id);
 const name=(p:any)=>String(p.displayName||p.legacyPayload?.displayName||p.legacyPayload?.name||[p.firstName,p.lastName].filter(Boolean).join(' ')).trim();
@@ -35,15 +36,21 @@ export function makeM10FinalLearnerProfilesData(db:{send:(cmd:any)=>Promise<any>
   }while(cursor);
   return rows;
  };
- const publicDirectory=async(inst:'raaga'|'sruti')=>{
-  const [people,venues]=await Promise.all([scan('people',1500),scan('venues',500)]);
+ const publicDirectory=async(inst:'raaga'|'sruti',studentId:string)=>{
+  const [people,venues,enrolmentCandidates]=await Promise.all([
+   scan('people',1500),scan('venues',500),query('enrolments','StudentEnrolmentsIndex','studentId',studentId)
+  ]);
+  const enrolments=(await Promise.all(enrolmentCandidates.filter(x=>validId(x.enrolmentId)).map(x=>get('enrolments','enrolmentId',x.enrolmentId))))
+   .filter(x=>x&&x.studentId===studentId&&x.institutionId===inst&&x.status==='active');
+  const classes=(await Promise.all([...new Set(enrolments.map(x=>x.classId).filter(validId))].map(id=>get('classes','classId',id))))
+   .filter(x=>x&&x.institutionId===inst&&!['inactive','archived','deleted'].includes(String(x.status||'').toLowerCase()));
   const teachers=await Promise.all(people.filter(x=>x.status==='active'&&x.institutionIds?.includes(inst)&&x.personTypes?.includes('teacher')).map(async p=>{
    const publicId=/^TEACHER-[a-f0-9-]{36}$/i.test(p.legacyPayload?.id||'')?p.legacyPayload.id:undefined;
    const sub=typeof p.cognitoSub==='string'&&/^[0-9a-f-]{36}$/i.test(p.cognitoSub)?p.cognitoSub:'';
    return {name:name(p),subjects:(Array.isArray(p.legacyPayload?.subjects)?p.legacyPayload.subjects:[]).filter((s:unknown)=>typeof s==='string').slice(0,20),
     publicId,photoUrl:publicId&&sub?await photos.ownProfilePhoto(sub):''};
   }));
-  const publishedVenues=venues.filter(v=>!['inactive','archived','deleted'].includes(v.status)&&v.legacyPayload?.active!==false).map(v=>({
+  const publishedVenues=filterVenuesForClasses(inst,venues,classes).filter(v=>!['inactive','archived','deleted'].includes(v.status)&&v.legacyPayload?.active!==false).map(v=>({
    name:String(v.name||v.legacyPayload?.name||'').trim(),address:String(v.address||v.legacyPayload?.address||'').trim(),
    location:String(v.location||v.legacyPayload?.location||'').trim()
   })).filter(v=>v.name);
@@ -91,14 +98,14 @@ export function makeM10FinalLearnerProfilesData(db:{send:(cmd:any)=>Promise<any>
    }
    const actions:any[]=[];
    if(actor.personId!==student.personId){
-    if(!link||!validId(link.linkId)||link.familyId!==student.familyId||link.familyId!==actor.familyId)throw httpError(403,'Approved guardian link required.');
+    if(!link||!validId(link.linkId)||link.familyId!==student.familyId||(link.guardianFamilyId||link.familyId)!==actor.familyId)throw httpError(403,'Approved guardian link required.');
     studentCondition+=' AND familyId=:family';checkValues[':family']=link.familyId;
     actions.push({ConditionCheck:{TableName:entityTable('people'),Key:{personId:actor.personId},
      ConditionExpression:'#status=:active AND cognitoSub=:subject AND familyId=:family AND contains(institutionIds,:inst) AND contains(personTypes,:guardian)',
-     ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':subject':subject,':inst':inst,':guardian':'guardian',':family':link.familyId}}});
+     ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':subject':subject,':inst':inst,':guardian':'guardian',':family':link.guardianFamilyId||link.familyId}}});
     actions.push({ConditionCheck:{TableName:entityTable('family-links'),Key:{linkId:link.linkId},
-     ConditionExpression:'guardianPersonId=:guardian AND studentId=:student AND institutionId=:inst AND accessStatus=:approved AND relationshipVerified=:verified AND familyId=:family',
-     ExpressionAttributeValues:{':guardian':actor.personId,':student':student.personId,':inst':inst,':approved':'approved',':verified':true,':family':link.familyId}}});
+     ConditionExpression:'guardianPersonId=:guardian AND studentId=:student AND institutionId=:inst AND accessStatus=:approved AND relationshipVerified=:verified AND familyId=:family AND (guardianFamilyId=:guardianFamily OR attribute_not_exists(guardianFamilyId))',
+     ExpressionAttributeValues:{':guardian':actor.personId,':student':student.personId,':inst':inst,':approved':'approved',':verified':true,':family':link.familyId,':guardianFamily':link.guardianFamilyId||link.familyId}}});
    }
    actions.push({Put:{TableName:entityTable('people'),Item:{...student,learnerPreferences:preferences,version:student.version+1,updatedAt:now},
     ConditionExpression:studentCondition,ExpressionAttributeNames:{'#version':'version','#status':'status'},ExpressionAttributeValues:checkValues}});

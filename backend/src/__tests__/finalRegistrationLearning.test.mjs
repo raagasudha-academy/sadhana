@@ -121,10 +121,12 @@ test('media endpoints require an independent media flag and never fall back',asy
  assert.equal((await learn('learner/STUDENT-1001/submission/HOMEWORK-1001/evidence','GET')).status,200);
  assert.equal((await learn('homework/CLASS-1001/evidence/HOMEWORK-1001/STUDENT-1001','GET')).status,200);
 });
-test('teacher-practice comments are read and written with independent opt-ins',async()=>{
+test('teacher-practice comments and media are independently read and written with opt-ins',async()=>{
  reset();assert.equal((await learn('teacher-practice/PRACTICE-1001/comments','GET')).status,200);
  assert.equal((await learn('teacher-practice/PRACTICE-1001/comments','POST')).status,201);
- assert.deepEqual(called.filter(Array.isArray),[['teacherPractice','GET','verified-student'],['teacherPractice','POST','verified-student']]);
+ assert.equal((await learn('teacher-practice/PRACTICE-1001/media','GET')).status,200);
+ assert.deepEqual(called.filter(Array.isArray),[['teacherPractice','GET','verified-student'],['teacherPractice','POST','verified-student'],['teacherPractice','GET','verified-student']]);
+ reset();assert.equal((await learn('teacher-practice/PRACTICE-1001/media','GET','raaga',student,{}, {...learnFlags,SADHANA_FINAL_TEACHER_PRACTICE_READS:''})).status,503);assert.deepEqual(called,[]);
  reset();assert.equal((await learn('teacher-practice/PRACTICE-1001/comments','POST','raaga',student,{}, {...learnFlags,SADHANA_FINAL_TEACHER_PRACTICE_WRITES:''})).status,503);
  assert.deepEqual(called,[]);
 });

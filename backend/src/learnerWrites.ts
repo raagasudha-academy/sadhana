@@ -44,8 +44,10 @@ export function makeM9LearnerWrites(db:M9LearnerWriteDb){
   }
   authorisedStudent(activeActor,student,links,inst);
   // A ConditionCheck in the transaction protects against revoked access between read and write.
-  const checks:any[]=[
-   {ConditionCheck:{TableName:table('people'),Key:{personId:actor.personId},ConditionExpression:'#s=:a AND cognitoSub=:sub AND contains(institutionIds,:inst)',ExpressionAttributeNames:{'#s':'status'},ExpressionAttributeValues:{':a':'active',':sub':claims.sub,':inst':inst}}},
+  const checks:any[]=activeActor.personId===studentId?[
+   {ConditionCheck:{TableName:table('people'),Key:{personId:studentId},ConditionExpression:'#s=:a AND cognitoSub=:sub AND contains(institutionIds,:inst) AND contains(personTypes,:student)',ExpressionAttributeNames:{'#s':'status'},ExpressionAttributeValues:{':a':'active',':sub':claims.sub,':inst':inst,':student':'student'}}}
+  ]:[
+   {ConditionCheck:{TableName:table('people'),Key:{personId:activeActor.personId},ConditionExpression:'#s=:a AND cognitoSub=:sub AND contains(institutionIds,:inst)',ExpressionAttributeNames:{'#s':'status'},ExpressionAttributeValues:{':a':'active',':sub':claims.sub,':inst':inst}}},
    {ConditionCheck:{TableName:table('people'),Key:{personId:studentId},ConditionExpression:'#s=:a AND contains(institutionIds,:inst) AND contains(personTypes,:student)',ExpressionAttributeNames:{'#s':'status'},ExpressionAttributeValues:{':a':'active',':inst':inst,':student':'student'}}}
   ];
   if(activeActor.personId!==studentId){
@@ -61,7 +63,7 @@ export function makeM9LearnerWrites(db:M9LearnerWriteDb){
   const current=(await Promise.all(matching.map(e=>get('enrolments','enrolmentId',e.enrolmentId)))).filter(e=>isActiveEnrolment(e,inst,studentId,classId,date));
   if(!current.length)throw httpError(403,'Student enrolment is not active');
   const item=current[0];
-  return {ConditionCheck:{TableName:table('enrolments'),Key:{enrolmentId:item.enrolmentId},ConditionExpression:'#s=:active AND studentId=:student AND classId=:class AND institutionId=:inst AND (attribute_not_exists(startDate) OR startDate<=:date) AND (attribute_not_exists(endDate) OR endDate>=:date)',ExpressionAttributeNames:{'#s':'status'},ExpressionAttributeValues:{':active':'active',':student':studentId,':class':classId,':inst':inst,':date':date}}};
+  return {ConditionCheck:{TableName:table('enrolments'),Key:{enrolmentId:item.enrolmentId},ConditionExpression:'#s=:active AND studentId=:student AND classId=:class AND institutionId=:inst AND (attribute_not_exists(startDate) OR attribute_type(startDate,:nullType) OR startDate=:empty OR startDate<=:date) AND (attribute_not_exists(endDate) OR attribute_type(endDate,:nullType) OR endDate=:empty OR endDate>=:date)',ExpressionAttributeNames:{'#s':'status'},ExpressionAttributeValues:{':active':'active',':student':studentId,':class':classId,':inst':inst,':date':date,':empty':'',':nullType':'NULL'}}};
  }
  async function ensureClass(inst:InstitutionId,classId:string){
   const row=await get('classes','classId',classId);
@@ -92,22 +94,43 @@ export function makeM9LearnerWrites(db:M9LearnerWriteDb){
  }
  async function saveRsvp(inst:InstitutionId,claims:Claims,studentId:string,body:any){
   if(process.env.SADHANA_ENTITY_TABLE_SET==='final' ? process.env.SADHANA_FINAL_LEARNER_WRITES!=='enabled' : process.env.M9_LEARNER_WRITES!=='enabled')throw httpError(503,'Learner writes disabled');
-  const {actor,checks}=await identity(inst,claims,studentId);
   const input=validateRsvp(body);
-  const session=await get('sessions','sessionId',input.sessionId);
-  if(!session||session.institutionId!==inst||['cancelled','canceled','deleted'].includes(String(session.status))||!canRsvp(session,today(),clock()))throw httpError(409,'RSVP is only available for upcoming classes');
-  const date=session.localDate||session.legacyPayload?.date;
-  await ensureClass(inst,session.classId);
-  const enrolmentCheck=await enrolled(inst,studentId,session.classId,date);
-  const id=`RSVP-${inst}-${studentId}-${input.sessionId}`;
-  const old=await get('rsvps','rsvpId',id);
-  if(old&&(old.institutionId!==inst||old.studentId!==studentId||old.sessionId!==input.sessionId))throw httpError(409,'RSVP identifier conflict');
-  const now=new Date().toISOString();
-  const item={rsvpId:id,institutionId:inst,studentId,sessionId:input.sessionId,rsvpTargetKey:`session#${input.sessionId}`,intention:input.intention,note:'',respondedAt:now,version:(old?.version||0)+1,createdAt:old?.createdAt||now,updatedAt:now,updatedBy:claims.sub};
-  const audit={auditId:`AUDIT-${randomUUID()}`,institutionId:inst,action:'learnerRSVP',actorCognitoSub:claims.sub,actorPersonId:actor.personId,timestamp:now,resourceType:'rsvp',resourceId:id};
-  try{await db.send(new TransactWriteCommand({TransactItems:[...checks,enrolmentCheck,{Put:{TableName:table('rsvps'),Item:item,...(old?{ConditionExpression:'#v=:v',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':old.version}}:{ConditionExpression:'attribute_not_exists(rsvpId)'})}},{Put:{TableName:table('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));}
-  catch(e:any){if(e.name==='TransactionCanceledException')throw httpError(409,'RSVP or access changed. Refresh and retry');throw e;}
-  return {record:{id,studentId,sessionId:input.sessionId,intention:input.intention,version:item.version}};
+  for(let attempt=0;attempt<2;attempt++){
+   // Re-read identity, session, enrolment and RSVP on a retry. This retries only
+   // a concurrent RSVP-row write; changed access or enrolment still fails closed.
+   const {actor,checks}=await identity(inst,claims,studentId);
+   const session=await get('sessions','sessionId',input.sessionId);
+   if(!session||session.institutionId!==inst||['cancelled','canceled','deleted'].includes(String(session.status))||!canRsvp(session,today(),clock()))throw httpError(409,'RSVP is only available for upcoming classes');
+   const date=session.localDate||session.legacyPayload?.date;
+   await ensureClass(inst,session.classId);
+   const enrolmentCheck=await enrolled(inst,studentId,session.classId,date);
+   const id=`RSVP-${inst}-${studentId}-${input.sessionId}`;
+   const old=await get('rsvps','rsvpId',id);
+   if(old&&(old.institutionId!==inst||old.studentId!==studentId||old.sessionId!==input.sessionId))throw httpError(409,'RSVP identifier conflict');
+   const now=new Date().toISOString();
+   const item={rsvpId:id,institutionId:inst,studentId,sessionId:input.sessionId,rsvpTargetKey:`session#${input.sessionId}`,intention:input.intention,note:'',respondedAt:now,version:(old?.version||0)+1,createdAt:old?.createdAt||now,updatedAt:now,updatedBy:claims.sub};
+   const audit={auditId:`AUDIT-${randomUUID()}`,institutionId:inst,action:'learnerRSVP',actorCognitoSub:claims.sub,actorPersonId:actor.personId,timestamp:now,resourceType:'rsvp',resourceId:id};
+   const rsvpWriteIndex=checks.length+1;
+   try{
+    await db.send(new TransactWriteCommand({TransactItems:[...checks,enrolmentCheck,{Put:{TableName:table('rsvps'),Item:item,...(old?{ConditionExpression:'#v=:v',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':old.version}}:{ConditionExpression:'attribute_not_exists(rsvpId)'})}},{Put:{TableName:table('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));
+    return {record:{id,studentId,sessionId:input.sessionId,intention:input.intention,version:item.version}};
+   }catch(e:any){
+    if(e?.name!=='TransactionCanceledException')throw e;
+    const reasons=Array.isArray(e.CancellationReasons)?e.CancellationReasons:[];
+    // DynamoDB can cancel an RSVP write when another selection wins between
+    // the consistent read and transaction, or when transactions briefly overlap.
+    // Refresh identity and enrolment before one bounded retry.
+    if(attempt===0&&(reasons[rsvpWriteIndex]?.Code==='ConditionalCheckFailed'||reasons.some((reason:any)=>reason?.Code==='TransactionConflict')))continue;
+    if(reasons[checks.length]?.Code==='ConditionalCheckFailed')
+     throw httpError(409,'Your class enrolment changed. Refresh and try again');
+    if(reasons.slice(0,checks.length).some((reason:any)=>reason?.Code==='ConditionalCheckFailed'))
+     throw httpError(409,'Your student or family access changed. Refresh and try again');
+    if(reasons[rsvpWriteIndex]?.Code==='ConditionalCheckFailed')
+     throw httpError(409,'Your RSVP was updated elsewhere. Refresh and try again');
+    throw httpError(409,'RSVP or access changed. Refresh and retry');
+   }
+  }
+  throw httpError(409,'RSVP changed while saving. Refresh and retry');
  }
  return {savePractice,saveRsvp};
 }

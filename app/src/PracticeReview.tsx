@@ -7,7 +7,7 @@ import {filterPracticeEntries,practiceTotals} from './practiceSelectors';
 
 type Feedback={id:string;comment:string;createdAt:string};
 export default function PracticeReview({cloud,workspace,entries,students,onReload}:{cloud:CloudSession;workspace:InstitutionId;entries:any[];students:any[];onReload:()=>Promise<void>}){
- const [open,setOpen]=useState(''),[comment,setComment]=useState(''),[feedback,setFeedback]=useState<Record<string,Feedback[]>>({});
+ const [open,setOpen]=useState(''),[comment,setComment]=useState(''),[feedback,setFeedback]=useState<Record<string,Feedback[]>>({}),[recordings,setRecordings]=useState<Record<string,Array<{id:string;mime:string;createdAt:string;url:string}>>>({});
  const [studentId,setStudentId]=useState(''),[search,setSearch]=useState('');
  const [period,setPeriod]=useState<'week'|'month'|'all'>('week');
  const [error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
@@ -22,10 +22,10 @@ export default function PracticeReview({cloud,workspace,entries,students,onReloa
  const participantCount=new Set(scoped.filter(p=>Number(p.minutes)>0).map(p=>p.studentId)).size;
  const avgMinutes=participantCount?Math.round(scopeMinutes/participantCount):0;
  const totals=useMemo(()=>practiceTotals(entries),[entries]);
- useEffect(()=>{setOpen('');setFeedback({});setComment('');setNotice('');setError('');setStudentId('');setSearch('')},[workspace]);
+ useEffect(()=>{setOpen('');setFeedback({});setRecordings({});setComment('');setNotice('');setError('');setStudentId('');setSearch('')},[workspace]);
  const inspect=async(id:string)=>{
   setOpen(id);setComment('');setNotice('');setError('');
-  try{const rows=await cloud.api.teacherPracticeComments(workspace,id);setFeedback(v=>({...v,[id]:rows.records}));}
+  try{const [rows,audio]=await Promise.all([cloud.api.teacherPracticeComments(workspace,id),cloud.api.teacherPracticeMedia(workspace,id)]);setFeedback(v=>({...v,[id]:rows.records}));setRecordings(v=>({...v,[id]:audio.records}));}
   catch(e){setError(e instanceof Error?e.message:'Unable to load comments');}
  };
  const submit=async(id:string)=>{
@@ -50,7 +50,7 @@ export default function PracticeReview({cloud,workspace,entries,students,onReloa
    <div className="tw-practice-filters"><label>Student <select value={studentId} onChange={e=>{setStudentId(e.target.value);setOpen('')}}><option value="">All students</option>{students.filter(s=>entries.some(p=>p.studentId===s.id)).map(s=><option key={s.id} value={s.id}>{s.name}{s.rollNumber?` · ${s.rollNumber}`:''}</option>)}</select></label><label>Search practice <input value={search} onChange={e=>{setSearch(e.target.value);setOpen('')}} placeholder="Topic, notes or date"/></label></div>
    <div className="table-scroll"><table className="data-table"><thead><tr><th>Date</th><th>Student</th><th>Topic</th><th>Minutes</th><th>Feedback</th></tr></thead><tbody>{shown.map(p=><tr key={p.id}><td>{p.date}</td><td>{names.get(p.studentId)||'Student'}</td><td>{p.topic||p.comments||'Practice'}</td><td>{p.minutes||0}</td><td><button type="button" className="reg-secondary" onClick={()=>void inspect(p.id)}>{open===p.id?'Reviewing':'Review'}</button></td></tr>)}</tbody></table></div>
    {!shown.length&&<p className="tw-hint">No practice matches these filters.</p>}
-   {open&&selected&&<section className="tw-practice-feedback" aria-label="Practice feedback"><h3>Feedback for {names.get(selected.studentId)||'student'} · {selected.date}</h3><p className="tw-hint">{selected.topic||'Practice'} · {selected.minutes||0} minutes</p>{feedback[open]?.map(f=><p key={f.id}>{f.comment} <small>· {f.createdAt.slice(0,10)}</small></p>)}{feedback[open]?.length===0&&<p>No teacher comments yet.</p>}<label htmlFor="teacher-comment">Add comment</label><textarea id="teacher-comment" maxLength={1000} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Feedback on the student's practice"/><div className="tw-feedback-actions"><button type="button" className="reg-primary" disabled={busy||!comment.trim()} onClick={()=>void submit(open)}>{busy?'Saving…':'Save comment'}</button><button type="button" className="reg-secondary" onClick={()=>{setOpen('');setComment('')}}>Close</button></div></section>}
+   {open&&selected&&<section className="tw-practice-feedback" aria-label="Practice feedback"><h3>Practice review · {names.get(selected.studentId)||'student'} · {selected.date}</h3><p className="tw-hint">{selected.topic||'Practice'} · {selected.minutes||0} minutes</p><div className="tw-practice-recordings"><strong>Practice media</strong>{recordings[open]?.length?recordings[open].map(r=><div key={r.id}><small>{new Date(r.createdAt).toLocaleString()}</small>{r.mime.startsWith('image/')?<a href={r.url} target="_blank" rel="noreferrer"><img src={r.url} alt={`Student practice image from ${selected.date}`}/></a>:r.mime.startsWith('audio/')?<audio controls preload="none" aria-label={`Practice audio for ${names.get(selected.studentId)||'student'} on ${selected.date}`} src={r.url}/>:r.mime==='video/mp4'?<video controls preload="none" aria-label={`Practice video for ${names.get(selected.studentId)||'student'} on ${selected.date}`} src={r.url}/>:null}</div>):<p className="tw-hint">No media attached.</p>}</div>{feedback[open]?.map(f=><p key={f.id}>{f.comment} <small>· {f.createdAt.slice(0,10)}</small></p>)}{feedback[open]?.length===0&&<p>No teacher comments yet.</p>}<label htmlFor="teacher-comment">Add comment</label><textarea id="teacher-comment" maxLength={1000} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Feedback on the student's practice"/><div className="tw-feedback-actions"><button type="button" className="reg-primary" disabled={busy||!comment.trim()} onClick={()=>void submit(open)}>{busy?'Saving…':'Save comment'}</button><button type="button" className="reg-secondary" onClick={()=>{setOpen('');setComment('')}}>Close</button></div></section>}
   </>}
  </section>;
 }

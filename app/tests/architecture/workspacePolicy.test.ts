@@ -1,5 +1,5 @@
 import {test, expect} from 'vitest';
-import {adminPages, calendarScopes, filterCalendarResponses, needsAcademySelection} from '../../src/workspacePolicy';
+import {adminNavigationGroup,adminPages,adminPeopleTabs,adminSidebarPages,adminWorkspaceTabs,calendarScopes,filterCalendarResponses,needsAcademySelection} from '../../src/workspacePolicy';
 import type {ScheduleInstitution, ScheduleRecord} from '../../src/api/sadhanaClient';
 
 const make=(institution:ScheduleInstitution,recordType:ScheduleRecord['recordType'],name:string):ScheduleRecord=>({
@@ -20,6 +20,12 @@ test('all workspaces have visible navigation beyond Dashboard',()=>{
  expect(adminPages).toContain('Classes & Timetable');
  expect(adminPages).toContain('Venues');
  expect(adminPages).toContain('Families & Students');
+ expect(adminPeopleTabs).toEqual(['Website Registrations','Account Access','Families & Students']);
+ expect(adminWorkspaceTabs).toEqual(['Classes & Timetable','Practice & Reports','Communications','Settings']);
+ expect(['Teachers','Venues','Administrators'].every(page=>adminSidebarPages.includes(page as any))).toBe(true);
+ expect(adminNavigationGroup('Account Access')).toBe('People & Access');
+ expect(adminNavigationGroup('Practice & Reports')).toBe('Academy Workspace');
+ expect(needsAcademySelection('combined','Website Registrations')).toBe(true);
  expect(needsAcademySelection('combined','Classes & Timetable')).toBe(false);
  expect(needsAcademySelection('combined','Families & Students')).toBe(true);
  expect(needsAcademySelection('sruti','Families & Students')).toBe(false);

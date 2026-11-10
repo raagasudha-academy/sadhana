@@ -5,5 +5,5 @@ export declare function prepareWebsiteImport(registration:any,institution:'raaga
  studentMappings:Array<{sourcePersonId:string;studentId:string;rollNumber:string}>;
  items:Array<{table:'families'|'people'|'family-links'|'counters'|'registrations'|'audit';item:Record<string,any>}>;
  counters:{family:{current:number;next:number};student:{current:number;next:number}};
- pendingGuardianLinks:number;externalSyncPending:boolean;
+ verifiedGuardianLinks:number;externalSyncPending:boolean;
 };

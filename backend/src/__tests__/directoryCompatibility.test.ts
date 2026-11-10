@@ -7,6 +7,8 @@ const viewer={sub:'somebody-else','cognito:groups':'raagasudha-viewer'};
 const outsider={sub:'somebody-else','cognito:groups':'sruti-admin'};
 const teacher={personId:'T1',personTypes:['teacher'],institutionIds:['raaga'],legacyPayload:{PK:'TEACHER_REGISTRY',SK:'TEACHER#T1',id:'TEACHER-11111111-1111-1111-1111-111111111111',displayName:'Test Teacher',institutions:['raaga'],subjects:['Vocal'],aliases:[],cognitoSub:'cognito-1',active:true,version:1}};
 const venue={venueId:'VENUE-1',legacyPayload:{PK:'VENUE#VENUE-1',SK:'META',GSI1PK:'DIRECTORY#VENUE',GSI1SK:'NAME#v',id:'VENUE-1',name:'North Centre',location:'North',address:'1 High Street',postcode:'NE1',archived:false}};
+const raagaVenueClass={classId:'CLASS-RAAGA-1',institutionId:'raaga',defaultVenueId:'VENUE-1',legacyPayload:{id:'CLASS-RAAGA-1',institution:'raaga'}};
+const srutiVenueClass={classId:'CLASS-SRUTI-1',institutionId:'sruti',defaultVenueId:'VENUE-1',legacyPayload:{id:'CLASS-SRUTI-1',institution:'sruti'}};
 const photo=async(sub:string)=>`photo/${sub}`;
 test('teacher API retains legacy field shapes and privately hides Cognito subjects from viewers',async()=>{
  const a=await presentM9Teachers('raaga',admin,[teacher],photo);
@@ -23,11 +25,15 @@ test('teacher identity uses subject equality and active institution scope',()=>{
  assert.deepEqual(presentM9TeacherIdentity('raaga',viewer,[teacher]),{linked:false,teacherId:null});
  assert.throws(()=>presentM9TeacherIdentity('raaga',outsider,[teacher]),/access/i);
 });
-test('venue directory returns shared venue without DynamoDB index fields',()=>{
- const out=presentM9Venues('raaga',viewer,[venue]);
+test('venue directory includes a venue when an academy class uses it and strips DynamoDB index fields',()=>{
+ const out=presentM9Venues('raaga',viewer,[venue],[raagaVenueClass]);
  assert.equal(out.records.length,1);
  assert.equal(out.records[0].name,'North Centre');
  assert.ok(!('GSI1PK' in out.records[0]));
+});
+test('venue directory hides academy-only venues and keeps venues shared by class usage',()=>{
+ assert.equal(presentM9Venues('sruti',outsider,[venue],[raagaVenueClass]).records.length,0);
+ assert.equal(presentM9Venues('sruti',outsider,[venue],[raagaVenueClass,srutiVenueClass]).records.length,1);
 });
 test('directory canonical parity ignores volatile signed photo URLs',()=>{
  assert.ok(sameDirectoryRows([{id:'x',photoUrl:'expires-1'}],[{id:'x',photoUrl:'expires-2'}]));
@@ -35,15 +41,15 @@ test('directory canonical parity ignores volatile signed photo URLs',()=>{
 });
 test('M9 directory reader paginates and uses only the new tables',async()=>{
  const calls:string[]=[];
- const mock={send:async(cmd:any)=>{calls.push(cmd.input.TableName);return {Items:cmd.input.TableName.endsWith('people')?[teacher]:[venue]};}};
+ const mock={send:async(cmd:any)=>{calls.push(cmd.input.TableName);return {Items:cmd.input.TableName.endsWith('people')?[teacher]:cmd.input.TableName.endsWith('classes')?[raagaVenueClass]:[venue]};}};
  const r=makeM95DirectoryReader(mock,photo);
  assert.equal((await r.teachers('raaga',admin)).records.length,1);
  assert.equal((await r.venues('raaga',admin)).records.length,1);
- assert.deepEqual(calls,['sadhana-dev-m9-people','sadhana-dev-m9-venues']);
+ assert.deepEqual(calls,['sadhana-dev-m9-people','sadhana-dev-m9-venues','sadhana-dev-m9-classes']);
 });
 test('shadow mode returns legacy response while reading M9; pilot returns M9 and blocks cross-institution access',async()=>{
  const prior=process.env.M95_COMPAT_MODE;
- const r=makeM95DirectoryReader({send:async(cmd:any)=>({Items:cmd.input.TableName.endsWith('people')?[teacher]:[venue]})},photo);
+ const r=makeM95DirectoryReader({send:async(cmd:any)=>({Items:cmd.input.TableName.endsWith('people')?[teacher]:cmd.input.TableName.endsWith('classes')?[raagaVenueClass]:[venue]})},photo);
  const route=makeM95DirectoryRoutes(()=>r,async()=>({records:[{id:'old',name:'Old Venue'}],more:false}),async()=>({records:[],more:false}),async()=>({linked:false,teacherId:null}));
  const context:any={parts:['venues'],method:'GET',query:{institution:'raaga'},inst:'raaga',claims:admin,event:{},groups:['raaga']};
  try{

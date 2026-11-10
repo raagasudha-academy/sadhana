@@ -1,10 +1,51 @@
 import {useEffect,useState} from 'react';
 import type {CloudSession} from './CloudAuth';
 import PhotoAvatarEditor from './PhotoAvatarEditor';
+import {jpegData} from './ProfilePhotoUpload';
+import type {InstitutionId} from './types';
 import './sadhanaMyProfile.css';
 type Profile={name:string;givenName:string;familyName:string;email:string;emailVerified:boolean;phone:string;phoneVerified:boolean;photoUrl?:string};
+type FamilyStudent={id:string;name:string;rollNumber:string;institution:InstitutionId;kind:string};
 const EMPTY:Profile={name:'',givenName:'',familyName:'',email:'',emailVerified:false,phone:'',phoneVerified:false};
-export default function SadhanaMyProfile({cloud,onPhotoChange}:{cloud:CloudSession;onPhotoChange?:(url:string)=>void}){
+function FamilyStudentProfile({cloud,child}:{cloud:CloudSession;child:FamilyStudent}){
+ const [details,setDetails]=useState<Awaited<ReturnType<CloudSession['api']['learnerExtras']>>|null>(null);
+ const [displayName,setDisplayName]=useState(''),[photoUrl,setPhotoUrl]=useState('');
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const load=async()=>{
+  const [profile,media]=await Promise.all([cloud.api.learnerExtras(child.institution,child.id),cloud.api.listLearnerMedia(child.institution,child.id)]);
+  setDetails(profile);setDisplayName(profile.profile.preferredName||profile.student.name);
+  const photo=media.records.filter(item=>item.purpose==='profile'&&item.mime.startsWith('image/')).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))[0];
+  setPhotoUrl(photo?.url||'');
+ };
+ useEffect(()=>{let active=true;Promise.all([cloud.api.learnerExtras(child.institution,child.id),cloud.api.listLearnerMedia(child.institution,child.id)])
+  .then(([profile,media])=>{if(!active)return;setDetails(profile);setDisplayName(profile.profile.preferredName||profile.student.name);
+   const photo=media.records.filter(item=>item.purpose==='profile'&&item.mime.startsWith('image/')).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))[0];setPhotoUrl(photo?.url||'');})
+  .catch(e=>{if(active)setError(e instanceof Error?e.message:'Could not load this child profile')});
+  return()=>{active=false};},[cloud.api,child.id,child.institution]);
+ const save=async(event:React.FormEvent)=>{event.preventDefault();if(!details||busy)return;setBusy(true);setError('');setNotice('');
+  try{await cloud.api.saveLearnerProfile(child.institution,child.id,{preferredName:displayName,phone:details.profile.phone,about:details.profile.about,expectedVersion:details.profile.version});await load();setNotice('Display name updated.');}
+  catch(e){setError(e instanceof Error?e.message:'Could not save this profile')}finally{setBusy(false)}
+ };
+ const upload=async(file:File|undefined)=>{if(!file||busy)return;setBusy(true);setError('');setNotice('');
+  try{const image=await jpegData(file),blob=await(await fetch(image)).blob();
+   const signed=await cloud.api.beginLearnerMedia(child.institution,child.id,{mime:'image/jpeg',size:blob.size,purpose:'profile'});
+   const result=await fetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':'image/jpeg'},body:blob});if(!result.ok)throw Error(`Photo upload failed (${result.status}).`);
+   await cloud.api.finishLearnerMedia(child.institution,child.id,signed.key,'profile');await load();setNotice('Profile picture updated.');
+  }catch(e){setError(e instanceof Error?e.message:'Could not upload this profile picture')}finally{setBusy(false)}
+ };
+ return <section className="sadhana-profile-panel sadhana-family-child-profile" aria-label={`${child.name} profile`}>
+  <div className="sadhana-family-child-heading"><div className="sadhana-family-child-avatar">{photoUrl?<img src={photoUrl} alt={`${child.name} profile picture`}/>:<span>{(displayName||child.name||'S').slice(0,1).toUpperCase()}</span>}</div>
+   <div><h3>{displayName||child.name}</h3><p>{child.rollNumber?`Student · ${child.rollNumber}`:'Family student profile'}</p></div></div>
+  {error&&<p className="sadhana-profile-error" role="alert">{error}</p>}
+  {details?<form className="sadhana-family-child-form" onSubmit={e=>void save(e)}>
+   <label>Name shown in the portal<input required maxLength={80} value={displayName} onChange={e=>setDisplayName(e.target.value)}/><small>Legal records remain managed by the academy.</small></label>
+   <label>Profile picture<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e=>{const file=e.currentTarget.files?.[0];void upload(file);e.currentTarget.value='';}}/><small>JPG, PNG or WebP · up to 5 MB</small></label>
+   <button type="submit" disabled={busy||!displayName.trim()}>{busy?'Saving…':'Save name'}</button>
+   {notice&&<p className="sadhana-profile-success" role="status">{notice}</p>}
+  </form>:!error&&<p role="status">Loading profile…</p>}
+ </section>;
+}
+export default function SadhanaMyProfile({cloud,onPhotoChange,familyStudents=[]}:{cloud:CloudSession;onPhotoChange?:(url:string)=>void;familyStudents?:FamilyStudent[]}){
  const [profile,setProfile]=useState<Profile>(EMPTY);
  const [photoUrl,setPhotoUrl]=useState('');
  const [form,setForm]=useState({name:'',givenName:'',familyName:''});
@@ -24,6 +65,7 @@ export default function SadhanaMyProfile({cloud,onPhotoChange}:{cloud:CloudSessi
      <p className="sadhana-profile-hint">Changing your number does not change student access or guardian approval. Your existing email stays unchanged.</p>
     </div>
    </div>
+   {familyStudents.length>0&&<section className="sadhana-family-profiles" aria-label="My children profiles"><div><span className="eyebrow">FAMILY</span><h2>My children</h2><p>Update each child’s portal name and profile picture.</p></div><div className="sadhana-family-profile-grid">{[...new Map(familyStudents.map(child=>[child.id,child])).values()].map(child=><FamilyStudentProfile key={child.id} cloud={cloud} child={child}/>)}</div></section>}
    {error&&<p role="alert" className="sadhana-profile-error">{error}</p>}{notice&&<p role="status" className="sadhana-profile-success">{notice}</p>}
  </section>;
 }

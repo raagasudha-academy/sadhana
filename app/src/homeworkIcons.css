@@ -49,9 +49,9 @@
 .sv1276-teacher-homework .sv1278-review article>ul,.sv1278-homework .sv1278-upload-note ul,.sadhana-homework-materials ul{list-style:none;padding:0;margin:.4rem 0;display:flex;flex-wrap:wrap;gap:.65rem}
 .sv1276-teacher-homework .sv1278-review article>ul li,.sv1278-homework .sv1278-upload-note ul li,.sadhana-homework-materials li{border:1px solid var(--hw-line,#dfe6ef);border-radius:10px;padding:.5rem;background:#fff;max-width:100%}
 .sadhana-homework-image{width:180px;height:140px;max-height:none;object-fit:cover}
-.sv1278-homework{max-width:1150px;margin-inline:auto}
+.sv1278-homework{max-width:1150px;}
 .sv1278-homework>p{color:#5e7188;line-height:1.5}
-.sv1278-homework .sv1278-assignment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:.85rem}
+.sv1278-homework .sv1278-assignment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));width:1000px;gap:3rem}
 .sv1278-homework .sv1278-assignment{text-align:left;border:1px solid var(--hw-line);border-radius:14px;background:#fff;padding:1.05rem;min-height:130px;box-shadow:0 3px 12px rgba(20,46,80,.035)}
 .sv1278-homework .sv1278-assignment.active{border-color:var(--hw-gold);box-shadow:0 0 0 2px rgba(199,162,87,.2)}
 .sv1278-homework .sv1278-editor{display:grid;gap:1rem}
@@ -71,3 +71,13 @@
 .sv1278-homework .sv137-homework-status--draft{background:#eaf2ff;border-color:#b5ccef;color:#285b99}
 .sv1278-homework .sv137-homework-status--submitted{background:#e4f5e9;border-color:#9cd3ac;color:#246b3c}
 .sv1278-homework .sv137-homework-status--closed{background:#edf0f4;border-color:#c9d0d9;color:#556171}
+.sv1278-homework .sv1278-due-date{display:inline-flex;align-items:center;gap:6px}
+.sv1278-homework .sv1278-edit-info{display:inline-flex;align-items:center;color:#7788a1;cursor:help}
+
+/* Keep learner assignment tiles stretched across the content canvas in two
+   columns; override the older auto-fit sizing used by embedded homework. */
+.sv1291-unified .student-portal-learning .sv1278-homework{box-sizing:border-box;width:100%;max-width:none;margin-inline:0}
+.sv1291-unified .sv116-body:has(.sv1278-homework),.sv1291-unified .student-portal-learning:has(.sv1278-homework){box-sizing:border-box;width:100%;max-width:none!important}
+.sv1291-unified .student-portal-learning .sv1278-homework .sv1278-assignment-grid{display:grid!important;width:100%;max-width:none;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch;gap:16px;margin:8px 0 0}
+.sv1291-unified .student-portal-learning .sv1278-homework .sv1278-assignment{box-sizing:border-box;width:100%;min-width:0}
+@media(max-width:640px){.sv1291-unified .student-portal-learning .sv1278-homework .sv1278-assignment-grid{grid-template-columns:minmax(0,1fr)!important}}

@@ -78,7 +78,8 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     return {status:update?200:201, body:await service.savePractice(institution,claims,id,body(),update?parts[3]:undefined)};
   }
   if (root === 'teacher-practice') {
-    if (parts.length !== 3 || parts[2] !== 'comments' || !idOk(id) || !['GET','POST'].includes(method))
+    if (parts.length !== 3 || !['comments','media'].includes(parts[2]) || !idOk(id) ||
+        (parts[2]==='comments'&&!['GET','POST'].includes(method)) || (parts[2]==='media'&&method!=='GET'))
       return refuse('Unsupported teacher-practice operation.');
     const flag=method==='GET'?'SADHANA_FINAL_TEACHER_PRACTICE_READS':'SADHANA_FINAL_TEACHER_PRACTICE_WRITES';
     if(env[flag]!=='enabled') return refuse('Final teacher practice comments disabled.');

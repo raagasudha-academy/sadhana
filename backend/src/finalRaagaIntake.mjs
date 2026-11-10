@@ -72,13 +72,14 @@ export async function finalRaagaIntakeRoute(context,deps,env=process.env){
    return {status:200,body:await deps.preview(parts[1],claims)};
  }
  if (keys.length!==2||body.preview!==false||body.confirmReference!==parts[1])
-   return reply(503,'Import execution requires explicit reference confirmation; existing family links require separate review.');
+   return reply(400,'Confirm this approved registration using its exact reference before activation.');
  if (!allow(env,'SADHANA_FINAL_RAAGA_IMPORT_WRITES')||
      !allow(env,'SADHANA_FINAL_RAAGA_IDENTITY_RECONCILED'))
    return reply(503,'Raagasudha final import execution is disabled pending identity reconciliation.');
  deps.assertConfigured();
  const imported=await deps.execute(parts[1],claims);
  // The atomic Sadhana import is committed before any external website sync.
- // Provisioning and guardian approval remain independent and pending.
- return {status:200,body:{...imported,guardianAccessGranted:false,invitationSent:false}};
+ // The approved web registration verifies its submitted family relationships.
+ // Cognito provisioning remains a separate step, so login access is not granted here.
+ return {status:200,body:{...imported,guardianRelationshipsVerified:true,guardianAccessGranted:false,invitationSent:false}};
 }

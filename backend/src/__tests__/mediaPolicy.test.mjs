@@ -13,7 +13,10 @@ test('image, audio, video file ceilings',()=>{
  assert.equal(validateM9MediaType('video/mp4',100_000_000)?.kind,'video');
  assert.equal(validateM9MediaType('video/mp4',100_000_001),null);
  assert.equal(validateM9MediaType('application/pdf',100),null);
- assert.equal(validateM9MediaType('video/quicktime',100),null);
+ assert.equal(validateM9MediaType('video/quicktime',100)?.kind,'video');
+ assert.equal(validateM9MediaType('video/quicktime',100_000_000)?.ext,'mov');
+ assert.equal(validateM9MediaType('video/quicktime',100_000_001),null);
+ assert.equal(validateM9MediaType('video/3gpp',100)?.ext,'3gp');
 });
 test('image maximum 2 and at most one audio and video',()=>{
  assert.equal(validateM9MediaSelection(['image/jpeg','image/png','audio/mpeg','video/mp4']),true);

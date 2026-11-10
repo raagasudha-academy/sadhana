@@ -1,7 +1,8 @@
 import {entityTable} from './entityTables.mjs';
 import {markerId} from './websiteImportCore.mjs';
-/** Link an EXISTING verified Cognito user to an imported M9 guardian profile.
- * Does not create accounts, send invitations, or approve child access.
+/** Link an EXISTING verified Cognito user to an imported guardian profile.
+ * Does not create accounts or send invitations. Relationship approval comes from
+ * the approved web registration; this operation verifies only the account identity.
  */
 import {createHash,randomUUID} from 'node:crypto';
 import {CognitoIdentityProviderClient,ListUsersCommand} from '@aws-sdk/client-cognito-identity-provider';

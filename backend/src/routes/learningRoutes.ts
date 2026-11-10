@@ -46,7 +46,7 @@ export async function learningRoutes({event,parts,method,inst,claims}: RouteCont
         if(method==='GET'&&parts.length===3&&parts[2]==='homework')return json(200,await learnerHomework(inst,claims,studentId));
         if(method==='POST'&&parts.length===3&&parts[2]==='homework')return json(200,await completeHomework(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='GET'&&parts.length===3&&parts[2]==='extras')return json(200,await learnerExtras(inst,claims,studentId));
-        if(method==='GET'&&parts.length===3&&parts[2]==='academy-directory'){await learnerIdentity(inst,claims,studentId);return json(200,await academyDirectory(inst));}
+        if(method==='GET'&&parts.length===3&&parts[2]==='academy-directory'){await learnerIdentity(inst,claims,studentId);return json(200,await academyDirectory(inst,studentId));}
         if(method==='PATCH'&&parts.length===3&&parts[2]==='profile')return json(200,await saveLearnerProfile(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='POST'&&parts.length===4&&parts[2]==='media'&&parts[3]==='start')return json(200,await beginLearnerMedia(inst,claims,studentId,readJSON(event.body||'')));
         if(method==='POST'&&parts.length===4&&parts[2]==='media'&&parts[3]==='finish')return json(200,await completeLearnerMedia(inst,claims,studentId,readJSON(event.body||'')));

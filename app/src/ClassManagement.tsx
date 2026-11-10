@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CalendarDays, CheckCircle2, CircleAlert, MapPin, Plus, X } from 'lucide-react';
 import { institutions } from './institutions';
 import { newId, ukISODate } from './registry';
@@ -89,22 +89,29 @@ export function VenueFormDialog({record,venues,onSave,onClose}: any){
     </form>
   </Dialog>;
 }
-export function VenueManager({venues,onAdd,onEdit,canEdit=false,linkedCounts={},error=''}: any) {
+export function VenueManager({venues,onAdd,onEdit,canEdit=false,linkedCounts={},error='',audience='admin',busy=false,selectedVenue='',hideHeading=false}: any) {
+  const learnerView=audience==='learner';
   const rows=useMemo(()=>venues.map(v=>({...v,linked:linkedCounts[v.id]||{masters:0,sessions:0}})),[venues,linkedCounts]);
+  const normalise=(value:any)=>String(value||'').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]/g,'');
+  const query=normalise(selectedVenue);
+  const selectedRow=query?(rows.find(v=>[v.id,v.name,v.address,v.location,v.postcode].some(value=>normalise(value)&&normalise(value)===query))||rows.find(v=>[v.name,v.address,v.location,v.postcode].some(value=>normalise(value)&&(normalise(value).includes(query)||query.includes(normalise(value)))))):null;
+  const rowId=(row:any)=>`venue-card-${String(row.id).replace(/[^a-zA-Z0-9_-]/g,'-')}`;
+  useEffect(()=>{if(selectedRow&&learnerView)document.getElementById(rowId(selectedRow))?.scrollIntoView({behavior:'smooth',block:'center'});},[selectedRow?.id,learnerView]);
   return <>
-    <div className="page-heading"><div><div className="eyebrow">CENTRAL VENUE DIRECTORY</div><h1>Teaching venues</h1><p>Shared venue details for Raagasudha and Sruti. Changes are saved to DynamoDB.</p></div><div className="heading-actions">{canEdit&&<button className="reg-primary" onClick={onAdd}><Plus size={17}/> Add venue</button>}</div></div>
+    {!hideHeading&&<div className="page-heading"><div><div className="eyebrow">{learnerView?'ACADEMY DIRECTORY':'CENTRAL VENUE DIRECTORY'}</div><h1>{learnerView?'Venues':'Teaching venues'}</h1><p>{learnerView?'Venues available to your approved academy classes.':'Shared venue details for Raagasudha and Sruti. Changes are saved to DynamoDB.'}</p></div><div className="heading-actions">{canEdit&&<button className="reg-primary" onClick={onAdd}><Plus size={17}/> Add venue</button>}</div></div>}
     <section className="surface reg-section"><div className="reg-section-head"><h2>Venue directory</h2><span className="reg-count">{rows.length} venues</span></div>
       {error&&<p className="reg-error" role="alert">Could not load venues: {error}</p>}
-      <div className="venue-manage-grid">{rows.map(v=><article className="venue-manage-card" key={v.id}>
+      {busy&&<p role="status">Loading venues…</p>}
+      <div className="venue-manage-grid">{rows.map(v=><article id={rowId(v)} className={`venue-manage-card${selectedRow?.id===v.id?' is-selected':''}`} key={v.id}>
         <div className="venue-manage-head"><MapPin size={19}/><strong>{v.name}</strong></div>
-        <p>{v.address}</p>
+        {v.address&&<p>{v.address}</p>}
         {v.postcode&&!String(v.address).toUpperCase().includes(String(v.postcode).toUpperCase())&&<p>{v.postcode}</p>}
-        <small>{v.location} · {v.linked.masters} master class{v.linked.masters===1?'':'es'} · {v.linked.sessions} dated session{v.linked.sessions===1?'':'s'}</small>
+        <small>{learnerView?(v.location||'Available to your academy classes'):`${v.location} · ${v.linked.masters} master class${v.linked.masters===1?'':'es'} · ${v.linked.sessions} dated session${v.linked.sessions===1?'':'s'}`}</small>
         {v.notes&&<p>{v.notes}</p>}
         {canEdit&&<div className="reg-actions"><button className="reg-secondary" onClick={()=>onEdit(v)}>Edit venue</button></div>}
       </article>)}</div>
-      {!rows.length&&!error&&<div className="reg-empty"><MapPin size={27}/><strong>No venues loaded</strong><p>Check the DynamoDB directory and venue-linking migration.</p></div>}
-      <p className="reg-footnote"><CheckCircle2 size={15}/> Changes to shared venues update calendar display automatically. Calendar records are not rewritten. {canEdit?'Raagasudha, Sruti and Sadhana Super Admins can edit venues.':'An authorised administrator account is required to edit venues.'} Physical deletion is disabled.</p>
+      {!rows.length&&!error&&!busy&&<div className="reg-empty"><MapPin size={27}/><strong>{learnerView?'No venues available':'No venues loaded'}</strong>{!learnerView&&<p>Check the DynamoDB directory and venue-linking migration.</p>}</div>}
+      {learnerView?<p className="reg-footnote"><MapPin size={15}/> Read-only venues for this academy.</p>:<p className="reg-footnote"><CheckCircle2 size={15}/> Changes to shared venues update calendar display automatically. Calendar records are not rewritten. {canEdit?'Raagasudha, Sruti and Sadhana Super Admins can edit venues.':'An authorised administrator account is required to edit venues.'} Physical deletion is disabled.</p>}
     </section>
   </>;
 }

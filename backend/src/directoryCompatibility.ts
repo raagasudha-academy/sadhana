@@ -8,6 +8,7 @@ import {legacyRecord,canonicalRecords} from './compatibility.ts';
 import type {CompatibleItem,CompatClient} from './compatibility.ts';
 import type {Claims,InstitutionId} from './model.ts';
 import {demandViewInstitution,permittedInstitutions} from './model.ts';
+import {filterVenuesForInstitution} from './venueVisibility.ts';
 
 export type DirectoryEntity='people'|'venues'|'classes';
 const MAX_ROWS:Record<DirectoryEntity,number>={people:1000,venues:500,classes:1500};
@@ -31,10 +32,11 @@ export function presentM9TeacherIdentity(inst:InstitutionId,claims:Claims,items:
  return {linked:!!match,teacherId:match?.id??null};
 }
 
-/** Old /venues response: shared venues are never restricted by a guessed institutionIds field. */
-export function presentM9Venues(inst:InstitutionId,claims:Claims,items:CompatibleItem[]){
+/** Old /venues response, filtered by active academy class usage and shared-venue links. */
+export function presentM9Venues(inst:InstitutionId,claims:Claims,items:CompatibleItem[],classes:CompatibleItem[]=[]){
  demandViewInstitution(claims,inst);
- return {records:items.map(x=>{const {GSI1PK,GSI1SK,GSI2PK,GSI2SK,...publicVenue}=legacyRecord(x);return publicVenue;}),more:false as const};
+ const relevant=filterVenuesForInstitution(inst,items as Record<string,any>[],classes as Record<string,any>[]);
+ return {records:relevant.map(x=>{const {GSI1PK,GSI1SK,GSI2PK,GSI2SK,...publicVenue}=legacyRecord(x);return publicVenue;}),more:false as const};
 }
 
 /** Old /classes contract. Shadow only until class writes and enrolment integrity migrate. */
@@ -101,7 +103,11 @@ export function makeM95DirectoryReader(client:CompatClient,photo:(sub:string)=>P
    const [people,classes,sessions]=await Promise.all([scan('people'),scan('classes'),scanSessions()]);
    return presentFinalTeacherLinks(inst,claims,people,classes,sessions,photo);
   },
-  async venues(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Venues(inst,claims,await scan('venues'));},
+  async venues(inst:InstitutionId,claims:Claims){
+   demandViewInstitution(claims,inst);
+   const [venues,classes]=await Promise.all([scan('venues'),scan('classes')]);
+   return presentM9Venues(inst,claims,venues,classes);
+  },
   async classes(inst:InstitutionId,claims:Claims){demandViewInstitution(claims,inst);return presentM9Classes(inst,claims,await scan('classes'));},
  };
 }

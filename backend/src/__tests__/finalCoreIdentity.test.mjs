@@ -16,7 +16,7 @@ const deps={
   create:async(root,inst,who,data)=>(calls.push(['create',root,inst,who.sub,data]),{id:'new'}),
   update:async(root,inst,who,id,data)=>(calls.push(['update',root,inst,who.sub,id,data]),{id})
  }),
- guardianReader:()=>({peopleForSubject:async()=>[{personId:'GUARDIAN-ID',cognitoSub:'guardian-sub',status:'active',institutionIds:['sruti'],personTypes:['guardian']}],person:async()=>({personId:'GUARDIAN-ID',cognitoSub:'guardian-sub',status:'active',institutionIds:['sruti'],personTypes:['guardian']})}),
+ guardianReader:()=>({peopleForSubject:async()=>[{personId:'GUARDIAN-ID',cognitoSub:'guardian-sub',status:'active',institutionIds:['sruti'],personTypes:['guardian']}],person:async()=>({personId:'GUARDIAN-ID',cognitoSub:'guardian-sub',status:'active',institutionIds:['sruti'],personTypes:['guardian']}),studentForRoll:async(inst,roll)=>roll==='RS-008'?'STU-008':null}),
  guardian:()=>({
   request:async(inst,who,data)=>(calls.push(['request',inst,who.sub,data]),{status:'pending'}),
   decide:async(inst,who,data)=>(calls.push(['decide',inst,who.sub,data]),{status:'approved'})
@@ -132,11 +132,17 @@ test('existing guardian request body is mapped to canonical pending-only request
  assert.equal(res.status,201);
  assert.deepEqual(calls.filter(Array.isArray),[['request','raaga','guardian-jwt',{studentId:'STU-001'}]]);
 });
+test('guardian roll-number request resolves an exact canonical student before creating pending request',async()=>{
+ reset();const res=await run('family-access/request','POST','raaga',guardian,{rollNumber:'rs-008',kind:'guardian'});
+ assert.equal(res.status,201);
+ assert.deepEqual(calls.filter(Array.isArray),[['request','raaga','guardian-jwt',{studentId:'STU-008'}]]);
+});
 test('student self link and administrator-on-behalf guardian requests never map implicitly',async()=>{
  for(const body of [
   {studentId:'STU-001',kind:'student'},
   {studentId:'STU-001',kind:'guardian',beneficiarySubject:'other-account'},
-  {rollNumber:'001-001',kind:'guardian'}
+  {rollNumber:'001-001',kind:'student'},
+  {studentId:'STU-001',kind:'guardian',beneficiarySubject:'other-account'}
  ]){
   reset();const res=await run('family-access/request','POST','raaga',guardian,body);
   assert.equal(res.status,503);assert.equal(calls.some(Array.isArray),false);

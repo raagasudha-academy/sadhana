@@ -35,8 +35,21 @@
 .svfd-modal-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.svfd-modal h2{font-size:22px;margin:0}.svfd-modal-head button{border:0;background:#eef2f8;border-radius:8px;padding:8px;cursor:pointer}
 .svfd-modal>p{color:#637793;line-height:1.5}.svfd-modal form{display:grid;gap:15px}.svfd-modal label{display:flex;flex-direction:column;gap:7px;font-size:14px;font-weight:600}.svfd-modal input,.svfd-modal select{width:100%;padding:11px;border:1px solid #cbd8e9;border-radius:9px}
 .svfd-modal form button{background:#17375d;border:0;border-radius:10px;padding:12px;color:white;cursor:pointer;font-weight:700}
+.svfd-next-pills{display:flex;align-items:center;gap:8px}
+.svfd-rsvp-pill{display:inline-flex;align-items:center;gap:5px}
+.svfd-rsvp{align-items:center}
+.svfd-rsvp>.svfd-caption{font-size:13px;font-weight:650}
+.svfd-rsvp-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.svfd-rsvp-option{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border:1px solid #d5deeb;border-radius:9px;background:#fff;color:#435976;font:inherit;font-size:13px;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s}
+.svfd-rsvp-option:hover:not(:disabled),.svfd-rsvp-option:focus-visible{border-color:#849dc1;box-shadow:0 0 0 3px #6c8ab51a}
+.svfd-rsvp-option.is-yes.is-selected{border-color:#5d76a5;background:#5d76a5;color:#fff}
+.svfd-rsvp-option.is-no{color:#984b4b}
+.svfd-rsvp-option.is-no.is-selected{border-color:#bd7770;background:#fff3f1;color:#933d36}
+.svfd-rsvp-option.is-undecided.is-selected{border-color:#cbd5e2;background:#eef2f8;color:#465b78}
+.svfd-rsvp-option:disabled{cursor:default;opacity:1}
+.svfd-rsvp-option:disabled:not(.is-selected){opacity:.62}
 @media(max-width:900px){.svfd-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.svfd-action-grid{grid-template-columns:1fr}.svfd-family-bar,.svfd-homework-reminder{flex-wrap:wrap}.svfd-next,.svfd-actions,.svfd-homework-reminder{padding:17px}.svfd-add{margin-left:auto}.svfd-next h4{font-size:19px}}
+@media(max-width:600px){.svfd-action-grid{grid-template-columns:1fr}.svfd-family-bar,.svfd-homework-reminder{flex-wrap:wrap}.svfd-next,.svfd-actions,.svfd-homework-reminder{padding:17px}.svfd-add{margin-left:auto}.svfd-next h4{font-size:19px}.svfd-next-pills{align-items:flex-end;flex-direction:column;gap:5px}.svfd-rsvp{align-items:flex-start;flex-direction:column}.svfd-rsvp-actions{width:100%;justify-content:flex-start}.svfd-rsvp-option{flex:1 1 auto}}
 /* Family Dashboard — compact typography and spacing */
 
 .student-portal-v119 .sv116-intro h1 {
@@ -125,3 +138,12 @@
     font-size: 22px;
   }
 }
+
+/* Student RSVP controls follow the teacher next-class action layout. */
+.svfd-next-class-title-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:13px}
+.svfd-next-class-title-row h4{min-width:0;margin:0;color:#293950;line-height:1.35}
+.svfd-next-class-title-row .svfd-rsvp-actions{flex-shrink:0}
+.svfd-next .svfd-session-meta{margin-top:7px}
+.svfd-rsvp-saving{margin:8px 0 0;color:#607796;font-size:12px;line-height:1.4}
+@media(max-width:900px){.svfd-next-class-title-row{align-items:flex-start;flex-direction:column;gap:10px}.svfd-next-class-title-row .svfd-rsvp-actions{width:auto;justify-content:flex-start}}
+@media(max-width:600px){.svfd-next-class-title-row .svfd-rsvp-actions{width:100%;flex-wrap:wrap}.svfd-next-pills{align-items:center;flex-direction:row;gap:6px}}

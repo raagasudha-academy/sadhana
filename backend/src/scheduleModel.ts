@@ -9,6 +9,7 @@ export interface ScheduleRecord {
  programme:string;teacher:string;mode:string;location:string;date?:string;endDate?:string;
  startTime:string;endTime:string;allDay?:boolean;status?:ScheduleStatus;
  classId?:string;teacherId?:string;sessionOverrideFields?:string[];timezone:'Europe/London';importKey?:string;
+ teacherResponse?:'attending';
  affectsClasses?:boolean;
  version?:number;createdAt?:string;updatedAt?:string;
 }

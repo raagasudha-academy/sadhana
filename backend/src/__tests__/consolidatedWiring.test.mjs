@@ -20,9 +20,10 @@ test('existing router is unchanged; website sync is separate and disabled by def
  assert.match(sync,/updateWebsiteRegistrationImport/);
  assert.match(source('lambda.ts'),/m95GuardianRegistrationRoutes/);
 });
-test('web import keeps guardian links pending and guards contact re-import',()=>{
+test('approved web import verifies submitted guardian links and guards contact re-import',()=>{
  const core=source('websiteImportCore.mjs');
- assert.match(core,/accessStatus:'pending'/);
+ assert.match(core,/accessStatus:'approved',relationshipVerified:true/);
+ assert.match(core,/verificationSource:'approved-website-registration'/);
  assert.match(core,/CONTACT_GUARD/);
  assert.match(source('websiteImport.ts'),/Primary contact belongs to an existing M9 family/);
 });

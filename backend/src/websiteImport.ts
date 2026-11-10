@@ -1,5 +1,6 @@
 import {entityTable} from './entityTables.mjs';
-/** M9.5 opt-in website import. No Cognito provisioning or external website writes. */
+/** Website import. Registration approval verifies submitted family relationships;
+ * Cognito provisioning and external website writes remain separate. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,GetCommand,TransactWriteCommand,UpdateCommand} from '@aws-sdk/lib-dynamodb';
 import {fetchWebsiteRegistration,updateWebsiteRegistrationImport} from './websiteRegistrationGateway.ts';
@@ -45,7 +46,7 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  if(!((inst==='raaga'&&/^RS-[A-Za-z0-9_-]{1,110}$/.test(registrationId))||(inst==='sruti'&&mode==='fresh'&&/^SR-[A-Za-z0-9-]{1,110}$/.test(registrationId))))throw fail(400,'Invalid website registration identifier.');
  const id=markerId(inst,registrationId);
  const already=(await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId:id},ConsistentRead:true}))).Item;
- if(already){if(already.institutionId!==inst||already.externalRegistrationId!==registrationId)throw fail(409,'Registration identity collision.');return {alreadyImported:true,registrationId:id,familyId:already.familyId,studentIds:already.studentIds,externalSyncPending:inst==='raaga'&&!['synced','legacy-authoritative'].includes(already.websiteSyncStatus),guardianApprovalPending:true};}
+ if(already){if(already.institutionId!==inst||already.externalRegistrationId!==registrationId)throw fail(409,'Registration identity collision.');return {alreadyImported:true,registrationId:id,familyId:already.familyId,studentIds:already.studentIds,externalSyncPending:inst==='raaga'&&!['synced','legacy-authoritative'].includes(already.websiteSyncStatus),guardianRelationshipsVerified:already.identityResolutionStatus==='registration_relationships_verified'};}
  const external=inst==='raaga'?approvedShape(await fetchWebsiteRegistration(registrationId)):undefined;
  // The existing Raagasudha intake stores the institution as RAAGASUDHA.
  // Only this exact, trusted external representation is normalised.
@@ -62,7 +63,7 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  // do not silently allocate another household or grant guardian access.
  const existingContact=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId:plan.contactGuardId},ConsistentRead:true}))).Item;
  if(existingContact)throw fail(409,'Primary contact belongs to an existing M9 family. Administrator family reconciliation is required.');
- if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianApprovalPending:true};
+ if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,verifiedGuardianLinks:plan.verifiedGuardianLinks??0,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianRelationshipsVerified:mode!=='legacy-bridge'};
  // The registration record and identity guards participate in the SAME transaction as counters and people.
  // Conditional writes ensure concurrent retries cannot allocate the same roll number.
  const tx:any[]=[counterWrite(inst,'FAMILY_NUMBER',plan.counters.family.current,plan.counters.family.next,now),counterWrite(inst,'STUDENT_ROLL',plan.counters.student.current,plan.counters.student.next,now)];
@@ -75,15 +76,15 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  catch(e:any){
   if(e?.name==='TransactionCanceledException'||e?.name==='ConditionalCheckFailedException'){
    const committed=(await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId:id},ConsistentRead:true}))).Item;
-   if(committed&&committed.institutionId===inst&&committed.externalRegistrationId===registrationId)return {alreadyImported:true,registrationId:id,familyId:committed.familyId,studentIds:committed.studentIds,externalSyncPending:inst==='raaga'};
+   if(committed&&committed.institutionId===inst&&committed.externalRegistrationId===registrationId)return {alreadyImported:true,registrationId:id,familyId:committed.familyId,studentIds:committed.studentIds,externalSyncPending:inst==='raaga',guardianRelationshipsVerified:committed.identityResolutionStatus==='registration_relationships_verified'};
    throw fail(409,'Import conflict or possible duplicate student. Resolve and retry.');
   }
   throw e;
  }
- return {imported:true,alreadyImported:false,registrationId:id,familyId:plan.familyId,studentIds:plan.studentMappings.map((x:any)=>x.studentId),studentRollNumbers:Object.fromEntries(plan.studentMappings.map((x:any)=>[x.sourcePersonId,x.rollNumber])),pendingGuardianLinks:plan.pendingGuardianLinks,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',provisioningPending:true,guardianApprovalPending:true};
+ return {imported:true,alreadyImported:false,registrationId:id,familyId:plan.familyId,studentIds:plan.studentMappings.map((x:any)=>x.studentId),studentRollNumbers:Object.fromEntries(plan.studentMappings.map((x:any)=>[x.sourcePersonId,x.rollNumber])),verifiedGuardianLinks:plan.verifiedGuardianLinks??0,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',provisioningPending:true,guardianRelationshipsVerified:mode!=='legacy-bridge'};
 }
 
-/** Recoverable post-transaction website sync. Never makes guardian access approved. */
+/** Recoverable post-transaction website sync. Does not change relationship or account state. */
 export async function m95ReconcileWebsiteImport(inst:InstitutionId,claims:Claims,externalId:string,execute=false){
  demandInstitution(claims,inst);
  // The final writer must not depend on the old M95 pilot switches.
@@ -104,5 +105,5 @@ export async function m95ReconcileWebsiteImport(inst:InstitutionId,claims:Claims
   UpdateExpression:'SET websiteSyncStatus = :synced, websiteSyncedAt = :now, updatedAt = :now',
   ConditionExpression:'attribute_exists(registrationId) AND institutionId = :inst AND externalRegistrationId = :external AND importStatus = :imported',
   ExpressionAttributeValues:{':synced':'synced',':now':now,':inst':inst,':external':externalId,':imported':'imported'}}));
- return {registrationId,websiteSyncStatus:'synced',alreadySynced:result.alreadySynced,provisioningPending:true,guardianApprovalPending:true};
+ return {registrationId,websiteSyncStatus:'synced',alreadySynced:result.alreadySynced,provisioningPending:true};
 }

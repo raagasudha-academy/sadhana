@@ -3,6 +3,8 @@ import {entityTable} from '../entityTables.mjs';
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,GetCommand,QueryCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {S3Client,GetObjectCommand} from '@aws-sdk/client-s3';
+import {getSignedUrl} from '@aws-sdk/s3-request-presigner';
 import {httpError} from '../model.ts';
 import type {Claims,InstitutionId} from '../model.ts';
 import {json,readJSON} from './http.ts';
@@ -19,7 +21,10 @@ export function validateM9TeacherComment(body:unknown):string {
  if(typeof comment!=='string'||!comment.trim()||comment.trim().length>1000)throw httpError(400,'Comment must be 1–1000 characters.');
  return comment.trim();
 }
-export function makeM10TeacherPracticeRoutes(client:Database=db()):DomainRoute {
+type PracticeMediaLinks={signGet:(bucket:string,key:string,mime:string)=>Promise<string>};
+const mediaS3=new S3Client({});
+const signedPracticeMedia:PracticeMediaLinks={signGet:(bucket,key,mime)=>getSignedUrl(mediaS3,new GetObjectCommand({Bucket:bucket,Key:key,ResponseContentType:mime}),{expiresIn:180})};
+export function makeM10TeacherPracticeRoutes(client:Database=db(),mediaLinks:PracticeMediaLinks=signedPracticeMedia):DomainRoute {
  const get=async(entity:string,key:string,id:string)=>(await client.send(new GetCommand({TableName:table(entity),Key:{[key]:id},ConsistentRead:true}))).Item;
  async function assignment(inst:InstitutionId,claims:Claims,practiceId:string){
   if(!allowedId(practiceId))throw httpError(400,'Invalid practice identifier.');
@@ -37,11 +42,25 @@ export function makeM10TeacherPracticeRoutes(client:Database=db()):DomainRoute {
   return {practice,cls,person:active};
  }
  return async({event,parts,method,inst,claims})=>{
-  if(parts[0]!=='teacher-practice'||parts.length!==3||parts[2]!=='comments')return undefined;
+  if(parts[0]!=='teacher-practice'||parts.length!==3||!['comments','media'].includes(parts[2]))return undefined;
+  const media=parts[2]==='media';
+  if(media&&method!=='GET')return json(405,{error:'Unsupported practice media action.'});
   if(process.env.SADHANA_ENTITY_TABLE_SET==='final' ? (method==='GET' ? process.env.SADHANA_FINAL_TEACHER_PRACTICE_READS!=='enabled' : process.env.SADHANA_FINAL_TEACHER_PRACTICE_WRITES!=='enabled') : process.env.M10_TEACHER_PRACTICE_M9!=='enabled')return undefined;
   if(inst!=='raaga'&&inst!=='sruti')throw httpError(400,'Select a valid institution.');
-  if(method!=='GET'&&method!=='POST')return json(405,{error:'Unsupported comment action.'});
+  if(!media&&method!=='GET'&&method!=='POST')return json(405,{error:'Unsupported comment action.'});
   const {practice,cls,person}=await assignment(inst,claims,parts[1]);
+  if(media){
+   const bucket=process.env.SADHANA_LEARNER_MEDIA_BUCKET;
+   if(!bucket)throw httpError(503,'Private learner media storage not configured.');
+   const rows=await client.send(new QueryCommand({TableName:table('submissions'),IndexName:'StudentSubmissionsIndex',KeyConditionExpression:'studentId=:student',ExpressionAttributeValues:{':student':practice.studentId},Limit:200}));
+   const records=[];
+   for(const row of rows.Items??[]){
+    if(row.recordType!=='learner-media'||row.mediaStatus!=='ready'||row.purpose!=='practice'||row.practiceId!==practice.practiceId||row.institutionId!==inst||row.studentId!==practice.studentId||!row.objectKey?.startsWith(`homework-private/learner/${inst}/${practice.studentId}/`)||!['image/jpeg','image/png','image/webp','image/heic','image/heif','audio/mpeg','audio/mp4','audio/aac','audio/wav','audio/x-wav','video/mp4','video/quicktime','video/3gpp'].includes(row.mime))continue;
+    records.push({id:row.submissionId,mime:row.mime,createdAt:row.createdAt,url:await mediaLinks.signGet(bucket,row.objectKey,row.mime)});
+    if(records.length>=10)break;
+   }
+   return json(200,{records});
+  }
   if(method==='GET')return json(200,{records:(practice.teacherComments??[]).map((c:any)=>({id:c.id,practiceId:practice.practiceId,comment:c.comment,createdAt:c.createdAt}))});
   const comment=validateM9TeacherComment(readJSON(event.body?(event.isBase64Encoded?Buffer.from(event.body,'base64').toString('utf8'):event.body):''));
   const existing=practice.teacherComments??[];

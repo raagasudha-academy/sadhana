@@ -3,6 +3,15 @@ import type {CloudSession} from '../../CloudAuth';
 import type {InstitutionId} from '../../types';
 import type {PublishedAcademy} from './StudentAcademy';
 import type {LearnerPage} from '../../StudentHome';
+const practiceUploadMime=(file:File)=>{
+ if(file.type)return file.type;
+ const ext=file.name.split('.').pop()?.toLowerCase();
+ return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',mp3:'audio/mpeg',m4a:'audio/mp4',aac:'audio/aac',wav:'audio/wav',mp4:'video/mp4',mov:'video/quicktime','3gp':'video/3gpp'} as Record<string,string>)[ext||'']||'';
+};
+const ukClock=()=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+const supportedHomeworkMime=(file:File)=>practiceUploadMime(file);
+export type PracticeMediaSlot='image1'|'image2'|'audio'|'video';
+export type PracticeMediaFiles=Record<PracticeMediaSlot,File|null>;
 export type StudentPortalProps = {
  cloud: CloudSession;
  initialInstitution?: InstitutionId;
@@ -35,9 +44,10 @@ export function useStudentPortalController({
  const [tab, setTab] = useState<LearnerPage>('overview');
  useEffect(() => {
   if (!embedded || !page) return;
-  const section = (value: LearnerPage): string => {
+ const section = (value: LearnerPage): string => {
     if (['classes', 'calendar', 'attendance', 'venues'].includes(value)) return 'classes';
     if (['homework', 'practice'].includes(value)) return 'learning';
+    if (value === 'resources') return 'resources';
     if (['profile', 'privacy'].includes(value)) return 'profile';
     return value;
   };
@@ -54,11 +64,12 @@ export function useStudentPortalController({
  const [rsvpEditing,setRsvpEditing]=useState(false);
  const [academyMenuOpen,setAcademyMenuOpen]=useState(false);
  const [homeworkDrawerOpen,setHomeworkDrawerOpen]=useState(false);
- const [calendarView,setCalendarView]=useState<'month'|'week'|'list'>('month');
+ const [calendarView,setCalendarView]=useState<'month'|'week'|'list'>('week');
  const [calendarAnchor,setCalendarAnchor]=useState(()=>new Date().toISOString().slice(0,7));
  const [weekAnchor,setWeekAnchor]=useState(()=>new Date().toISOString().slice(0,10));
  const [extras,setExtras]=useState<Awaited<ReturnType<CloudSession['api']['learnerExtras']>>|null>(null);
  const [directory,setDirectory]=useState<Awaited<ReturnType<CloudSession['api']['learnerAcademyDirectory']>>|null>(null);
+ const [selectedVenueQuery,setSelectedVenueQuery]=useState('');
   const [approvedStaff,setApprovedStaff]=useState<PublishedAcademy[]>([]);
   const [approvedStaffBusy,setApprovedStaffBusy]=useState(false);
   const [approvedStaffError,setApprovedStaffError]=useState('');
@@ -66,18 +77,23 @@ export function useStudentPortalController({
  const [directoryError,setDirectoryError]=useState('');
  const [preferredName,setPreferredName]=useState(''),[contactPhone,setContactPhone]=useState(''),[about,setAbout]=useState('');
  const [uploadBusy,setUploadBusy]=useState(false);
- const [media,setMedia]=useState<Array<{id:string;purpose:string;mime:string;url:string;createdAt:string}>>([]);
+ const [media,setMedia]=useState<Array<{id:string;purpose:string;mime:string;url:string;createdAt:string;practiceId?:string}>>([]);
+ const [practiceMediaFiles,setPracticeMediaFiles]=useState<PracticeMediaFiles>({image1:null,image2:null,audio:null,video:null});
+ const [pendingPracticeMediaId,setPendingPracticeMediaId]=useState('');
+ const setPracticeMediaFile=(slot:PracticeMediaSlot,file:File|null)=>setPracticeMediaFiles(old=>({...old,[slot]:file}));
  const loadExtras=async(id:string)=>{try{const x=await cloud.api.learnerExtras(inst,id);setExtras(x);setPreferredName(x.profile.preferredName);setContactPhone(x.profile.phone);setAbout(x.profile.about);const files=await cloud.api.listLearnerMedia(inst,id);setMedia(files.records)}catch(e){setError(e instanceof Error?e.message:'Unable to load student profile')}};
  const updateProfile=async(e:React.FormEvent)=>{e.preventDefault();if(!activeId||!extras)return;try{await cloud.api.saveLearnerProfile(inst,activeId,{preferredName,phone:contactPhone,about,expectedVersion:extras.profile.version});await loadExtras(activeId);setMessage('Profile preferences saved')}catch(e){setError(e instanceof Error?e.message:'Unable to save profile')}};
- const uploadEvidence=async(file:File,purpose:'profile'|'homework'|'practice')=>{if(!activeId)return;setUploadBusy(true);setError('');try{const signed=await cloud.api.beginLearnerMedia(inst,activeId,{mime:file.type,size:file.size,purpose});const r=await fetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type},body:file});if(!r.ok)throw Error(`Private upload failed (${r.status}). Check bucket CORS and credentials.`);await cloud.api.finishLearnerMedia(inst,activeId,signed.key,purpose);const results=await cloud.api.listLearnerMedia(inst,activeId);setMedia(results.records);setMessage('File uploaded privately')}catch(e){setError(e instanceof Error?e.message:'Unable to upload file')}finally{setUploadBusy(false)}};
+ const uploadEvidence=async(file:File,purpose:'profile'|'homework'|'practice',practiceId?:string):Promise<boolean>=>{if(!activeId)return false;const mime=practiceUploadMime(file);if(purpose==='practice'){const limits:Record<string,number>={'image/jpeg':5_000_000,'image/png':5_000_000,'image/webp':5_000_000,'image/heic':10_000_000,'image/heif':10_000_000,'audio/mpeg':20_000_000,'audio/mp4':20_000_000,'audio/aac':20_000_000,'audio/wav':20_000_000,'audio/x-wav':20_000_000,'video/mp4':100_000_000,'video/quicktime':100_000_000,'video/3gpp':100_000_000};if(!practiceId||!limits[mime]||file.size>limits[mime]){setError('Choose supported media within the size limit.');return false;}}setUploadBusy(true);setError('');try{const signed=await cloud.api.beginLearnerMedia(inst,activeId,{mime,size:file.size,purpose,...(practiceId?{practiceId}:{})});const r=await fetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':mime},body:file});if(!r.ok)throw Error(`Private upload failed (${r.status}). Check bucket CORS and credentials.`);await cloud.api.finishLearnerMedia(inst,activeId,signed.key,purpose);const results=await cloud.api.listLearnerMedia(inst,activeId);setMedia(results.records);if(purpose!=='practice')setMessage('Upload complete.');return true}catch(e){setError(e instanceof Error?e.message:'Unable to upload file');return false}finally{setUploadBusy(false)}};
 
  const [message,setMessage]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);
- const [students,setStudents]=useState<Array<{id:string;name:string;rollNumber:string;kind:string;relationship?:'parent'|'child'|'unknown'}>>([]);
+ const [students,setStudents]=useState<Array<{id:string;name:string;rollNumber:string;kind:string;relationship?:'self'|'parent'|'child'|'unknown'}>>([]);
  const showFamilyDashboard = new Set(students.map(s=>s.id)).size >= 2;
  const [activeId,setActiveId]=useState('');
+ useEffect(()=>{setPracticeMediaFiles({image1:null,image2:null,audio:null,video:null});setPendingPracticeMediaId('')},[activeId,inst]);
+
  const activeDashboardRef=useRef<{institution:InstitutionId;studentId:string}>({institution:inst,studentId:''});
  useEffect(()=>{setRsvpEditing(false)},[activeId]);
- const [homework,setHomework]=useState<Array<{id:string;classId:string;title:string;instructions:string;dueDate:string;completed:boolean;submissionStatus?:'draft'|'submitted'|null;closed?:boolean}>>([]);
+ const [homework,setHomework]=useState<Array<{id:string;classId:string;title:string;instructions:string;dueDate:string;createdAt?:string;completed:boolean;submissionStatus?:'draft'|'submitted'|null;closed?:boolean}>>([]);
  const [selectedHomework,setSelectedHomework]=useState('');
  const [homeworkText,setHomeworkText]=useState('');
  const [submission,setSubmission]=useState<{text:string;status:'draft'|'submitted';version:number;attachmentIds:string[];feedback?:string;reviewedAt?:string|null}|null>(null);
@@ -87,16 +103,18 @@ export function useStudentPortalController({
  const [attachments,setAttachments]=useState<Array<{id:string;mime:string;url:string}>>([]);
  const uploadHomeworkFiles=async(files:FileList|null)=>{if(!files||!activeId||!selectedHomework||!submissionEditable||!submission)return;
   const newFiles=Array.from(files);
-  const acceptedMime=['image/jpeg','image/png','image/webp','audio/mpeg','audio/mp4','video/mp4'];
-  const maxBytes=(mime:string)=>mime.startsWith('image/')?5_000_000:mime.startsWith('audio/')?20_000_000:100_000_000;
+  const acceptedMime=['image/jpeg','image/png','image/webp'];
+  const maxBytes=()=>5_000_000;
   let ids=[...submission.attachmentIds];let selected=attachments.filter(x=>ids.includes(x.id)).map(x=>x.mime);
-  const nextTypes=[...selected,...newFiles.map(x=>x.type)];
+  const newMimes=newFiles.map(supportedHomeworkMime);
+  const nextTypes=[...selected,...newMimes];
   const count=(kind:string)=>nextTypes.filter(x=>x.startsWith(`${kind}/`)).length;
-  if(nextTypes.length>4||count('image')>2||count('audio')>1||count('video')>1||newFiles.some(x=>!acceptedMime.includes(x.type)||x.size<=0||x.size>maxBytes(x.type))){setError('Maximum 2 images (5 MB each), 1 MP3/M4A audio (20 MB), and 1 MP4 video (100 MB)');return;}
+  if(nextTypes.length>3||newFiles.some((x,i)=>!acceptedMime.includes(newMimes[i])||x.size<=0||x.size>maxBytes())){setError('Homework accepts up to 3 JPEG, PNG or WebP images (5 MB each).');return;}
   setSubmissionBusy(true);setError('');try{for(const file of newFiles){
-   const signed=await cloud.api.beginHomeworkEvidence(inst,activeId,selectedHomework,file.type,file.size);
-   const result=await fetch(signed.uploadUrl,{method:'PUT',headers:signed.headers,body:file});if(!result.ok)throw Error(`Private upload failed (${result.status})`);
-   const confirmed=await cloud.api.finishHomeworkEvidence(inst,activeId,selectedHomework,signed.key);ids.push(confirmed.attachmentId);selected.push(file.type);setAttachments(a=>[...a,{id:confirmed.attachmentId,mime:file.type,url:''}]);
+   const mime=supportedHomeworkMime(file);
+   const signed=await cloud.api.beginHomeworkEvidence(inst,activeId,selectedHomework,mime,file.size);
+   const result=await fetch(signed.uploadUrl,{method:'PUT',headers:{...signed.headers,'Content-Type':mime},body:file});if(!result.ok)throw Error(`Private upload failed (${result.status})`);
+   const confirmed=await cloud.api.finishHomeworkEvidence(inst,activeId,selectedHomework,signed.key);ids.push(confirmed.attachmentId);selected.push(mime);setAttachments(a=>[...a,{id:confirmed.attachmentId,mime,url:''}]);
   }setSubmission(old=>old?{...old,attachmentIds:ids}:old);setMessage('Files uploaded. Save your draft or submit to attach them to homework.');}catch(e){setError(e instanceof Error?e.message:'Private media upload failed.');setSubmission(old=>old?{...old,attachmentIds:ids}:old)}finally{setSubmissionBusy(false)}};
 
  const openAssignment=async(id:string)=>{if(!activeId)return;setConfirmHomework(null);setError('');setSelectedHomework(id);setHomeworkDrawerOpen(true);setSubmission(null);try{const r=await cloud.api.getHomeworkSubmission(inst,activeId,id);setSubmission(r.record);setHomeworkText(r.record.text);setSubmissionEditable(r.editable);setAttachments((await cloud.api.homeworkEvidenceLinks(inst,activeId,id)).records)}catch(e){setError(e instanceof Error?e.message:'Could not load assignment')}};
@@ -113,7 +131,13 @@ export function useStudentPortalController({
  const [edit,setEdit]=useState<{id:string;version:number}|null>(null);
  const [savingRsvp,setSavingRsvp]=useState(false);
  const todayUK=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- const changeRsvp=async(sessionId:string,intention:'attending'|'not_attending'|'unknown')=>{if(!activeId||savingRsvp)return;setSavingRsvp(true);setError('');try{await cloud.api.saveLearnerRsvp(inst,activeId,sessionId,intention);await loadDetail(activeId);setMessage('RSVP saved. Your teacher can see your response.')}catch(e){setError(e instanceof Error?e.message:'RSVP could not be saved')}finally{setSavingRsvp(false)}};
+ const canChangeRsvp=(session:{date:string;startTime?:string;status?:string})=>{
+  const status=String(session.status||'').toLowerCase();
+  if(['cancelled','canceled','deleted'].includes(status)||session.date<todayUK())return false;
+  const start=String(session.startTime||'');
+  return session.date!==todayUK()||!/^([01]\d|2[0-3]):[0-5]\d/.test(start)||ukClock()<start.slice(0,5);
+ };
+ const changeRsvp=async(sessionId:string,intention:'attending'|'not_attending'|'unknown')=>{if(!activeId||savingRsvp)return;setSavingRsvp(true);setError('');try{await cloud.api.saveLearnerRsvp(inst,activeId,sessionId,intention);await loadDetail(activeId);setMessage('RSVP saved. Your teacher can see your response.')}catch(e){const message=e instanceof Error?e.message:'RSVP could not be saved';if(message.includes('upcoming classes')){await loadDetail(activeId);setError('RSVP is no longer available for this session. Your class list has been refreshed.')}else setError(message)}finally{setSavingRsvp(false)}};
  const upcomingSessions = detail
    ? Array.from(
      new Map(
@@ -125,7 +149,7 @@ export function useStudentPortalController({
           ? detail.nextSessions
           : []),
        ]
-         .filter(s => s.date >= todayUK())
+        .filter(s => canChangeRsvp(s))
          .map(s => [s.sessionId, s] as const)
      ).values()
    )
@@ -149,7 +173,7 @@ export function useStudentPortalController({
    if(selectedStudentId!==activeId) void loadDetail(selectedStudentId);
  },[loading,embedded,selectedStudentId,students,activeId,detailLoading]);
  // Embedded View As selection is owned by App; loading data must never write it back.
- const savePractice=async(e:React.FormEvent)=>{e.preventDefault();if(!activeId)return;setError('');setMessage('');try{await cloud.api.saveLearnerPractice(inst,activeId,{classId,date,minutes,topic,comments:notes},edit||undefined);setMessage('Practice saved.');setEdit(null);setTopic('');setNotes('');await loadDetail(activeId)}catch(e){setError(e instanceof Error?e.message:'Unable to save practice')}};
+ const savePractice=async(e:React.FormEvent)=>{e.preventDefault();if(!activeId)return;setError('');setMessage('');try{let practiceId=pendingPracticeMediaId;if(!practiceId){const saved=await cloud.api.saveLearnerPractice(inst,activeId,{classId,date,minutes,topic,comments:notes},edit||undefined);practiceId=saved.record.id;setPendingPracticeMediaId(practiceId)}const pending=Object.entries(practiceMediaFiles) as [PracticeMediaSlot,File|null][];for(const [slot,file] of pending){if(!file)continue;const ok=await uploadEvidence(file,'practice',practiceId);if(!ok){setMessage('Practice saved. Retry to finish uploading the selected media.');await loadDetail(activeId);return}setPracticeMediaFile(slot,null)}setMessage('Practice saved.');setPendingPracticeMediaId('');setEdit(null);setPracticeMediaFiles({image1:null,image2:null,audio:null,video:null});setTopic('');setNotes('');await loadDetail(activeId)}catch(e){setError(e instanceof Error?e.message:'Unable to save practice')}};
  const [rollNumber,setRollNumber]=useState('');const [kind,setKind]=useState<'student'|'guardian'>('guardian');const [requestBusy,setRequestBusy]=useState(false);
 
  useEffect(()=>{
@@ -191,6 +215,6 @@ export function useStudentPortalController({
  useEffect(()=>{if(!activeId||tab!=='venues'){return;}let live=true;setDirectory(null);setDirectoryError('');setDirectoryBusy(true);cloud.api.learnerAcademyDirectory(inst,activeId).then(r=>{if(live)setDirectory(r)}).catch(e=>{if(live)setDirectoryError(e instanceof Error?e.message:'Directory unavailable')}).finally(()=>{if(live)setDirectoryBusy(false)});return()=>{live=false};},[cloud,inst,activeId,tab]);
  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(requestBusy)return;setError('');setMessage('');const roll=rollNumber.trim();if(students.some(s=>s.rollNumber===roll)){setMessage('You already have approved access to this student in the selected academy.');return}setRequestBusy(true);try{const result=await cloud.api.requestStudentLinkByRoll(inst,roll,kind);if(result.status==='approved')setMessage('You already have approved access to this student.');else if(!result.submitted&&result.status==='pending')setMessage('Your request is already awaiting administrator review.');else setMessage('Request submitted for independent administrator verification. Access has not been granted.');setRollNumber('');setAccessModalOpen(false)}catch(e){const msg=e instanceof Error?e.message:'Unable to submit request';setError(msg.includes('Provide student record ID')?'The live API is still using the old student-ID validator. Redeploy the v12.7.4+ backend code, then retry.':msg)}finally{setRequestBusy(false)}};
  
-return {cloud,initialInstitution,embedded,page,selectedStudentId,onStudentChange,onNavigate,inst,setInst,tab,setTab,navigateTo,sidebarOpen,setSidebarOpen,familyExpanded,setFamilyExpanded,accessModalOpen,setAccessModalOpen,rsvpEditing,setRsvpEditing,academyMenuOpen,setAcademyMenuOpen,homeworkDrawerOpen,setHomeworkDrawerOpen,calendarView,setCalendarView,calendarAnchor,setCalendarAnchor,weekAnchor,setWeekAnchor,extras,setExtras,directory,setDirectory,approvedStaff,setApprovedStaff,approvedStaffBusy,setApprovedStaffBusy,approvedStaffError,setApprovedStaffError,directoryBusy,setDirectoryBusy,directoryError,setDirectoryError,preferredName,setPreferredName,contactPhone,setContactPhone,about,setAbout,uploadBusy,setUploadBusy,media,setMedia,loadExtras,updateProfile,uploadEvidence,students,setStudents,showFamilyDashboard,activeId,setActiveId,homework,setHomework,selectedHomework,setSelectedHomework,homeworkText,setHomeworkText,submission,setSubmission,submissionEditable,setSubmissionEditable,submissionBusy,setSubmissionBusy,confirmHomework,setConfirmHomework,attachments,setAttachments,uploadHomeworkFiles,openAssignment,saveAssignment,homeworkBusy,setHomeworkBusy,loadHomework,markHomework,detailLoading,setDetailLoading,detail,setDetail,edit,setEdit,savingRsvp,setSavingRsvp,todayUK,changeRsvp,upcomingSessions,classId,setClassId,date,setDate,minutes,setMinutes,topic,setTopic,notes,setNotes,loadDetail,savePractice,rollNumber,setRollNumber,kind,setKind,requestBusy,setRequestBusy,message,setMessage,error,setError,loading,setLoading,submit};
+return {cloud,initialInstitution,embedded,page,selectedStudentId,onStudentChange,onNavigate,inst,setInst,tab,setTab,navigateTo,sidebarOpen,setSidebarOpen,familyExpanded,setFamilyExpanded,accessModalOpen,setAccessModalOpen,rsvpEditing,setRsvpEditing,academyMenuOpen,setAcademyMenuOpen,homeworkDrawerOpen,setHomeworkDrawerOpen,calendarView,setCalendarView,calendarAnchor,setCalendarAnchor,weekAnchor,setWeekAnchor,extras,setExtras,directory,setDirectory,selectedVenueQuery,setSelectedVenueQuery,approvedStaff,setApprovedStaff,approvedStaffBusy,setApprovedStaffBusy,approvedStaffError,setApprovedStaffError,directoryBusy,setDirectoryBusy,directoryError,setDirectoryError,preferredName,setPreferredName,contactPhone,setContactPhone,about,setAbout,uploadBusy,setUploadBusy,media,setMedia,practiceMediaFiles,setPracticeMediaFile,pendingPracticeMediaId,loadExtras,updateProfile,uploadEvidence,students,setStudents,showFamilyDashboard,activeId,setActiveId,homework,setHomework,selectedHomework,setSelectedHomework,homeworkText,setHomeworkText,submission,setSubmission,submissionEditable,setSubmissionEditable,submissionBusy,setSubmissionBusy,confirmHomework,setConfirmHomework,attachments,setAttachments,uploadHomeworkFiles,openAssignment,saveAssignment,homeworkBusy,setHomeworkBusy,loadHomework,markHomework,detailLoading,setDetailLoading,detail,setDetail,edit,setEdit,savingRsvp,setSavingRsvp,todayUK,canChangeRsvp,changeRsvp,upcomingSessions,classId,setClassId,date,setDate,minutes,setMinutes,topic,setTopic,notes,setNotes,loadDetail,savePractice,rollNumber,setRollNumber,kind,setKind,requestBusy,setRequestBusy,message,setMessage,error,setError,loading,setLoading,submit};
 }
 export type StudentPortalContext = ReturnType<typeof useStudentPortalController>;

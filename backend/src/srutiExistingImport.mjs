@@ -67,8 +67,8 @@ export async function srutiExistingIdentityImport(db,registrationId,actorSub,bod
      personName(p)!==norm(submitted.fullName)||
      p.studentProfile?.dateOfBirth!==submitted.dateOfBirth)
     fail(409,'Student identity/academy/date-of-birth mismatch; do not create a duplicate.');
-  // A Raagasudha link is NOT a Sruti permission grant. It establishes an
-  // independently verified existing family relationship; Sruti stays pending.
+  // The approved Sruti registration and explicit canonical identity mapping
+  // establish the submitted relationship for the new academy membership.
   const existing=await get(db,'family-links','linkId',guardianLinkId('raaga',guardian.personId,p.personId));
   if(!existing||existing.familyId!==family.familyId||existing.guardianPersonId!==guardian.personId||
      existing.studentId!==p.personId||existing.institutionId!=='raaga'||
@@ -87,7 +87,7 @@ export async function srutiExistingIdentityImport(db,registrationId,actorSub,bod
  if(mapping.some(row=>!row.rollNumber))fail(409,'Student permanent roll number must be reconciled before cross-academy linking.');
  if(!execute)return {preview:true,readyForExecute:true,registrationId:marker,studentCount:students.length,
   existingFamilyId:family.familyId,studentMappings:mapping,
-  guardianLinksToCreate:'pending',noNewPeople:true,noNewCognitoUsers:true};
+  guardianLinksToCreate:'verified-from-approved-registration',noNewPeople:true,noNewCognitoUsers:true};
  const tx=[];
  const counterAction=(name,existing,next)=>({Update:{TableName:table('counters'),Key:{counterId:`sruti#${name}`},
   UpdateExpression:'SET lastAllocated=:next, institutionId=:inst, sequenceType=:kind, updatedAt=:now',
@@ -102,13 +102,14 @@ export async function srutiExistingIdentityImport(db,registrationId,actorSub,bod
   const studentProfile={...p.studentProfile,rollNumber:mapping[i].rollNumber,rollNumbers,srutiLearning:{gender:s.gender,school:s.school,interests:s.interests,experience:s.experience,medicalNotes:s.medicalNotes,allergies:s.allergies}};
   tx.push(conditionalUpdate('people','personId',p.personId,p,{institutionIds:[...p.institutionIds,'sruti'],studentProfile,version:p.version+1,updatedAt:t}));
   const link={linkId:guardianLinkId('sruti',guardian.personId,p.personId),recordType:'guardian-access',institutionId:'sruti',familyId:family.familyId,personId:guardian.personId,
-   guardianPersonId:guardian.personId,studentId:p.personId,relationship:'unverified',accessStatus:'pending',relationshipVerified:false,
+   guardianPersonId:guardian.personId,studentId:p.personId,relationship:'parent',accessStatus:'approved',relationshipVerified:true,
+   verificationSource:'approved-website-registration',evidenceReference:body.evidenceReference,reviewedBy:actorSub,reviewedAt:t,
    sourceWebsiteRegistrationId:registrationId,createdAt:t,updatedAt:t,version:1};
   tx.push(newPut('family-links','linkId',link));
  }
  const reg={registrationId:marker,institutionId:'sruti',source:'website',externalRegistrationId:registrationId,
   externalRegistrationKey:`sruti#website#${registrationId}`,registrationType:'child',status:'imported',reviewStatus:'approved',importStatus:'imported',
-  identityResolutionStatus:'pending_guardian_verification',familyId:family.familyId,studentIds:students.map(p=>p.personId),
+  identityResolutionStatus:'registration_relationships_verified',familyId:family.familyId,studentIds:students.map(p=>p.personId),
   sourceStudentIds:Object.fromEntries(mapping.map(m=>[m.sourcePersonId,m.personId])),websiteSyncStatus:'not-required',
   provisioningStatus:'EXISTING_ACCOUNT_LINKED',submittedAt:src.submittedAt,importedAt:t,updatedAt:t,createdAt:t,version:1};
  tx.push(newPut('registrations','registrationId',reg));
@@ -124,7 +125,7 @@ export async function srutiExistingIdentityImport(db,registrationId,actorSub,bod
  try{await db.send(new TransactWriteCommand({TransactItems:tx}));}
  catch(e){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes(e?.name))fail(409,'Records changed or Sruti membership already exists; refresh the preview.');throw e;}
  return {imported:true,registrationId:marker,familyId:family.familyId,studentIds:students.map(p=>p.personId),studentRollNumbers:Object.fromEntries(mapping.map(m=>[m.sourcePersonId,m.rollNumber])),
-  pendingGuardianLinks:students.length,noNewPeople:true,noNewCognitoUsers:true};
+  verifiedGuardianLinks:students.length,noNewPeople:true,noNewCognitoUsers:true};
 }
 let instance;
 export function finalSrutiExistingImporter(){

@@ -20,12 +20,13 @@ test('no import when live split mode even with every permission enabled',async()
 test('exact reference confirmation and fresh-only shape prevent legacy silent family creation',async()=>{
  for(const body of [{preview:false},{preview:false,confirmReference:'RS-778'},{linkFamilyId:'family1',preview:false,confirmReference:'RS-777'},{}]){
   const {calls,deps}=harness();const result=await finalRaagaIntakeRoute(context('import',body),deps,env);
-  assert.equal(result.status,503);assert.deepEqual(calls,[]);
+  assert.equal(result.status,400);assert.deepEqual(calls,[]);
  }
 });
 test('verified fresh import calls canonical transaction service with authenticated actor only',async()=>{
  const {calls,deps}=harness();const result=await finalRaagaIntakeRoute(context(),deps,env);
  assert.equal(result.status,200);assert.equal(result.body.imported,true);
+ assert.equal(result.body.guardianRelationshipsVerified,true);
  assert.equal(result.body.guardianAccessGranted,false);assert.equal(result.body.invitationSent,false);
  assert.deepEqual(calls,['config',['execute','RS-777','verified-admin']]);
 });

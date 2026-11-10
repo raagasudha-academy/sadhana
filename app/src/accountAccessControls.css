@@ -29,7 +29,7 @@
 .access-review-modal-v2 .access-review-checkbox{display:flex;align-items:start;gap:10px;margin-top:18px;font-size:13px;font-weight:550;line-height:1.5;color:#334762;cursor:pointer}
 .access-review-modal-v2 .access-review-checkbox input{appearance:auto;width:17px;height:17px;min-width:17px;margin:1px 0 0;accent-color:#30486e}
 .access-review-modal-v2 .access-verification-reference{display:grid;gap:7px;margin-top:16px;font-size:12px;font-weight:650;color:#34455d}
-.access-review-modal-v2 .access-verification-reference input{box-sizing:border-box;width:100%;min-height:42px;border:1px solid #cbd5e3;border-radius:9px;padding:9px 12px;font-size:14px;font-weight:400;color:#273850;background:white}
+.access-review-modal-v2 .access-verification-reference :is(input,textarea){box-sizing:border-box;width:100%;min-height:42px;border:1px solid #cbd5e3;border-radius:9px;padding:9px 12px;font:inherit;font-size:14px;font-weight:400;color:#273850;background:white;resize:vertical}
 .access-review-modal-v2 .access-verification-reference small{font-size:11px;font-weight:400;color:#677a91;line-height:1.5}
 .access-console .access-review-modal-v2 .access-review-actions{display:flex;gap:10px;justify-content:flex-end;margin:24px 0 0}
 .access-console .access-review-modal-v2 .access-review-actions button{min-height:42px;font-size:13px!important;line-height:1.2!important;border-radius:9px;padding:10px 16px;margin:0}

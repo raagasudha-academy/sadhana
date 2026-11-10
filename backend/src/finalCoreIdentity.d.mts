@@ -13,6 +13,9 @@ export interface FinalCoreIdentityDependencies {
     request:(inst:InstitutionId,claims:Claims,body:RecordValue)=>Promise<unknown>;
     decide:(inst:InstitutionId,claims:Claims,body:RecordValue)=>Promise<unknown>;
   };
+  guardianReader:()=>{
+    studentForRoll:(inst:InstitutionId,rollNumber:string)=>Promise<string|null>;
+  };
 }
 export interface FinalCoreIdentityAccess {
   admin:(claims:Claims,inst:InstitutionId)=>void;

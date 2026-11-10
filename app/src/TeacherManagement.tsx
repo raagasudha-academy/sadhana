@@ -164,6 +164,12 @@ export default function TeacherManagement({
     }
   };
 
+  // An inactive profile without a linked Sadhana login is newly registered,
+  // not archived. Keep it visible so an administrator can finish setup.
+  const visibleTeachers = teachers.filter(t => showArchived
+    ? !t.active && !!t.cognitoSub
+    : t.active || !t.cognitoSub);
+
   const openForm = (teacher?: TeacherRecord) => {
     setEditing(teacher || null);
     setEditingPhotoUrl(teacher?.photoUrl || '');
@@ -247,14 +253,14 @@ export default function TeacherManagement({
         <div className="teacher-section-title">
           <h2>Registered Teachers</h2>
           <span className="teacher-section-count">
-            {teachers.length} profiles
+            {visibleTeachers.length} {showArchived ? 'archived' : 'profiles'}
           </span>
         </div>
       
     
       </div>
       <div className="venue-manage-grid">
-        {teachers.filter(t => showArchived ? !t.active : t.active).map(t => <article key={t.id} className="venue-manage-card teacher-card">
+        {visibleTeachers.map(t => <article key={t.id} className="venue-manage-card teacher-card">
           {isAdmin && (
             <div className="teacher-card-actions">
               <button
@@ -269,8 +275,8 @@ export default function TeacherManagement({
               <button
                 type="button"
                 className="teacher-card-icon"
-                title={t.active ? 'Archive teacher' : 'Restore teacher'}
-                aria-label={`${t.active ? 'Archive' : 'Restore'} ${t.displayName}`}
+                title={t.active ? 'Archive teacher' : !t.cognitoSub ? 'Activate teacher' : 'Restore teacher'}
+                aria-label={`${t.active ? 'Archive' : !t.cognitoSub ? 'Activate' : 'Restore'} ${t.displayName}`}
                 disabled={archiveBusyId === t.id}
                 onClick={() => void setTeacherArchived(t, t.active)}
               >
@@ -286,12 +292,12 @@ export default function TeacherManagement({
             <strong>{t.displayName}</strong>
           </div>
           <p>{t.subjects.join(', ')}</p>
-          <small>{t.active ? 'Active' : 'Inactive'}</small>
+          <small>{t.active ? 'Active' : !t.cognitoSub ? 'Inactive · login not linked' : 'Archived'}</small>
           <p><small>{t.institutions
             .map(i => institutions[i].name).join(' · ')}</small></p>
           {!t.cognitoSub && isAdmin && (
             <p className="teacher-login-note">
-              Portal login not linked
+              Link a Sadhana login before assigning classes.
             </p>
           )}
           
@@ -299,8 +305,8 @@ export default function TeacherManagement({
       
 </article>)}
       </div>
-      {!teachers.length &&
-        <p className="reg-footnote">No registered teachers yet.</p>}
+      {!visibleTeachers.length &&
+        <p className="reg-footnote">{showArchived?'No archived teachers.':'No registered teachers yet.'}</p>}
     </section>
 
     {editing !== undefined && <div className="reg-shade">
@@ -369,6 +375,7 @@ export default function TeacherManagement({
                 }))}/>
               {institutions[i].name}
             </label>)}
+            <small className="teacher-institution-help">Adding an academy requires administrator access to every selected academy. Removing one needs separate review.</small>
           </fieldset>
 
           <fieldset className="reg-field">

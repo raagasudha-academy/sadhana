@@ -24,6 +24,12 @@ test('final admin queue maps canonical guardian records to existing UI and separ
  assert.equal(q.source,'final');assert.deepEqual(q.records,[{studentId:student.personId,subject:sub,kind:'guardian',status:'pending',version:2}]);
  assert.equal(q.identities[sub].verified,true);
 });
+test('final guardian queue includes cross-family requests for separate evidence review',async()=>{
+ const separated={...guardian,familyId:'FAMILY-OTHER'};
+ const pending={...row,guardianFamilyId:'FAMILY-OTHER'};
+ const result=await finalGuardianQueue(inst,reader({links:async()=>[pending],link:async()=>pending,person:async id=>id===guardian.personId?separated:student}));
+ assert.equal(result.records.length,1);assert.equal(result.records[0].familyReviewRequired,true);
+});
 test('queue excludes wrong institution rather than disclosing it',async()=>{
  const q=await finalGuardianQueue(inst,reader({links:async()=>[{...row,institutionId:'sruti'}]}));
  assert.deepEqual(q.records,[]);

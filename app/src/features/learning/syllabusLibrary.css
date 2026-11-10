@@ -1,0 +1,120 @@
+.syllabus-library{display:grid;gap:22px;color:#29384f;min-width:0}
+.syllabus-library-heading>span,.syllabus-modal header span{color:#a47a33;font-size:12px;font-weight:800;letter-spacing:.16em}
+.syllabus-library-heading h1{margin:5px 0 4px;color:#29364b;font-size:clamp(27px,2.45vw,35px);font-weight:740;line-height:1.18;letter-spacing:-.035em}
+.syllabus-library-heading p,.syllabus-library-toolbar p{margin:0;color:#71829b;font-size:14px;line-height:1.5}
+.syllabus-library-tabs{display:inline-flex;justify-self:start;gap:5px;padding:5px;border:1px solid #dce5f0;border-radius:14px;background:#edf1f6}
+.syllabus-library-tabs button{min-height:42px;padding:0 20px;border:1px solid transparent;border-radius:10px;background:transparent;color:#586b86;font:inherit;font-weight:700;cursor:pointer}
+.syllabus-library-tabs button.active{border-color:#d5e0ee;background:#fff;color:#304c72;box-shadow:0 2px 5px rgba(30,53,82,.08)}
+.syllabus-library-panel{display:grid;gap:22px;min-width:0}
+.syllabus-library-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 22px;border:1px solid #dce5f0;border-radius:16px;background:#fff}
+.syllabus-library-toolbar h2{margin:0 0 5px;font-size:19px;line-height:1.3;letter-spacing:-.02em}
+.syllabus-library-actions,.syllabus-card-actions,.syllabus-card-actions>div{display:flex;align-items:center;gap:8px}
+.syllabus-primary,.syllabus-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 15px;border:1px solid #d5e0ee;border-radius:10px;background:#fff;color:#304c72;font:inherit;font-weight:700;cursor:pointer}
+.syllabus-primary{border-color:#1c3d63;background:#1c3d63;color:#fff}
+.syllabus-primary:disabled,.syllabus-secondary:disabled{opacity:.55;cursor:wait}
+.syllabus-group{display:grid;gap:12px}
+.syllabus-group>h3{display:flex;align-items:center;gap:10px;margin:0;padding-bottom:9px;border-bottom:1px solid #dce5f0;font-size:17px;line-height:1.35}
+.syllabus-group-count{display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border:1px solid #e3e8ef;border-radius:999px;background:#fff;color:#71829b;font-size:12px;font-weight:700}
+.syllabus-programmes{display:grid;gap:22px}
+.syllabus-programme{display:grid;gap:16px;padding:20px;border:1px solid #dce5f0;border-radius:16px;background:#fff}
+.syllabus-programme-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.syllabus-programme-heading>div>span{color:#a47a33;font-size:10px;font-weight:800;letter-spacing:.14em}
+.syllabus-programme-heading h3{margin:3px 0 0;color:#29364b;font-size:20px;line-height:1.3;letter-spacing:-.02em}
+.syllabus-stage-timeline{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:3px 0 8px;scrollbar-width:thin}
+.syllabus-stage-timeline>a,.syllabus-stage-timeline>span{position:relative;display:flex;flex:1 0 135px;flex-direction:column;gap:5px;min-width:0;padding:0 14px 0 25px;color:#344862;text-decoration:none}
+.syllabus-stage-timeline>a::before,.syllabus-stage-timeline>span::before{position:absolute;top:8px;right:0;left:0;height:2px;background:#dce5f0;content:""}
+.syllabus-stage-timeline>a:first-child::before,.syllabus-stage-timeline>span:first-child::before{left:25px}
+.syllabus-stage-timeline>a:last-child::before,.syllabus-stage-timeline>span:last-child::before{right:calc(100% - 25px)}
+.syllabus-timeline-dot{position:relative;z-index:1;display:block;width:17px;height:17px;border:4px solid #fff;border-radius:50%;background:#b5965e;box-shadow:0 0 0 1px #c7b07e}
+.syllabus-stage-timeline>a strong,.syllabus-stage-timeline>span strong{font-size:13px;line-height:1.3}
+.syllabus-stage-timeline>a small,.syllabus-stage-timeline>span small{color:#71829b;font-size:11px;line-height:1.3}
+.syllabus-stage-timeline a:hover strong,.syllabus-stage-timeline a:focus-visible strong{color:#1c3d63;text-decoration:underline;text-underline-offset:3px}
+.syllabus-stage-timeline a:focus-visible{border-radius:8px;outline:3px solid #9bbcff;outline-offset:2px}
+.syllabus-stage-timeline>.is-unpublished{color:#97a2b2;cursor:default}
+.syllabus-stage-timeline>.is-unpublished .syllabus-timeline-dot{background:#c5ccd6;box-shadow:0 0 0 1px #d5dbe3}
+.syllabus-stage-timeline>.is-unpublished strong,.syllabus-stage-timeline>.is-unpublished small{color:#97a2b2}
+.syllabus-stage-timeline>.is-current strong{color:#9b742e}
+.syllabus-stage-timeline>.is-current .syllabus-timeline-dot{background:#b5965e;box-shadow:0 0 0 1px #c7a961}
+.syllabus-journey{display:grid;gap:18px}
+.syllabus-stage-section{display:grid;gap:10px;scroll-margin-top:20px}
+.syllabus-stage-section>h4{margin:0;padding-bottom:8px;border-bottom:1px solid #e8edf4;color:#405572;font-size:14px;line-height:1.4}
+.syllabus-stage-items{position:relative;display:grid;gap:10px;padding-left:25px}
+.syllabus-stage-items::before{position:absolute;top:0;bottom:0;left:8px;width:2px;background:#e5ebf3;content:""}
+.syllabus-stage-item{position:relative;display:flex;gap:12px;min-width:0;padding:14px 16px;border:1px solid #e1e8f1;border-radius:12px;background:#fbfcfe}
+.syllabus-stage-marker{position:absolute;top:15px;left:-25px;z-index:1;display:grid;width:20px;height:20px;place-items:center;border:2px solid #fff;border-radius:50%;background:#eef2fa;color:#5b719b;box-shadow:0 0 0 1px #d9e2ef}
+.syllabus-stage-content{display:grid;flex:1;gap:9px;min-width:0}
+.syllabus-stage-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.syllabus-stage-badges{display:flex;align-items:center;gap:7px}
+.syllabus-stage-edit{display:inline-flex;align-items:center;justify-content:center;width:28px;height:25px;padding:0;border:1px solid #dce5f0;border-radius:7px;background:#fff;color:#526b8e;cursor:pointer}
+.syllabus-stage-edit:hover{border-color:#bdcce0;background:#f7f9fc}
+.syllabus-stage-edit:focus-visible{outline:3px solid #9bbcff;outline-offset:2px}
+.syllabus-stage-card-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:none}
+.syllabus-stage-card-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:29px;padding:0 8px;border:1px solid #dce5f0;border-radius:7px;background:#fff;color:#425a7b;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.syllabus-stage-card-actions button:hover{border-color:#bdcce0;background:#f7f9fc}
+.syllabus-stage-card-actions button.syllabus-delete{color:#9a4141}
+.syllabus-stage-card-actions button.syllabus-delete:hover{border-color:#e1bcbc;background:#fff7f6}
+.syllabus-stage-card-actions button:focus-visible{outline:3px solid #9bbcff;outline-offset:2px}
+.syllabus-level-pill{display:inline-flex;align-items:center;min-height:23px;padding:0 9px;border:1px solid #e4d6b6;border-radius:999px;background:#faf5e9;color:#87682f;font-size:11px;font-weight:750;white-space:nowrap}
+.syllabus-stage-summary{display:grid;gap:8px;min-width:0}
+.syllabus-stage-summary>h5{margin:0;color:#29364b;font-size:15px;line-height:1.4;letter-spacing:-.01em}
+.syllabus-stage-summary>.syllabus-student-message{margin:0;padding:9px 11px;border-left:3px solid #b5965e;border-radius:0 9px 9px 0;background:#faf7f0;color:#475a76;font-size:14px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
+.syllabus-stage-meta{display:flex;flex-wrap:wrap;gap:7px;color:#657894;font-size:12px}
+.syllabus-stage-meta span{padding:4px 8px;border:1px solid #e6ebf2;border-radius:999px;background:#f7f9fc}
+.syllabus-stage-grid{display:grid;grid-template-columns:minmax(220px,.85fr) minmax(0,1.4fr);align-items:start;gap:14px;min-width:0}
+.syllabus-stage-learning{display:grid;gap:10px;min-width:0;padding:11px 13px;border:1px solid #e4eaf2;border-radius:10px;background:#fff;color:#596b84;font-size:13px;line-height:1.5}
+.syllabus-stage-learning>div+div{padding-top:9px;border-top:1px solid #edf1f6}
+.syllabus-stage-learning strong{display:block;margin-bottom:3px;color:#a47a33;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+.syllabus-stage-learning p{margin:0;white-space:pre-line;overflow-wrap:anywhere}
+.syllabus-stage-content>.syllabus-card-actions{padding-top:2px}
+.syllabus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.syllabus-card{display:flex;gap:14px;min-width:0;padding:18px;border:1px solid #dce5f0;border-radius:15px;background:#fff;box-shadow:0 4px 14px rgba(30,53,82,.035);transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.syllabus-card:hover{transform:translateY(-2px);border-color:#c9d6e8;box-shadow:0 9px 22px rgba(30,53,82,.08)}
+.syllabus-card-icon{display:grid;flex:0 0 42px;width:42px;height:42px;place-items:center;border-radius:11px;background:#eef2fa;color:#586fa0}
+.syllabus-card-body{display:flex;flex:1;flex-direction:column;min-width:0}
+.syllabus-card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.syllabus-card-title h4{margin:0;font-size:16px;line-height:1.4;overflow-wrap:anywhere}
+.syllabus-card-body>p{margin:8px 0;color:#6c7d97;line-height:1.5}
+.syllabus-card-body>.syllabus-student-message{margin:10px 0;padding:9px 11px;border-left:3px solid #b5965e;border-radius:0 9px 9px 0;background:#faf7f0;color:#475a76;font-size:14px;font-weight:650;line-height:1.45}
+.syllabus-curriculum-details{margin-top:12px;padding:10px 12px;border:1px solid #e4eaf2;border-radius:10px;background:#f8fafd;color:#596b84}
+.syllabus-curriculum-details summary{color:#365171;font-weight:700;cursor:pointer}
+.syllabus-curriculum-details p{margin:10px 0 0;line-height:1.55;white-space:pre-line}
+.syllabus-curriculum-details p strong{display:block;margin-bottom:3px;color:#344862}
+.syllabus-status{flex:none;padding:4px 9px;border-radius:999px;background:#f0f2f5;color:#69768a;font-size:12px;font-weight:700}
+.syllabus-status.is-published{background:#eaf5ee;color:#28714c}.syllabus-status.is-archived{background:#f3efe7;color:#856735}
+.syllabus-card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;color:#657894;font-size:12px}
+.syllabus-card-meta span{padding:4px 8px;border:1px solid #e6ebf2;border-radius:999px;background:#f7f9fc}
+.syllabus-card-actions{justify-content:space-between;gap:12px;margin-top:auto;padding-top:14px}
+.syllabus-card-actions:has(>a),.syllabus-card-actions:has(>div){border-top:1px solid #edf1f6;margin-top:14px}
+.syllabus-card-actions a{display:inline-flex;align-items:center;gap:6px;color:#315780;font-weight:700;text-decoration:none}
+.syllabus-card-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 9px;border:1px solid #dce5f0;border-radius:8px;background:#fff;color:#425a7b;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.syllabus-card-actions button.syllabus-delete{color:#9a4141}
+.syllabus-card-actions button:hover{border-color:#bdcce0;background:#f7f9fc}
+.syllabus-card-actions button.syllabus-delete:hover{border-color:#e1bcbc;background:#fff7f6}
+.syllabus-card-actions button:focus-visible,.syllabus-card-actions a:focus-visible{outline:3px solid #9bbcff;outline-offset:2px}
+.syllabus-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:9px;min-height:190px;padding:24px;border:1px dashed #cfdae9;border-radius:16px;background:#fff;color:#71829b;text-align:center}
+.syllabus-empty strong{color:#2f4059;font-size:18px}.syllabus-empty button{margin-top:8px}
+.syllabus-error{margin:0;padding:12px 14px;border:1px solid #efc9c3;border-radius:10px;background:#fff4f2;color:#963e35}
+.syllabus-modal-shade{position:fixed;z-index:1200;inset:0;display:grid;place-items:center;padding:20px;background:rgba(18,35,58,.52)}
+.syllabus-modal{width:min(620px,100%);max-height:min(90vh,850px);overflow:auto;border:1px solid #dce5f0;border-radius:18px;background:#fff;box-shadow:0 24px 80px rgba(13,32,56,.24)}
+.syllabus-modal>header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;border-bottom:1px solid #e3eaf3}
+.syllabus-modal>header h2{margin:4px 0 0;font-size:25px}.syllabus-modal>header button{width:40px;height:40px;border:0;border-radius:10px;background:#eef2f8;color:#334b6a;font-size:26px;cursor:pointer}
+.syllabus-modal form{display:grid;gap:15px;padding:22px 24px}
+.syllabus-modal label{display:grid;gap:7px;color:#374b68;font-size:14px;font-weight:700}
+.syllabus-modal label span{color:#8a98aa;font-size:12px;font-weight:500}
+.syllabus-modal input,.syllabus-modal textarea,.syllabus-modal select{width:100%;min-height:42px;padding:9px 11px;border:1px solid #cfdbea;border-radius:9px;background:#fff;color:#29384f;font:inherit;font-weight:500}
+.syllabus-modal textarea{resize:vertical}.syllabus-form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.syllabus-class-picker{display:grid;gap:9px;margin:0;padding:14px;border:1px solid #dce5f0;border-radius:12px;background:#f8fafd}
+.syllabus-class-picker legend{padding:0 5px;color:#374b68;font-size:14px;font-weight:700}
+.syllabus-class-picker>p{margin:0;color:#71829b;font-size:13px}
+.syllabus-class-picker>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;max-height:180px;overflow:auto}
+.syllabus-class-picker label{display:flex;align-items:center;gap:8px;min-width:0;padding:7px;border-radius:8px;background:#fff;font-size:13px;cursor:pointer}
+.syllabus-class-picker label input{flex:0 0 auto;width:16px;min-height:16px;margin:0;accent-color:#315780}
+.syllabus-class-picker label span{overflow-wrap:anywhere}
+.syllabus-file-input{display:flex!important;align-items:center;gap:12px;padding:12px;border:1px dashed #cbd8e8;border-radius:11px;background:#f8fafd}
+.syllabus-file-input>span{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:#374b68}
+.syllabus-file-input small{width:100%;color:#7b8ba2;font-size:12px;font-weight:500}
+.syllabus-file-input input{min-height:auto!important;padding:5px!important;border:0!important;background:transparent!important;font-size:13px!important}
+.syllabus-file-input>small{width:auto}
+.syllabus-modal form>footer{display:flex;justify-content:flex-end;gap:9px;margin-top:5px;padding-top:15px;border-top:1px solid #e3eaf3}
+@media(max-width:760px){.syllabus-library-toolbar{align-items:flex-start;flex-direction:column}.syllabus-grid{grid-template-columns:1fr}.syllabus-programme{padding:15px}.syllabus-stage-grid{grid-template-columns:1fr}.syllabus-stage-topline{align-items:flex-start}.syllabus-stage-card-actions{flex-wrap:wrap}.syllabus-stage-timeline>a,.syllabus-stage-timeline>span{flex-basis:120px;padding-right:10px;padding-left:20px}.syllabus-stage-timeline>a:first-child::before,.syllabus-stage-timeline>span:first-child::before{left:20px}.syllabus-stage-timeline>a:last-child::before,.syllabus-stage-timeline>span:last-child::before{right:calc(100% - 20px)}}
+@media(max-width:480px){.syllabus-card{padding:14px}.syllabus-form-row,.syllabus-class-picker>div{grid-template-columns:1fr}.syllabus-modal>header,.syllabus-modal form{padding-left:17px;padding-right:17px}.syllabus-card-actions{align-items:flex-start;flex-direction:column}}

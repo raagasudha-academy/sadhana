@@ -1,4 +1,4 @@
-/** Canonical-only teacher profile updates. Identity and academy membership cannot change here. */
+/** Canonical-only teacher profile updates. Account linking and academy removal remain separately reviewed. */
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,ScanCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
@@ -31,10 +31,12 @@ export function makeFinalTeacherPatch(db:Client) {
   const insts=Array.isArray(body.institutions)?body.institutions:[];
   if(!insts.length||insts.some((x:any)=>x!=='raaga'&&x!=='sruti')||new Set(insts).size!==insts.length)
    throw httpError(400,'Invalid teacher institutions.');
-  if(!Array.isArray(old.institutions)||[...insts].sort().join('|')!==[...old.institutions].sort().join('|'))
-   throw httpError(409,'Academy membership changes require dedicated review.');
+  if(!Array.isArray(old.institutions)||old.institutions.some((academy:string)=>!insts.includes(academy)))
+   throw httpError(409,'Removing academy membership requires dedicated review.');
   if(!old.institutions.includes(inst)||!person.institutionIds?.includes(inst))throw httpError(403,'Teacher does not belong to this academy.');
-  for(const academy of old.institutions)demandInstitution(claims,academy);
+  // Adding a teacher to another academy requires an administrator in every
+  // academy whose staff directory and teaching permissions will change.
+  for(const academy of insts)demandInstitution(claims,academy);
   if(typeof body.cognitoSub!=='string'||body.cognitoSub!==String(old.cognitoSub||''))
    throw httpError(409,'Teacher account-link changes require dedicated verification.');
   if(typeof body.displayName!=='string'||!clean(body.displayName)||clean(body.displayName).length>100)
@@ -49,12 +51,16 @@ export function makeFinalTeacherPatch(db:Client) {
   if(!subjects.length||typeof body.active!=='boolean')throw httpError(400,'Subject and active status required.');
   if(body.active!==old.active)throw httpError(409,'Teacher activation changes require dedicated review.');
   const now=new Date().toISOString();
-  const changed={...old,displayName:clean(body.displayName),subjects,aliases,active:body.active,version:old.version+1,updatedAt:now};
-  const next={...person,displayName:changed.displayName,legacyPayload:changed,version:person.version+1,updatedAt:now};
+  const added=insts.filter((academy:InstitutionId)=>!old.institutions.includes(academy));
+  const changed={...old,displayName:clean(body.displayName),institutions:insts,subjects,aliases,active:body.active,version:old.version+1,updatedAt:now};
+  const next={...person,displayName:changed.displayName,institutionIds:insts,legacyPayload:changed,version:person.version+1,updatedAt:now};
+  const auditRows=insts.map((academy:InstitutionId)=>({
+   Put:{TableName:entityTable('audit'),Item:{auditId:`AUDIT-${randomUUID()}`,institutionId:academy,action:added.includes(academy)?'TEACHER_ACADEMY_MEMBERSHIP_ADDED':'TEACHER_PROFILE_UPDATED',resourceType:'teacher',resourceId:id,actorCognitoSub:claims.sub,timestamp:now},ConditionExpression:'attribute_not_exists(auditId)'}
+  }));
   try{
    await db.send(new TransactWriteCommand({TransactItems:[
     {Put:{TableName:entityTable('people'),Item:next,ConditionExpression:'#v=:v AND contains(institutionIds,:inst) AND contains(personTypes,:teacher)',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':v':person.version,':inst':inst,':teacher':'teacher'}}},
-    {Put:{TableName:entityTable('audit'),Item:{auditId:`AUDIT-${randomUUID()}`,institutionId:inst,action:'TEACHER_PROFILE_UPDATED',resourceType:'teacher',resourceId:id,actorCognitoSub:claims.sub,timestamp:now},ConditionExpression:'attribute_not_exists(auditId)'}}
+    ...auditRows
    ]}));
   }catch(e:any){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes(e?.name))throw httpError(409,'Teacher changed. Refresh and retry.');throw e;}
   return {...changed,cognitoSub:old.cognitoSub||''};

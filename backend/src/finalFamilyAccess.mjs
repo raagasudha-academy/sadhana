@@ -23,7 +23,7 @@ const publicStudent = (student,kind,inst) => ({
   kind,
   // We only claim a child relationship after checking an independently
   // approved family link, and never claim a parent relationship by name.
-  relationship:kind==='guardian'?'child':'unknown',
+  relationship:kind==='guardian'?'child':'self',
 });
 
 export async function finalLinkedStudents(institution, subject, reader) {
@@ -52,7 +52,7 @@ export async function finalLinkedStudents(institution, subject, reader) {
          link.relationshipVerified!==true || !validId(link.familyId)) continue;
       const student=await reader.person(link.studentId);
       if(!activePerson(student,institution)||!student.personTypes?.includes('student')||!studentMember(student,institution)||
-         student.familyId!==link.familyId || actor.familyId!==link.familyId) continue;
+         student.familyId!==link.familyId || (link.guardianFamilyId||link.familyId)!==actor.familyId) continue;
       if(!records.has(student.personId)) records.set(student.personId,publicStudent(student,'guardian',institution));
     }
   }

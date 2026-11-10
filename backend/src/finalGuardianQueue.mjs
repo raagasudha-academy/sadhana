@@ -26,11 +26,12 @@ export async function finalGuardianQueue(inst,reader){
   const [guardian,student]=await Promise.all([reader.person(link.guardianPersonId),reader.person(link.studentId)]);
   if(!active(guardian,inst)||!active(student,inst)||
      guardian.personId!==link.guardianPersonId||student.personId!==link.studentId||
-     guardian.familyId!==link.familyId||student.familyId!==link.familyId||
+     (link.guardianFamilyId||link.familyId)!==guardian.familyId||student.familyId!==link.familyId||
      !guardian.personTypes?.includes('guardian')||!student.personTypes?.includes('student')||
      !validId(guardian.cognitoSub)){reconciliationRequired++;continue;}
   if(records.length>=200)throw bad(413,'Guardian queue exceeds safe review limit.');
-  records.push({studentId:student.personId,subject:guardian.cognitoSub,kind:'guardian',status:link.accessStatus,version:link.version});
+  records.push({studentId:student.personId,subject:guardian.cognitoSub,kind:'guardian',status:link.accessStatus,version:link.version,
+   ...(guardian.familyId!==student.familyId?{familyReviewRequired:true}:{})});
   subs.add(guardian.cognitoSub);
  }
  const identities={};

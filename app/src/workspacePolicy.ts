@@ -15,9 +15,20 @@ export const adminPages = [
   'Settings'
 ] as const;
 
+export const adminPeopleTabs = ['Families & Students','Website Registrations','Account Access'] as const;
+export const adminWorkspaceTabs = ['Classes & Timetable','Practice & Reports','Communications','Settings'] as const;
+export const adminSidebarPages = ['Dashboard','People & Access','Academy Workspace','Syllabus & Resources','Messages','Teachers','Venues','Administrators'] as const;
+
+export function adminNavigationGroup(page:string):string {
+  if((adminPeopleTabs as readonly string[]).includes(page))return 'People & Access';
+  if((adminWorkspaceTabs as readonly string[]).includes(page))return 'Academy Workspace';
+  if(page==='Syllabus & Starter Pack')return 'Syllabus & Resources';
+  return page;
+}
+
 export function needsAcademySelection(workspace:string,page:string):boolean {
   return workspace==='combined' && [
-    'Families & Students','Practice & Reports','Communications','Settings',
+    'Website Registrations','Families & Students','Practice & Reports','Syllabus & Resources','Communications','Settings','Messages',
   ].includes(page);
 }
 

@@ -12,7 +12,7 @@ test('public directory keeps allowlisted names and no private staff details',()=
 test('stable public identifiers are hashed before they are published',()=>{
  assert.match(backend,/createHash\('sha256'\)/);
 });
-test('existing learner guard remains in lambda',()=>{
+test('learner guard runs before student-scoped academy directory lookup',()=>{
  const lambda=readFileSync(new URL('../routes/learningRoutes.ts',import.meta.url),'utf8');
- assert.match(lambda,/await learnerIdentity\(inst,claims,studentId\);return json\(200,await academyDirectory\(inst\)\)/);
+ assert.match(lambda,/await learnerIdentity\(inst,claims,studentId\);return json\(200,await academyDirectory\(inst,studentId\)\)/);
 });

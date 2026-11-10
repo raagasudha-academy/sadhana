@@ -42,7 +42,7 @@ export async function saveLearnerProfile(inst:string,claims:Claims,id:string,bod
  catch(e:any){if(e.name==='ConditionalCheckFailedException')throw httpError(409,'Profile changed; refresh');throw e}
  return {updated:true,version:expectedVersion+1};
 }
-const mediaTypes:Record<string,{ext:string;max:number}>={'image/jpeg':{ext:'jpg',max:5_000_000},'image/png':{ext:'png',max:5_000_000},'audio/mpeg':{ext:'mp3',max:20_000_000},'audio/mp4':{ext:'m4a',max:20_000_000},'video/mp4':{ext:'mp4',max:100_000_000}};
+const mediaTypes:Record<string,{ext:string;max:number}>={'image/jpeg':{ext:'jpg',max:5_000_000},'image/png':{ext:'png',max:5_000_000},'image/webp':{ext:'webp',max:5_000_000},'image/heic':{ext:'heic',max:10_000_000},'image/heif':{ext:'heif',max:10_000_000},'audio/mpeg':{ext:'mp3',max:20_000_000},'audio/mp4':{ext:'m4a',max:20_000_000},'audio/aac':{ext:'aac',max:20_000_000},'audio/wav':{ext:'wav',max:20_000_000},'audio/x-wav':{ext:'wav',max:20_000_000},'video/mp4':{ext:'mp4',max:100_000_000},'video/quicktime':{ext:'mov',max:100_000_000},'video/3gpp':{ext:'3gp',max:100_000_000}};
 export function validateLearnerMedia(mime:unknown,size:unknown){const entry=mediaTypes[String(mime)];if(!entry||!Number.isInteger(size)||Number(size)<1||Number(size)>entry.max)throw httpError(400,'Unsupported file type or file size');return entry}
 const bucket=()=>{if(!process.env.SADHANA_LEARNER_MEDIA_BUCKET)throw httpError(503,'Private learner media storage not configured');return process.env.SADHANA_LEARNER_MEDIA_BUCKET};
 export async function beginLearnerMedia(inst:string,claims:Claims,id:string,body:any){
@@ -56,7 +56,7 @@ export async function beginLearnerMedia(inst:string,claims:Claims,id:string,body
 }
 export async function completeLearnerMedia(inst:string,claims:Claims,id:string,body:any){
  await learnerIdentity(inst,claims,id);
- if(!body||typeof body.key!=='string'||!new RegExp(`^learner-private/${id}/[0-9a-f-]{36}\\.(jpg|png|mp3|m4a|mp4)$`).test(body.key)||typeof body.purpose!=='string')throw httpError(400,'Invalid upload reference');
+ if(!body||typeof body.key!=='string'||!new RegExp(`^learner-private/${id}/[0-9a-f-]{36}\\.(jpg|png|webp|heic|heif|mp3|m4a|aac|wav|mp4|mov|3gp)$`).test(body.key)||typeof body.purpose!=='string')throw httpError(400,'Invalid upload reference');
  const head=await s3.send(new HeadObjectCommand({Bucket:bucket(),Key:body.key}));
  const kind=mediaTypes[String(head.ContentType)];
  if(!kind||!head.ContentLength||head.ContentLength>kind.max||head.Metadata?.student!==id||head.Metadata?.purpose!==body.purpose)throw httpError(409,'Upload metadata mismatch');

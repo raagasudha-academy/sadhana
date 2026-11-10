@@ -244,15 +244,25 @@ export function makeM10CoreWriteService(db:CoreDb){
    if(!raw||!version(raw.expectedVersion))throw httpError(400,'Expected version required.');
    const {expectedVersion,...changes}=raw;
    // Contact changes, relationship changes and identity reassignment need dedicated review.
-   const allowed:Record<CoreEntity,string[]>={families:['parentName'],students:['name'],enrolments:['startDate','endDate']};
+   const allowed:Record<CoreEntity,string[]>={families:['parentName'],students:['name'],enrolments:['studentId','classId','startDate','endDate']};
    only(changes,allowed[entity]);if(!Object.keys(changes).length)throw httpError(400,'No changes provided.');
    const domain=entity==='students'?'people':entity;const key=entity==='students'?'personId':entity==='families'?'familyId':'enrolmentId';
    const current=await get(domain,key,id);
-   if(!current||current.status==='archived'||current.version!==expectedVersion)throw httpError(409,'Record missing, archived, or changed.');
+   if(!current)throw httpError(404,'Record not found. Refresh the list.');
+   if(current.status==='archived')throw httpError(409,entity==='enrolments'?'This enrolment has already ended. Refresh the list.':'This record is archived. Refresh the list.');
+   if(current.version!==expectedVersion)throw httpError(409,entity==='enrolments'?'This enrolment changed after it was loaded. Refresh and retry.':'This record changed after it was loaded. Refresh and retry.');
    if(entity==='enrolments'?current.institutionId!==inst:!scope(current,inst))throw httpError(403,'Institution mismatch.');
    if(entity!=='enrolments'&&current.institutionIds.length!==1)throw httpError(409,'Shared identities require dedicated reconciliation.');
-   const old=legacy(current);if(!old)throw httpError(409,'This record requires a canonical data edit workflow.');
-   const updated=validate(entity,{...Object.fromEntries(Object.entries(old).filter(([k])=>!['id','version','createdAt','updatedAt','archived','visibleIn'].includes(k))),...changes});
+   const old=legacy(current)??(entity==='enrolments'?{
+    id:current.enrolmentId,institution:inst,studentId:current.studentId,classId:current.classId,
+    startDate:current.startDate,endDate:current.endDate||'',
+   }:null);
+   if(!old)throw httpError(409,'This record requires a canonical data edit workflow.');
+   const base=Object.fromEntries(Object.entries(old).filter(([k])=>!['id','version','createdAt','updatedAt','archived','visibleIn'].includes(k)));
+   const updated=validate(entity,{...base,...(entity==='enrolments'?{
+    institution:inst,studentId:current.studentId,classId:current.classId,
+    startDate:current.startDate,endDate:current.endDate||'',
+   }:{}),...changes});
    if(entity==='families'&&current.primaryContactPersonId){
     const contact=await get('people','personId',current.primaryContactPersonId);
     if(!contact||contact.familyId!==id||!scope(contact,inst))throw httpError(409,'Primary contact mismatch.');

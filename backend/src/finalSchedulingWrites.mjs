@@ -49,6 +49,12 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
       return {status:200,body:isAdmin
         ? await dependencies.calendar().patch(institution,parts[1],payload(),claims)
         : await dependencies.sessions().updateTeacherSession(institution,parts[1],payload(),claims)};
+    if (!series && parts.length === 3 && parts[2] === 'teacher-response' && method === 'PATCH' && idOK(parts[1])) {
+      // A staff member may be both an administrator and an assigned teacher.
+      // Let the session service verify the linked teacher identity and class
+      // assignment instead of rejecting every account with an admin role.
+      return {status:200,body:await dependencies.sessions().respondToTeacherSession(institution,parts[1],payload(),claims)};
+    }
     if (!series && parts.length === 2 && method === 'DELETE' && idOK(parts[1]))
       return {status:200,body:await dependencies.sessions().deleteSession(institution,parts[1],payload(),claims,isAdmin)};
     if (parts.length === 4 && parts[1]==='master' && parts[3]==='delete-preview' && method==='POST' && idOK(parts[2])) {

@@ -12,8 +12,10 @@ import type {Claims,InstitutionId} from './model.ts';
 
 const types:Record<string,{ext:string;max:number}>={
  'image/jpeg':{ext:'jpg',max:5_000_000},'image/png':{ext:'png',max:5_000_000},
- 'image/webp':{ext:'webp',max:5_000_000},'audio/mpeg':{ext:'mp3',max:20_000_000},
- 'audio/mp4':{ext:'m4a',max:20_000_000},'video/mp4':{ext:'mp4',max:100_000_000},
+ 'image/webp':{ext:'webp',max:5_000_000},'image/heic':{ext:'heic',max:10_000_000},'image/heif':{ext:'heif',max:10_000_000},
+ 'audio/mpeg':{ext:'mp3',max:20_000_000},'audio/mp4':{ext:'m4a',max:20_000_000},
+ 'audio/aac':{ext:'aac',max:20_000_000},'audio/wav':{ext:'wav',max:20_000_000},'audio/x-wav':{ext:'wav',max:20_000_000},
+ 'video/mp4':{ext:'mp4',max:100_000_000},'video/quicktime':{ext:'mov',max:100_000_000},'video/3gpp':{ext:'3gp',max:100_000_000},
 };
 const validId=(id:unknown)=>typeof id==='string'&&/^[-A-Za-z0-9_]{4,150}$/.test(id);
 const validPurpose=(p:unknown)=>p==='profile'||p==='homework'||p==='practice';
@@ -34,18 +36,19 @@ export function makeM10FinalLearnerMedia(db:MediaDb,io:MediaIO=mediaIo,
  const bucket=()=>{const b=process.env.SADHANA_LEARNER_MEDIA_BUCKET;if(!b)throw httpError(503,'Private learner media bucket not configured');return b;};
  const mediaTable=()=>entityTable('submissions');
  const get=async(id:string)=>(await db.send(new GetCommand({TableName:mediaTable(),Key:{submissionId:id},ConsistentRead:true}))).Item??null;
+ const getPractice=async(id:string)=>(await db.send(new GetCommand({TableName:entityTable('practice'),Key:{practiceId:id},ConsistentRead:true}))).Item??null;
  function checks(inst:InstitutionId,subject:string,studentId:string,access:any){
   const actor=access.actor,student=access.student;
   const conditionChecks:any[]=[{ConditionCheck:{TableName:entityTable('people'),Key:{personId:actor.personId},
-   ConditionExpression:'#status=:active AND cognitoSub=:sub AND contains(institutionIds,:inst)'+(actor.personId===studentId?'':' AND contains(personTypes,:guardian) AND familyId=:family'),
+   ConditionExpression:'#status=:active AND cognitoSub=:sub AND contains(institutionIds,:inst)'+(actor.personId===studentId?'':' AND contains(personTypes,:guardian) AND familyId=:guardianFamily'),
    ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':sub':subject,':inst':inst,
-      ...(actor.personId===studentId?{}:{':guardian':'guardian',':family':access.link.familyId})}}}];
+      ...(actor.personId===studentId?{}:{':guardian':'guardian',':guardianFamily':access.link.guardianFamilyId||access.link.familyId})}}}];
   if(actor.personId!==studentId)conditionChecks.push({ConditionCheck:{TableName:entityTable('people'),Key:{personId:studentId},
    ConditionExpression:'#status=:active AND contains(institutionIds,:inst) AND contains(personTypes,:student) AND familyId=:family',
    ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':active':'active',':inst':inst,':student':'student',':family':access.link.familyId}}},
    {ConditionCheck:{TableName:entityTable('family-links'),Key:{linkId:access.link.linkId},
-   ConditionExpression:'guardianPersonId=:guardian AND studentId=:student AND institutionId=:inst AND accessStatus=:approved AND relationshipVerified=:yes AND familyId=:family',
-   ExpressionAttributeValues:{':guardian':actor.personId,':student':studentId,':inst':inst,':approved':'approved',':yes':true,':family':access.link.familyId}}});
+   ConditionExpression:'guardianPersonId=:guardian AND studentId=:student AND institutionId=:inst AND accessStatus=:approved AND relationshipVerified=:yes AND familyId=:family AND (guardianFamilyId=:guardianFamily OR attribute_not_exists(guardianFamilyId))',
+   ExpressionAttributeValues:{':guardian':actor.personId,':student':studentId,':inst':inst,':approved':'approved',':yes':true,':family':access.link.familyId,':guardianFamily':access.link.guardianFamilyId||access.link.familyId}}});
   else conditionChecks[0].ConditionCheck.ConditionExpression+=' AND contains(personTypes,:student)',
    conditionChecks[0].ConditionCheck.ExpressionAttributeValues[':student']='student';
   return conditionChecks;
@@ -55,16 +58,22 @@ export function makeM10FinalLearnerMedia(db:MediaDb,io:MediaIO=mediaIo,
   return authorise(inst,claims,id);
  }
  return {
-  async start(inst:InstitutionId,claims:Claims,id:string,body:unknown){
-   if(!isObject(body)||!noExtras(body,['mime','size','purpose'])||!validPurpose(body.purpose))throw httpError(400,'Invalid media upload request');
+ async start(inst:InstitutionId,claims:Claims,id:string,body:unknown){
+   if(!isObject(body)||!noExtras(body,['mime','size','purpose','practiceId'])||!validPurpose(body.purpose))throw httpError(400,'Invalid media upload request');
    const type=types[body.mime];
    if(!type||!Number.isSafeInteger(body.size)||body.size<1||body.size>type.max||
-      (body.purpose==='profile'&&!body.mime.startsWith('image/')))throw httpError(400,'Unsupported media type or size');
+      (body.purpose==='profile'&&!body.mime.startsWith('image/'))||
+      (body.purpose==='practice'&&(!validId(body.practiceId)||!['image/','audio/'].some(prefix=>body.mime.startsWith(prefix)))))throw httpError(400,'Unsupported media type or size');
    const access=await allowed(inst,claims,id),receipt=`LEARNERMEDIA-${randomUUID()}`;
+   if(body.purpose==='practice'){
+    const practice=await getPractice(String(body.practiceId));
+    if(!practice||practice.institutionId!==inst||practice.studentId!==id)
+     throw httpError(404,'Practice entry not found');
+   }
    // Prefix is already covered by the deployed private homework-media S3 IAM policy.
    const key=`homework-private/learner/${inst}/${id}/${receipt}.${type.ext}`;
    const item={submissionId:receipt,recordType:'learner-media',institutionId:inst,studentId:id,
-    objectKey:key,mime:body.mime,size:body.size,purpose:body.purpose,mediaStatus:'pending',uploadedBy:claims.sub,createdAt:new Date().toISOString(),
+    objectKey:key,mime:body.mime,size:body.size,purpose:body.purpose,...(body.purpose==='practice'?{practiceId:body.practiceId}:{}),mediaStatus:'pending',uploadedBy:claims.sub,createdAt:new Date().toISOString(),
     submittedAt:new Date().toISOString()};
    try{await db.send(new TransactWriteCommand({TransactItems:[...checks(inst,claims.sub!,id,access),
     {Put:{TableName:mediaTable(),Item:item,ConditionExpression:'attribute_not_exists(submissionId)'}}]}));}
@@ -75,7 +84,7 @@ export function makeM10FinalLearnerMedia(db:MediaDb,io:MediaIO=mediaIo,
    if(!isObject(body)||!noExtras(body,['key','purpose'])||typeof body.key!=='string'||!validPurpose(body.purpose))throw httpError(400,'Invalid media completion request');
    const prefix=`homework-private/learner/${inst}/${id}/`;
    if(!body.key.startsWith(prefix))throw httpError(403,'Media belongs to another learner');
-   const name=body.key.slice(prefix.length),match=/^(LEARNERMEDIA-[0-9a-f-]{36})\.(jpg|png|webp|mp3|m4a|mp4)$/i.exec(name);
+   const name=body.key.slice(prefix.length),match=/^(LEARNERMEDIA-[0-9a-f-]{36})\.(jpg|png|webp|heic|heif|mp3|m4a|aac|wav|mp4|mov|3gp)$/i.exec(name);
    if(!match||!recordId(match[1]))throw httpError(400,'Invalid upload reference');
    const access=await allowed(inst,claims,id),receipt=await get(match[1]);
    if(!receipt||receipt.recordType!=='learner-media'||receipt.institutionId!==inst||receipt.studentId!==id||
@@ -117,7 +126,7 @@ export function makeM10FinalLearnerMedia(db:MediaDb,io:MediaIO=mediaIo,
     if(!r||r.recordType!=='learner-media'||r.mediaStatus!=='ready'||r.institutionId!==inst||r.studentId!==id||
        !r.objectKey?.startsWith(`homework-private/learner/${inst}/${id}/`))continue;
     if(records.length>=100)throw httpError(413,'Too many learner media records to display');
-    records.push({id:r.submissionId,purpose:r.purpose,mime:r.mime,createdAt:r.createdAt,
+    records.push({id:r.submissionId,purpose:r.purpose,mime:r.mime,...(r.practiceId?{practiceId:r.practiceId}:{}),createdAt:r.createdAt,
      url:await io.signGet(bucket(),r.objectKey)});
    }
    return {records:records.sort((a,b)=>b.createdAt.localeCompare(a.createdAt))};

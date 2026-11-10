@@ -228,7 +228,7 @@ test('HTTP API fixes health and legacy calendar contracts across configured mode
       ] as const){
         const response=await finalApi.request(method,path,'raaga-admin',body);
         assert.equal(response.status,503,path);
-        assert.match(response.body.error,/not migrated|unsupported route/i,path);
+        assert.match(response.body.error,/not migrated|unsupported route|canonical tables not acknowledged/i,path);
       }
     }finally{await finalApi.close();}
   }finally{

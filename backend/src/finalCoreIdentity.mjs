@@ -138,9 +138,17 @@ export async function finalCoreIdentityRoute(context, dependencies, access, env 
     // Existing portal requests include kind='guardian'. Translate only the
     // authenticated person's own guardian request; never interpret a student
     // request or an on-behalf account as approval to create guardian access.
-    if (body.kind !== 'guardian' || Object.keys(body).some(key => !['studentId','kind'].includes(key)))
+    if (body.kind !== 'guardian' || Object.keys(body).some(key => !['studentId','rollNumber','kind'].includes(key)) ||
+        Boolean(body.studentId) === Boolean(body.rollNumber))
       return fail('This account-link request needs independent administrator review.', 503);
-    return {status: 201, body: await dependencies.guardian().request(institution, claims, {studentId:body.studentId})};
+    let studentId=body.studentId;
+    if(body.rollNumber!==undefined){
+      if(typeof body.rollNumber!=='string'||! /^(?:\d{3}-\d{3}|(?:RS|SR)-\d{3,})$/i.test(body.rollNumber.trim()))
+        return fail('Enter a valid academy roll number.',400);
+      studentId=await dependencies.guardianReader().studentForRoll(institution,body.rollNumber.trim().toUpperCase());
+      if(!studentId)return fail('Unable to request access. Contact the academy.',400);
+    }
+    return {status: 201, body: await dependencies.guardian().request(institution, claims, {studentId})};
   }
   return decision
     ? {status: 200, body: await dependencies.guardian().decide(institution, claims, body)}

@@ -7,6 +7,10 @@
 .app-shell :is(button,a,select,input,textarea):focus-visible,.student-portal-v123 :is(button,a,select,input,textarea):focus-visible{outline:3px solid var(--sadhana-focus);outline-offset:2px}
 .app-shell :is(button,select,input,textarea),.student-portal-v123 :is(button,select,input,textarea){font-family:inherit}
 .app-shell table,.student-portal-v123 table{border-collapse:collapse;width:100%}
+.admin-page-tabs{display:flex;gap:8px;overflow-x:auto;margin:0 0 20px;padding:4px 2px 9px;border-bottom:1px solid #d9e1e9}
+.admin-page-tabs button{flex:0 0 auto;padding:10px 15px;border:1px solid #d9e1e9;border-radius:10px 10px 0 0;background:#fff;color:#52627a;font:inherit;font-weight:650;cursor:pointer}
+.admin-page-tabs button[aria-selected="true"]{border-color:#315f9e;background:#315f9e;color:#fff;box-shadow:0 3px 10px #315f9e22}
+.admin-page-tabs button:focus-visible{outline:3px solid #91b5ed;outline-offset:2px}
 .app-shell th,.student-portal-v123 th{text-align:left;white-space:normal}
 .app-shell .surface,.student-portal-v123 .surface{min-width:0}
 @media(max-width:700px){.app-shell .surface,.student-portal-v123 .surface{max-width:100%;overflow-wrap:anywhere}.app-shell .access-table-wrap,.student-portal-v123 .access-table-wrap{overflow-x:auto}}
