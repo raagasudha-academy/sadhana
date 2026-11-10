@@ -1,0 +1,29 @@
+.ops-panel{padding:18px}.ops-tabs{display:flex;gap:7px;flex-wrap:wrap;border-bottom:1px solid #e1e6ef;padding-bottom:12px}.ops-tabs button{border:1px solid #d9e0eb;border-radius:999px;padding:9px 13px;background:white;font:inherit;font-size:13px;cursor:pointer;color:#41516a}.ops-tabs button.active{background:#e8eefb;color:#263e69;border-color:#a6b7db;font-weight:650}.ops-tabs small{opacity:.75;margin-left:5px}.ops-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0}.ops-toolbar input{border:1px solid #cfd8e6;border-radius:10px;padding:11px 12px;font:inherit;min-width:180px;max-width:340px;width:100%}.ops-form{padding:18px;margin:18px 0;border:1px solid #dce3ee;border-radius:12px;background:#f8faff}.ops-form h2{font-size:17px;margin:0 0 14px}.ops-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.ops-field{display:grid;gap:7px;font-size:13px;color:#394960;font-weight:600}.ops-field b{color:#c6324b}.ops-field input,.ops-field select{border:1px solid #cbd5e1;border-radius:9px;background:white;padding:10px 13px;font:inherit;font-size:14px;width:100%;min-width:0}.ops-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:17px}.ops-notice{display:flex;gap:8px;align-items:center;color:#216848;font-size:13px}@media(max-width:600px){.ops-toolbar{flex-wrap:wrap}.ops-toolbar input{max-width:none}.ops-toolbar button{width:100%}}
+
+.ops-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:0 0 18px}.ops-summary>div{display:flex;flex-direction:column;gap:5px;border:1px solid #dee5ee;border-radius:12px;background:white;padding:16px}.ops-summary span{font-size:12px;color:#64748b}.ops-summary strong{font-size:25px;color:#293950}.ops-summary small{font-size:12px;color:#64748b}
+
+/* Live academy operations class-roster overview */
+.ops-roster{margin:1rem 0;padding:1rem;border:1px solid var(--border, #d7dce2);border-radius:12px}
+.ops-roster h2{font-size:1.05rem;margin:0 0 .3rem}
+.ops-roster p{margin:.25rem 0 .8rem}
+.ops-roster-list{display:grid;gap:.45rem}
+.ops-roster-list details{padding:.6rem .8rem;border:1px solid var(--border, #d7dce2);border-radius:8px}
+.ops-roster-list summary{cursor:pointer;font-weight:600}
+.ops-roster-list ul{margin:.6rem 0 0;padding-left:1.25rem}
+.ops-record-id{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8491a3;font-size:10px}
+.ops-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* Practice & Reports class filter and focused roster */
+.ops-filter-field{display:flex;align-items:center;gap:9px;flex:0 1 auto;color:#5c6e87;font-size:13px;font-weight:700;white-space:nowrap}
+.ops-filter-field select{width:min(320px,34vw);min-width:210px;padding:11px 36px 11px 12px;border:1px solid #cfd8e6;border-radius:10px;background:#fff;color:#33445e;font:inherit}
+.ops-roster{background:#fff;border-color:#dee5ee}
+.ops-roster-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.ops-roster-heading h2{margin:0;color:#293950}
+.ops-roster-heading p{margin:5px 0 0;color:#71819a;font-size:13px}
+.ops-roster-heading>strong{color:#33445e;font-size:14px;text-align:right}
+.ops-roster-empty{padding:14px 16px;border:1px dashed #d7e0ec;border-radius:10px;background:#f8faff;color:#71819a;font-size:13px}
+.ops-roster-students{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:9px;list-style:none;margin:14px 0 0;padding:0}
+.ops-roster-students li:not(.ops-roster-empty){display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:12px 14px;border:1px solid #e1e7f0;border-radius:10px;background:#fbfcfe;color:#33445e;font-size:14px;font-weight:600}
+.ops-roster-students li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ops-roster-students li small{flex:none;color:#71819a;font-size:12px;font-weight:500}
+@media(max-width:700px){.ops-toolbar{align-items:stretch}.ops-filter-field{width:100%;justify-content:space-between}.ops-filter-field select{width:auto;min-width:0;flex:1}.ops-roster-heading{align-items:flex-start;flex-direction:column}.ops-roster-heading>strong{text-align:left}}

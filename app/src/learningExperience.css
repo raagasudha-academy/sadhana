@@ -1,0 +1,21 @@
+/* Sadhana v12.7.6: navy design polish; no permission or database changes. */
+.student-portal-v123 .sv1276-learner>section{background:#fff;border:1px solid #e0e7f1;border-radius:16px;padding:22px;margin:16px 0;box-shadow:0 5px 20px rgba(15,39,71,.035)}
+.student-portal-v123 .sv1276-learner>section>h3{font-size:19px;letter-spacing:-.025em;color:#1d3354;margin:0 0 10px}
+.student-portal-v123 .sv1276-learner>section>p{color:#64748b;line-height:1.6}
+.student-portal-v123 .sv1276-practice-form{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:end;padding:18px;background:#f7f9fd;border:1px solid #e2e8f4;border-radius:14px;margin:18px 0}
+.student-portal-v123 .sv1276-practice-form label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:650;color:#304563;min-width:0;grid-column:span 4}
+.student-portal-v123 .sv1276-practice-form label:first-child{grid-column:span 6}
+.student-portal-v123 .sv1276-practice-form label:nth-child(4){grid-column:span 6}
+.student-portal-v123 .sv1276-practice-form label:nth-child(5){grid-column:1/-1}
+.student-portal-v123 .sv1276-practice-form :is(input,select,textarea){width:100%;min-width:0;min-height:44px;border:1px solid #cbd6e5;border-radius:10px;padding:10px 12px;background:#fff;color:#1d3354;box-sizing:border-box}
+.student-portal-v123 .sv1276-practice-form textarea{min-height:92px;resize:vertical}
+.student-portal-v123 .sv1276-practice-form button{grid-column:span 4;min-height:43px;border:0;border-radius:10px;background:#304c77;color:#fff;font-weight:650;cursor:pointer;padding:10px 16px}
+.student-portal-v123 .sv1276-practice-form button[type=button]{background:#e6edf6;color:#213b5d}
+.student-portal-v123 .sv1276-learner .sv125-upload{padding:15px 18px;border:1px dashed #b6c8de;background:#f7faff;border-radius:12px;max-width:none;margin:12px 0}
+.student-portal-v123 .sv1276-learner .access-table-wrap{border:1px solid #e0e7f1;border-radius:12px;margin-top:16px}
+.student-portal-v123 .sv1276-learner .sv120-homework-card{border-radius:12px;border:1px solid #e2e8f2;padding:16px;margin-bottom:12px;background:#fcfdff}
+.student-portal-v123 .sv1276-learner .sv120-homework-card button{background:#304c77;color:white;border:0;border-radius:9px;padding:10px 15px;cursor:pointer}
+.student-portal-v123 .sv1276-learner .sv120-homework-card button:disabled{background:#e9eff7;color:#4c607a;cursor:default}
+.sv1276-teacher-homework{padding:12px 0}.sv1276-hw-form{display:grid;grid-template-columns:2fr 1fr;gap:14px;background:#f8fafd;border-radius:14px;padding:20px;border:1px solid #e0e7f1;margin-bottom:20px}.sv1276-hw-form label{display:flex;flex-direction:column;gap:7px;font-weight:650;font-size:13px;color:#304563}.sv1276-hw-wide{grid-column:1/-1}.sv1276-hw-form :is(input,textarea){border:1px solid #cbd6e5;background:#fff;border-radius:10px;padding:11px;font:inherit;min-width:0}.sv1276-hw-form button{border:0;border-radius:10px;background:#304c77;color:#fff;padding:12px 18px;font-weight:650;width:max-content;cursor:pointer}.sv1276-hw-form button:disabled{opacity:.55}.sv1276-hw-records{display:grid;gap:12px}.sv1276-hw-records article{border:1px solid #e2e8f2;padding:16px;border-radius:12px}.sv1276-hw-records span{display:block;color:#61758d;font-size:12px;margin-top:4px}.sv1276-hw-records p{white-space:pre-wrap}
+@media(max-width:820px){.student-portal-v123 .sv1276-practice-form label,.student-portal-v123 .sv1276-practice-form label:first-child,.student-portal-v123 .sv1276-practice-form label:nth-child(4){grid-column:span 6}.student-portal-v123 .sv1276-practice-form label:nth-child(5){grid-column:1/-1}}
+@media(max-width:560px){.student-portal-v123 .sv1276-practice-form{grid-template-columns:1fr;padding:13px}.student-portal-v123 .sv1276-practice-form label,.student-portal-v123 .sv1276-practice-form label:first-child,.student-portal-v123 .sv1276-practice-form label:nth-child(4),.student-portal-v123 .sv1276-practice-form label:nth-child(5),.student-portal-v123 .sv1276-practice-form button{grid-column:1/-1}.sv1276-hw-form{grid-template-columns:1fr}.sv1276-hw-form label{grid-column:1/-1}}

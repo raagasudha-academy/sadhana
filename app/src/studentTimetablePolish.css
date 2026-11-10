@@ -1,0 +1,24 @@
+/* Scoped student timetable polish; does not affect the staff timetable or dashboard. */
+.sv1296-embedded-root .sv1277-page-title{font-size:22px;line-height:1.3;font-weight:700;letter-spacing:-.025em}
+.sv1296-embedded-root .sv-nav-context{gap:6px}
+.sv1296-embedded-root .sv-nav-context button{font-size:13px;font-weight:600;line-height:1.3}
+.sv1296-embedded-root .sv1277-calendar{font-size:13px;line-height:1.55;min-width:0}
+.sv1296-embedded-root .sv1277-calendar>p{font-size:13px;line-height:1.5}
+.sv1296-embedded-root .sv1277-calendar-toolbar{gap:12px;flex-wrap:wrap}
+.sv1296-embedded-root .sv1277-calendar-nav{gap:8px;flex-wrap:wrap}
+.sv1296-embedded-root .sv1277-calendar-nav strong{font-size:14px;line-height:1.45;white-space:normal}
+.sv1296-embedded-root .sv1277-calendar-toolbar button{font-size:13px}
+.sv1296-embedded-root .sv1277-week-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;min-width:0}
+.sv1296-embedded-root .sv1277-week-list article{box-sizing:border-box;min-width:0;overflow-wrap:anywhere;word-break:normal;padding:10px 9px;line-height:1.45}
+.sv1296-embedded-root .sv1277-week-list article>strong{display:block;font-size:12px;font-weight:700;line-height:1.3;margin-bottom:9px}
+.sv1296-embedded-root .sv1277-week-list article>span{display:block;font-size:11px;line-height:1.45;color:#7888a0}
+.sv1296-embedded-root .sv1277-week-list article>p{font-size:12px;line-height:1.45;overflow-wrap:anywhere;margin:5px 0}
+.sv1296-embedded-root .sv1277-calendar h4{font-size:15px;line-height:1.4;font-weight:700}
+.sv1296-embedded-root .sv1277-session-list article{min-width:0;gap:12px}
+.sv1296-embedded-root .sv1277-session-list strong{font-size:13px}
+.sv1296-embedded-root .sv1277-session-list span,.sv1296-embedded-root .sv1277-calendar>small{font-size:12px;line-height:1.5}
+.sv1296-embedded-root .sv1277-month-grid{min-width:0}
+.sv1296-embedded-root .sv1277-calendar-day{min-width:0;overflow-wrap:anywhere}
+.sv1296-embedded-root .sv1277-calendar-entry{font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+@media(max-width:980px){.sv1296-embedded-root .sv1277-week-list{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:620px){.sv1296-embedded-root .sv1277-week-list{grid-template-columns:repeat(2,minmax(0,1fr))}.sv1296-embedded-root .sv1277-calendar-nav strong{font-size:13px}}

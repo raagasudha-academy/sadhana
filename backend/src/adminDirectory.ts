@@ -62,6 +62,27 @@ export async function listAdministrators(instValue:unknown,claims:Claims) {
   return {records,canManage:canManageAdmins(claims,superSub())};
 }
 
+/** Minimal, institution-scoped admin identities for learner/staff message contacts. */
+export async function listMessageAdministrators(institution:InstitutionId) {
+  const records:{sub:string;displayName:string;photoUrl:string}[]=[];
+  let token:string|undefined;
+  do{
+    const result=await cognito.send(new ListUsersInGroupCommand({
+      UserPoolId:pool(),GroupName:adminGroup[institution],Limit:60,
+      ...(token?{NextToken:token}:{})
+    }));
+    for(const user of result.Users||[]){
+      if(user.Enabled===false||!user.Username)continue;
+      const sub=attr(user.Attributes,'sub');
+      if(!sub)continue;
+      records.push({sub,displayName:fullName(user.Attributes,user.Username),photoUrl:await adminPhotoUrl(sub,attr(user.Attributes,'picture'))});
+    }
+    token=result.NextToken;
+    if(records.length>=500&&token)throw httpError(413,'Administrator message contact limit exceeded.');
+  }while(token);
+  return records;
+}
+
 async function getAccount(username:string){
   try{
     return await cognito.send(new AdminGetUserCommand({UserPoolId:pool(),Username:username}));

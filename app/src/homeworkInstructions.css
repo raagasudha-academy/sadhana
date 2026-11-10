@@ -1,0 +1,32 @@
+.sv135-instructions{display:grid;gap:10px;padding:16px;margin:14px 0;border:1px solid #dbe3ee;border-radius:12px;background:#f5f7fb;color:#33465e}.sv135-instructions>strong{font-size:14px}.sv135-instructions>div{font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.sv135-instructions a{color:#355f9d;text-decoration:underline}.sv135-assignment-instructions{display:block;font-size:12px;line-height:1.4;overflow-wrap:anywhere;color:#516580;margin-top:6px}
+/* Published homework — equal-height cards */
+.sv1276-hw-records {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 16px;
+}
+
+/* Each assignment card */
+.sv1276-hw-records > article {
+    display: flex;
+    flex-direction: column;
+    min-height: 190px;
+}
+
+/* Push action buttons to the bottom */
+.sv1276-hw-records > article > button:first-of-type {
+    margin-top: auto;
+}
+
+/* Keep action buttons aligned */
+.sv1276-hw-records > article > button {
+    align-self: flex-start;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sv1276-hw-records {
+        grid-template-columns: 1fr;
+    }
+}

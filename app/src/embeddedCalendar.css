@@ -1,0 +1,31 @@
+/* v13.2 — Restore learner calendar styles inside the shared Admin shell.
+   The old rules were scoped to .student-portal-v123, which is deliberately
+   absent in embedded mode. Do not reintroduce its grid/sidebar layout. */
+.app-shell .sv1296-embedded-root .sv1277-calendar{border:1px solid #dce5f1;border-radius:14px;padding:18px;background:#fff;min-width:0}
+.app-shell .sv1296-embedded-root .sv1277-calendar-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0}
+.app-shell .sv1296-embedded-root .sv1277-calendar-nav,.app-shell .sv1296-embedded-root .sv1277-calendar-mode{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.app-shell .sv1296-embedded-root .sv1277-calendar-nav strong{min-width:140px;text-align:center}
+.app-shell .sv1296-embedded-root .sv1277-calendar-toolbar button{border:1px solid #cbd8e8;background:#fff;border-radius:8px;padding:8px 12px;color:#183c68;cursor:pointer;font:inherit}
+.app-shell .sv1296-embedded-root .sv1277-calendar-toolbar button.active{background:#264875;color:#fff;border-color:#264875}
+.app-shell .sv1296-embedded-root .sv1277-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid #d9e4f1;border-left:1px solid #d9e4f1}
+.app-shell .sv1296-embedded-root .sv1277-weekday{text-align:center;padding:10px 3px;background:#edf3fb;font-weight:700;font-size:12px}
+.app-shell .sv1296-embedded-root .sv1277-calendar-day{min-height:94px;border-right:1px solid #d9e4f1;border-bottom:1px solid #d9e4f1;padding:7px;min-width:0}
+.app-shell .sv1296-embedded-root .sv1277-calendar-day.outside{background:#f7f9fc;color:#8c9aaf}
+.app-shell .sv1296-embedded-root .sv1277-day-number{font-size:12px;font-weight:700}
+.app-shell .sv1296-embedded-root .sv1277-calendar-entry{background:#dceaff;color:#17365e;margin-top:5px;padding:5px;border-radius:6px;font-size:11px;overflow-wrap:anywhere;line-height:1.35}
+.app-shell .sv1296-embedded-root .sv1277-session-list{display:grid;gap:9px}
+.app-shell .sv1296-embedded-root .sv1277-session-list article{display:flex;justify-content:space-between;gap:12px;border:1px solid #dce5f0;border-radius:10px;padding:12px;background:#f7faff}
+.app-shell .sv1296-embedded-root .sv1277-session-list article div{display:grid;gap:4px}
+.app-shell .sv1296-embedded-root .sv1277-session-list span{font-size:13px;color:#536b89}
+.app-shell .sv1296-embedded-root .sv1277-week-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.app-shell .sv1296-embedded-root .sv1277-week-list article{border:1px solid #dce5f0;border-radius:8px;padding:10px;min-width:0;font-size:12px}
+.app-shell .sv1296-embedded-root .sv1277-week-list p{background:#e0ecfd;border-radius:6px;padding:7px;overflow-wrap:anywhere}
+.app-shell .sv1296-embedded-root .sv1277-week-list span{color:#8493a7}
+.app-shell .sv1296-embedded-root .sv1277-calendar-empty{background:#f4f7fc;border-radius:9px;padding:16px;color:#526987}
+@media(max-width:780px){
+ .app-shell .sv1296-embedded-root .sv1277-calendar{padding:10px}
+ .app-shell .sv1296-embedded-root .sv1277-calendar-day{min-height:60px;padding:3px}
+ .app-shell .sv1296-embedded-root .sv1277-calendar-entry{font-size:9px;padding:3px}
+ .app-shell .sv1296-embedded-root .sv1277-week-list{grid-template-columns:1fr}
+ .app-shell .sv1296-embedded-root .sv1277-session-list article{flex-direction:column}
+}

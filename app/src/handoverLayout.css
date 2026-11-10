@@ -1,0 +1,12 @@
+/* v12.9.2 — lean learner content, matched Admin dashboard rhythm. */
+.sv1291-unified .sv116-body{max-width:1200px;margin-inline:auto;padding-top:24px}
+.sv1291-unified .student-portal-learning{margin-top:0;min-width:0}
+.sv1291-unified .sv1277-page-title{margin:0 0 18px;font-size:clamp(24px,2.15vw,32px);line-height:1.25;letter-spacing:-.025em;color:#293950}
+/* The existing Homework flow and drawer remain fully operational. Remove redundant card framing. */
+.sv1291-unified .student-portal-learning .sv1278-homework{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;border-radius:0!important}
+.sv1291-unified .sv1278-homework .sv1278-list{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+.sv1291-unified .sv1278-homework .sv1278-assignment{background:#fff!important;border:1px solid #dce4ef!important;border-radius:13px!important;padding:18px 20px!important;box-shadow:0 2px 9px rgba(27,45,73,.035)!important}
+.sv1291-unified .sv1278-homework .sv1278-assignment:focus-visible{outline:3px solid #5f8ed3;outline-offset:2px}
+.sv1291-unified .sv123-side-academy{border-radius:12px}
+.sv1291-unified .sv123-side-links button{min-height:43px}
+@media(max-width:720px){.sv1291-unified .sv116-body{padding-top:14px}.sv1291-unified .sv1277-page-title{margin-bottom:14px}.sv1291-unified .sv1278-homework .sv1278-assignment{padding:15px!important}}

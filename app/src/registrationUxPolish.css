@@ -1,0 +1,60 @@
+/* Sadhana v0.9.4: presentation-only additions, scoped to registration dialogs. */
+.reg-module .reg-shade .reg-modal,
+.reg-shade .reg-modal:has(.reg-wizard-body) {
+  width: min(92vw, 680px);
+  max-height: min(90dvh, 900px);
+  overflow-y: auto;
+  border-radius: 20px;
+  box-shadow: 0 24px 65px rgba(25, 39, 65, .17);
+}
+.reg-shade .reg-modal:has(.reg-wizard-body) .reg-modal-head {
+  padding: 28px 34px 22px;
+  border-bottom: 1px solid #e7ebf3;
+}
+.reg-shade .reg-modal:has(.reg-wizard-body) .reg-modal-head h2 {letter-spacing: -.025em; font-size: 1.45rem;}
+.reg-wizard-body {padding: 28px 34px 30px;}
+.reg-wizard-progress {display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-bottom: 32px;}
+.reg-wizard-progress span {padding: 11px 9px; border-radius: 9px; font-size: 12px; text-align: center; font-weight: 650; color: #8491a8; background: #f5f7fb;}
+.reg-wizard-progress .reg-wizard-progress-active {color: #fff; background: #5c73af;}
+.reg-wizard-progress .reg-wizard-progress-done {color: #37685c; background: #e7f2ef;}
+.reg-wizard-eyebrow {font-size: 11px; letter-spacing: .14em; font-weight: 800; color: #637cb1; margin-bottom: 9px;}
+.reg-wizard-question {font-size: clamp(20px, 2.2vw, 25px); letter-spacing: -.035em; color: #29374c; margin: 0 0 9px;}
+.reg-wizard-explain {font-size: 14px; line-height: 1.7; color: #708098; margin: 0 0 24px; max-width: 56ch;}
+.reg-wizard-options {display:grid;gap:13px;}
+.reg-wizard-option {appearance: none; display:flex; align-items:center; gap:17px; width:100%; text-align:left; border:1px solid #e1e7f1; padding:19px 20px; min-height:96px; border-radius:15px; background:#fff; color:#2d3a52; cursor:pointer; transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;}
+.reg-wizard-option:hover,.reg-wizard-option:focus-visible {border-color:#8197c5;background:#f8faff;box-shadow:0 7px 20px rgba(78,101,151,.09);transform:translateY(-1px);outline:none;}
+.reg-wizard-option-icon {flex:0 0 50px; height:50px;display:grid;place-items:center;color:#5b73a9;background:#eef2fa;border-radius:13px;}
+.reg-wizard-option-copy {display:flex;flex:1;flex-direction:column;gap:6px;min-width:0;}
+.reg-wizard-option-copy strong {font-size:16px;font-weight:750;}
+.reg-wizard-option-copy small {font-size:13px;line-height:1.45;color:#73829a;}
+.reg-wizard-option>svg:last-child {color:#7085b0; flex-shrink:0;}
+.reg-wizard-tip {display:flex;align-items:flex-start;gap:10px;margin-top:21px;padding:15px 17px;border-radius:12px;background:#f2f5fa;color:#60718e;font-size:13px;line-height:1.55;}
+.reg-wizard-tip svg {flex-shrink:0;margin-top:2px;}
+.reg-wizard-footer {display:flex;justify-content:flex-start;margin-top:28px;padding-top:20px;border-top:1px solid #e9edf4;}
+.reg-family-member-card {margin: 0 0 18px; padding: 21px !important; border:1px solid #e5eaf3; border-radius: 14px; background:#fafbfe;}
+.reg-family-member-card .reg-section-head {margin-bottom:15px;}
+.reg-family-member-card .reg-field {margin-bottom:12px;}
+@media(max-width:600px){
+ .reg-shade .reg-modal:has(.reg-wizard-body) .reg-modal-head{padding:22px 22px 18px;}
+ .reg-wizard-body{padding:22px;}
+ .reg-wizard-progress{gap:5px;margin-bottom:24px;}
+ .reg-wizard-progress span{font-size:10px;padding:10px 4px;}
+ .reg-wizard-option{padding:15px;gap:12px;min-height:88px;}
+ .reg-wizard-option-icon{flex-basis:42px;height:42px;}
+ .reg-wizard-option-copy strong{font-size:15px;}
+}
+@media(prefers-reduced-motion:reduce){.reg-wizard-option{transition:none;}.reg-wizard-option:hover{transform:none;}}
+
+/* v0.9.4 tidy-up: single-column guardian details and restrained directory typography */
+.reg-module .reg-family-contact-fields {display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-bottom:18px;}
+.reg-module .reg-family-contact-fields .reg-field {width:100%;min-width:0;margin:0;}
+.reg-module .reg-family-contact-fields .reg-field>input {box-sizing:border-box;width:100%;height:48px;min-height:48px;padding:10px 15px;font-size:14px;line-height:1.4;}
+.reg-module .reg-family-contact-fields .reg-field select,
+.reg-module .reg-family-contact-fields .reg-field input {max-width:100%;}
+.reg-module .reg-directory-table {font-size:13px;line-height:1.5;color:#40506a;font-variant-numeric:tabular-nums;}
+.reg-module .reg-directory-table thead th {font-size:11px;font-weight:650;letter-spacing:.035em;color:#748199;white-space:nowrap;background:#fbfcfe;}
+.reg-module .reg-directory-table tbody td {font-size:13px;font-weight:400;vertical-align:middle;overflow-wrap:anywhere;}
+.reg-module .reg-directory-table tbody td strong {font-size:13px;font-weight:600;color:#29364c;}
+.reg-module .reg-directory-table tbody tr:hover {background:#f8faff;}
+.reg-module .reg-directory-table tbody tr:focus-visible {outline:2px solid #728dc7;outline-offset:-2px;}
+@media(max-width:600px){.reg-module .reg-family-contact-fields{gap:14px}.reg-module .reg-directory-table {min-width:720px;}}

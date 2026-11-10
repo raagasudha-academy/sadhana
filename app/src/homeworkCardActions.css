@@ -1,0 +1,42 @@
+
+/* Sadhana v13.7 — Published Homework fixed action rows */
+
+.sv1276-hw-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 16px;
+}
+
+.sv1276-hw-records > article {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 210px;
+}
+
+.sv1276-hw-records > article .homework-card-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.sv1276-hw-records > article .homework-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .sv1276-hw-records {
+    grid-template-columns: 1fr;
+  }
+}

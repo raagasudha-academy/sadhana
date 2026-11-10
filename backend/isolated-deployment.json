@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "status": "created-not-e2e-verified",
+  "apiId": "y3eobn1ppi",
+  "apiBaseUrl": "https://y3eobn1ppi.execute-api.us-east-1.amazonaws.com/m9-test/api",
+  "lambdaName": "sadhana-m9-isolated-e2e",
+  "roleArn": "arn:aws:iam::627821644317:role/sadhana-m9-isolated-e2e-role",
+  "sourceSha256": "15def9827bdbda1a49dc9fafbd7c365e551864bd574a776e133286351a3e52c1",
+  "productionApiUntouched": true,
+  "strictFenceEnabled": true,
+  "legacyDynamoDbAccessGranted": false,
+  "onboardingAndCognitoProvisioningDisabled": true
+}

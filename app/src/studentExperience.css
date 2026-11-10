@@ -1,0 +1,51 @@
+/* Student navigation experience; scoped so staff/admin pages are unaffected. */
+.sv1291-unified .sv116-body{max-width: none!important;width:100%;box-sizing:border-box}
+.sv1291-unified .student-portal-learning{width:100%;max-width:none!important}
+.sv1291-unified .learner-workspace{max-width:none!important;width:100%}
+.sv1291-unified .student-experience.sv-nav-wide{max-width:1120px!important;margin-inline:auto;width:100%;box-sizing:border-box}
+.sv1291-unified .student-experience-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))!important;gap:18px!important}
+.sv1291-unified .student-experience-sessions{width:100%!important;max-width:none!important}
+.sv1291-unified .student-experience-session{display:grid!important;grid-template-columns:58px minmax(0,1fr) minmax(150px,210px);gap:16px!important;align-items:center}
+.sv-nav-context{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 22px;border-bottom:1px solid #d9e1ec;padding-bottom:8px}
+.sv-nav-context button{border:0;border-radius:9px;background:transparent;color:#536480;font:inherit;font-size:14px;font-weight:600;padding:10px 15px;cursor:pointer}
+.sv-nav-context button.active{background:#eaf0fc;color:#203d75}
+.sv-nav-context button:hover{background:#f1f4fa}
+.sv-nav-rsvp{display:flex;flex-direction:column;gap:5px;min-width:0}
+.sv-nav-rsvp-label{font-size:11px;color:#52627c;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.sv-nav-rsvp select{width:100%;min-width:0;padding:9px 10px;border-radius:9px;border:1px solid #c7d1e0;background:#fff;color:#253754;font:inherit;font-size:13px;font-weight:600}
+.sv-nav-rsvp select:disabled{opacity:.6;cursor:wait}
+@media(max-width:860px){.sv1291-unified .student-experience-session{grid-template-columns:55px minmax(0,1fr)!important}.sv-nav-rsvp{grid-column:2}}
+@media(max-width:540px){.sv-nav-context{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}.sv-nav-context button{white-space:nowrap}.sv1291-unified .student-experience.sv-nav-wide{max-width:100%;padding-inline:0}.sv1291-unified .student-experience-session{gap:10px!important}.sv-nav-rsvp{grid-column:1/-1}.sv1291-unified .student-experience-grid{grid-template-columns:1fr!important}}
+/* Student learning experience: scoped, responsive, accessible presentation. */
+.student-experience{max-width:1100px;margin:0 auto;padding:4px 0 28px;color:#26344b}
+.student-experience-intro,.student-experience-sessions-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:8px 0 22px}
+.student-experience-intro h3,.student-experience-sessions-head h3{margin:3px 0 7px;font-size:clamp(19px,2vw,24px);line-height:1.25;color:#202d45}
+.student-experience-intro p,.student-experience-sessions-head p{margin:0;color:#64748b;font-size:14px;line-height:1.55}
+.student-experience-eyebrow{text-transform:uppercase;letter-spacing:.11em;font-size:11px;font-weight:750;color:#677ab4}
+.student-experience-count{white-space:nowrap;border:1px solid #dce4f0;border-radius:999px;background:#f7f9fd;padding:8px 13px;font-size:12px;font-weight:750;color:#506078}
+.student-experience-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.student-experience-card{position:relative;display:flex;flex-direction:column;min-height:178px;min-width:0;padding:20px;border:1px solid #e0e5ef;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(39,51,80,.045)}
+.student-experience-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.student-experience-symbol{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eef2fa;color:#4b5c91}
+.student-experience-tag{font-size:11px;font-weight:750;border-radius:99px;padding:5px 10px;background:#eef7f1;color:#286346}
+.student-experience-card h4{margin:0 0 10px;color:#23304b;font-size:17px;line-height:1.45;overflow-wrap:anywhere}
+.student-experience-card-sub{display:block;font-size:13px;color:#65738a;margin:0 0 8px}
+.student-experience-index{font-size:12px;color:#8a96a9;margin-top:auto}
+.student-experience-metric{font-size:30px;letter-spacing:-.04em;color:#25375a;margin:1px 0 8px}
+.student-experience-sessions-head{margin:30px 0 16px}
+.student-experience-sessions{overflow:hidden;border:1px solid #e0e5ef;border-radius:16px;background:#fff;box-shadow:0 4px 20px rgba(39,51,80,.035)}
+.student-experience-session{display:flex;align-items:center;gap:18px;padding:15px 19px;min-width:0}
+.student-experience-session+.student-experience-session{border-top:1px solid #eef0f5}
+.student-experience-date{width:54px;min-width:54px;border-radius:11px;background:#f1f4fb;display:flex;flex-direction:column;align-items:center;padding:9px 5px;color:#34466c}
+.student-experience-date strong{font-size:23px;line-height:1.1}.student-experience-date span{font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:750}
+.student-experience-session-main{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.student-experience-session-main strong{font-size:14px;overflow-wrap:anywhere;line-height:1.35}
+.student-experience-session-main span{font-size:12px;color:#66748a}
+.student-experience-rsvp{display:inline-flex;align-items:center;flex-shrink:0;border-radius:100px;padding:7px 10px;background:#f0f2f5;color:#5b6677;font-size:11px;font-weight:750;text-transform:capitalize}
+.student-experience-rsvp.yes{background:#e8f5ec;color:#286346}.student-experience-rsvp.no{background:#fff0ee;color:#934837}
+.student-experience-history-date{min-width:94px;color:#66748a;font-size:13px}
+.student-experience-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:35px 20px;border:1px dashed #cdd7e6;border-radius:16px;background:#f8faff;color:#687895;gap:8px}
+.student-experience-empty strong{color:#263650;font-size:15px}.student-experience-empty p{margin:0;font-size:13px}
+@media(max-width:740px){.student-experience-grid{grid-template-columns:1fr}.student-experience-card{min-height:150px}.student-experience-session{gap:11px;padding:12px}.student-experience-count{padding:7px 9px}.student-experience-rsvp{font-size:10px}}
+@media(max-width:420px){.student-experience-intro{flex-direction:column;gap:10px}.student-experience-session{flex-wrap:wrap}.student-experience-rsvp{margin-left:65px}.student-experience-history-date{min-width:80px}.student-experience-session:has(.student-experience-history-date) .student-experience-rsvp{margin-left:0}}
+@media(prefers-reduced-motion:reduce){.student-experience *{scroll-behavior:auto}}

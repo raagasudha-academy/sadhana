@@ -1,0 +1,5 @@
+/* Sadhana: small, keyboard-accessible quick unenrol on family student class chips. */
+.sadhana-quick-unenrol-chip {display:inline-flex;align-items:center;gap:7px;position:relative;padding-right:5px;}
+.sadhana-quick-unenrol-x {appearance:none;border:0;background:transparent;color:#687b9d;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;min-width:25px;min-height:25px;cursor:pointer;flex-shrink:0;margin-left:3px;padding:4px;}
+.sadhana-quick-unenrol-x:hover {background:#fee9ed;color:#a82f43;}
+.sadhana-quick-unenrol-x:focus-visible {outline:2px solid #4c68a5;outline-offset:2px;}

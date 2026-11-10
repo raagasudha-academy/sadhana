@@ -1,0 +1,15 @@
+{
+  "preflight": null,
+  "workflows": {
+    "isolatedM9Deployment": {"passed": false, "evidence": ""},
+    "mediaUploadDownload": {"passed": false, "evidence": ""},
+    "cognitoInvitationsOnM9": {"passed": false, "evidence": ""},
+    "guardianPortalEndToEnd": {"passed": false, "evidence": ""},
+    "raagaWebsiteE2E": {"passed": false, "evidence": ""},
+    "srutiWebsiteE2E": {"passed": false, "evidence": ""},
+    "learnerHomeworkEndToEnd": {"passed": false, "evidence": ""},
+    "crossAcademyNegativeAuth": {"passed": false, "evidence": ""},
+    "rollbackRehearsal": {"passed": false, "evidence": ""},
+    "infrastructureIAMAsCode": {"passed": false, "evidence": ""}
+  }
+}

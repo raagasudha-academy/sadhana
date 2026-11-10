@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "readOnly": true,
+  "canExecute": false,
+  "region": "us-east-1",
+  "target": "sadhana-dev-m9",
+  "verifiedAt": "2026-11-03T17:37:59.237Z",
+  "parity": {
+    "raaga.schedule": {
+      "same": true,
+      "legacyCount": 300,
+      "m9Count": 300,
+      "legacyDigest": "3767b53f178379dfcd2ae23879cd1eac50cbc59b795127d8ffaf23c774d0f2ba",
+      "m9Digest": "3767b53f178379dfcd2ae23879cd1eac50cbc59b795127d8ffaf23c774d0f2ba"
+    },
+    "sruti.schedule": {
+      "same": true,
+      "legacyCount": 110,
+      "m9Count": 110,
+      "legacyDigest": "122906058e9279e22fb46124303b881afde3d72bf67be0ecd97e650f8b78a19d",
+      "m9Digest": "122906058e9279e22fb46124303b881afde3d72bf67be0ecd97e650f8b78a19d"
+    },
+    "shared.schedule": {
+      "same": true,
+      "legacyCount": 32,
+      "m9Count": 32,
+      "legacyDigest": "c5831fca7b6c94cca4a05a01128783109fa0dedefb1b70ca65d3ebd626c3f1cb",
+      "m9Digest": "c5831fca7b6c94cca4a05a01128783109fa0dedefb1b70ca65d3ebd626c3f1cb"
+    },
+    "raaga.events": {
+      "same": true,
+      "legacyCount": 2,
+      "m9Count": 2,
+      "legacyDigest": "69867262b8d478f9b469510210d55dd7366a3b89d7da4bcf42429d4131ed6d8e",
+      "m9Digest": "69867262b8d478f9b469510210d55dd7366a3b89d7da4bcf42429d4131ed6d8e"
+    },
+    "raaga.teachers": {
+      "same": true,
+      "legacyCount": 1,
+      "m9Count": 1,
+      "legacyDigest": "aa3c2b743d898021d03536b783a59f936cdb4c2f1079edaaaa91ddb2872f466c",
+      "m9Digest": "aa3c2b743d898021d03536b783a59f936cdb4c2f1079edaaaa91ddb2872f466c"
+    },
+    "raaga.venues": {
+      "same": true,
+      "legacyCount": 3,
+      "m9Count": 3,
+      "legacyDigest": "0344d555958ed1f69ac062353eb3eba87733c3e1f36f2d28b1e19fec0ee82a7d",
+      "m9Digest": "0344d555958ed1f69ac062353eb3eba87733c3e1f36f2d28b1e19fec0ee82a7d"
+    },
+    "raaga.teacherMe": {
+      "same": true,
+      "legacyCount": 1,
+      "m9Count": 1,
+      "legacyDigest": "b42dd7f8e41a6ecd07fe5f5c5fbc5be344c31af3dc4e14b79b91b19dde521a8e",
+      "m9Digest": "b42dd7f8e41a6ecd07fe5f5c5fbc5be344c31af3dc4e14b79b91b19dde521a8e"
+    },
+    "sruti.events": {
+      "same": true,
+      "legacyCount": 1,
+      "m9Count": 1,
+      "legacyDigest": "e814bb48258f50e774e0849be71584dc755faf72b4f8823e68b75f0cdb85c140",
+      "m9Digest": "e814bb48258f50e774e0849be71584dc755faf72b4f8823e68b75f0cdb85c140"
+    },
+    "sruti.teachers": {
+      "same": true,
+      "legacyCount": 7,
+      "m9Count": 7,
+      "legacyDigest": "f5e755ad7e77e1be41f8cce754c2493a86921f2d3e2f0b726b4a7273c92b0fd5",
+      "m9Digest": "f5e755ad7e77e1be41f8cce754c2493a86921f2d3e2f0b726b4a7273c92b0fd5"
+    },
+    "sruti.venues": {
+      "same": true,
+      "legacyCount": 3,
+      "m9Count": 3,
+      "legacyDigest": "0344d555958ed1f69ac062353eb3eba87733c3e1f36f2d28b1e19fec0ee82a7d",
+      "m9Digest": "0344d555958ed1f69ac062353eb3eba87733c3e1f36f2d28b1e19fec0ee82a7d"
+    },
+    "sruti.teacherMe": {
+      "same": true,
+      "legacyCount": 1,
+      "m9Count": 1,
+      "legacyDigest": "b42dd7f8e41a6ecd07fe5f5c5fbc5be344c31af3dc4e14b79b91b19dde521a8e",
+      "m9Digest": "b42dd7f8e41a6ecd07fe5f5c5fbc5be344c31af3dc4e14b79b91b19dde521a8e"
+    }
+  },
+  "allMatch": true,
+  "notes": [
+    "Legacy teacher directory comparison excludes volatile signed photo URLs.",
+    "This is a direct database/API projection comparison, not a deployed HTTP auth or IAM test."
+  ]
+}

@@ -1,0 +1,35 @@
+/* Student portal typography — match the application shell scale. */
+.sv1296-embedded-root.student-portal-v119 .sv116-intro h1,
+.sadhana-v116-family-shell.student-portal-v119 .sv116-intro h1 {
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+.sv1296-embedded-root.student-portal-v119 .sv116-intro p,
+.sv1296-embedded-root.student-portal-v119 .svfd-viewing {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sv1296-embedded-root.student-portal-v119 .svfd-next h3,
+.sv1296-embedded-root.student-portal-v119 .svfd-actions h3 {
+  font-size: 16px;
+}
+.sv1296-embedded-root.student-portal-v119 .svfd-next h4 {
+  font-size: 17px;
+}
+.sv1296-embedded-root.student-portal-v119 .svfd-date-pill,
+.sv1296-embedded-root.student-portal-v119 .svfd-session-meta,
+.sv1296-embedded-root.student-portal-v119 .svfd-outline-btn {
+  font-size: 13px;
+}
+.sv1296-embedded-root.student-portal-v119 .svfd-action-grid strong {
+  font-size: 14px;
+}
+.sv1296-embedded-root.student-portal-v119 .svfd-action-grid span,
+.sv1296-embedded-root.student-portal-v119 .svfd-action-grid small {
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .sv1296-embedded-root.student-portal-v119 .sv116-intro h1 { font-size: 22px; }
+}

@@ -1,0 +1,1769 @@
+{
+  "schema": 1,
+  "milestone": "M9_SECURITY_EVIDENCE",
+  "readOnly": true,
+  "canExecute": false,
+  "region": "us-east-1",
+  "accountId": "627821644317",
+  "lambda": {
+    "name": "sadhana-dev-SadhanaApiLambda-r891ZvuYQfPh",
+    "roleArn": "arn:aws:iam::627821644317:role/sadhana-dev-SadhanaApiLambdaRole-AInfg8W5qtE7",
+    "lastModified": "2026-11-02T20:21:17.000+0000"
+  },
+  "tableCount": 18,
+  "scans": [
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:DescribeTable",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:GetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:BatchGetItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:PutItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:UpdateItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:ConditionCheckItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:DeleteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "table",
+      "action": "dynamodb:BatchWriteItem",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "index",
+      "action": "dynamodb:Query",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "institutions",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "people",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "families",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "family-links",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "classes",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "venues",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "enrolments",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "sessions",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "attendance",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "practice",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "homework",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "submissions",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "events",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "rsvps",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "registrations",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "notifications",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "audit",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    },
+    {
+      "domain": "counters",
+      "kind": "index",
+      "action": "dynamodb:Scan",
+      "passed": true,
+      "decision": "allowed",
+      "missingContext": []
+    }
+  ],
+  "iamError": null,
+  "apiProbe": {
+    "probePath": "/schedule?institution=raaga",
+    "statuses": [
+      401,
+      401
+    ],
+    "warning": "Tests anonymous and invalid-token rejection only, not role-specific or cross-academy access."
+  },
+  "decision": {
+    "iamVerified": true,
+    "anonymousVerified": true,
+    "cutoverReady": false,
+    "failedSimulations": 0,
+    "reason": "Security smoke tests do not establish Cognito provisioning, guardian revocation, website intake, learning mutations, or rollback."
+  },
+  "unverifiedWorkflows": [
+    "cognitoInvitationsOnM9",
+    "guardianPortalEndToEnd",
+    "websiteBothAcademies",
+    "allLearningEndpointsOnM9",
+    "rollbackExercised",
+    "crossInstitutionNegativeAuthDeployed"
+  ],
+  "notice": "Do not enable M9 pilot or cut over. This read-only report is evidence, not workflow validation."
+}

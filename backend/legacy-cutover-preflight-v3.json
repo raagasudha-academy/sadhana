@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "readOnly": true,
+  "awsChangesMade": false,
+  "region": "us-east-1",
+  "accountId": "627821644317",
+  "lambdaName": "sadhana-dev-SadhanaApiLambda-r891ZvuYQfPh",
+  "lambdaLastModified": "2026-11-02T20:21:17.000+0000",
+  "localBuildSha256": "15def9827bdbda1a49dc9fafbd7c365e551864bd574a776e133286351a3e52c1",
+  "checks": [
+    {
+      "name": "awsIdentity",
+      "passed": true,
+      "detail": "627821644317"
+    },
+    {
+      "name": "lambdaObserved",
+      "passed": true,
+      "detail": "Active"
+    },
+    {
+      "name": "environmentKeysInspected",
+      "passed": true,
+      "detail": {
+        "present": [],
+        "missing": [
+          "M9_STRICT_DATA_FENCE",
+          "M9_FINAL_LEARNER_READS",
+          "M9_LEARNER_WRITES",
+          "M9_HOMEWORK_WRITES",
+          "M95_ONBOARDING_MODE"
+        ]
+      }
+    },
+    {
+      "name": "liveCutoverDisabled",
+      "passed": true,
+      "detail": "Existing Lambda retained for legacy traffic"
+    },
+    {
+      "name": "apiRouteAndStage",
+      "passed": true,
+      "detail": {
+        "routes": [
+          "ANY /api/{proxy+}",
+          "OPTIONS /api/{proxy+}"
+        ],
+        "stages": [
+          "dev"
+        ]
+      }
+    },
+    {
+      "name": "m9TablesHealthy",
+      "passed": true,
+      "detail": "18/18 ACTIVE, deletion protected, indexes ACTIVE"
+    },
+    {
+      "name": "mediaBucketConfigured",
+      "passed": true,
+      "detail": "Set on inspected Lambda"
+    },
+    {
+      "name": "mediaBucketAccess",
+      "passed": true,
+      "detail": "S3 HeadBucket access (not a real upload)"
+    },
+    {
+      "name": "mediaObjectPolicy",
+      "passed": true,
+      "detail": [
+        {
+          "action": "s3:GetObject",
+          "decision": "allowed"
+        },
+        {
+          "action": "s3:PutObject",
+          "decision": "allowed"
+        }
+      ]
+    },
+    {
+      "name": "localBuildArtifact",
+      "passed": true,
+      "detail": "15def9827bdbda1a49dc9fafbd7c365e551864bd574a776e133286351a3e52c1"
+    }
+  ],
+  "decision": {
+    "infrastructurePreflightPassed": true,
+    "applicationE2EVerified": false,
+    "productionCutoverApproved": false
+  },
+  "pending": [
+    "isolatedM9Deployment",
+    "mediaUploadDownload",
+    "cognitoInvitationsOnM9",
+    "guardianPortalEndToEnd",
+    "raagaWebsiteE2E",
+    "srutiWebsiteE2E",
+    "learnerHomeworkEndToEnd",
+    "crossAcademyNegativeAuth",
+    "rollbackRehearsal",
+    "infrastructureIAMAsCode"
+  ],
+  "notice": "This checks configuration only. No AWS upload, mutation, migration or cutover performed."
+}

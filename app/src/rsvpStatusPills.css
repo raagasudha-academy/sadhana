@@ -1,0 +1,6 @@
+/* Teacher register RSVP is informational; never mark attendance automatically. */
+.rsvp-status-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 12px;font-size:.82rem;font-weight:650;white-space:nowrap;border:1px solid transparent}
+.rsvp-status-attending{background:#e5f3ee;color:#256750;border-color:#cbe6da}
+.rsvp-status-not-attending{background:#fff0d9;color:#93571b;border-color:#f5dbb0}
+.rsvp-status-unsure{background:#fff4df;color:#82601f;border-color:#f2ddb4}
+.rsvp-status-no-response{background:#f0f2f5;color:#667085;border-color:#e1e5eb}
