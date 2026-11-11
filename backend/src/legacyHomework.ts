@@ -10,6 +10,7 @@ import {httpError,permittedInstitutions} from './model.ts';
 import type {Claims,InstitutionId} from './model.ts';
 import {matchingCognitoPerson,authorisedStudent} from './finalAccessCore.mjs';
 import {validateHomeworkSchedule,isHomeworkOpenAt,isHomeworkReleased} from './homeworkPublishingPolicy.ts';
+import {makeLearnerActivityNotifications} from './learnerActivityNotifications.ts';
 
 export type HomeworkDB={send:(command:any)=>Promise<any>};
 const table=(entity:string)=>entityTable(entity);
@@ -34,6 +35,7 @@ const realMediaIO:M9MediaIO={
  signGet:(bucket,key)=>getSignedUrl(mediaS3,new GetObjectCommand({Bucket:bucket,Key:key}),{expiresIn:180}),
 };
 export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
+ const activity=makeLearnerActivityNotifications(db);
  const get=async(kind:string,id:string)=>(await db.send(new GetCommand({TableName:table(kind),Key:{[kind==='homework'?'homeworkId':kind==='submissions'?'submissionId':kind==='people'?'personId':kind==='classes'?'classId':kind==='enrolments'?'enrolmentId':'linkId']:id},ConsistentRead:true}))).Item||null;
  async function query(kind:string,index:string,key:string,value:string){
   const rows:any[]=[];let cursor:any;
@@ -109,6 +111,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   const item={homeworkId:id,institutionId:inst,classId,teacherPersonId:actor.personId,title:body.title.trim(),instructions:body.instructions.trim(),dueDate:body.dueDate,...schedule,publishAt:schedule.releaseAt||now,status:'active',materialIds:[],version:1,createdAt:now,createdBy:claims.sub};
   if(!item.releaseAt)delete (item as any).releaseAt;
   try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('homework'),Item:item,ConditionExpression:'attribute_not_exists(homeworkId)'}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkPublished',id),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
+  await activity.notify({institution:inst,classIds:[classId],title:'New homework',detail:`${item.title} · due ${item.dueDate}`,category:'Homework',resourceId:id}).catch(()=>{});
   return {record:{id,classId,title:item.title,instructions:item.instructions,dueDate:item.dueDate}};
  }
  async function edit(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string,body:any){
@@ -120,6 +123,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
   let schedule;try{schedule=validateHomeworkSchedule(body.dueDate,old.dueTime,old.releaseAt,old.gradingEnabled);}catch(e){throw httpError(400,(e as Error).message)}
   const updated={...old,title:body.title.trim(),instructions:body.instructions.trim(),dueDate:body.dueDate,dueAt:schedule.dueAt,version:old.version+1,updatedAt:nowIso(),updatedBy:claims.sub};
   try{await db.send(new TransactWriteCommand({TransactItems:[...checks,{Put:{TableName:table('homework'),Item:updated,ConditionExpression:'#version=:version AND institutionId=:inst AND classId=:class',ExpressionAttributeNames:{'#version':'version'},ExpressionAttributeValues:{':version':old.version,':inst':inst,':class':classId}}},{Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkRepublished',homeworkId),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
+  await activity.notify({institution:inst,classIds:[classId],title:'Homework updated',detail:`${updated.title} · due ${updated.dueDate}`,category:'Homework',resourceId:homeworkId}).catch(()=>{});
   return {record:{id:homeworkId,classId,title:updated.title,instructions:updated.instructions,dueDate:updated.dueDate,version:updated.version}};
  }
  async function remove(inst:InstitutionId,claims:Claims,classId:string,homeworkId:string){
@@ -347,6 +351,7 @@ export function makeM9Homework(db:HomeworkDB,mediaIO:M9MediaIO=realMediaIO){
     ConditionExpression:'#version=:version AND institutionId=:inst AND classId=:class AND #status<>:archived',
     ExpressionAttributeNames:{'#version':'version','#status':'status'},ExpressionAttributeValues:{':version':h.version,':inst':inst,':class':classId,':archived':'archived'}}},
    {Put:{TableName:table('audit'),Item:audit(inst,claims,actor,'homeworkMaterialsChanged',homeworkId),ConditionExpression:'attribute_not_exists(auditId)'}}]}));}catch(e){conflict(e)}
+  if(body.ids.length&&JSON.stringify(body.ids)!==JSON.stringify(h.materialIds||[]))await activity.notify({institution:inst,classIds:[classId],title:'New homework resources',detail:`Resources added to ${h.title}`,category:'Resources',resourceId:homeworkId}).catch(()=>{});
   return {saved:true};
  }
  async function signedTeacherMaterials(inst:InstitutionId,h:any){

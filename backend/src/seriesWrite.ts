@@ -8,6 +8,7 @@ import type {Claims} from './model.ts';
 import {parseSeriesChange,projectSeriesRecord,todayLondon,validateSeriesCandidate} from './scheduleSeries.ts';
 import type {SeriesRule} from './scheduleSeries.ts';
 import type {ScheduleRecord} from './scheduleModel.ts';
+import {makeLearnerActivityNotifications} from './learnerActivityNotifications.ts';
 
 export type M95SeriesClient={send:(command:any)=>Promise<any>};
 // Resolve lazily so a missing final-mode acknowledgement cannot fail Lambda cold start.
@@ -43,6 +44,7 @@ function asRule(item:Record<string,any>):SeriesRule|undefined{
    updatedAt:x.updatedAt??item.updatedAt,updatedBy:x.updatedBy??item.updatedBy??''};
 }
 export function makeM95SeriesWriter(client:M95SeriesClient){
+ const activity=makeLearnerActivityNotifications(client);
  async function prepare(inst:'raaga'|'sruti',classId:string,raw:Record<string,unknown>,claims:Claims){
   enabled();demandInstitution(claims,inst);
   if(!idPattern.test(classId))throw httpError(400,'Invalid class ID.');
@@ -115,6 +117,7 @@ export function makeM95SeriesWriter(client:M95SeriesClient){
      {Put:{TableName:TABLE.audit,Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}
     ]}));
    }catch(err){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes((err as Error).name))throw httpError(409,'The class or recurring rules have changed. Refresh and retry.');throw err;}
+   await activity.notify({institution:inst,classIds:[classId],title:'Class schedule changed',detail:`Recurring timetable updated from ${x.rule.effectiveFrom}`,category:'Schedule',resourceId:classId}).catch(()=>{});
    return {classId,effectiveFrom:x.rule.effectiveFrom,effectiveUntil:x.rule.effectiveUntil,changes:x.rule.changes,masterVersion:x.record.version+1};
   }
  };

@@ -244,6 +244,22 @@ export function makeFinalMessages(db:Db,listAdmins:(institution:InstitutionId)=>
   }
   return {records:records.sort((a,b)=>String(b.lastAt).localeCompare(String(a.lastAt))).slice(0,100)};
  }
+ async function learnerNotifications(institution:InstitutionId,claims:Claims,adminInstitutions:InstitutionId[]=[],actingStudentId?:string){
+  const actor=await actorFor(institution,claims,adminInstitutions,actingStudentId);
+  if(actor.isAdminActor||(!actor.personTypes?.includes('student')&&!actor.personTypes?.includes('guardian')))throw httpError(403,'Learner notifications are available to students and their approved families.');
+  const rows=await queryAll('notifications','RecipientNotificationsIndex','recipientPersonId',actor.personId,5000);
+  return {records:rows.filter(row=>row.recordType==='learner-activity'&&row.institutionId===institution&&row.recipientPersonId===actor.personId)
+   .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,100).map(row=>({id:row.notificationId,institution,title:row.title,detail:row.detail,category:row.category,age:row.createdAt,read:row.read===true,activityId:row.resourceId}))};
+ }
+ async function markLearnerNotificationRead(institution:InstitutionId,claims:Claims,notificationId:string,adminInstitutions:InstitutionId[]=[],actingStudentId?:string){
+  const actor=await actorFor(institution,claims,adminInstitutions,actingStudentId);
+  if(actor.isAdminActor||(!actor.personTypes?.includes('student')&&!actor.personTypes?.includes('guardian')))throw httpError(403,'Learner notifications are available to students and their approved families.');
+  const rows=await queryAll('notifications','RecipientNotificationsIndex','recipientPersonId',actor.personId,5000);
+  const row=rows.find(item=>item.notificationId===notificationId&&item.recordType==='learner-activity'&&item.institutionId===institution);
+  if(!row)return {updated:0};
+  await db.send(new UpdateCommand({TableName:table('notifications'),Key:{notificationId},UpdateExpression:'SET #read=:yes,readAt=:now',ConditionExpression:'recordType=:type AND institutionId=:inst AND recipientPersonId=:recipient',ExpressionAttributeNames:{'#read':'read'},ExpressionAttributeValues:{':yes':true,':now':new Date().toISOString(),':type':'learner-activity',':inst':institution,':recipient':actor.personId}}));
+  return {updated:1};
+ }
  async function send(institution:InstitutionId,claims:Claims,peerId:string,classId:string,threadId:string|undefined,body:unknown,adminInstitutions:InstitutionId[]=[],actingStudentId?:string){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>key!=='text'))throw httpError(400,'Enter a message.');
   const text=typeof (body as any).text==='string'?(body as any).text.trim():'';
@@ -295,7 +311,7 @@ export function makeFinalMessages(db:Db,listAdmins:(institution:InstitutionId)=>
    ExpressionAttributeNames:{'#read':'read'},ExpressionAttributeValues:{':yes':true,':no':false,':now':now,':type':'direct-message',':inst':institution,':recipient':actor.personId}}));}
   return {updated:unread.length,records};
  }
- return {contacts,threads,thread,send,markRead};
+ return {contacts,threads,thread,send,markRead,learnerNotifications,markLearnerNotificationRead};
 }
 let singleton:ReturnType<typeof makeFinalMessages>|undefined;
 export function finalMessages(){return singleton??=makeFinalMessages(DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}}),listMessageAdministrators);}

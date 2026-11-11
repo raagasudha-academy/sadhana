@@ -4,7 +4,7 @@
 import {createHash} from 'node:crypto';
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 // Match m95WebsiteImportCore's hash(email): JSON array encoding is significant.
-export const canonicalRaagaContactGuardId=email=>`CONTACT#raaga#${createHash('sha256').update(JSON.stringify([email])).digest('hex')}`;
+export const canonicalRaagaContactGuardId=(email,institution='raaga')=>`CONTACT#${institution}#${createHash('sha256').update(JSON.stringify([email])).digest('hex')}`;
 const attr=(attrs,key)=>attrs?.find(x=>x.Name===key)?.Value||'';
 const emailPattern=/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 const subPattern=/^[a-zA-Z0-9-]{8,128}$/;
@@ -12,25 +12,26 @@ const validEmail=value=>typeof value==='string'&&value.length<=254&&emailPattern
 const usernameFor=id=>`parent-${id.slice(4,36)}`;
 const enabled=(env,name)=>env.SADHANA_ENTITY_TABLE_SET==='final'&&env.SADHANA_ENTITY_FINAL_ACK==='enabled'&&
   env.SADHANA_DATA_MODE!=='split'&&env[name]==='enabled';
-const verify=(reg,guardian,actorSub)=>{
- if(!actorSub||!reg||reg.source!=='website'||reg.institutionId!=='raaga'||reg.importStatus!=='imported'||
+const verify=(reg,guardian,actorSub,institution)=>{
+ if(!actorSub||!reg||reg.source!=='website'||reg.institutionId!==institution||reg.importStatus!=='imported'||
   !reg.familyId||!reg.registrationId?.startsWith('web_')||
   !guardian?.personId||guardian.familyId!==reg.familyId||guardian.status!=='active'||
-  !guardian.personTypes?.includes('guardian')||!guardian.institutionIds?.includes('raaga')||
+  !guardian.personTypes?.includes('guardian')||!guardian.institutionIds?.includes(institution)||
   guardian.cognitoSub||!validEmail(guardian.email))
   fail(409,'Imported guardian identity requires administrator reconciliation.');
  return guardian.email;
 };
 const checkContact=(contact,reg,guardian)=>{
- if(!contact||contact.personId!==guardian.personId||contact.familyId!==reg.familyId||contact.institutionId!=='raaga')
+ if(!contact||contact.personId!==guardian.personId||contact.familyId!==reg.familyId||contact.institutionId!==reg.institutionId)
   fail(409,'Contact uniqueness guard requires administrator reconciliation.');
 };
-export function createCanonicalRaagaInvitationFlow(ops,env=process.env,now=()=>new Date().toISOString(),newId){
+export function createCanonicalRaagaInvitationFlow(ops,env=process.env,now=()=>new Date().toISOString(),newId,institution='raaga'){
+ const flagPrefix=`SADHANA_FINAL_${institution.toUpperCase()}_PARENT`;
  const getId=()=>{if(typeof newId!=='function')throw new Error('Invitation operation ID generator not configured');return newId();};
  return {
   async invite(reg,guardian,actorSub){
-   if(!enabled(env,'SADHANA_FINAL_RAAGA_PARENT_INVITATIONS'))fail(503,'Canonical parent invitations are disabled.');
-   const email=verify(reg,guardian,actorSub);
+   if(!enabled(env,`${flagPrefix}_INVITATIONS`))fail(503,'Canonical parent invitations are disabled.');
+   const email=verify(reg,guardian,actorSub,institution);
    if(reg.provisioningStatus!=='NOT_INVITED'||reg.parentAccountSub||reg.parentAccountUsername||reg.invitationOperationId)
     fail(409,'Parent invitation state changed. Refresh and review.');
    checkContact(await ops.contact(email),reg,guardian);
@@ -53,8 +54,8 @@ export function createCanonicalRaagaInvitationFlow(ops,env=process.env,now=()=>n
     message:'Cognito accepted the invitation request. Email delivery is not guaranteed; the parent must finish sign-in and account linking before viewing student records.'};
   },
   async resend(reg,guardian,actorSub){
-   if(!enabled(env,'SADHANA_FINAL_RAAGA_PARENT_RESENDS'))fail(503,'Canonical invitation resends are disabled.');
-   const email=verify(reg,guardian,actorSub);
+   if(!enabled(env,`${flagPrefix}_RESENDS`))fail(503,'Canonical invitation resends are disabled.');
+   const email=verify(reg,guardian,actorSub,institution);
    if(reg.provisioningStatus!=='INVITATION_SENT'||!subPattern.test(reg.parentAccountSub||'')||
      !validEmail(reg.parentAccountEmail)||!reg.parentAccountUsername||
      reg.parentAccountUsername!==usernameFor(reg.registrationId)||reg.parentAccountEmail!==email)

@@ -11,7 +11,7 @@ describe('teacher practice audio review',()=>{
   const cloud={api:{teacherPracticeComments,teacherPracticeMedia,addTeacherPracticeComment:vi.fn()}} as any;
   render(<PracticeReview cloud={cloud} workspace="raaga" entries={[{id:'PRACTICE-1',studentId:'STUDENT-1',classId:'CLASS-1',date:'2026-11-08',topic:'Alapana',minutes:20}]} students={[{id:'STUDENT-1',name:'Student One'}]} onReload={async()=>{}}/>);
   fireEvent.click(screen.getByRole('button',{name:'Review'}));
-  const player=await screen.findByLabelText('Practice recording for Student One on 2026-11-08');
+  const player=await screen.findByLabelText('Practice audio for Student One on 2026-11-08');
   expect(player.tagName).toBe('AUDIO');
   expect((player as HTMLAudioElement).src).toContain('audio.mp3');
   expect(teacherPracticeMedia).toHaveBeenCalledWith('raaga','PRACTICE-1');

@@ -3,7 +3,7 @@ import {entityTable} from './entityTables.mjs';
 import {randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,GetCommand,QueryCommand,ScanCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
-import {httpError,newId,validate} from './model.ts';
+import {ALLOWED_FIELDS,httpError,newId,validate} from './model.ts';
 import {guardianLinkId} from './websiteImportCore.mjs';
 import {academyRoll} from './academyRoll.mjs';
 import type {InstitutionId,Claims} from './model.ts';
@@ -243,8 +243,11 @@ export function makeM10CoreWriteService(db:CoreDb){
    if(!text(claims.sub))throw httpError(401,'Verified administrator required.');
    if(!raw||!version(raw.expectedVersion))throw httpError(400,'Expected version required.');
    const {expectedVersion,...changes}=raw;
-   // Contact changes, relationship changes and identity reassignment need dedicated review.
-   const allowed:Record<CoreEntity,string[]>={families:['parentName'],students:['name'],enrolments:['studentId','classId','startDate','endDate']};
+   // The form echoes relationship for display; never treat it as permission
+   // to change the canonical family link.
+   const requestedRelationship=entity==='students'?changes.relationship:undefined;
+   if(entity==='students')delete changes.relationship;
+   const allowed:Record<CoreEntity,string[]>={families:['parentName'],students:['name','email','phone','location'],enrolments:['studentId','classId','startDate','endDate']};
    only(changes,allowed[entity]);if(!Object.keys(changes).length)throw httpError(400,'No changes provided.');
    const domain=entity==='students'?'people':entity;const key=entity==='students'?'personId':entity==='families'?'familyId':'enrolmentId';
    const current=await get(domain,key,id);
@@ -258,7 +261,12 @@ export function makeM10CoreWriteService(db:CoreDb){
     startDate:current.startDate,endDate:current.endDate||'',
    }:null);
    if(!old)throw httpError(409,'This record requires a canonical data edit workflow.');
-   const base=Object.fromEntries(Object.entries(old).filter(([k])=>!['id','version','createdAt','updatedAt','archived','visibleIn'].includes(k)));
+   if(requestedRelationship!==undefined){
+    if(requestedRelationship!=='child'&&requestedRelationship!=='parent_guardian')throw httpError(400,'Invalid family relationship.');
+    if(!((old.relationship===requestedRelationship)||(requestedRelationship==='child'&&!old.relationship&&current.familyId)))
+      throw httpError(409,'Changing a family relationship requires separate review.');
+   }
+   const base=Object.fromEntries(Object.entries(old).filter(([k])=>ALLOWED_FIELDS[entity].includes(k)));
    const updated=validate(entity,{...base,...(entity==='enrolments'?{
     institution:inst,studentId:current.studentId,classId:current.classId,
     startDate:current.startDate,endDate:current.endDate||'',
@@ -276,7 +284,9 @@ export function makeM10CoreWriteService(db:CoreDb){
    }
    if(entity==='enrolments'&&(updated.studentId!==current.studentId||updated.classId!==current.classId))throw httpError(409,'Enrolment identity immutable.');
    const now=new Date().toISOString();const next:RecordValue={...current,version:expectedVersion+1,updatedAt:now,legacyPayload:{...old,...updated,version:expectedVersion+1,updatedAt:now}};
-   if(entity==='students')Object.assign(next,names(updated.name));
+   if(entity==='students'){
+    Object.assign(next,names(updated.name),{email:updated.email||'',phone:updated.phone||'',location:updated.location||''});
+   }
    if(entity==='enrolments'){next.startDate=updated.startDate;next.endDate=updated.endDate||'';}
    await tx([
     replace(domain,{[key]:id},next,entity==='enrolments'?'#v=:v AND #i=:inst':'#v=:v AND contains(#i,:inst)',{'#v':'version','#i':entity==='enrolments'?'institutionId':'institutionIds'},{':v':expectedVersion,':inst':inst}),

@@ -4,7 +4,7 @@ import {
   AdminGetUserCommand, AdminListGroupsForUserCommand,
   AdminCreateUserCommand, AdminAddUserToGroupCommand, AdminRemoveUserFromGroupCommand, AdminUpdateUserAttributesCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { demandInstitution, httpError } from './model.ts';
+import { demandInstitution, httpError, SUPER_ADMIN_GROUP } from './model.ts';
 import {adminPhotoUrl} from './profilePhotos.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import {adminGroup,canManageAdmins,requireAdminManager,readInstitution,validateInvite,validateAccessChange,validateAdminProfile,parseAdminTitle} from './adminPolicy.ts';
@@ -108,9 +108,10 @@ export async function changeAdministratorAccess(raw:Record<string,unknown>,claim
   const {username,institution,grant}=validateAccessChange(raw);
   const target=await getAccount(username);
   const targetSub=attr(target.UserAttributes,'sub');
-  if(targetSub===superSub())throw httpError(403,'Cannot change the protected super-admin account.');
   const group=adminGroup[institution];
-  const already=(await groupNames(username)).includes(group);
+  const memberships=await groupNames(username);
+  if(targetSub===superSub()||memberships.includes(SUPER_ADMIN_GROUP))throw httpError(403,'Cannot change the protected super-admin account.');
+  const already=memberships.includes(group);
   if(already===grant)return {username,institution,granted:grant,unchanged:true};
   try{
     if(grant){await cognito.send(new AdminAddUserToGroupCommand({UserPoolId:pool(),Username:username,GroupName:group}));}

@@ -31,3 +31,9 @@ The SAM template and Lambda modules are written as a foundation; they were synta
 ## Role mapping (important)
 
 This updated backend expects Cognito groups exactly named `raagasudha-admin` and `sruti-admin` (matching the groups created in the console). It will deny API access to any user without one of these roles, even if the user can authenticate. These groups are **not IAM roles**.
+
+### Global super-admin
+
+Create a Cognito User Pool group named exactly `sadhana-super-admin` in the Sadhana staff pool, then add the designated account to that group. No IAM role mapping is required. The group appears in the user's Cognito `cognito:groups` claim; after changing membership, sign the user out and back in to obtain a token with the new claim.
+
+This group grants global administrator access to both Raagasudha and Sruti, including administrator account management. The backend still applies each operation's validation, dependency checks, confirmation, and audit behavior. The existing `SadhanaSuperAdminSub` stack parameter remains supported as a legacy designated-account path.

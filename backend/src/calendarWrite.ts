@@ -7,6 +7,7 @@ import {demandInstitution,httpError} from './model.ts';
 import type {Claims} from './model.ts';
 import {scheduleChanges,validateScheduleRecord} from './scheduleModel.ts';
 import type {ScheduleRecord,ScheduleInstitution} from './scheduleModel.ts';
+import {makeLearnerActivityNotifications} from './learnerActivityNotifications.ts';
 
 export type CalendarClient={send:(cmd:any)=>Promise<any>};
 const allowedFields=new Set(['recordType','name','programme','teacher','mode','location','date','endDate','startTime','endTime','allDay','status','classId','affectsClasses']);
@@ -77,6 +78,10 @@ function checkPilot(){
  if(process.env.M95_COMPAT_MODE!=='pilot'||process.env.M95_CALENDAR_WRITES!=='enabled')throw httpError(503,'M9 calendar write pilot is disabled.');
 }
 export function makeM95CalendarWriter(client:CalendarClient){
+ const activity=makeLearnerActivityNotifications(client);
+ const notifyClassSchedule=async(inst:'raaga'|'sruti',classId:string,title:string,detail:string,resourceId:string)=>{
+  if(process.env.SADHANA_ENTITY_TABLE_SET==='final')await activity.notify({institution:inst,classIds:[classId],title,detail,category:'Schedule',resourceId}).catch(()=>{});
+ };
  const get=async(entity:'classes'|'sessions',id:string)=>{
   const pk=entity==='classes'?'classId':'sessionId';
   const result=await client.send(new GetCommand({TableName:table(entity),Key:{[pk]:id},ConsistentRead:true}));
@@ -131,6 +136,7 @@ export function makeM95CalendarWriter(client:CalendarClient){
    ConditionExpression:'attribute_not_exists(auditId)'}});
   try{await client.send(new TransactWriteCommand({TransactItems:writes}));}
   catch(e){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes((e as Error)?.name))throw httpError(409,'Class or sessions changed. Refresh and retry.');throw e;}
+  await notifyClassSchedule(inst,current.id,'Class schedule changed',`Class renamed · ${next.name}`,current.id);
   return {record:newMaster,renamedSessions:toRename.length,preservedOverrides:linked.length-toRename.length};
  };
  return {
@@ -147,6 +153,7 @@ export function makeM95CalendarWriter(client:CalendarClient){
    }
    const entity=entityFor(record.recordType) as 'classes'|'sessions';
    await transact(entity,target(record),undefined,String(claims.sub),'M95_CREATE_SCHEDULE');
+   if(record.recordType==='class-session')await notifyClassSchedule(inst,record.classId!,'Class schedule updated',`New session · ${record.date} at ${record.startTime}`,record.id);
    return {record};
   },
   async patch(inst:ScheduleInstitution,id:string,raw:Record<string,any>,claims:Claims){
@@ -174,6 +181,8 @@ export function makeM95CalendarWriter(client:CalendarClient){
     next.sessionOverrideFields=[...new Set([...(current.sessionOverrideFields||[]),...changed])];
    }
    await transact(current.recordType==='class'?'classes':'sessions',target(next,stored),stored.version,String(claims.sub),'M95_UPDATE_SCHEDULE');
+   if(current.recordType==='class-session')await notifyClassSchedule(inst,current.classId!,'Class schedule changed',`Session updated · ${next.date} at ${next.startTime}`,id);
+   else await notifyClassSchedule(inst,current.id,'Class schedule changed',`Class timetable updated · ${next.name}`,id);
    return {record:next,renamedSessions:0,preservedOverrides:0};
   }
  };

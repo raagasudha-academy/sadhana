@@ -10,6 +10,11 @@ test('configured super admin requires exact sub and BOTH administrator groups',(
   assert.equal(canManageAdmins(both,'different'),false);
   assert.equal(canManageAdmins({sub:'trusted-sub','cognito:groups':['sruti-admin']},'trusted-sub'),false);
 });
+test('Cognito super-admin group grants account-management authority without a pinned subject',()=>{
+  const assigned={sub:'assigned-super-admin','cognito:groups':['sadhana-super-admin']};
+  assert.equal(canManageAdmins(assigned,''),true);
+  assert.doesNotThrow(()=>requireAdminManager(assigned,''));
+});
 test('viewer and ordinary admin cannot change admin roles',()=>{
   assert.throws(()=>requireAdminManager({sub:'user','cognito:groups':['sruti-viewer']},'user'),(e:any)=>e.status===403);
   assert.throws(()=>requireAdminManager({sub:'user','cognito:groups':['sruti-admin']},'user'),(e:any)=>e.status===403);

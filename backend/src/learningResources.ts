@@ -9,11 +9,13 @@ import type {Claims,InstitutionId} from './model.ts';
 import {learnerIdentity} from './learnerExtras.ts';
 import {myTeacherIdentity} from './teacherDirectory.ts';
 import {schedulePK,scheduleSK} from './scheduleModel.ts';
+import {makeLearnerActivityNotifications} from './learnerActivityNotifications.ts';
 
 type Category='syllabus'|'getting-started'|'practice'|'policies';
 type ResourceInput={title:string;description:string;category:Category;audience:'students'|'families'|'all';url:string;classIds:string[];programme?:string;stage?:string;levelNumber?:number;studentMessage?:string;objective?:string;duration?:string;versionLabel?:string;status?:'draft'|'published'|'archived';mediaKey?:string;fileName?:string;mimeType?:string;fileSize?:number};
 const legacy=makeRoutedClient();
 const canonical=DynamoDBDocumentClient.from(new DynamoDBClient({region:process.env.AWS_REGION||'us-east-1'}),{marshallOptions:{removeUndefinedValues:true}});
+const activity=makeLearnerActivityNotifications(canonical);
 const s3=new S3Client({region:process.env.AWS_REGION||'us-east-1'});
 const isFinal=()=>process.env.SADHANA_ENTITY_TABLE_SET==='final';
 const table=()=>{const value=process.env.SADHANA_TABLE_NAME;if(!value)throw Error('SADHANA_TABLE_NAME missing');return value;};
@@ -206,6 +208,10 @@ export async function createLearningResource(inst:InstitutionId,claims:Claims,bo
  const audit=auditItem(inst,claims,'LEARNING_RESOURCE_CREATED',id,now);
  if(isFinal())await canonical.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:canonicalTable('homework'),Item:item,ConditionExpression:'attribute_not_exists(homeworkId)'}},{Put:{TableName:canonicalTable('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));
  else await legacy.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:table(),Item:item,ConditionExpression:'attribute_not_exists(PK)'}},{Put:{TableName:table(),Item:audit,ConditionExpression:'attribute_not_exists(PK)'}}]}));
+ if(isFinal()&&data.status==='published'&&data.audience!=='families'){
+  const targets=data.category==='syllabus'?(await allActiveClasses(inst)).map(row=>row.classId):data.classIds;
+  await activity.notify({institution:inst,classIds:targets,title:'New learning resource',detail:data.title,category:'Resources',resourceId:id}).catch(()=>{});
+ }
  return {record:await publicResource(item)};
 }
 export async function updateLearningResource(inst:InstitutionId,claims:Claims,id:string,body:any){
@@ -219,6 +225,10 @@ export async function updateLearningResource(inst:InstitutionId,claims:Claims,id
  const audit=auditItem(inst,claims,data.status==='published'?'LEARNING_RESOURCE_PUBLISHED':data.status==='archived'?'LEARNING_RESOURCE_ARCHIVED':'LEARNING_RESOURCE_UPDATED',id,now);
  if(isFinal())await canonical.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:canonicalTable('homework'),Item:next,ConditionExpression:'recordType=:type AND institutionId=:inst AND #v=:v',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':type':'learning-resource',':inst':inst,':v':expectedVersion}}},{Put:{TableName:canonicalTable('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));
  else await legacy.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:table(),Item:next,ConditionExpression:'recordType=:type AND institutionId=:inst AND #v=:v',ExpressionAttributeNames:{'#v':'version'},ExpressionAttributeValues:{':type':'learning-resource',':inst':inst,':v':expectedVersion}}},{Put:{TableName:table(),Item:audit,ConditionExpression:'attribute_not_exists(PK)'}}]}));
+ if(isFinal()&&data.status==='published'&&data.audience!=='families'){
+  const targets=data.category==='syllabus'?(await allActiveClasses(inst)).map(row=>row.classId):data.classIds;
+  await activity.notify({institution:inst,classIds:targets,title:'Learning resource updated',detail:data.title,category:'Resources',resourceId:id}).catch(()=>{});
+ }
  return {record:await publicResource(next)};
 }
 export async function deleteLearningResource(inst:InstitutionId,claims:Claims,id:string,expectedVersion:number){

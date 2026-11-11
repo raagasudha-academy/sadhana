@@ -22,14 +22,18 @@ export const groupsFromClaims = claims => {
 };
 export const ADMIN_GROUPS: Readonly<Record<InstitutionId,string>> = Object.freeze({raaga:'raagasudha-admin',sruti:'sruti-admin'});
 export const VIEWER_GROUPS: Readonly<Record<InstitutionId,string>> = Object.freeze({raaga:'raagasudha-viewer',sruti:'sruti-viewer'});
+export const SUPER_ADMIN_GROUP='sadhana-super-admin';
+export const isSuperAdmin=(claims:Claims)=>groupsFromClaims(claims).includes(SUPER_ADMIN_GROUP);
 /** Administrator membership is the *only* authority for writes. */
 export function permittedInstitutions(claims: Claims): InstitutionId[] {
   const groups=groupsFromClaims(claims);
+  if(groups.includes(SUPER_ADMIN_GROUP))return [...INSTITUTIONS];
   return INSTITUTIONS.filter(inst=>groups.includes(ADMIN_GROUPS[inst]));
 }
 /** Read-only staff have academy-scoped calendar, class and venue access. */
 export function viewableInstitutions(claims: Claims): InstitutionId[] {
   const groups=groupsFromClaims(claims);
+  if(groups.includes(SUPER_ADMIN_GROUP))return [...INSTITUTIONS];
   return INSTITUTIONS.filter(inst=>groups.includes(ADMIN_GROUPS[inst])||groups.includes(VIEWER_GROUPS[inst]));
 }
 export function demandViewInstitution(claims: Claims,requested: InstitutionId): InstitutionId {
@@ -57,7 +61,7 @@ export function fieldsOnly(body: unknown,keys: readonly string[]): Draft {
 }
 export const ALLOWED_FIELDS: Record<ResourceName,readonly string[]>={
   families:['parentName','phone','createdIn'],
-  students:['name','email','phone','familyId','registrationType','adultConfirmed','createdIn'],
+  students:['name','email','phone','location','familyId','registrationType','adultConfirmed','createdIn'],
   classes:['institution','name','teacher','teacherUserId','day','time','duration','mode','venueId','startDate','endDate'],
   venues:['name','location','address','postcode','notes'],
   enrolments:['institution','studentId','classId','startDate','endDate'],
@@ -73,8 +77,9 @@ export function validate(resource: ResourceName,draft: unknown,{creating=true}: 
     if(!INSTITUTIONS.includes(d.createdIn))throw httpError(400,'Invalid registration institution.');
   }
   if(resource==='students'){
-    d.name=str(d.name,100);d.phone=str(d.phone,32);d.familyId=str(d.familyId,80);
+    d.name=str(d.name,100);d.email=str(d.email,180).toLowerCase();d.phone=str(d.phone,32);d.location=str(d.location,120);d.familyId=str(d.familyId,80);
     if(!d.name || !INSTITUTIONS.includes(d.createdIn))throw httpError(400,'Student name and institution are required.');
+    if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email))throw httpError(400,'Invalid student email.');
     if(d.phone && !/^\+[1-9]\d{7,14}$/.test(d.phone))throw httpError(400,'Invalid student phone.');
     if(d.registrationType==='independent') {
       if(d.familyId||d.adultConfirmed!==true||!d.phone)throw httpError(400,'Independent registration requires confirmation of adulthood and a student phone number.');

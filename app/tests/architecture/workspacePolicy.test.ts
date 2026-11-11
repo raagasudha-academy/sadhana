@@ -20,7 +20,7 @@ test('all workspaces have visible navigation beyond Dashboard',()=>{
  expect(adminPages).toContain('Classes & Timetable');
  expect(adminPages).toContain('Venues');
  expect(adminPages).toContain('Families & Students');
- expect(adminPeopleTabs).toEqual(['Website Registrations','Account Access','Families & Students']);
+ expect(adminPeopleTabs).toEqual(['Families & Students','Website Registrations','Account Access']);
  expect(adminWorkspaceTabs).toEqual(['Classes & Timetable','Practice & Reports','Communications','Settings']);
  expect(['Teachers','Venues','Administrators'].every(page=>adminSidebarPages.includes(page as any))).toBe(true);
  expect(adminNavigationGroup('Account Access')).toBe('People & Access');

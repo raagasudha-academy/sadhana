@@ -10,6 +10,7 @@ import type {Claims, InstitutionId} from './model.ts';
 import {scheduleChanges,validateScheduleRecord} from './scheduleModel.ts';
 import type {ScheduleRecord} from './scheduleModel.ts';
 import {utcForWallTime} from './calendarWrite.ts';
+import {makeLearnerActivityNotifications} from './learnerActivityNotifications.ts';
 
 export type DB = {send:(command:any)=>Promise<any>};
 const ID=/^[-a-zA-Z0-9]{4,90}$/;
@@ -28,6 +29,7 @@ function checkVersion(value:unknown){if(!Number.isSafeInteger(value)||Number(val
 function audit(inst:InstitutionId,action:string,id:string,actor:string){const timestamp=new Date().toISOString();return {auditId:`final_schedule_${randomUUID()}`,institutionId:inst,action,actorCognitoSub:actor,timestamp,resourceType:'schedule',resourceId:id,schemaVersion:1};}
 
 export function makeM10FinalScheduleSessionAdmin(db:DB){
+ const activity=makeLearnerActivityNotifications(db);
  const table=(kind:string)=>entityTable(kind);
  const get=async(kind:'classes'|'sessions',id:string)=>{
   const result=await db.send(new GetCommand({TableName:table(kind),Key:kind==='classes'?{classId:id}:{sessionId:id},ConsistentRead:true}));
@@ -121,6 +123,7 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
    await transact([{ConditionCheck:{TableName:table('classes'),Key:{classId:body.classId},ConditionExpression:assignment?'#v=:v AND #i=:i AND (contains(#teachers,:t) OR #legacy.#tid=:t)':'#v=:v AND #i=:i',ExpressionAttributeNames:assignment?{'#v':'version','#i':'institutionId','#teachers':'teacherPersonIds','#legacy':'legacyPayload','#tid':'teacherId'}:{'#v':'version','#i':'institutionId'},ExpressionAttributeValues:assignment?{':v':master.version,':i':inst,':t':assignment.assignedTeacherKey}:{':v':master.version,':i':inst}}},
     ...items.map(item=>({Put:{TableName:table('sessions'),Item:item,ConditionExpression:'attribute_not_exists(sessionId)'}})),
     auditAction(inst,'ADDITIONAL_SESSIONS_CREATED',body.classId,String(claims.sub))]);
+   await activity.notify({institution:inst,classIds:[body.classId],title:'Class schedule updated',detail:`${records.length} additional class session${records.length===1?'':'s'} added`,category:'Schedule',resourceId:body.classId}).catch(()=>{});
    return {records,count:records.length};
   },
   async createTeacherSession(inst:InstitutionId,body:Record<string,any>,claims:Claims){
@@ -136,6 +139,7 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
    const item=toItem(record,undefined,teacherId);
    await transact([{ConditionCheck:{TableName:table('classes'),Key:{classId:body.classId},ConditionExpression:'#v=:v AND #i=:i AND (contains(#teachers,:teacher) OR #legacy.#tid=:teacher)',ExpressionAttributeNames:{'#v':'version','#i':'institutionId','#teachers':'teacherPersonIds','#legacy':'legacyPayload','#tid':'teacherId'},ExpressionAttributeValues:{':v':master.version,':i':inst,':teacher':assignedTeacherKey}}},
     {Put:{TableName:table('sessions'),Item:item,ConditionExpression:'attribute_not_exists(sessionId)'}},auditAction(inst,'TEACHER_SESSION_CREATED',record.id,String(claims.sub))]);
+   await activity.notify({institution:inst,classIds:[record.classId!],title:'Class schedule updated',detail:`New session · ${record.date} at ${record.startTime}`,category:'Schedule',resourceId:record.id}).catch(()=>{});
    return {record};
   },
   async updateTeacherSession(inst:InstitutionId,id:string,body:Record<string,any>,claims:Claims){
@@ -154,6 +158,7 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
    await transact([{ConditionCheck:{TableName:table('classes'),Key:{classId:current.classId},ConditionExpression:'#v=:v AND (contains(#teachers,:t) OR #legacy.#tid=:t)',ExpressionAttributeNames:{'#v':'version','#teachers':'teacherPersonIds','#legacy':'legacyPayload','#tid':'teacherId'},ExpressionAttributeValues:{':v':master.version,':t':assignedTeacherKey}}},
     {Put:{TableName:table('sessions'),Item:toItem(next,current,teacherId),ConditionExpression:'#v=:v AND #i=:i AND #class=:c',ExpressionAttributeNames:{'#v':'version','#i':'institutionId','#class':'classId'},ExpressionAttributeValues:{':v':current.version,':i':inst,':c':current.classId}}},
     auditAction(inst,'TEACHER_SESSION_UPDATED',id,String(claims.sub))]);
+   await activity.notify({institution:inst,classIds:[current.classId],title:'Class schedule changed',detail:`Session updated · ${next.date} at ${next.startTime}`,category:'Schedule',resourceId:id}).catch(()=>{});
    return {record:next};
   },
   async respondToTeacherSession(inst:InstitutionId,id:string,body:Record<string,any>,claims:Claims){
@@ -185,6 +190,7 @@ export function makeM10FinalScheduleSessionAdmin(db:DB){
    if(!isAdmin){const {master,assignedTeacherKey}=await assigned(inst,session.classId,claims);actions.push({ConditionCheck:{TableName:table('classes'),Key:{classId:session.classId},ConditionExpression:'#v=:v AND #i=:i AND (contains(#teachers,:teacher) OR #legacy.#tid=:teacher)',ExpressionAttributeNames:{'#v':'version','#i':'institutionId','#teachers':'teacherPersonIds','#legacy':'legacyPayload','#tid':'teacherId'},ExpressionAttributeValues:{':v':master.version,':i':inst,':teacher':assignedTeacherKey}}});}
    actions.push(deleteAction('sessions',id,session.version,inst),auditAction(inst,'CLASS_SESSION_DELETED',id,String(claims.sub)));
    await transact(actions);
+   await activity.notify({institution:inst,classIds:[session.classId],title:'Class schedule changed',detail:`Session cancelled · ${session.localDate||session.legacyPayload?.date||''}`,category:'Schedule',resourceId:id}).catch(()=>{});
    return {deleted:true,id};
   },
   async previewDeleteClass(inst:InstitutionId,id:string,body:Record<string,any>){

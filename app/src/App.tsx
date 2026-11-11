@@ -144,16 +144,9 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       active = false
     };
   }, [cloud?.api, familyAccessRetry]);
-  const [page, setPage] = useState(() => {
-    try {
-      const savedView=sessionStorage.getItem('sadhana:view-as');
-      if(cloud?.staff.role==='admin'&&savedView!=='teacher'&&savedView!=='student')return 'Families & Students';
-      const savedPage=sessionStorage.getItem('sadhana:v095:page');
-      return savedPage==='Syllabus & Starter Pack'?'Syllabus & Resources':savedPage || 'Dashboard';
-    } catch {
-      return 'Dashboard';
-    }
-  });
+  // Start every authenticated role at its dashboard after sign-in. Page
+  // navigation is still persisted below for refreshes during the session.
+  const [page, setPage] = useState('Dashboard');
   const [mobileNav, setMobileNav] = useState(false);
   useEffect(() => {
     try {
@@ -318,7 +311,14 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       if(!active)return;
       const activity=results.flatMap((result,index)=>result.status==='fulfilled'
         ?messageThreadNotifications(scopes[index],result.value.records,studentMode?visibleStudentId:undefined):[]);
-      setNotifications(activity);
+      const learnerResults=studentMode&&visibleStudentId
+        ?await Promise.allSettled(scopes.map(institution=>cloud.api.listLearnerNotifications(institution,visibleStudentId)))
+        :[];
+      if(!active)return;
+      const learnerActivity=learnerResults.flatMap(result=>result.status==='fulfilled'?result.value.records.map(item=>({...item,
+        age:new Date(item.age).toLocaleString(undefined,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),unreadCount:item.read?0:1
+      })):[]);
+      setNotifications([...learnerActivity,...activity]);
     };
     void refreshMessageActivity();
     const refreshWhenVisible=()=>{if(document.visibilityState==='visible')void refreshMessageActivity();};
@@ -329,6 +329,12 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
   },[cloud?.api,notificationScopeKey,studentMode,visibleStudentId]);
   const unread = notifications.filter(n => !n.read && notificationInstitutions.includes(n.institution)).reduce((total,n)=>total+Math.max(1,Number(n.unreadCount)||0),0);
   const selectNotification=async(notification:any)=>{
+    if(notification.activityId&&cloud){
+      try{await cloud.api.markLearnerNotificationRead(notification.institution,notification.id,visibleStudentId);}
+      catch{return;}
+      setNotifications(previous=>previous.map(item=>item.id===notification.id?{...item,read:true,unreadCount:0}:item));
+      return;
+    }
     const thread=notification.messageThread;
     if(thread&&cloud){
       try{await cloud.api.markMessageThreadRead(notification.institution,thread.threadId,thread.peerId,thread.classId,thread.studentId);}

@@ -57,6 +57,7 @@ import {finalSchedulingWriteRoute} from './finalSchedulingWrites.mjs';
 import {finalCoreIdentityRoute} from './finalCoreIdentity.mjs';
 import {finalRegistrationRoute} from './finalRegistration.mjs';
 import {finalSrutiExistingImporter} from './srutiExistingImport.mjs';
+import {finalSrutiParentAction,finalSrutiParentStatus} from './finalSrutiInvitations.ts';
 import {finalRaagaIntakeRoute} from './finalRaagaIntake.mjs';
 import {finalRaagaParentStatus} from './finalRaagaParentStatus.ts';
 import {m10FinalRaagaParentAction} from './finalRaagaParentActionsData.ts';
@@ -230,6 +231,9 @@ export function createHandler(repository: SadhanaRepository){
         assertConfigured:()=>{entityTable('registrations');entityTable('families');entityTable('people');entityTable('family-links');entityTable('audit');entityTable('counters');},
         parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):'{}'),
         existingImport:finalSrutiExistingImporter(),
+        freshImport:(id,claims,execute)=>m95ImportApprovedWebsiteRegistration('sruti',claims,id,execute,'fresh',true),
+        parentStatus:finalSrutiParentStatus,
+        parentAction:(_action,id,actorSub,confirmReference)=>finalSrutiParentAction(_action,id,actorSub,confirmReference),
         registration:m10RegistrationCutoverRoutes,
         raaga:context=>{const raagaDependencies={
           assertConfigured:()=>{entityTable('registrations');entityTable('families');entityTable('people');},

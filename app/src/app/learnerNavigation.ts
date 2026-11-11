@@ -18,7 +18,7 @@ export const learnerSectionMap: Record<
   classes: 'My classes',
   calendar: 'My classes',
   attendance: 'My classes',
-  venues: 'My classes',
+  venues: 'Venues',
   homework: 'My learning',
   practice: 'My learning',
   resources: 'My Syllabus',

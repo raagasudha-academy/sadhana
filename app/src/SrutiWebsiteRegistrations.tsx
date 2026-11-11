@@ -15,7 +15,8 @@ type IntakeSummary = {
   studentNames?: string[];
 };
 type ExistingMapping = {mode:'existing';confirmReference:string;guardianPersonId:string;students:Array<{sourcePersonId:string;personId:string}>;evidenceReference:string};
-type SrutiImportPreview={preview?:boolean;alreadyImported?:boolean;registrationId:string;studentCount?:number;readyForExecute?:boolean;existingFamilyId?:string;studentMappings?:Array<{sourcePersonId:string;personId:string;rollNumber:string}>;guardianLinksToCreate?:string;noNewPeople?:boolean;noNewCognitoUsers?:boolean};
+type ParentAccess={status:string;updatedAt:string|null;email?:string};
+type SrutiImportPreview={mode?:'existing'|'new-family';preview?:boolean;alreadyImported?:boolean;registrationId:string;studentCount?:number;readyForExecute?:boolean;importWritesEnabled?:boolean;existingFamilyId?:string;familyNumber?:string;studentMappings?:Array<{sourcePersonId:string;personId:string;rollNumber:string}>;guardianLinksToCreate?:string;verifiedGuardianLinks?:number;guardianRelationshipsVerified?:boolean;noNewPeople?:boolean;noNewCognitoUsers?:boolean};
 function isExistingMapping(raw:unknown,ref:string,count:number):raw is ExistingMapping {
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return false;
   const m=raw as Record<string,unknown>;
@@ -66,6 +67,11 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
   const [confirmImport,setConfirmImport]=useState(false);
   const [typedReference,setTypedReference]=useState('');
   const [duplicateCheck,setDuplicateCheck]=useState(false);
+  const [parentAccess,setParentAccess]=useState<ParentAccess|null>(null);
+  const [parentAccessBusy,setParentAccessBusy]=useState(false);
+  const [parentAccessError,setParentAccessError]=useState('');
+  const [parentAccessMessage,setParentAccessMessage]=useState('');
+  const [confirmParentInvite,setConfirmParentInvite]=useState(false);
 
 
   const reload=useCallback(async()=>{
@@ -79,7 +85,7 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
   },[cloud.api]);
   useEffect(()=>{void reload();},[reload]);
   useEffect(()=>{
-    let active=true;setDetail(null);setDetailError('');setReviewAvailable(false);setDecision(null);setImportPreview(null);setExistingMapping(null);setImportError('');setConfirmImport(false);setTypedReference('');setDuplicateCheck(false);
+    let active=true;setDetail(null);setDetailError('');setReviewAvailable(false);setDecision(null);setImportPreview(null);setExistingMapping(null);setImportError('');setConfirmImport(false);setTypedReference('');setDuplicateCheck(false);setParentAccess(null);setParentAccessError('');setParentAccessMessage('');setConfirmParentInvite(false);
     if(!selected)return;
     setDetailLoading(true);
     cloud.api.getSrutiWebsiteRegistration(selected).then(raw=>{
@@ -88,6 +94,7 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
       if(response.record?.institutionId!=='sruti')throw new Error('Unexpected institution on registration.');
       setDetail(response.record||null);
       setReviewAvailable(response.reviewAvailable===true);
+      if(response.record?.importStatus==='imported')void cloud.api.getSrutiParentAccessStatus(selected).then(status=>{if(active)setParentAccess(status);}).catch(e=>{if(active)setParentAccessError(e instanceof Error?e.message:'Could not load parent account status.');});
     }).catch(e=>{if(active)setDetailError(e instanceof Error?e.message:'Could not open Sruti registration.');})
       .finally(()=>{if(active)setDetailLoading(false);});
     return ()=>{active=false;};
@@ -130,7 +137,7 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
       const result=await cloud.api.previewSrutiWebsiteImport(detail.registrationId,existingMapping);
       if(result.registrationId && result.registrationId!==detail.registrationId && !result.registrationId.startsWith('web_'))
         throw new Error('Unexpected import reference.');
-      setImportPreview(result);
+      setImportPreview({...result,mode:'existing'});
     }catch(e){setImportError(e instanceof Error?e.message:'Import preview failed. No records were changed.');}
     finally{setImportBusy(false);}
   }
@@ -147,6 +154,50 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
       await reload();setDetailRefresh(v=>v+1);
     }catch(e){setImportError(e instanceof Error?e.message:'Import could not be completed. Refresh before retrying.');setConfirmImport(false);}
     finally{setImportBusy(false);}
+  }
+  async function previewNewFamilyImport(){
+    if(!detail||detail.reviewStatus!=='approved'||detail.importStatus==='imported'||importBusy)return;
+    setImportBusy(true);setImportError('');setImportPreview(null);setConfirmImport(false);
+    try{
+      const result=await cloud.api.previewSrutiNewFamilyImport(detail.registrationId);
+      if(result.registrationId&&result.registrationId!==detail.registrationId&&!result.registrationId.startsWith('web_'))throw new Error('Unexpected import reference.');
+      setImportPreview({...result,mode:'new-family'});
+    }catch(e){setImportError(e instanceof Error?e.message:'Import preview failed. No records were changed.');}
+    finally{setImportBusy(false);}
+  }
+  async function executeNewFamilyImport(){
+    if(!detail||importPreview?.mode!=='new-family'||!importPreview.readyForExecute||importPreview.alreadyImported||!duplicateCheck||typedReference!==detail.registrationId||importBusy)return;
+    setImportBusy(true);setImportError('');
+    try{
+      const result=await cloud.api.executeSrutiNewFamilyImport(detail.registrationId,detail.registrationId);
+      if(!result.imported&&!result.alreadyImported)throw new Error('Import result could not be confirmed. Check before retrying.');
+      setImportMessage(result.alreadyImported?'Registration was already imported; no duplicates were created.':
+        `Imported into Sadhana. ${result.studentIds?.length||0} learner(s) added to family ${result.familyNumber||''}. Portal account setup remains a separate step.`);
+      setImportPreview(null);setConfirmImport(false);setTypedReference('');setDuplicateCheck(false);setFilter('all');
+      await reload();setDetailRefresh(v=>v+1);
+    }catch(e){setImportError(e instanceof Error?e.message:'Import could not be completed. Refresh before retrying.');setConfirmImport(false);}
+    finally{setImportBusy(false);}
+  }
+  async function requestParentInvitation(){
+    if(!detail||parentAccessBusy||!confirmParentInvite)return;
+    setParentAccessBusy(true);setParentAccessError('');setParentAccessMessage('');
+    try{
+      const result=await cloud.api.requestSrutiParentInvitation(detail.registrationId);
+      setParentAccess({...parentAccess,status:result.status,updatedAt:new Date().toISOString()});
+      setParentAccessMessage(result.message);
+      setConfirmParentInvite(false);
+    }catch(e){setParentAccessError(e instanceof Error?e.message:'Could not request the parent invitation.');}
+    finally{setParentAccessBusy(false);}
+  }
+  async function resendParentInvitation(){
+    if(!detail||parentAccessBusy)return;
+    setParentAccessBusy(true);setParentAccessError('');setParentAccessMessage('');
+    try{
+      const result=await cloud.api.resendSrutiParentInvitation(detail.registrationId);
+      setParentAccessMessage(result.message);
+      setParentAccess({...parentAccess,status:result.status,updatedAt:result.requestedAt});
+    }catch(e){setParentAccessError(e instanceof Error?e.message:'Could not resend the parent invitation.');}
+    finally{setParentAccessBusy(false);}
   }
   useEffect(()=>{setReviewError('');setReviewMessage('');setImportMessage('');},[selected]);
   const displayed=records.filter(r=>(filter==='all'||(r.reviewStatus||'pending')===filter) &&
@@ -208,20 +259,46 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
                   {!reviewAvailable&&<p role="status">Review actions are awaiting activation of the protected Sruti review API.</p>}
                   {!Number.isSafeInteger(detail.version)&&<p role="alert">Registration version is missing. Refresh before approving.</p>}
                 </>:detail.reviewStatus==='approved' && detail.importStatus!=='imported'?<>
-                  <p>Approved. Existing Sadhana students must be linked using independently verified canonical person IDs. A new-family import is not available in final mode.</p>
-                  <label style={{display:'block',margin:'12px 0'}}>Verified existing-identity mapping (JSON file from the read-only Sadhana checker)
-                    <input type="file" accept=".json,application/json" disabled={importBusy} onChange={e=>void loadMapping(e.target.files?.[0])}/>
-                  </label>
-                  {existingMapping&&<p role="status">Verified mapping loaded for {existingMapping.students.length} existing student(s). No identities have been changed.</p>}
-                  <button type="button" className="reg-primary" disabled={importBusy||!existingMapping} onClick={()=>void previewImport()}>{importBusy?'Checking…':'Preview existing-student link'}</button>
+                  <p>This application is approved and ready to add to Sadhana. Review the import before confirming it.</p>
+                  <button type="button" className="reg-primary" disabled={importBusy} onClick={()=>void previewNewFamilyImport()}>{importBusy?'Preparing…':'Import to Sadhana'}</button>
+                  <details style={{marginTop:14}}>
+                    <summary>Link learners already in Sadhana</summary>
+                    <p>Use this only when the learner and guardian already have verified Sadhana identities. The mapping file is an administrator-generated identity confirmation, not the registration data.</p>
+                    <label style={{display:'block',margin:'12px 0'}}>Verified identity mapping file
+                      <input type="file" accept=".json,application/json" disabled={importBusy} onChange={e=>void loadMapping(e.target.files?.[0])}/>
+                    </label>
+                    {existingMapping&&<p role="status">Verified mapping loaded for {existingMapping.students.length} existing learner(s). No identities have been changed.</p>}
+                    <button type="button" className="reg-secondary" disabled={importBusy||!existingMapping} onClick={()=>void previewImport()}>{importBusy?'Checking…':'Preview existing learner link'}</button>
+                  </details>
                   {importPreview?.alreadyImported&&<p role="status">Already imported. Refresh to see the updated status.</p>}
+                </>:detail.reviewStatus==='approved'&&detail.importStatus==='imported'?<>
+                  <p role="status">Imported to Sadhana. Parent portal login is a separate step; importing does not send an email.</p>
+                  <div className="wr-card" aria-label="Parent portal invitation">
+                    <strong>Parent portal access</strong>
+                    <p>Status: {parentAccess?.status||'Checking…'}{parentAccess?.email?` · ${parentAccess.email}`:''}</p>
+                    {parentAccess?.status==='NOT_INVITED'&&<button type="button" className="reg-primary" disabled={parentAccessBusy} onClick={()=>setConfirmParentInvite(true)}>{parentAccessBusy?'Working…':'Send parent invitation'}</button>}
+                    {parentAccess?.status==='INVITATION_SENT'&&<button type="button" className="reg-secondary" disabled={parentAccessBusy} onClick={()=>void resendParentInvitation()}>{parentAccessBusy?'Working…':'Resend invitation email'}</button>}
+                    {['ACCOUNT_FOUND','EXISTING_ACCOUNT_LINKED','ACTIVE'].includes(parentAccess?.status||'')&&<p>The parent already has a Sadhana account, so a new invitation email was not sent.</p>}
+                    {parentAccess?.status==='NEEDS_VERIFICATION'&&<p>Parent account needs administrator verification before an invitation can be sent.</p>}
+                    {parentAccessMessage&&<p role="status">{parentAccessMessage}</p>}
+                    {parentAccessError&&<p className="wr-error" role="alert">{parentAccessError}</p>}
+                    <small>Sending an invitation does not grant access to learner records. The parent must sign in and complete account linking.</small>
+                  </div>
                 </>:<p role="status">Review status: {detail.reviewStatus||'Pending'}. Import: {detail.importStatus||'pending'}.</p>}
               </div>
             </details>
             {reviewBusy&&<p role="status">Saving review…</p>}
             {reviewError&&<div className="wr-error" role="alert">{reviewError}</div>}
             {importError&&<div className="wr-error" role="alert">{importError}</div>}
-            {importPreview?.readyForExecute&&<div className="wr-card" role="status">
+            {importPreview?.mode==='new-family'&&importPreview.readyForExecute&&<div className="wr-card" role="status">
+              <strong>Import preview</strong>
+              <p>New Sadhana family: {importPreview.familyNumber||'Next available family number'}</p>
+              <p>Learners: {importPreview.studentCount??0} · Verified family relationships: {importPreview.verifiedGuardianLinks??0}</p>
+              <p>This creates Sadhana family and learner records. Portal login setup remains a separate step.</p>
+              {importPreview.importWritesEnabled===false&&<p role="status">The Sadhana import service is not enabled for this academy yet. Contact the portal administrator to activate it.</p>}
+              <button type="button" className="reg-primary" disabled={importBusy||importPreview.importWritesEnabled===false} onClick={()=>setConfirmImport(true)}>Continue to confirmation</button>
+            </div>}
+            {importPreview?.mode==='existing'&&importPreview.readyForExecute&&<div className="wr-card" role="status">
               <strong>Import preview</strong>
               <p>Existing family: {importPreview.existingFamilyId||'Not supplied'}</p>
               <p>Existing students: {importPreview.studentCount??0} · Family links will be verified from the approved registration.</p>
@@ -255,19 +332,35 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
     {confirmImport&&detail&&importPreview?.readyForExecute&&<div className="wr-modal-backdrop">
       <div className="wr-modal" role="alertdialog" aria-modal="true" aria-labelledby="sruti-import-confirm-title">
         <div className="wr-modal-icon"><ShieldCheck size={22}/></div>
-        <h2 id="sruti-import-confirm-title">Import approved learners into Sruti?</h2>
+        <h2 id="sruti-import-confirm-title">Import approved learners to Sadhana?</h2>
         <p>Registration: <strong>{detail.registrationId}</strong> · Students: {importPreview.studentCount}</p>
-        <p>This adds the confirmed existing people to Sruti, verifies the submitted family links and assigns Sruti roll numbers. No new people or accounts are created.</p>
+        <p>{importPreview.mode==='new-family'
+          ?'This creates the family and learner records in Sadhana, verifies the relationships submitted with the approved application, and assigns Sruti roll numbers. Portal login setup is separate.'
+          :'This links the confirmed existing people to Sruti, verifies the submitted family links and assigns Sruti roll numbers. No new people or accounts are created.'}</p>
         <label style={{display:'block',margin:'12px 0'}}>
           <input type="checkbox" checked={duplicateCheck} onChange={e=>setDuplicateCheck(e.target.checked)}/>
-          {' '}I verified the existing person IDs and checked that these students are not already linked to Sruti.
+          {' '}{importPreview.mode==='new-family'
+            ?'I confirmed this should create a new Sadhana family and checked that these learners are not already registered.'
+            :'I verified the existing person IDs and checked that these learners are not already linked to Sruti.'}
         </label>
         <label style={{display:'block',margin:'12px 0'}}>Type registration reference to confirm
           <input style={{display:'block',width:'100%'}} value={typedReference} onChange={e=>setTypedReference(e.target.value)} placeholder={detail.registrationId}/>
         </label>
         <div className="wr-modal-actions">
           <button type="button" className="wr-modal-cancel" disabled={importBusy} onClick={()=>setConfirmImport(false)}>Cancel</button>
-          <button type="button" className="wr-modal-approve" disabled={importBusy||!duplicateCheck||typedReference!==detail.registrationId} onClick={()=>void executeImport()}>{importBusy?'Importing…':'Confirm import'}</button>
+          <button type="button" className="wr-modal-approve" disabled={importBusy||!duplicateCheck||typedReference!==detail.registrationId} onClick={()=>void (importPreview.mode==='new-family'?executeNewFamilyImport():executeImport())}>{importBusy?'Importing…':'Confirm import'}</button>
+        </div>
+      </div>
+    </div>}
+    {confirmParentInvite&&detail&&parentAccess?.status==='NOT_INVITED'&&<div className="wr-modal-backdrop">
+      <div className="wr-modal" role="alertdialog" aria-modal="true" aria-labelledby="sruti-parent-invite-title">
+        <div className="wr-modal-icon"><ShieldCheck size={22}/></div>
+        <h2 id="sruti-parent-invite-title">Send parent portal invitation?</h2>
+        <p>This asks Cognito to send a Sadhana account invitation to <strong>{parentAccess.email||primaryName}</strong>.</p>
+        <p>The email is not guaranteed, and sending it does not grant access to the learner's records.</p>
+        <div className="wr-modal-actions">
+          <button type="button" className="wr-modal-cancel" disabled={parentAccessBusy} onClick={()=>setConfirmParentInvite(false)}>Cancel</button>
+          <button type="button" className="wr-modal-approve" disabled={parentAccessBusy} onClick={()=>void requestParentInvitation()}>{parentAccessBusy?'Sending…':'Send invitation'}</button>
         </div>
       </div>
     </div>}

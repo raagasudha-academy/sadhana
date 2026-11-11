@@ -19,6 +19,8 @@ export async function finalMessagesRoute(context,dependencies,env=process.env){
  const adminInstitutions=dependencies.permittedInstitutions?.(claims)??[];
  if(parts.length===2&&parts[1]==='contacts'&&method==='GET')return {status:200,body:await service().contacts(institution,claims,adminInstitutions,requestedStudentId)};
  if(parts.length===2&&parts[1]==='threads'&&method==='GET')return {status:200,body:await service().threads(institution,claims,adminInstitutions,requestedStudentId)};
+ if(parts.length===2&&parts[1]==='notifications'&&method==='GET')return {status:200,body:await service().learnerNotifications(institution,claims,adminInstitutions,requestedStudentId)};
+ if(parts.length===4&&parts[1]==='notifications'&&parts[3]==='read'&&method==='POST'&&idOk(parts[2]))return {status:200,body:await service().markLearnerNotificationRead(institution,claims,parts[2],adminInstitutions,requestedStudentId)};
  if(parts.length===1&&method==='POST'){
   const data=body();if(!fieldsOk(data,['peerId','classId','text','studentId'])||!idOk(data.peerId)||!idOk(data.classId)||(data.studentId!==undefined&&!idOk(data.studentId)))return fail(400,'Choose a valid class and conversation partner.');
   return {status:201,body:await service().send(institution,claims,data.peerId,data.classId,undefined,{text:data.text},adminInstitutions,data.studentId)};

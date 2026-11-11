@@ -1,5 +1,5 @@
 /** Pure checks for Cognito administrator management; never use UI state as authority. */
-import { demandAnyAdmin, permittedInstitutions, httpError } from './model.ts';
+import { demandAnyAdmin, isSuperAdmin, permittedInstitutions, httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 
 export const adminGroup: Record<InstitutionId, string> = {
@@ -7,7 +7,7 @@ export const adminGroup: Record<InstitutionId, string> = {
 };
 
 export function canManageAdmins(claims: Claims, configuredSub: string): boolean {
-  return Boolean(configuredSub && claims.sub === configuredSub &&
+  return isSuperAdmin(claims) || Boolean(configuredSub && claims.sub === configuredSub &&
     permittedInstitutions(claims).length === 2);
 }
 export function requireAdminManager(claims: Claims, configuredSub: string): void {

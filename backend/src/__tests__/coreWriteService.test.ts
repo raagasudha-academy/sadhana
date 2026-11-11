@@ -40,10 +40,37 @@ test('administrator student name edit writes versioned person and audit in one c
  assert.equal(tx[1].Put.Item.resourceId,'PERSON-STUDENT-1');
 });
 
-test('administrator student update rejects phone and protected fields before database access',async()=>{
+test('administrator student contact edit is versioned and audited',async()=>{
  const {service,calls}=serviceFor(record());
- await assert.rejects(service.update('students','raaga',{sub:'admin-sub'},'PERSON-STUDENT-1',{expectedVersion:3,phone:'+447700900111'}),{status:400});
- assert.equal(calls.length,0);
+ const result=await service.update('students','raaga',{sub:'admin-sub'},'PERSON-STUDENT-1',{
+  expectedVersion:3,phone:'+447700900111',email:'ASHA@example.org',location:'London',relationship:'child'
+ });
+ assert.equal(result.phone,'+447700900111');
+ assert.equal(result.email,'asha@example.org');
+ assert.equal(result.location,'London');
+ assert.equal(result.version,4);
+ const actions=calls.find(x=>x instanceof TransactWriteCommand).input.TransactItems;
+ assert.equal(actions.length,2);
+ assert.equal(actions[0].Put.Item.phone,result.phone);
+ assert.equal(actions[0].Put.Item.familyId,'FAMILY-1');
+ assert.equal(actions[0].Put.ExpressionAttributeValues[':v'],3);
+ assert.equal(actions[1].Put.Item.actorCognitoSub,'admin-sub');
+});
+
+test('administrator student update rejects protected fields before database access',async()=>{
+ for(const changes of [{familyId:'OTHER'},{cognitoSub:'OTHER'},{personTypes:['guardian']},{institutionIds:['sruti']},{studentProfile:{rollNumber:'OTHER'}}]){
+  const {service,calls}=serviceFor(record());
+  await assert.rejects(service.update('students','raaga',{sub:'admin-sub'},'PERSON-STUDENT-1',{expectedVersion:3,...changes}),{status:400});
+  assert.equal(calls.length,0);
+ }
+});
+
+test('invalid student contact details never write to the database',async()=>{
+ for(const changes of [{phone:'invalid'},{email:'invalid'}]){
+  const {service,calls}=serviceFor(record());
+  await assert.rejects(service.update('students','raaga',{sub:'admin-sub'},'PERSON-STUDENT-1',{expectedVersion:3,...changes}),{status:400});
+  assert.equal(calls.some(c=>c instanceof TransactWriteCommand),false);
+ }
 });
 
 test('administrator student update checks academy scope, current version, and shared identities',async()=>{

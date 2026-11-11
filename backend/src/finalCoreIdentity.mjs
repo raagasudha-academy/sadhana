@@ -7,15 +7,16 @@
  */
 const fail = (message, status = 503) => ({status, body: {error: message}});
 const coreRoots = new Set(['families', 'students', 'enrolments']);
-const legacyStudentPost = parts => parts?.length===2&&parts[0]==='operations'&&parts[1]==='student';
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{4,150}$/.test(value);
+const legacyStudentPost = parts => parts?.length===2&&parts[0]==='operations'&&parts[1]==='student';
+const legacyStudentPatch = parts => parts?.length===3&&parts[0]==='operations'&&parts[1]==='student'&&validId(parts[2]);
 const validInstitution = value => value === 'raaga' || value === 'sruti';
 import {finalGuardianQueue,canonicalGuardianPersonForSubject,finalSrutiGuardianCandidates,finalSrutiGuardianRequest,verifiedRaagaGuardianEvidence} from './finalGuardianQueue.mjs';
 
 export async function finalCoreIdentityRoute(context, dependencies, access, env = process.env) {
   if (env.SADHANA_ENTITY_TABLE_SET !== 'final') return undefined;
   const {parts, method, event, claims, query = {}} = context;
-  if (!Array.isArray(parts) || !(coreRoots.has(parts[0]) || parts[0] === 'family-access' || legacyStudentPost(parts))) return undefined;
+  if (!Array.isArray(parts) || !(coreRoots.has(parts[0]) || parts[0] === 'family-access' || legacyStudentPost(parts) || legacyStudentPatch(parts))) return undefined;
   // GET directory responses are handled by the canonical final read facade.
   if (coreRoots.has(parts[0]) && method === 'GET') return undefined;
   if (!claims?.sub) return fail('Authenticated account required.', 401);
@@ -47,7 +48,7 @@ export async function finalCoreIdentityRoute(context, dependencies, access, env 
     if(!independent&&payload.relationship!==undefined&&payload.relationship!=='child')return fail('Family relationship must be child.',400);
     dependencies.assertConfigured();
     const record=await dependencies.core().create('students',institution,claims,{
-      name:payload.name,email:payload.email||'',phone:payload.phone||'',familyId:payload.familyId||'',
+      name:payload.name,email:payload.email||'',phone:payload.phone||'',location:payload.location||'',familyId:payload.familyId||'',
       registrationType:independent?'independent':'family',adultConfirmed:independent===true,
       createdIn:institution
     });
@@ -65,6 +66,18 @@ export async function finalCoreIdentityRoute(context, dependencies, access, env 
     if (method === 'POST')
       return {status: 201, body: {record: await dependencies.core().create(parts[0], institution, claims, body)}};
     return {status: 200, body: {record: await dependencies.core().update(parts[0], institution, claims, parts[1], body)}};
+  }
+
+  // The existing admin student editor still uses /operations/student/:id.
+  // Route that PATCH into the canonical, versioned student writer; never let
+  // it fall through to the retired legacy repository.
+  if (legacyStudentPatch(parts)) {
+    if (method !== 'PATCH') return fail('Unsupported student write method.', 405);
+    if (env.SADHANA_FINAL_CORE_WRITES !== 'enabled') return fail('Final core writes are disabled.');
+    access.admin(claims, institution);
+    dependencies.assertConfigured();
+    const body = dependencies.parse(event);
+    return {status: 200, body: {record: await dependencies.core().update('students', institution, claims, parts[2], body)}};
   }
 
   // Canonical Sruti cross-academy candidate discovery and pending-only requests.
