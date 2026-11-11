@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   UsersRound,
   X,
-  Trash2,
   Pencil,
   Archive,
   RotateCcw,
@@ -636,34 +635,6 @@ export default function RegistrationModule({
         setFilter('All');
       },
     );
-  const [deleteFamilyTarget, setDeleteFamilyTarget] = useState<any>(null);
-  const [deleteFamilyPhrase, setDeleteFamilyPhrase] = useState('');
-  const deleteFamily = async () => {
-    if (!deleteFamilyTarget || deleteFamilyPhrase !== 'DELETE' || writing) return;
-    setWriting(true);
-    setWriteError('');
-    try {
-      const result = await operationsApi.deleteFamily(
-        workspace,
-        deleteFamilyTarget.id,
-        deleteFamilyTarget.version,
-      );
-      setFamilyFocus(null);
-      setDeleteFamilyTarget(null);
-      setDeleteFamilyPhrase('');
-      setArea('families');
-      setQuery('');
-      setFilter('All');
-      await reload();
-      setFlash(
-        `Family permanently deleted with ${result.studentsDeleted} student record(s). Registration counters are unchanged.`,
-      );
-    } catch (e) {
-      setWriteError(e instanceof Error ? e.message : 'Unable to delete family.');
-    } finally {
-      setWriting(false);
-    }
-  };
   const [archiveTarget, setArchiveTarget] = useState<any>(null);
   const [cascadeBusy,setCascadeBusy]=useState(false);
   const confirmArchive = () => {
@@ -688,57 +659,6 @@ export default function RegistrationModule({
         target={person?{type:'students',id:person.id,name:person.name,version:person.version}:{type:'families',id:family.id,name:family.parentName,version:family.version}}
         onDeleted={async()=>{setStudentFocus(null);setFamilyFocus(null);await reload();}}/>
       }
-      {deleteFamilyTarget && (
-        <Modal
-          title={`Delete family ${familyLabel(deleteFamilyTarget)} permanently?`}
-          subtitle="This cannot be undone. This removes the family and its students only when no enrolments, learning, guardian access or other linked records remain."
-          onClose={() => {
-            if (!writing) {
-              setDeleteFamilyTarget(null);
-              setDeleteFamilyPhrase('');
-            }
-          }}
-        >
-          <div className="reg-form">
-            <p>
-              Family: <strong>{deleteFamilyTarget.parentName}</strong>
-            </p>
-            <p>
-              Students:{' '}
-              <strong>{members.filter((m) => m.familyId === deleteFamilyTarget.id).length}</strong>.
-              Registration counters and other academy data will not be reset.
-            </p>
-            <Field label="Type DELETE to confirm">
-              <input
-                autoFocus
-                value={deleteFamilyPhrase}
-                onChange={(e) => setDeleteFamilyPhrase(e.target.value)}
-                placeholder="DELETE"
-                autoComplete="off"
-              />
-            </Field>
-            <div className="reg-modal-actions">
-              <button
-                className="reg-secondary"
-                disabled={writing}
-                onClick={() => {
-                  setDeleteFamilyTarget(null);
-                  setDeleteFamilyPhrase('');
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="reg-danger"
-                disabled={writing || deleteFamilyPhrase !== 'DELETE'}
-                onClick={() => void deleteFamily()}
-              >
-                <Trash2 size={15} /> {writing ? 'Deleting…' : 'Delete family permanently'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
       {flash && (
         <div className="reg-success" role="status">
           <CheckCircle2 size={17} />
@@ -773,10 +693,6 @@ export default function RegistrationModule({
           onOpenStudent={(id) => {
             setFamilyFocus(null);
             setStudentFocus(id);
-          }}
-          onDelete={() => {
-            setDeleteFamilyPhrase('');
-            setDeleteFamilyTarget(family);
           }}
           onArchive={() => setArchiveTarget({ kind: 'family', record: family, restore: false })}
           onRestore={() => setArchiveTarget({ kind: 'family', record: family, restore: true })}

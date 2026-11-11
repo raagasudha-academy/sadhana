@@ -40,6 +40,7 @@ import {m10FrontendAcademyRoutes} from './routes/frontendAcademyRoutes.ts';
 import {finalOnlyGate} from './finalBoundary.mjs';
 import {finalCascadeDeletionRoute} from './finalCascadeDeletion.mjs';
 import {makeFinalCascadeDeletionService} from './finalCascadeDeletionService.mjs';
+import {finalOperationsFamilyDeleteRoute} from './finalOperationsFamilyDelete.mjs';
 import {finalCognitoSelfRoute} from './finalCognitoSelf.mjs';
 import {finalReadRoute} from './finalReadRoutes.mjs';
 import {finalOperationsRoute} from './finalOperations.mjs';
@@ -285,6 +286,11 @@ export function createHandler(repository: SadhanaRepository){
         uploadOwnPhoto:(value,identity)=>uploadProfilePhoto(value,identity,'me'),
       },{readJSON,readPhotoJSON});if(self)return json(self.status,self.body);}
       // Canonical Super Admin cascade: no legacy fallback and execution is release-gated.
+      {const result=await finalOperationsFamilyDeleteRoute(routeContext,{
+        isSuperAdmin,
+        parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):''),
+        service:makeFinalCascadeDeletionService(),
+      });if(result)return json(result.status,result.body);}
       {const result=await finalCascadeDeletionRoute(routeContext,{
         isSuperAdmin,
         parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):''),

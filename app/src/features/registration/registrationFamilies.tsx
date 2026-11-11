@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {ArrowLeft, GraduationCap, Plus, ShieldCheck, X, Trash2, Pencil, Archive, RotateCcw} from 'lucide-react';
+import {ArrowLeft, GraduationCap, Plus, ShieldCheck, X, Pencil, Archive, RotateCcw} from 'lucide-react';
 import { DirectoryDataMenu, StudentCardBadges } from '../../DirectoryComponents';
 import {getEnrolmentStatus,maskPhone,newId,ukISODate} from '../../registry';
 import PhoneField from '../../PhoneField';
@@ -18,7 +18,6 @@ export function FamilyDetail({
   onUpdate,
   onArchive,
   onRestore,
-  onDelete,
   onOpenStudent,
   onArchiveStudent,
   onRestoreStudent,
@@ -89,13 +88,6 @@ export function FamilyDetail({
                 <Archive size={15} /> Archive family
               </button>
             )}
-            <button
-              type="button"
-              className="reg-danger reg-family-permanent-delete"
-              onClick={onDelete}
-            >
-              <Trash2 size={15} /> Delete permanently
-            </button>
           </div>
           <div className="reg-info">
             <ShieldCheck size={16} />

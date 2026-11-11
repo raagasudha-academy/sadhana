@@ -1,4 +1,5 @@
 import {entityTable} from './entityTables.mjs';
+import {createHash} from 'node:crypto';
 /** Website import. Registration approval verifies submitted family relationships;
  * Cognito provisioning and external website writes remain separate. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
@@ -20,6 +21,7 @@ const approvedShape=(raw:any)=>raw?.registration??raw?.record??raw?.item??raw?.d
 const fail=(code:number,message:string)=>httpError(code,message);
 const normalize=(v:any):any=>Array.isArray(v)?v.map(normalize):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).filter(([,x])=>x!==null&&x!==undefined).map(([k,x])=>[k,normalize(x)])):v;
 const counterKey=(inst:InstitutionId,name:'FAMILY_NUMBER'|'STUDENT_ROLL')=>`${inst}#${name}`;
+const contactHash=(...parts:string[])=>createHash('sha256').update(JSON.stringify(parts)).digest('hex');
 // Only these confirmed final-table gates may bypass the older M95 pilot flags.
 const finalRaaga=()=>process.env.SADHANA_ENTITY_TABLE_SET==='final' &&
  process.env.SADHANA_ENTITY_FINAL_ACK==='enabled' && process.env.SADHANA_DATA_MODE!=='split';
@@ -59,10 +61,25 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  const plan=mode==='legacy-bridge'
   ?prepareLegacyImportBridge(remote,inst,claims.sub,{family,student},now)
   :prepareWebsiteImport(remote,inst,claims.sub,{family,student},now);
- // A returning primary contact must go through explicit identity/family review;
- // do not silently allocate another household or grant guardian access.
- const existingContact=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId:plan.contactGuardId},ConsistentRead:true}))).Item;
- if(existingContact)throw fail(409,'A Sadhana family already uses this parent email. Open that family to review its learners before importing.');
+ // Contact uniqueness is per academy. Keep the same parent email eligible for
+ // a separate institution family so the administrator can attach that family
+ // to the parent's existing verified Cognito account after review. Also check
+ // both historical key formats to prevent duplicate families within one
+ // academy after the guard-key migration.
+ const primaryEmail=String(plan.items.find((x:any)=>x.table==='families')?.item?.email||'').trim().toLowerCase();
+ const contactKeys=[...new Set([plan.contactGuardId,`CONTACT#${inst}#${contactHash(inst,primaryEmail)}`,`CONTACT#${contactHash(primaryEmail)}`])];
+ const contacts=await Promise.all(contactKeys.map(async counterId=>({counterId,item:(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId},ConsistentRead:true}))).Item})));
+ for(const {counterId,item} of contacts){
+  if(!item)continue;
+  let ownerInstitution=item.institutionId;
+  if(!['raaga','sruti'].includes(ownerInstitution)&&item.familyId){
+   const owner=(await db.send(new GetCommand({TableName:tables.families,Key:{familyId:item.familyId},ConsistentRead:true}))).Item;
+   if(Array.isArray(owner?.institutionIds)&&owner.institutionIds.length===1)ownerInstitution=owner.institutionIds[0];
+  }
+  if(!['raaga','sruti'].includes(ownerInstitution))throw fail(409,'Parent email is already reserved by a family that needs manual institution review.');
+  if(ownerInstitution===inst)throw fail(409,'A Sadhana family already uses this parent email in this institution. Open that family to review its learners before importing.');
+  if(counterId===plan.contactGuardId)throw fail(409,'Parent contact identity conflicts with an existing family key. Review the family identity before importing.');
+ }
  if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,verifiedGuardianLinks:plan.verifiedGuardianLinks??0,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianRelationshipsVerified:mode!=='legacy-bridge'};
  // The registration record and identity guards participate in the SAME transaction as counters and people.
  // Conditional writes ensure concurrent retries cannot allocate the same roll number.

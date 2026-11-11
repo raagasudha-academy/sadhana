@@ -7,6 +7,7 @@ export type CascadeApi={
  previewCascadeDelete:(institution:InstitutionId,target:CascadeTarget)=>Promise<CascadePreview>;
  executeCascadeDelete:(institution:InstitutionId,target:CascadeTarget,signature:string)=>Promise<{deleted:boolean}>;
 };
+const errorText=(error:unknown,fallback:string)=>error instanceof Error&&error.message.trim()?error.message.trim().replace(/[.\s]+$/,''):fallback;
 export default function CascadeDeleteControl({allowed,api,institution,target,onDeleted,inline=false,onBusyChange}:{allowed:boolean;api:CascadeApi;institution:InstitutionId;target:CascadeTarget;onDeleted:()=>void|Promise<void>;inline?:boolean;onBusyChange?:(busy:boolean)=>void}){
  const [open,setOpen]=useState(false),[preview,setPreview]=useState<CascadePreview|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[word,setWord]=useState('');
  const generation=useRef(0),inFlight=useRef(false);
@@ -21,7 +22,7 @@ export default function CascadeDeleteControl({allowed,api,institution,target,onD
    if(ticket!==generation.current)return;
    if(result.targetId!==target.id||result.targetType!==target.type||result.expectedVersion!==target.version||!result.signature||!Number.isSafeInteger(result.total)||result.total<1||!Array.isArray(result.counts)||result.counts.some(row=>!row.label||!Number.isSafeInteger(row.count)||row.count<0)||result.counts.reduce((sum,row)=>sum+row.count,0)!==result.total)throw Error('The deletion preview is incomplete. Please retry.');
    setPreview(result);
-  }catch{if(ticket===generation.current)setError('Deletion preview is unavailable. No records were deleted.');}
+  }catch(e){if(ticket===generation.current)setError(`${errorText(e,'Deletion preview is unavailable.')}. No records were deleted.`);}
   finally{inFlight.current=false;if(ticket===generation.current)setBusy(false);}
  }
  async function remove(){
@@ -33,13 +34,13 @@ export default function CascadeDeleteControl({allowed,api,institution,target,onD
    if(result.deleted!==true)throw Error('Deletion was not confirmed.');
    setOpen(false);setPreview(null);setWord('');
    try{await onDeleted();}catch{setOpen(true);setError('Deleted successfully. Refresh the page to update the list.');}
-  }catch{if(ticket===generation.current){setPreview(null);setWord('');setError('Deletion was not confirmed. Refresh the record before trying again.');}}
+  }catch(e){if(ticket===generation.current){setPreview(null);setWord('');setError(`${errorText(e,'Deletion was not confirmed.')}. Refresh the record before trying again.`);}}
   finally{inFlight.current=false;if(ticket===generation.current)setBusy(false);}
  }
  return <>
   <button type="button" className="reg-danger" disabled={busy} onClick={()=>void review()}>Review deletion</button>
   {open&&<div className={inline?undefined:"wr-modal-backdrop"}><section className={inline?undefined:"wr-modal"} role={inline?"region":"alertdialog"} aria-modal={inline?undefined:true} aria-label={`Delete ${target.name} permanently`}>
-   <h2>Review deletion: {target.name}</h2><p>Review the affected records before any permanent deletion. Nothing is deleted when you open this preview.</p>
+   <h2>Review deletion: {target.name}</h2><p>Review the affected records before any permanent deletion. Nothing is deleted when you open this preview. On confirmation, the listed academy records are removed; registration history and roll-number reservations are retained.</p>
    {busy&&<p role="status">{preview?'Deleting…':'Checking linked records…'}</p>}
    {error&&<p role="alert">{error}</p>}
    {preview&&<div className="cascade-review" aria-live="polite">
@@ -48,7 +49,7 @@ export default function CascadeDeleteControl({allowed,api,institution,target,onD
       {preview.counts.filter(row=>row.count>0).map(row=><div className="cascade-review-row" key={row.label}><span>{row.label.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span><strong>{row.count}</strong></div>)}
     </div>
     {preview.notice&&<p className="cascade-review-notice">{preview.notice}</p>}
-    {preview.retained&&<p className="cascade-review-retained">Some shared or historical records are retained. Review the preview response for details.</p>}
+    {!!preview.retained?.length&&<div className="cascade-review-retained">{preview.retained.map((item,index)=><p key={typeof item==='string'?item:`${item.label}-${index}`}>{typeof item==='string'?item:`${item.label} (${item.count})`}</p>)}</div>}
     {(preview.executionBlocked||preview.executionEnabled!==true)
      ? <p className="cascade-review-blocked" role="status"><strong>Preview only.</strong> {preview.executionReason||'Permanent deletion is not enabled for this record.'} No data has been deleted.</p>
      : <label className="password-field">Type DELETE to confirm permanent removal<input autoFocus value={word} disabled={busy} onChange={e=>setWord(e.target.value)} autoComplete="off"/></label>}
