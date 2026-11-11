@@ -1,12 +1,14 @@
 /** Canonical, fail-closed Super Admin cascade deletion.
  * BOUNDED ONLY. Never deletes a shared identity, a cross-academy person, a
  * website-imported identity, a media object, or an unenumerated dependency.
- * Production execution is separately gated pending complete writer fencing.
+ * Production execution requires both the execute switch and a separately
+ * reviewed writer-fencing attestation.
  */
 import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {entityTable, ENTITY_NAMES} from './entityTables.mjs';
+import {markerId} from './websiteImportCore.mjs';
 
 const KEYS={people:'personId',families:'familyId','family-links':'linkId',enrolments:'enrolmentId',attendance:'attendanceId',practice:'practiceId',homework:'homeworkId',submissions:'submissionId',rsvps:'rsvpId',registrations:'registrationId',notifications:'notificationId',counters:'counterId',classes:'classId',sessions:'sessionId',events:'eventId',venues:'venueId',institutions:'institutionId'};
 const EXCLUDED=new Set(['audit','classes','sessions','events','venues','institutions','homework']);
@@ -30,7 +32,9 @@ function supportedTarget(row,type,inst){
  // Imported people may be inspected in preview; actual deletion stays blocked until provenance is reconciled.
 }
 function dbDefault(){return DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});}
-export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now(),allowExecute=process.env.SADHANA_FINAL_CASCADE_EXECUTE==='enabled'}={}){
+export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now(),allowExecute=
+ process.env.SADHANA_FINAL_CASCADE_EXECUTE==='enabled'&&
+ process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED==='enabled'}={}){
  const get=async(entity,id)=> (await db.send(new GetCommand({TableName:table(entity),Key:{[KEYS[entity]]:id},ConsistentRead:true}))).Item;
  async function inventory(){
   const results={};let inspected=0;
@@ -70,6 +74,7 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
   const familyIds=new Set(type==='family'?[id]:[]);
   const targets=new Map();
   const retainedRegistrations=new Set();
+  const registrationUpdates=[];
   function add(entity,row){const k=keyOf(entity,row);targets.set(`${entity}:${JSON.stringify(k)}`,{entity,key:k,row});}
   if(type==='family')add('families',root);
   for(const p of people)add('people',p);
@@ -88,8 +93,26 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
     if(EXCLUDED.has(entity))throw issue(409,`Shared ${entity} references the target; manual dependency review required.`);
     if(entity==='registrations'){
      // Website registrations are source/history records. Keep them intact, and
-     // explicitly report the retained references rather than silently dropping them.
+     // reconcile a single-student Sadhana marker when deleting an imported child.
      retainedRegistrations.add(row.registrationId);
+     if(type==='student'&&importedIdentity(root)&&
+        row.registrationId===markerId(institution,root.sourceWebsiteRegistrationId)&&
+        row.institutionId===institution&&row.source==='website'&&
+        row.externalRegistrationId===root.sourceWebsiteRegistrationId&&
+        row.importStatus==='imported'&&row.familyId===root.familyId&&
+        Number.isSafeInteger(row.version)&&Array.isArray(row.studentIds)&&
+        row.studentIds.includes(root.personId)){
+      const sourceMappings=Object.entries(row.sourceStudentIds||{}).filter(([,personId])=>personId===root.personId);
+      if(sourceMappings.length===1&&!(row.deletedStudentIds||[]).some(x=>x?.personId===root.personId)){
+       const [sourcePersonId]=sourceMappings[0];
+       const nextSourceStudentIds={...row.sourceStudentIds};delete nextSourceStudentIds[sourcePersonId];
+       registrationUpdates.push({entity,key:keyOf(entity,row),row,personId:root.personId,sourcePersonId,
+        studentIds:row.studentIds.filter(personId=>personId!==root.personId),
+        sourceStudentIds:nextSourceStudentIds,
+        deletedStudentIds:[...(Array.isArray(row.deletedStudentIds)?row.deletedStudentIds:[]),
+         {personId:root.personId,sourcePersonId,sourceRegistrationId:root.sourceWebsiteRegistrationId}]});
+      }
+     }
      continue;
     }
     if(entity==='counters'){
@@ -99,11 +122,10 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
         ['PARENT_EMAIL_ROUTE','CONTACT_GUARD'].includes(row.sequenceType) &&
         row.familyId===root.familyId)continue;
 
-     // Roll reservations are historical uniqueness records: never reuse
-     // an allocated academy roll number.
-     if(type==='student' &&
-        row.sequenceType==='ROLL_UNIQUE' &&
-        row.personId===root.personId)continue;
+     // Roll reservations are permanent uniqueness records. Keep them for
+     // both student and family cascades so a deleted learner's roll can
+     // never be assigned to a different student later.
+     if(row.sequenceType==='ROLL_UNIQUE' && memberIds.has(row.personId))continue;
 
      // A student-specific identity guard can appear in the preview.
      // Execution remains independently release-gated.
@@ -139,8 +161,15 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
   }
   const entries=[...targets.values()].sort((a,b)=>a.entity.localeCompare(b.entity)||canonical(a.key).localeCompare(canonical(b.key)));
   const version=(row)=>Number.isSafeInteger(row.version)?row.version:null;
-  const manifest=entries.map(({entity,key,row})=>({entity,key,version:version(row),hash:digest(row)}));
-  return {root,entries,manifest,retainedRegistrations:[...retainedRegistrations].sort(),hasImportedPeople:people.some(importedIdentity)};
+  const manifest=[
+   ...entries.map(({entity,key,row})=>({operation:'delete',entity,key,version:version(row),hash:digest(row)})),
+   ...registrationUpdates.map(({entity,key,row,studentIds,sourceStudentIds,deletedStudentIds})=>({
+    operation:'reconcile-import-marker',entity,key,version:version(row),hash:digest(row),studentIds,sourceStudentIds,deletedStudentIds
+   }))
+  ].sort((a,b)=>a.entity.localeCompare(b.entity)||canonical(a.key).localeCompare(canonical(b.key))||a.operation.localeCompare(b.operation));
+  const imported=people.some(importedIdentity);
+  const importedResolved=type==='student'&&imported&&registrationUpdates.length===1;
+  return {root,entries,registrationUpdates,manifest,retainedRegistrations:[...retainedRegistrations].sort(),hasImportedPeople:imported&&!importedResolved};
  }
  // An opaque, high-entropy token identifies a server-side, expiring preview.
  // Never trust client-supplied target lists or counts. Only a digest of the
@@ -172,7 +201,7 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
    const current=await plan(args);const counts=[];
    for(const entity of new Set(current.entries.map(x=>x.entity))){counts.push({label:entity,count:current.entries.filter(x=>x.entity===entity).length});}
    const total=current.entries.length;
-   if(total>MAX_ACTIONS)throw issue(409,'Cascade exceeds single-transaction limit; requires durable resumable job support.');
+   if(total+current.registrationUpdates.length>MAX_ACTIONS)throw issue(409,'Cascade exceeds single-transaction limit; requires durable resumable job support.');
    const signature=randomBytes(32).toString('base64url');
    const record={counterId:previewId(signature),recordType:'CASCADE_PREVIEW',state:'pending',
     actorCognitoSub:actor,institutionId:institution,targetType:type,targetId:id,
@@ -186,10 +215,18 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
     retained: current.retainedRegistrations.length
      ? [{label:'Website registrations retained for reconciliation',count:current.retainedRegistrations.length}]
      : [],
+    executionEnabled:allowExecute&&!current.hasImportedPeople,
     executionBlocked:current.hasImportedPeople,
+    executionReason:!allowExecute
+     ? 'Permanent deletion is disabled until canonical writer-fencing checks are verified.'
+     : current.hasImportedPeople
+      ? 'Imported identity provenance is missing or ambiguous; no data has been deleted.'
+      : undefined,
     notice:current.hasImportedPeople
-     ? 'Preview only: website-imported identity deletion requires registration provenance and import-marker reconciliation.'
-     : undefined};
+     ? 'Preview only: imported identity provenance is missing or ambiguous; no deletion is allowed.'
+     : current.registrationUpdates.length
+      ? 'The source website registration is retained; its Sadhana import mapping will be updated to record this removal.'
+      : undefined};
   },
   async execute(args){
    if(!allowExecute)throw issue(503,'Cascade execution has not passed the canonical writer-fencing release gate.');
@@ -200,8 +237,9 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
    const current=await plan(args);
    if(current.hasImportedPeople)throw issue(409,'Imported-student deletion requires verified website import-marker and registration reconciliation; no records were deleted.');
    if(digest(current.manifest)!==signed.manifestDigest)throw issue(409,'Linked records changed since preview; refresh the preview.');
-   if(current.entries.length>MAX_ACTIONS)throw issue(409,'Cascade is too large for atomic execution.');
-   const audit={auditId:`aud_${randomUUID()}`,institutionId:institution,actorCognitoSub:actor,action:'SUPER_ADMIN_CASCADE_DELETE',resourceType:type,resourceId:id,deletedCounts:Object.fromEntries([...new Set(current.entries.map(x=>x.entity))].map(e=>[e,current.entries.filter(x=>x.entity===e).length])),timestamp:new Date(now()).toISOString(),schemaVersion:1,result:'success'};
+   if(current.entries.length+current.registrationUpdates.length>MAX_ACTIONS)throw issue(409,'Cascade is too large for atomic execution.');
+   const timestamp=new Date(now()).toISOString();
+   const audit={auditId:`aud_${randomUUID()}`,institutionId:institution,actorCognitoSub:actor,action:'SUPER_ADMIN_CASCADE_DELETE',resourceType:type,resourceId:id,deletedCounts:Object.fromEntries([...new Set(current.entries.map(x=>x.entity))].map(e=>[e,current.entries.filter(x=>x.entity===e).length])),reconciledRegistrationMarkers:current.registrationUpdates.length,timestamp,schemaVersion:1,result:'success'};
    const deletes=current.entries.map(({entity,key,row})=>{
     const idField=KEYS[entity];const condition=['attribute_exists(#id)'];const names={'#id':idField};const values={};
     if(Number.isSafeInteger(row.version)){condition.push('#v=:v');names['#v']='version';values[':v']=row.version;}
@@ -210,13 +248,20 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
     else {throw issue(409,`Unversioned ${entity} dependency cannot be conditionally deleted.`);}
     return {Delete:{TableName:table(entity),Key:key,ConditionExpression:condition.join(' AND '),ExpressionAttributeNames:names,ExpressionAttributeValues:values}};
    });
+   const reconciliations=current.registrationUpdates.map(({entity,key,row,personId,studentIds,sourceStudentIds,deletedStudentIds})=>({Update:{
+    TableName:table(entity),Key:key,
+    UpdateExpression:'SET studentIds=:students, sourceStudentIds=:sources, deletedStudentIds=:deleted, #version=:next, updatedAt=:now',
+    ConditionExpression:'#version=:version AND institutionId=:institution AND externalRegistrationId=:external AND familyId=:family AND importStatus=:imported AND contains(studentIds,:personId)',
+    ExpressionAttributeNames:{'#version':'version'},
+    ExpressionAttributeValues:{':students':studentIds,':sources':sourceStudentIds,':deleted':deletedStudentIds.map(entry=>entry.personId===personId?{...entry,deletedAt:timestamp,deletedBy:actor}:entry),':next':row.version+1,':version':row.version,':now':timestamp,':institution':institution,':external':row.externalRegistrationId,':family':row.familyId,':imported':'imported',':personId':personId}
+   }}));
    // Consume the preview in the same atomic transaction. A replay or an
    // expired preview must never succeed, even after concurrent requests.
    const consume={Delete:{TableName:table('counters'),Key:{counterId:signed.counterId},
     ConditionExpression:'#state=:pending AND #expires=:expires AND #digest=:digest AND #actor=:actor',
     ExpressionAttributeNames:{'#state':'state','#expires':'expiresAt','#digest':'manifestDigest','#actor':'actorCognitoSub'},
     ExpressionAttributeValues:{':pending':'pending',':expires':signed.expiresAt,':digest':signed.manifestDigest,':actor':actor}}};
-   try{await db.send(new TransactWriteCommand({TransactItems:[...deletes,consume,{Put:{TableName:table('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));}
+   try{await db.send(new TransactWriteCommand({TransactItems:[...deletes,...reconciliations,consume,{Put:{TableName:table('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));}
    catch(e){if(e?.name==='TransactionCanceledException')throw issue(409,'Concurrent record change. Nothing was deleted. Refresh the preview.');throw e;}
    return {deleted:true};
   }

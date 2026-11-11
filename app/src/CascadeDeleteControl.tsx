@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import type {InstitutionId} from './types';
 import './websiteRegistrations.css';
 export type CascadeTarget={type:string;id:string;name:string;version:number};
-export type CascadePreview={targetType:string;targetId:string;expectedVersion:number;signature:string;counts:Array<{label:string;count:number}>;total:number;retained?:Array<{label:string;count:number}>|string[];notice?:string;executionBlocked?:boolean;executionEnabled?:boolean};
+export type CascadePreview={targetType:string;targetId:string;expectedVersion:number;signature:string;counts:Array<{label:string;count:number}>;total:number;retained?:Array<{label:string;count:number}>|string[];notice?:string;executionReason?:string;executionBlocked?:boolean;executionEnabled?:boolean};
 export type CascadeApi={
  previewCascadeDelete:(institution:InstitutionId,target:CascadeTarget)=>Promise<CascadePreview>;
  executeCascadeDelete:(institution:InstitutionId,target:CascadeTarget,signature:string)=>Promise<{deleted:boolean}>;
@@ -50,7 +50,7 @@ export default function CascadeDeleteControl({allowed,api,institution,target,onD
     {preview.notice&&<p className="cascade-review-notice">{preview.notice}</p>}
     {preview.retained&&<p className="cascade-review-retained">Some shared or historical records are retained. Review the preview response for details.</p>}
     {(preview.executionBlocked||preview.executionEnabled!==true)
-     ? <p className="cascade-review-blocked" role="status"><strong>Preview only.</strong> Permanent deletion is not enabled for this record. No data has been deleted.</p>
+     ? <p className="cascade-review-blocked" role="status"><strong>Preview only.</strong> {preview.executionReason||'Permanent deletion is not enabled for this record.'} No data has been deleted.</p>
      : <label className="password-field">Type DELETE to confirm permanent removal<input autoFocus value={word} disabled={busy} onChange={e=>setWord(e.target.value)} autoComplete="off"/></label>}
    </div>}
    <div className="wr-modal-actions"><button type="button" className="wr-modal-cancel" disabled={busy} onClick={()=>{setOpen(false);setPreview(null);setWord('');}}>Cancel</button>
