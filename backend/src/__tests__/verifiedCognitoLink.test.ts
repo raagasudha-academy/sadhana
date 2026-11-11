@@ -47,20 +47,31 @@ test('explicit execute binds identity, creates unique guard and audit without gr
  try{const x=setup();const result=await x.service(regId,'raaga',admin,true,'verified-sub');
   assert.equal(result.linked,true);assert.equal(result.guardianAccessGranted,false);
   const tx=x.calls.find(c=>c.constructor.name==='TransactWriteCommand')?.input;
-  assert.equal(tx.TransactItems.length,4);
+  assert.equal(tx.TransactItems.length,5);
   assert.equal(tx.TransactItems[0].Update.ExpressionAttributeValues[':sub'],'verified-sub');
   assert.equal(tx.TransactItems[1].Put.Item.sequenceType,'COGNITO_SUB_GUARD');
-  assert.equal(tx.TransactItems[3].Put.Item.action,'VERIFIED_EXISTING_COGNITO_LINK');
+  assert.equal(tx.TransactItems[2].Put.Item.sequenceType,'COGNITO_SUB_GUARD');
+   assert.equal(tx.TransactItems[3].Update.ExpressionAttributeValues[':linked'],'EXISTING_ACCOUNT_LINKED');
+   assert.equal(tx.TransactItems[4].Put.Item.action,'VERIFIED_EXISTING_COGNITO_LINK');
  }finally{
   if(oldMode===undefined)delete process.env.M95_ONBOARDING_MODE;else process.env.M95_ONBOARDING_MODE=oldMode;
   if(oldWrite===undefined)delete process.env.M9_VERIFIED_IDENTITY_LINK_WRITES;else process.env.M9_VERIFIED_IDENTITY_LINK_WRITES=oldWrite;
  }
 });
 
-test('missing explicit Cognito subject is rejected before database access',async()=>{
- const old=process.env.M95_ONBOARDING_MODE;process.env.M95_ONBOARDING_MODE='enabled';
- try{const f=setup();await assert.rejects(f.service(regId,'raaga',admin,false),/subject/);assert.equal(f.calls.length,0);}
- finally{if(old===undefined)delete process.env.M95_ONBOARDING_MODE;else process.env.M95_ONBOARDING_MODE=old;}
+test('omitted Cognito subject resolves a unique verified email without writing',async()=>{
+ const old=process.env.M95_ONBOARDING_MODE;
+ process.env.M95_ONBOARDING_MODE='enabled';
+ try{
+  const f=setup();
+  const result=await f.service(regId,'raaga',admin,false);
+  assert.equal(result.readyToLink,true);
+  assert.equal(result.guardianAccessGranted,false);
+  assert.equal(f.calls.some(c=>c.constructor.name==='TransactWriteCommand'),false);
+ }finally{
+  if(old===undefined)delete process.env.M95_ONBOARDING_MODE;
+  else process.env.M95_ONBOARDING_MODE=old;
+ }
 });
 test('administrator-selected subject mismatch never writes',async()=>{
  const old=process.env.M95_ONBOARDING_MODE;process.env.M95_ONBOARDING_MODE='enabled';

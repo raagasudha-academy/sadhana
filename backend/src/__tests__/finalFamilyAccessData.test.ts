@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GetCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {GetCommand,QueryCommand,TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
 import {ListUsersCommand} from '@aws-sdk/client-cognito-identity-provider';
 import {makeM10FinalFamilyAccessReader} from '../finalFamilyAccessData.ts';
 import {parentEmailRouteKey} from '../parentEmailRoute.mjs';
@@ -28,6 +28,12 @@ test('confirmed invited Sruti parent links transactionally with the reserved sou
     if(key.familyId===family.familyId)return {Item:family};
     if(key.personId===guardian.personId)return {Item:linkedGuardian};
     if(key.counterId?.startsWith('COGNITO_SUB#'))return {};
+   }
+   if(command instanceof QueryCommand){
+     assert.equal(command.input.TableName,'sadhana-dev-people');
+     assert.equal(command.input.IndexName,'CognitoIdentityIndex');
+     assert.equal(command.input.ExpressionAttributeValues?.[':value'],subject);
+     return {Items:[]};
    }
    if(command instanceof TransactWriteCommand){
     transaction=command.input.TransactItems;
