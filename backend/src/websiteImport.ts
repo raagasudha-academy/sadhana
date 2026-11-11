@@ -1,5 +1,4 @@
 import {entityTable} from './entityTables.mjs';
-import {createHash} from 'node:crypto';
 /** Website import. Registration approval verifies submitted family relationships;
  * Cognito provisioning and external website writes remain separate. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
@@ -8,7 +7,7 @@ import {fetchWebsiteRegistration,updateWebsiteRegistrationImport} from './websit
 import {expectedWebsiteMapping} from './websiteSyncCore.mjs';
 import {demandInstitution,httpError} from './model.ts';
 import type {Claims, InstitutionId} from './model.ts';
-import {assertWebsiteContactGuardAvailable,contactGuardOwnerInstitution,markerId,prepareWebsiteImport} from './websiteImportCore.mjs';
+import {assertWebsiteContactGuardAvailable,contactGuardOwnerInstitution,isOrphanedWebsiteContactGuard,markerId,prepareWebsiteImport,websiteContactGuardLookupIds} from './websiteImportCore.mjs';
 import {prepareLegacyImportBridge} from './legacyImportBridge.mjs';
 import {toApprovedM9Registration} from './srutiIntakeCore.mjs';
 import {canonicalRaagaRegistration} from './raagaImportSource.mjs';
@@ -21,7 +20,6 @@ const approvedShape=(raw:any)=>raw?.registration??raw?.record??raw?.item??raw?.d
 const fail=(code:number,message:string)=>httpError(code,message);
 const normalize=(v:any):any=>Array.isArray(v)?v.map(normalize):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).filter(([,x])=>x!==null&&x!==undefined).map(([k,x])=>[k,normalize(x)])):v;
 const counterKey=(inst:InstitutionId,name:'FAMILY_NUMBER'|'STUDENT_ROLL')=>`${inst}#${name}`;
-const contactHash=(...parts:string[])=>createHash('sha256').update(JSON.stringify(parts)).digest('hex');
 // Only these confirmed final-table gates may bypass the older M95 pilot flags.
 const finalRaaga=()=>process.env.SADHANA_ENTITY_TABLE_SET==='final' &&
  process.env.SADHANA_ENTITY_FINAL_ACK==='enabled' && process.env.SADHANA_DATA_MODE!=='split';
@@ -67,11 +65,7 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  // both historical key formats to prevent duplicate families within one
  // academy after the guard-key migration.
  const primaryEmail=String(plan.items.find((x:any)=>x.table==='families')?.item?.email||'').trim().toLowerCase();
- const contactKeys=[...new Set([
-  plan.contactGuardId, // v2: institution and email are both included in the hash
-  `CONTACT#${inst}#${contactHash(primaryEmail)}`, // prior academy-scoped key
-  `CONTACT#${contactHash(primaryEmail)}`, // legacy global key
- ])];
+ const contactKeys=websiteContactGuardLookupIds(inst,plan.contactGuardId,primaryEmail);
  const contacts=await Promise.all(contactKeys.map(async counterId=>{
   const item=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId},ConsistentRead:true}))).Item;
   if(!item)return {counterId,item,ownerInstitution:undefined};
@@ -79,7 +73,7 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
    ?(await db.send(new GetCommand({TableName:tables.families,Key:{familyId:item.familyId},ConsistentRead:true}))).Item
    :undefined;
   const ownerInstitution=contactGuardOwnerInstitution(item,owner);
-  return {counterId,item,ownerInstitution};
+  return {counterId,item,ownerInstitution,orphanedFamily:isOrphanedWebsiteContactGuard(item,owner)};
  }));
  assertWebsiteContactGuardAvailable(inst,plan.contactGuardId,contacts);
  if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,verifiedGuardianLinks:plan.verifiedGuardianLinks??0,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianRelationshipsVerified:mode!=='legacy-bridge'};

@@ -8,6 +8,10 @@ const hash=(...parts)=>createHash('sha256').update(JSON.stringify(parts)).digest
 const nameParts=(value)=>{const s=string(value).replace(/\s+/g,' ');const parts=s.split(' ');return {firstName:parts[0],lastName:parts.slice(1).join(' '),displayName:s};};
 export const markerId=(inst,registrationId)=>`web_${hash(inst,registrationId)}`;
 export const guardianLinkId=(inst,guardianId,studentId)=>'link_'+hash(inst,guardianId,studentId);
+export function websiteContactGuardLookupIds(institution,plannedGuardId,email){
+ const normalized=string(email).trim().toLowerCase();
+ return [...new Set([plannedGuardId,`CONTACT#${institution}#${hash(normalized)}`,`CONTACT#${hash(normalized)}`])];
+}
 /** Resolve the owner from its family record when the guard references one.
  * Older contact guards can retain a stale institutionId after data migration. */
 export function contactGuardOwnerInstitution(counter,family){
@@ -18,11 +22,21 @@ export function contactGuardOwnerInstitution(counter,family){
  }
  return ['raaga','sruti'].includes(counter.institutionId)?counter.institutionId:undefined;
 }
+/** A deleted family can leave a historical contact guard behind. Ignore it
+ * only when its canonical key, tenant label and import provenance agree. */
+export function isOrphanedWebsiteContactGuard(counter,family){
+ return !!counter&&typeof counter==='object'&&!family&&
+  counter.sequenceType==='CONTACT_GUARD'&&typeof counter.familyId==='string'&&counter.familyId.length>0&&
+  typeof counter.registrationId==='string'&&counter.registrationId.length>0&&
+  ['raaga','sruti'].includes(counter.institutionId)&&
+  typeof counter.counterId==='string'&&counter.counterId.startsWith(`CONTACT#${counter.institutionId}#`);
+}
 /** Enforce parent-contact uniqueness within one academy while allowing a
  * separate family in another academy for the same verified parent login. */
 export function assertWebsiteContactGuardAvailable(institution,plannedGuardId,contacts){
- for(const {counterId,item,ownerInstitution} of contacts){
+ for(const {counterId,item,ownerInstitution,orphanedFamily} of contacts){
   if(!item)continue;
+  if(orphanedFamily)continue;
   if(!['raaga','sruti'].includes(ownerInstitution))fail('Parent email is already reserved by a family that needs manual institution review.');
   if(ownerInstitution===institution)fail('A Sadhana family already uses this parent email in this institution. Open that family to review its learners before importing.');
   if(counterId===plannedGuardId)fail('Parent contact identity conflicts with an existing family key. Review the family identity before importing.');

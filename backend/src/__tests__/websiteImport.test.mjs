@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {assertWebsiteContactGuardAvailable,contactGuardOwnerInstitution,prepareWebsiteImport,markerId,guardianLinkId} from '../websiteImportCore.mjs';
+import {assertWebsiteContactGuardAvailable,contactGuardOwnerInstitution,isOrphanedWebsiteContactGuard,prepareWebsiteImport,websiteContactGuardLookupIds,markerId,guardianLinkId} from '../websiteImportCore.mjs';
 const base=()=>({registrationId:'RS-TEST-123',reviewStatus:'approved',registrationType:'children',primaryContactPersonId:'PARENT-1',people:[{personId:'PARENT-1',fullName:'Meera Sharma',email:'meera@example.org',phone:'+447000000001',roles:['guardian'],address:{town:'Newcastle'}},{personId:'CHILD-1',fullName:'Ananya Sharma',dateOfBirth:'2015-06-12',roles:['student']},{personId:'CHILD-2',fullName:'Aarav Sharma',dateOfBirth:'2017-07-12',roles:['student']}],students:[{personId:'CHILD-1',studentType:'child',foodAllergies:{status:'yes',allergens:['Peanuts']},contactPreferences:{emailSource:'guardian',phoneSource:'guardian',addressSource:'guardian',guardianPersonId:'PARENT-1'}},{personId:'CHILD-2',studentType:'child',foodAllergies:{status:'none',allergens:[]}}]});
 test('two children receive stable ids, distinct roll numbers and inherited contact',()=>{const p=prepareWebsiteImport(base(),'raaga','admin-sub',{family:0,student:0});assert.equal(p.studentMappings.length,2);assert.equal(p.verifiedGuardianLinks,2);const people=p.items.filter(x=>x.table==='people').map(x=>x.item);assert.equal(people.length,3);const first=people.find(x=>x.personId===p.studentMappings[0].studentId);assert.equal(first.email,'meera@example.org');assert.equal(first.studentProfile.foodAllergies.allergens[0],'Peanuts');assert.equal(first.address.town,'Newcastle');assert.notEqual(p.studentMappings[0].rollNumber,p.studentMappings[1].rollNumber);});
 test('approved web registration verifies its submitted parent-child links with audit evidence',()=>{const p=prepareWebsiteImport(base(),'raaga','admin-sub',{family:4,student:12});const links=p.items.filter(x=>x.table==='family-links').map(x=>x.item);assert.equal(links.length,2);assert(links.every(x=>x.accessStatus==='approved'&&x.relationshipVerified===true&&x.verificationSource==='approved-website-registration'&&x.evidenceReference==='website-registration:RS-TEST-123'&&x.reviewedBy==='admin-sub'));const reg=p.items.find(x=>x.table==='registrations').item;assert.equal(reg.identityResolutionStatus,'registration_relationships_verified');const audit=p.items.find(x=>x.table==='audit').item;assert.equal(audit.metadata.verifiedGuardianLinks,2);});
@@ -46,6 +46,27 @@ test('parent contact duplicate remains blocked within the same academy and for a
  assert.throws(()=>assertWebsiteContactGuardAvailable('raaga','CONTACT#raaga#new-family-guard',[
   {counterId:'CONTACT#legacy-global',item:{familyId:'FAMILY-UNKNOWN'},ownerInstitution:undefined},
  ]),/manual institution review/);
+});
+
+test('a verifiably orphaned imported contact guard does not block a new academy family',()=>{
+ const orphan={counterId:'CONTACT#raaga#old-key',institutionId:'raaga',sequenceType:'CONTACT_GUARD',familyId:'FAMILY-DELETED',registrationId:'RS-OLD'};
+ assert.equal(isOrphanedWebsiteContactGuard(orphan,undefined),true);
+ assert.doesNotThrow(()=>assertWebsiteContactGuardAvailable('raaga','CONTACT#raaga#new-key',[
+  {counterId:orphan.counterId,item:orphan,ownerInstitution:undefined,orphanedFamily:true},
+ ]));
+ assert.equal(isOrphanedWebsiteContactGuard({...orphan,counterId:'CONTACT#sruti#old-key'},undefined),false);
+ assert.equal(isOrphanedWebsiteContactGuard({...orphan,registrationId:undefined},undefined),false);
+});
+
+test('import checks the current and previous academy-scoped contact guard formats',()=>{
+ const plan=prepareWebsiteImport(base(),'raaga','admin',{family:1,student:2});
+ const priorScoped=`CONTACT#raaga#${createHash('sha256').update(JSON.stringify(['meera@example.org'])).digest('hex')}`;
+ const legacyGlobal=`CONTACT#${createHash('sha256').update(JSON.stringify(['meera@example.org'])).digest('hex')}`;
+ const ids=websiteContactGuardLookupIds('raaga',plan.contactGuardId,' MEERA@example.org ');
+ assert(ids.includes(plan.contactGuardId));
+ assert(ids.includes(priorScoped));
+ assert(ids.includes(legacyGlobal));
+ assert.equal(new Set(ids).size,ids.length);
 });
 
 test('contact guard owner comes from its referenced family, not a stale institution label',()=>{
