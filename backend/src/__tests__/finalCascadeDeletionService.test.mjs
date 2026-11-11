@@ -55,7 +55,7 @@ test('preview stores opaque token in canonical counters without a signing secret
 test('execution remains blocked by default',async()=>{
  const db=store(),svc=makeFinalCascadeDeletionService({db});const result=await svc.preview(args);
  assert.equal(result.executionEnabled,false);
- await assert.rejects(()=>svc.execute({...args,signature:result.signature}),/writer-fencing/);
+ await assert.rejects(()=>svc.execute({...args,signature:result.signature}),/disabled by the deployment setting/);
  assert.equal(db.data.people.length,1);
 });
 test('preview exposes execution only when enabled and the target is eligible',async()=>{
@@ -64,24 +64,20 @@ test('preview exposes execution only when enabled and the target is eligible',as
  assert.equal(result.executionEnabled,true);
  assert.equal(result.executionBlocked,false);
 });
-test('runtime execution requires both the execute flag and writer-fence attestation',async()=>{
+test('runtime execution follows the explicit execute flag',async()=>{
  const previousExecute=process.env.SADHANA_FINAL_CASCADE_EXECUTE;
- const previousFence=process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED;
  try{
-  process.env.SADHANA_FINAL_CASCADE_EXECUTE='enabled';
-  delete process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED;
+  delete process.env.SADHANA_FINAL_CASCADE_EXECUTE;
   let db=store(),svc=makeFinalCascadeDeletionService({db}),preview=await svc.preview(args);
   assert.equal(preview.executionEnabled,false);
-  await assert.rejects(()=>svc.execute({...args,signature:preview.signature}),/writer-fencing/);
+  await assert.rejects(()=>svc.execute({...args,signature:preview.signature}),/disabled by the deployment setting/);
 
-  process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED='enabled';
+  process.env.SADHANA_FINAL_CASCADE_EXECUTE='enabled';
   db=store();svc=makeFinalCascadeDeletionService({db});preview=await svc.preview(args);
   assert.equal(preview.executionEnabled,true);
  }finally{
   if(previousExecute===undefined)delete process.env.SADHANA_FINAL_CASCADE_EXECUTE;
   else process.env.SADHANA_FINAL_CASCADE_EXECUTE=previousExecute;
-  if(previousFence===undefined)delete process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED;
-  else process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED=previousFence;
  }
 });
 test('preview is actor-bound, expires, and cannot be replayed',async()=>{

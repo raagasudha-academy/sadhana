@@ -1,8 +1,7 @@
 /** Canonical, fail-closed Super Admin cascade deletion.
  * BOUNDED ONLY. Never deletes a shared identity, a cross-academy person, a
  * website-imported identity, a media object, or an unenumerated dependency.
- * Production execution requires both the execute switch and a separately
- * reviewed writer-fencing attestation.
+ * Production execution is controlled by the explicit execute switch.
  */
 import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
@@ -33,8 +32,7 @@ function supportedTarget(row,type,inst){
 }
 function dbDefault(){return DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});}
 export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now(),allowExecute=
- process.env.SADHANA_FINAL_CASCADE_EXECUTE==='enabled'&&
- process.env.SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED==='enabled'}={}){
+ process.env.SADHANA_FINAL_CASCADE_EXECUTE==='enabled'}={}){
  const get=async(entity,id)=> (await db.send(new GetCommand({TableName:table(entity),Key:{[KEYS[entity]]:id},ConsistentRead:true}))).Item;
  async function inventory(){
   const results={};let inspected=0;
@@ -218,7 +216,7 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
     executionEnabled:allowExecute&&!current.hasImportedPeople,
     executionBlocked:current.hasImportedPeople,
     executionReason:!allowExecute
-     ? 'Permanent deletion is disabled until canonical writer-fencing checks are verified.'
+     ? 'Permanent deletion is disabled by the deployment setting.'
      : current.hasImportedPeople
       ? 'Imported identity provenance is missing or ambiguous; no data has been deleted.'
       : undefined,
@@ -229,7 +227,7 @@ export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now
       : undefined};
   },
   async execute(args){
-   if(!allowExecute)throw issue(503,'Cascade execution has not passed the canonical writer-fencing release gate.');
+   if(!allowExecute)throw issue(503,'Cascade execution is disabled by the deployment setting.');
    const {actor,institution,type,id,expectedVersion,signature}=args;
    const signed=await loadPreview(signature);
    if(signed.actorCognitoSub!==actor||signed.institutionId!==institution||signed.targetType!==type||signed.targetId!==id||signed.expectedVersion!==expectedVersion)

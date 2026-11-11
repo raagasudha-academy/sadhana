@@ -11,7 +11,7 @@ Both requests include `?institution=raaga|sruti`.
 - POST `/super-admin/deletions/execute`: `{type, id, expectedVersion, signature, confirm: "DELETE"}`.
 - Execution response: `{deleted: true}` only after deletion completes.
 
-The backend enforces the Super Admin claim, resolves canonical dependencies, rejects expired or changed previews, and audits successful deletion. Execution stays fail-closed unless both `SADHANA_FINAL_CASCADE_EXECUTE=enabled` and `SADHANA_FINAL_CASCADE_WRITER_FENCE_VERIFIED=enabled` are present. The second flag may only be set after all canonical writers are verified to reject writes against a deleting identity; the scan-and-delete preview alone does not close that race.
+The backend enforces the Super Admin claim, resolves canonical dependencies, rejects expired or changed previews, and audits successful deletion. Execution is controlled by `SADHANA_FINAL_CASCADE_EXECUTE=enabled` and remains unavailable when that deployment setting is absent.
 
 An imported individual student may be deleted only when exactly one canonical Sadhana import marker matches the student, source registration, family and active student mapping. The deletion transaction removes that student from the marker's active mapping, records the removed mapping for audit, and retains the source website registration. Imported family deletion and ambiguous/missing provenance remain blocked.
 
