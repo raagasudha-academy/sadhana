@@ -34,6 +34,12 @@ test('existing learner portal contract: only active approved guardian students',
  const {deps}=harness();const r=await finalFamilyAccessRoute(ctx(),deps,env);
  assert.deepEqual(r.body,{records:[{id:'PER_STUDENT',name:'Asha K',rollNumber:'001-002',kind:'guardian',relationship:'child'}]});
 });
+test('first Sruti login reconciles the confirmed invitation before listing its approved children',async()=>{
+ let linkedSubject='';
+ const reader={...base,peopleForSubject:async()=>[],linkInvitedSrutiParent:async sub=>{linkedSubject=sub;return actor;}};
+ assert.deepEqual(await finalLinkedStudents(inst,subject,reader),{records:[{id:'PER_STUDENT',name:'Asha K',rollNumber:'001-002',kind:'guardian',relationship:'child'}]});
+ assert.equal(linkedSubject,subject);
+});
 test('approved guardian link can bridge separate family records without moving either person',async()=>{
  const otherFamilyGuardian={...actor,familyId:'FAM_PARENT'};
  const crossLink={...link,familyId:'FAM_SHARED',guardianFamilyId:'FAM_PARENT'};

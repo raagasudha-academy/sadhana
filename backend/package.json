@@ -19,10 +19,12 @@
     "verify:venues": "tsx scripts/verifyVenueLinks.ts"
   },
   "dependencies": {
+    "@aws-crypto/client-node": "^5.0.2",
     "@aws-crypto/sha256-js": "^5.0.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
     "@aws-sdk/client-dynamodb": "^3.900.0",
     "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/client-sesv2": "^3.1166.0",
     "@aws-sdk/client-ssm": "^3.900.0",
     "@aws-sdk/credential-provider-node": "^3.900.0",
     "@aws-sdk/lib-dynamodb": "^3.900.0",

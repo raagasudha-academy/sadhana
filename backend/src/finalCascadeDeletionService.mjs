@@ -1,0 +1,224 @@
+/** Canonical, fail-closed Super Admin cascade deletion.
+ * BOUNDED ONLY. Never deletes a shared identity, a cross-academy person, a
+ * website-imported identity, a media object, or an unenumerated dependency.
+ * Production execution is separately gated pending complete writer fencing.
+ */
+import {createHash, randomBytes, randomUUID} from 'node:crypto';
+import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
+import {DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, TransactWriteCommand} from '@aws-sdk/lib-dynamodb';
+import {entityTable, ENTITY_NAMES} from './entityTables.mjs';
+
+const KEYS={people:'personId',families:'familyId','family-links':'linkId',enrolments:'enrolmentId',attendance:'attendanceId',practice:'practiceId',homework:'homeworkId',submissions:'submissionId',rsvps:'rsvpId',registrations:'registrationId',notifications:'notificationId',counters:'counterId',classes:'classId',sessions:'sessionId',events:'eventId',venues:'venueId',institutions:'institutionId'};
+const EXCLUDED=new Set(['audit','classes','sessions','events','venues','institutions','homework']);
+const CAP=10000, MAX_ACTIONS=95, PREVIEW_SECONDS=300;
+const issue=(status,message)=>Object.assign(new Error(message),{status});
+const canonical=(x)=>JSON.stringify(sort(x));
+function sort(x){if(Array.isArray(x))return x.map(sort);if(x&&typeof x==='object')return Object.fromEntries(Object.keys(x).sort().map(k=>[k,sort(x[k])]));return x;}
+const digest=(x)=>createHash('sha256').update(canonical(x)).digest('hex');
+const keyOf=(entity,row)=>{const field=KEYS[entity];if(!field||typeof row?.[field]!=='string'||!row[field])throw issue(409,`Unrecognised ${entity} record key; no deletion attempted.`);return {[field]:row[field]};};
+const table=(entity)=>entityTable(entity);
+const includes=(x,id)=>Array.isArray(x)&&x.includes(id);
+const references=(value,ids)=>{if(typeof value==='string')return ids.has(value);if(Array.isArray(value))return value.some(x=>references(x,ids));if(value&&typeof value==='object')return Object.values(value).some(x=>references(x,ids));return false;};
+const hasInstitution=(row,inst)=>row?.institutionId===inst||includes(row?.institutionIds,inst);
+const importedIdentity=row=>Boolean(row?.sourceWebsiteRegistrationId||row?.websiteRegistrationId||row?.importedFromRegistrationId);
+
+function supportedTarget(row,type,inst){
+ if(!row||row.status!=='active'||!includes(row.institutionIds,inst))throw issue(409,'Target is unavailable or inactive.');
+ if(row.institutionIds.length!==1)throw issue(409,'Cross-academy identities require a separate explicit cascade policy.');
+ if(type==='student'&&(!includes(row.personTypes,'student')||!row.studentProfile?.rollNumbers?.[inst]))throw issue(409,'Target is not an enrolled student identity in this academy.');
+ if(type==='student'&&(row.personTypes||[]).some(x=>x!=='student'))throw issue(409,'Student has a shared guardian/staff identity. Deletion refused.');
+ // Imported people may be inspected in preview; actual deletion stays blocked until provenance is reconciled.
+}
+function dbDefault(){return DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});}
+export function makeFinalCascadeDeletionService({db=dbDefault(),now=()=>Date.now(),allowExecute=process.env.SADHANA_FINAL_CASCADE_EXECUTE==='enabled'}={}){
+ const get=async(entity,id)=> (await db.send(new GetCommand({TableName:table(entity),Key:{[KEYS[entity]]:id},ConsistentRead:true}))).Item;
+ async function inventory(){
+  const results={};let inspected=0;
+  for(const entity of ENTITY_NAMES){
+   if(entity==='audit')continue;
+   if(!KEYS[entity])throw issue(503,`Unrecognised canonical table ${entity}.`);
+   results[entity]=[];let cursor;
+   do{
+    const page=await db.send(new ScanCommand({TableName:table(entity),ConsistentRead:true,ExclusiveStartKey:cursor,Limit:100}));
+    results[entity].push(...(page.Items||[])); inspected+=(page.Items||[]).length;
+    if(inspected>CAP)throw issue(409,'Canonical dataset exceeds audited scan bound; no deletion attempted.');
+    cursor=page.LastEvaluatedKey;
+   }while(cursor);
+  }
+  return results;
+ }
+ async function build(type,id,institution){
+  const root=await get(type==='student'?'people':'families',id);
+  if(!root)throw issue(404,'Target record not found.');
+  supportedTarget(root,type,institution);
+  const all=await inventory();
+  const people=type==='student'?[root]:all.people.filter(p=>p.familyId===id);
+  if(type==='family'){
+   if(!people.length)throw issue(409,'Empty family requires a separate deletion policy.');
+   for(const p of people){
+    if(p.personTypes?.includes('student'))supportedTarget(p,'student',institution);
+    else if(p.status!=='active'||!hasInstitution(p,institution)||p.institutionIds.length!==1||
+      (p.personTypes||[]).some(x=>!['guardian'].includes(x))||p.cognitoSub)
+      throw issue(409,'Family includes a shared, signed-in or protected identity.');
+   }
+  }
+  if(type==='student'&&root.familyId){
+   const family=await get('families',root.familyId);
+   if(!family)throw issue(409,'Student has an unresolvable family.');
+  }
+  const memberIds=new Set(people.map(p=>p.personId));
+  const familyIds=new Set(type==='family'?[id]:[]);
+  const targets=new Map();
+  const retainedRegistrations=new Set();
+  function add(entity,row){const k=keyOf(entity,row);targets.set(`${entity}:${JSON.stringify(k)}`,{entity,key:k,row});}
+  if(type==='family')add('families',root);
+  for(const p of people)add('people',p);
+  // Identify student-owned records using canonical explicit foreign keys.
+  for(const [entity,records] of Object.entries(all)){
+   if(['people','families','audit'].includes(entity))continue;
+   for(const row of records){
+    // Preview tokens are workflow metadata, not student dependencies.
+    // Token validation and consumption happen separately during execution.
+    if(entity==='counters' && row.recordType==='CASCADE_PREVIEW')continue;
+    const keyed=keyOf(entity,row);
+    const directStudent=memberIds.has(row.studentId)||memberIds.has(row.personId)||memberIds.has(row.recipientPersonId)||memberIds.has(row.senderPersonId);
+    const directFamily=familyIds.has(row.familyId)||familyIds.has(row.guardianFamilyId);
+    const nested=references(row,new Set([...memberIds,...familyIds]));
+    if(!directStudent&&!directFamily&&!nested)continue;
+    if(EXCLUDED.has(entity))throw issue(409,`Shared ${entity} references the target; manual dependency review required.`);
+    if(entity==='registrations'){
+     // Website registrations are source/history records. Keep them intact, and
+     // explicitly report the retained references rather than silently dropping them.
+     retainedRegistrations.add(row.registrationId);
+     continue;
+    }
+    if(entity==='counters'){
+     // A single-student cascade must preserve family-owned contact and
+     // parent invitation routing records.
+     if(type==='student' &&
+        ['PARENT_EMAIL_ROUTE','CONTACT_GUARD'].includes(row.sequenceType) &&
+        row.familyId===root.familyId)continue;
+
+     // Roll reservations are historical uniqueness records: never reuse
+     // an allocated academy roll number.
+     if(type==='student' &&
+        row.sequenceType==='ROLL_UNIQUE' &&
+        row.personId===root.personId)continue;
+
+     // A student-specific identity guard can appear in the preview.
+     // Execution remains independently release-gated.
+     const allowed=['IDENTITY_GUARD','ROLL_UNIQUE',
+       'STUDENT_EMAIL_GUARD','ENROLMENT_PAIR_GUARD',
+       'FAMILY_PHONE_GUARD'];
+
+     if(!allowed.includes(row.sequenceType) ||
+        (!directStudent&&!directFamily))
+      throw issue(409,'Counter reference is not an approved exclusive identity lock.');
+    }else if(entity==='notifications'){
+     // Messages are two-party records: deleting both copies can destroy third-party inbox history.
+     if(row.recordType==='direct-message')throw issue(409,'Shared message history requires a separate privacy/retention policy.');
+    }else if(entity==='family-links'){
+     if(!memberIds.has(row.studentId)&&!memberIds.has(row.guardianPersonId))throw issue(409,'Unresolved family link reference.');
+    }else if(!directStudent&&!directFamily){
+     throw issue(409,`Nested/indirect reference in ${entity} requires manual review.`);
+    }
+    if(entity!=='counters'&&!hasInstitution(row,institution))throw issue(409,`Cross-academy ${entity} dependency requires independent review.`);
+    add(entity,row);
+   }
+  }
+  if(type==='student'){
+   const family=all.families.find(f=>f.familyId===root.familyId);
+   // Keep family and guardian as shared identities even if only one child remains.
+   if(family&&!hasInstitution(family,institution))throw issue(409,'Family institution mismatch.');
+  }
+  // Fail closed on S3 receipts: deleting DynamoDB metadata alone would strand objects.
+  for(const item of targets.values()){
+   const r=item.row;
+   if(r.s3Key||r.objectKey||r.storageKey||r.mediaKey||r.attachmentIds?.length||r.materialIds?.length)
+    throw issue(409,'Media/object storage references need an audited S3 deletion plan.');
+  }
+  const entries=[...targets.values()].sort((a,b)=>a.entity.localeCompare(b.entity)||canonical(a.key).localeCompare(canonical(b.key)));
+  const version=(row)=>Number.isSafeInteger(row.version)?row.version:null;
+  const manifest=entries.map(({entity,key,row})=>({entity,key,version:version(row),hash:digest(row)}));
+  return {root,entries,manifest,retainedRegistrations:[...retainedRegistrations].sort(),hasImportedPeople:people.some(importedIdentity)};
+ }
+ // An opaque, high-entropy token identifies a server-side, expiring preview.
+ // Never trust client-supplied target lists or counts. Only a digest of the
+ // server-derived complete manifest is stored, and execution recomputes it.
+ const previewId=token=>`CASCADE_PREVIEW#${digest(token)}`;
+ function validToken(token){
+  if(typeof token!=='string'||!/^[-_A-Za-z0-9]{43}$/.test(token))
+   throw issue(400,'Invalid deletion preview token.');
+ }
+ async function loadPreview(token){
+  validToken(token);
+  const row=(await db.send(new GetCommand({
+   TableName:table('counters'),Key:{counterId:previewId(token)},ConsistentRead:true
+  }))).Item;
+  if(!row||row.recordType!=='CASCADE_PREVIEW'||row.state!=='pending')
+   throw issue(409,'Deletion preview is missing or already used. Refresh it.');
+  if(!Number.isSafeInteger(row.expiresAt)||row.expiresAt<now())
+   throw issue(409,'Deletion preview expired. Refresh it.');
+  return row;
+ }
+ async function plan({actor,institution,type,id,expectedVersion}){
+  const result=await build(type,id,institution);
+  if(result.root.version!==expectedVersion)throw issue(409,'Target version has changed. Refresh the record.');
+  return result;
+ }
+ return {
+  async preview(args){
+   const {actor,institution,type,id,expectedVersion}=args;
+   const current=await plan(args);const counts=[];
+   for(const entity of new Set(current.entries.map(x=>x.entity))){counts.push({label:entity,count:current.entries.filter(x=>x.entity===entity).length});}
+   const total=current.entries.length;
+   if(total>MAX_ACTIONS)throw issue(409,'Cascade exceeds single-transaction limit; requires durable resumable job support.');
+   const signature=randomBytes(32).toString('base64url');
+   const record={counterId:previewId(signature),recordType:'CASCADE_PREVIEW',state:'pending',
+    actorCognitoSub:actor,institutionId:institution,targetType:type,targetId:id,
+    expectedVersion,manifestDigest:digest(current.manifest),
+    expiresAt:now()+PREVIEW_SECONDS*1000,
+    // DynamoDB TTL is in seconds; the timestamp check above is authoritative.
+    ttl:Math.ceil((now()+PREVIEW_SECONDS*1000)/1000)};
+   await db.send(new PutCommand({TableName:table('counters'),Item:record,
+    ConditionExpression:'attribute_not_exists(counterId)'}));
+   return {targetType:type,targetId:id,expectedVersion,signature,counts,total,
+    retained: current.retainedRegistrations.length
+     ? [{label:'Website registrations retained for reconciliation',count:current.retainedRegistrations.length}]
+     : [],
+    executionBlocked:current.hasImportedPeople,
+    notice:current.hasImportedPeople
+     ? 'Preview only: website-imported identity deletion requires registration provenance and import-marker reconciliation.'
+     : undefined};
+  },
+  async execute(args){
+   if(!allowExecute)throw issue(503,'Cascade execution has not passed the canonical writer-fencing release gate.');
+   const {actor,institution,type,id,expectedVersion,signature}=args;
+   const signed=await loadPreview(signature);
+   if(signed.actorCognitoSub!==actor||signed.institutionId!==institution||signed.targetType!==type||signed.targetId!==id||signed.expectedVersion!==expectedVersion)
+    throw issue(403,'Preview does not match this request.');
+   const current=await plan(args);
+   if(current.hasImportedPeople)throw issue(409,'Imported-student deletion requires verified website import-marker and registration reconciliation; no records were deleted.');
+   if(digest(current.manifest)!==signed.manifestDigest)throw issue(409,'Linked records changed since preview; refresh the preview.');
+   if(current.entries.length>MAX_ACTIONS)throw issue(409,'Cascade is too large for atomic execution.');
+   const audit={auditId:`aud_${randomUUID()}`,institutionId:institution,actorCognitoSub:actor,action:'SUPER_ADMIN_CASCADE_DELETE',resourceType:type,resourceId:id,deletedCounts:Object.fromEntries([...new Set(current.entries.map(x=>x.entity))].map(e=>[e,current.entries.filter(x=>x.entity===e).length])),timestamp:new Date(now()).toISOString(),schemaVersion:1,result:'success'};
+   const deletes=current.entries.map(({entity,key,row})=>{
+    const idField=KEYS[entity];const condition=['attribute_exists(#id)'];const names={'#id':idField};const values={};
+    if(Number.isSafeInteger(row.version)){condition.push('#v=:v');names['#v']='version';values[':v']=row.version;}
+    // Record existence + version only is insufficient for unversioned records;
+    // preserve the full snapshot with field equality checks where possible.
+    else {throw issue(409,`Unversioned ${entity} dependency cannot be conditionally deleted.`);}
+    return {Delete:{TableName:table(entity),Key:key,ConditionExpression:condition.join(' AND '),ExpressionAttributeNames:names,ExpressionAttributeValues:values}};
+   });
+   // Consume the preview in the same atomic transaction. A replay or an
+   // expired preview must never succeed, even after concurrent requests.
+   const consume={Delete:{TableName:table('counters'),Key:{counterId:signed.counterId},
+    ConditionExpression:'#state=:pending AND #expires=:expires AND #digest=:digest AND #actor=:actor',
+    ExpressionAttributeNames:{'#state':'state','#expires':'expiresAt','#digest':'manifestDigest','#actor':'actorCognitoSub'},
+    ExpressionAttributeValues:{':pending':'pending',':expires':signed.expiresAt,':digest':signed.manifestDigest,':actor':actor}}};
+   try{await db.send(new TransactWriteCommand({TransactItems:[...deletes,consume,{Put:{TableName:table('audit'),Item:audit,ConditionExpression:'attribute_not_exists(auditId)'}}]}));}
+   catch(e){if(e?.name==='TransactionCanceledException')throw issue(409,'Concurrent record change. Nothing was deleted. Refresh the preview.');throw e;}
+   return {deleted:true};
+  }
+ };
+}

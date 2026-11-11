@@ -37,6 +37,7 @@ export async function finalReadRoute(context, readers, access, env = process.env
     const profile = await readers.profile(claims.sub);
     return {status: 200, body: {
       subject: claims.sub,
+      ...(access.isSuperAdmin?{isSuperAdmin:access.isSuperAdmin(claims)}:{}),
       institutions: viewed,
       adminInstitutions: admins,
       teacherInstitutions: linkedTeachers,

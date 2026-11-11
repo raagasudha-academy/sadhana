@@ -4,7 +4,7 @@ import {makeM10CoreDirectoryRoutes} from './routes/coreDirectoryRoutes.ts';
 import {m10AcademyWriteRoutes} from './routes/academyWriteRoutes.ts';
 import {apiRouteParts} from './apiRoute.ts';
 import type {PracticeChange} from './repository.ts';
-import {httpError, permittedInstitutions, viewableInstitutions, demandInstitution, demandViewInstitution, RESOURCES} from './model.ts';
+import {isSuperAdmin, httpError, permittedInstitutions, viewableInstitutions, demandInstitution, demandViewInstitution, RESOURCES} from './model.ts';
 import {verifiedTeacherInstitutions} from './teacherDirectory.ts';
 import {ownProfilePhoto, currentStaffDisplayName, uploadProfilePhoto} from './profilePhotos.ts';
 import {getOwnProfile, saveOwnProfile} from './selfProfile.ts';
@@ -38,6 +38,8 @@ import {m10CoreFrontendWriteRoutes} from './routes/coreFrontendWriteRoutes.ts';
 import {m10CoreDirectoryAuthoritativeRoutes} from './routes/coreDirectoryAuthoritativeRoutes.ts';
 import {m10FrontendAcademyRoutes} from './routes/frontendAcademyRoutes.ts';
 import {finalOnlyGate} from './finalBoundary.mjs';
+import {finalCascadeDeletionRoute} from './finalCascadeDeletion.mjs';
+import {makeFinalCascadeDeletionService} from './finalCascadeDeletionService.mjs';
 import {finalCognitoSelfRoute} from './finalCognitoSelf.mjs';
 import {finalReadRoute} from './finalReadRoutes.mjs';
 import {finalOperationsRoute} from './finalOperations.mjs';
@@ -118,7 +120,7 @@ export function createHandler(repository: SadhanaRepository){
     };
   };
   const finalAccess: Parameters<typeof finalReadRoute>[2]={
-    view:demandViewInstitution,admin:demandInstitution,
+    view:demandViewInstitution,admin:demandInstitution,isSuperAdmin,
     viewableInstitutions,permittedInstitutions,
     forbid:message=>{throw httpError(403,message);},
     badInstitution:()=>{throw httpError(400,'Choose a valid institution.');},
@@ -282,6 +284,12 @@ export function createHandler(repository: SadhanaRepository){
         getProfile:getOwnProfile, saveProfile:saveOwnProfile,
         uploadOwnPhoto:(value,identity)=>uploadProfilePhoto(value,identity,'me'),
       },{readJSON,readPhotoJSON});if(self)return json(self.status,self.body);}
+      // Canonical Super Admin cascade: no legacy fallback and execution is release-gated.
+      {const result=await finalCascadeDeletionRoute(routeContext,{
+        isSuperAdmin,
+        parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):''),
+        service:makeFinalCascadeDeletionService(),
+      });if(result)return json(result.status,result.body);}
       // Canonical final mode MUST stop here. M10 pilot, M9 onboarding,
       // legacy identity, and the PK/SK repository below are NOT final routes.
       // This also prevents a legacy write switch from exposing an unreviewed
@@ -320,7 +328,7 @@ export function createHandler(repository: SadhanaRepository){
         subject:claims.sub,institutions:['raaga','sruti'],adminInstitutions:[],teacherInstitutions:[],role:'learner',displayName:'Student / Family'
       });
       if(method==='GET'&&parts[0]==='me')return json(200,{
-        subject:claims.sub,institutions:viewed,adminInstitutions:groups,
+        subject:claims.sub,institutions:viewed,adminInstitutions:groups,isSuperAdmin:isSuperAdmin(claims),
         teacherInstitutions:(await verifiedTeacherInstitutions(claims.sub)).filter(i=>viewed.includes(i)),
         role:groups.length?'admin':'viewer',
         displayName:await currentStaffDisplayName(claims.sub),

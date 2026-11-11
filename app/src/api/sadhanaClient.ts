@@ -1,3 +1,4 @@
+import type {CascadeTarget,CascadePreview} from '../CascadeDeleteControl';
 /** Typed client for the deployed Cognito-protected Sadhana API.
  * Requires a verified Cognito access token. Never embed AWS credentials in Vite.
  * The calendar is live; other CRUD screens remain browser-only for now.
@@ -44,7 +45,7 @@ export interface AdministratorRecord {
 export interface AdministratorListResponse {
   records:AdministratorRecord[]; canManage:boolean;
 }
-export interface StaffResponse { subject: string; institutions: InstitutionId[]; adminInstitutions?: InstitutionId[]; teacherInstitutions?: InstitutionId[]; role: 'admin' | 'viewer' | 'learner'; displayName?: string; photoUrl?:string }
+export interface StaffResponse { isSuperAdmin?: boolean; subject: string; institutions: InstitutionId[]; adminInstitutions?: InstitutionId[]; teacherInstitutions?: InstitutionId[]; role: 'admin' | 'viewer' | 'learner'; displayName?: string; photoUrl?:string }
 export interface SadhanaApiOptions {
   baseUrl: string;
   getAccessToken: () => Promise<string | null> | string | null;
@@ -111,6 +112,8 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
     deleteLearningResource:(institution:InstitutionId,id:string,expectedVersion:number)=>request<{deleted:boolean}>('DELETE',`/learning-resources/${encodeURIComponent(id)}`,{institution,body:{expectedVersion}}),
     listOperations:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId)=>request<{records:any[]}>('GET',`/operations/${kind}`,{institution}),
     createOperation:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId,data:ResourcePayload)=>request<{record:any}>('POST',`/operations/${kind}`,{institution,body:data}),
+    previewCascadeDelete:(institution:InstitutionId,target:CascadeTarget)=>request<CascadePreview>('POST','/super-admin/deletions/preview',{institution,body:{type:target.type,id:target.id,expectedVersion:target.version}}),
+    executeCascadeDelete:(institution:InstitutionId,target:CascadeTarget,signature:string)=>request<{deleted:boolean}>('POST','/super-admin/deletions/execute',{institution,body:{type:target.type,id:target.id,expectedVersion:target.version,signature,confirm:'DELETE'}}),
     deleteFamily:(institution:InstitutionId,id:string,expectedVersion:number)=>request<{deleted:boolean;familyId:string;studentsDeleted:number}>('DELETE',`/operations/family/${encodeURIComponent(id)}`,{institution,body:{confirm:'DELETE',expectedVersion}}),
     deleteEnrolment:(institution:InstitutionId,id:string,expectedVersion:number)=>request<{deleted:boolean;enrolmentId:string}>('DELETE',`/operations/enrolment/${encodeURIComponent(id)}`,{institution,body:{confirm:'DELETE',expectedVersion}}),
     updateOperation:(kind:'family'|'student'|'enrolment'|'attendance'|'practice'|'feedback'|'rsvp',institution:InstitutionId,id:string,data:ResourcePayload,expectedVersion:number)=>request<{record:any}>('PATCH',`/operations/${kind}/${encodeURIComponent(id)}`,{institution,body:{...data,expectedVersion}}),
@@ -221,11 +224,13 @@ export function createSadhanaApi({baseUrl,getAccessToken}: SadhanaApiOptions) {
     queueImportedParentLinks:(id:string)=>request<{queued:number;alreadyExists:number;status:string;message:string}>('POST',`/website-registrations/${encodeURIComponent(id)}/queue-parent-links`,{body:{}}),
     resendParentInvitation:(id:string)=>request<{status:string;message:string;requestedAt:string}>('POST',`/website-registrations/${encodeURIComponent(id)}/resend-parent-invitation`,{body:{confirmReference:id}}),
     retryParentProvisioning:(id:string)=>request<{status:string;disabled?:boolean;alreadyProcessed?:boolean;reason?:string;message?:string}>('POST',`/website-registrations/${encodeURIComponent(id)}/provision-parent`,{body:{confirmReference:id,sendInvitation:true}}),
+    linkExistingParentAccount:(id:string)=>request<{status:string;linked?:boolean;invitationSent?:boolean;message?:string}>('POST',`/website-registrations/${encodeURIComponent(id)}/provision-parent`,{body:{confirmReference:id,linkVerifiedAccount:true}}),
     getWebsiteRegistration:(id:string)=>request<unknown>('GET',`/website-registrations/${encodeURIComponent(id)}`),
     websiteRegistrationPhoto:(registrationId:string,personId:string)=>request<{url?:string;photoUrl?:string;presignedUrl?:string}>('GET',`/website-registrations/${encodeURIComponent(registrationId)}/photos/${encodeURIComponent(personId)}`),
     currentStaff:()=>request<StaffResponse>('GET','/me'),
     health:()=>request<{status:string;database:string;environment:string}>('GET','/health'),
     list:(resource: ResourceName,institution: InstitutionId,params?:Record<string,string>)=>request<ListResponse>('GET',`/${encodeURIComponent(resource)}`,{institution,params}),
+    getFamilyContact:(institution:InstitutionId,familyId:string)=>request<{familyId:string;parentName:string;email:string;phone:string;location:string;address:Record<string,unknown>}>('GET',`/families/${encodeURIComponent(familyId)}/contact`,{institution}),
     searchIdentity:(q: string)=>request<SearchResponse>('GET','/identities/search',{params:{q}}),
     create:(resource: ResourceName,institution: InstitutionId,data: ResourcePayload)=>request<{record:ApiRecord}>('POST',`/${encodeURIComponent(resource)}`,{institution,body:data}),
     update:(resource: ResourceName,id: string,institution: InstitutionId,changes: ResourcePayload,expectedVersion: number)=>request<{record:ApiRecord}>('PATCH',`/${encodeURIComponent(resource)}/${encodeURIComponent(id)}`,{institution,body:{...changes,expectedVersion}}),

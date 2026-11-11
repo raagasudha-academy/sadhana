@@ -9,6 +9,7 @@ const validPerson=id=>typeof id==='string'&&/^[A-Za-z0-9_-]{4,150}$/.test(id);
 const validSubject=id=>typeof id==='string'&&/^[A-Za-z0-9-]{8,128}$/.test(id);
 const hasInst=(row,inst)=>Array.isArray(row?.institutionIds)&&row.institutionIds.includes(inst);
 const isInviteRequest=(body,externalId)=>body&&Object.keys(body).sort().join(',')==='confirmReference,sendInvitation'&&body.confirmReference===externalId&&body.sendInvitation===true;
+const isExistingAccountRequest=(body,externalId)=>body&&Object.keys(body).sort().join(',')==='confirmReference,linkVerifiedAccount'&&body.confirmReference===externalId&&body.linkVerifiedAccount===true;
 const isResendRequest=(body,externalId)=>body&&Object.keys(body).join(',')==='confirmReference'&&body.confirmReference===externalId;
 
 export async function canonicalRaagaParentSnapshot(externalId,reader){
@@ -52,7 +53,7 @@ export async function canonicalRaagaParentAction(action,externalId,body,claims,r
  const status=reg.provisioningStatus||'NOT_INVITED';
  const verifiedLink=async()=>{
   if(!validPerson(guardian.cognitoSub))fail(409,'Guardian account has not been linked to a verified identity.');
-  const guard=await reader.subjectGuard(guardian.cognitoSub);
+  const guard=await reader.subjectGuard(guardian.cognitoSub,'raaga');
   if(guard?.personId!==guardian.personId)fail(409,'Canonical Cognito uniqueness guard is missing or inconsistent.');
  };
  if(action==='queue-parent-links'){
@@ -94,6 +95,11 @@ export async function canonicalRaagaParentAction(action,externalId,body,claims,r
   if(isInviteRequest(body,externalId)){
    if(typeof reader.inviteNewAccount!=='function')fail(503,'Canonical parent invitation handler is unavailable.');
    return reader.inviteNewAccount(reg,guardian,claims.sub);
+  }
+  if(isExistingAccountRequest(body,externalId)){
+   if(typeof reader.linkVerifiedAccount!=='function')fail(503,'Canonical verified-account linking is unavailable.');
+   const result=await reader.linkVerifiedAccount(reg.registrationId,'raaga',claims,'');
+   return {...result,status:result.linked?'ACCOUNT_FOUND':'NEEDS_VERIFICATION',guardianAccessGranted:false,invitationSent:false};
   }
   if(Object.keys(body).sort().join(',')!=='confirmReference,expectedSubject'||
     body.confirmReference!==externalId||!validSubject(body.expectedSubject))

@@ -50,7 +50,7 @@ export default function PersistentRegistration({cloud,workspace,initialClass='',
       workspace={workspace} families={families} members={members} enrolments={enrolments}
       classes={classes} setFamilies={setFamilies} setMembers={setMembers}
       setEnrolments={setEnrolments} initialClass={initialClass||null} initialStudent={initialStudent||null}
-      operationsApi={cloud.api} reload={reload} initialArea={initialArea} initialFilter={initialFilter} initialView={initialView}/>
+      isSuperAdmin={cloud.staff.isSuperAdmin===true} operationsApi={cloud.api} reload={reload} initialArea={initialArea} initialFilter={initialFilter} initialView={initialView}/>
     }
   </div>;
 }

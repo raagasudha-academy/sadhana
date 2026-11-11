@@ -25,6 +25,10 @@ export function makeM10CoreDirectoryAuthoritativeRoutes(getReader:()=>M10CoreDir
    // the Lambda's central handler suppresses internal details as a 500.
    return json(200,page);
   }
+  if(method==='GET'&&parts[0]==='families'&&parts.length===3&&parts[2]==='contact'){
+   const contact=await getReader().familyContact(parts[1],inst,claims);
+   return json(200,contact);
+  }
   // Explicitly avoid a legacy write fallback for an authoritative M9 route.
   return json(503,{error:'M9 core directory writes are not yet migrated.'});
  };

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from 'react';
-import {Inbox, RefreshCw, ShieldCheck, CheckCircle2, Search, ChevronRight} from 'lucide-react';
+import {Inbox, RefreshCw, ShieldCheck, Search, ChevronRight} from 'lucide-react';
 import type {CloudSession} from './CloudAuth';
 import './websiteRegistrations.css';
 
@@ -104,7 +104,7 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
   }
   async function previewNewFamilyImport(){
     if(!detail||detail.reviewStatus!=='approved'||detail.importStatus==='imported'||importBusy)return;
-    setImportBusy(true);setImportError('');setImportPreview(null);setConfirmImport(false);
+    setImportBusy(true);setImportError('');setReviewMessage('');setImportPreview(null);setConfirmImport(false);
     try{
       const result=await cloud.api.previewSrutiNewFamilyImport(detail.registrationId);
       if(result.registrationId&&result.registrationId!==detail.registrationId&&!result.registrationId.startsWith('web_'))throw new Error('Unexpected import reference.');
@@ -160,7 +160,6 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
       <div><h1>Website Registrations</h1><p>Review applications and activate approved learners.</p></div>
       <button type="button" className="wr-refresh" disabled={loading} onClick={()=>void reload()}><RefreshCw size={16}/> Refresh</button>
     </div>
-    <div className="wr-banner"><ShieldCheck size={18}/><span>Review the form, approve the application, then import to Sadhana.</span></div>
     <div className="wr-toolbar">
       <label>Status <select value={filter} onChange={e=>{setFilter(e.target.value);setSelected('');}}>
         <option value="pending">Pending</option><option value="approved">Approved</option><option value="discarded">Discarded</option><option value="all">All</option>
@@ -168,8 +167,6 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
       <label className="wr-search"><Search size={16}/><input aria-label="Search applications" placeholder="Search names or ID" value={search} onChange={e=>setSearch(e.target.value)}/></label>
     </div>
     {error&&<div className="wr-error" role="alert">{error}</div>}
-    {reviewMessage&&<div className="wr-banner" role="status"><CheckCircle2 size={18}/>{reviewMessage}</div>}
-    {importMessage&&<div className="wr-banner" role="status"><CheckCircle2 size={18}/>{importMessage}</div>}
     {more&&<p role="status">Showing the first 100 registrations. More records exist; pagination is not yet enabled.</p>}
     <div className="wr-layout">
       <div className="wr-list">
@@ -198,34 +195,30 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
             <div><small>Import status</small><strong>{detail.importStatus||'Pending'}</strong></div>
           </div>
           <div className="wr-card">
-            <details className="wr-v118-main-actions" open>
-              <summary>Registration actions</summary>
-              <div className="wr-v118-main-actions-body">
-                {detail.reviewStatus==='pending'?<>
-                  <button type="button" className="reg-primary" disabled={!reviewEligible||reviewBusy} onClick={()=>setDecision('approved')}>Approve application</button>
-                  <button type="button" className="reg-secondary" disabled={!reviewEligible||reviewBusy} onClick={()=>setDecision('discarded')}>Discard</button>
-                  {!reviewAvailable&&<p role="status">Approval is temporarily unavailable.</p>}
-                  {!Number.isSafeInteger(detail.version)&&<p role="alert">Registration version is missing. Refresh before approving.</p>}
-                </>:detail.reviewStatus==='approved' && detail.importStatus!=='imported'?<>
-                  <p>Approved. Ready to import.</p>
-                  <button type="button" className="reg-primary" disabled={importBusy} onClick={()=>void previewNewFamilyImport()}>{importBusy?'Preparing…':'Import to Sadhana'}</button>
-                  {importPreview?.alreadyImported&&<p role="status">Already imported. Refresh to see the updated status.</p>}
-                </>:detail.reviewStatus==='approved'&&detail.importStatus==='imported'?<>
-                  <p role="status">Imported to Sadhana. Parent portal login is a separate step; importing does not send an email.</p>
-                  <div className="wr-card" aria-label="Parent portal invitation">
-                    <strong>Parent portal access</strong>
-                    <p>Status: {parentAccess?.status||'Checking…'}{parentAccess?.email?` · ${parentAccess.email}`:''}</p>
-                    {parentAccess?.status==='NOT_INVITED'&&<button type="button" className="reg-primary" disabled={parentAccessBusy} onClick={()=>setConfirmParentInvite(true)}>{parentAccessBusy?'Working…':'Send parent invitation'}</button>}
-                    {parentAccess?.status==='INVITATION_SENT'&&<button type="button" className="reg-secondary" disabled={parentAccessBusy} onClick={()=>void resendParentInvitation()}>{parentAccessBusy?'Working…':'Resend invitation email'}</button>}
-                    {['ACCOUNT_FOUND','EXISTING_ACCOUNT_LINKED','ACTIVE'].includes(parentAccess?.status||'')&&<p>The parent already has a Sadhana account, so a new invitation email was not sent.</p>}
-                    {parentAccess?.status==='NEEDS_VERIFICATION'&&<p>Parent account needs administrator verification before an invitation can be sent.</p>}
-                    {parentAccessMessage&&<p role="status">{parentAccessMessage}</p>}
-                    {parentAccessError&&<p className="wr-error" role="alert">{parentAccessError}</p>}
-                    <small>The parent can sign in after accepting the invitation.</small>
-                  </div>
-                </>:<p role="status">Review status: {detail.reviewStatus||'Pending'}. Import: {detail.importStatus||'pending'}.</p>}
-              </div>
-            </details>
+            <div className="wr-registration-stages" role="group" aria-label="Registration stages">
+              <button type="button" className="reg-primary" disabled={!reviewEligible||reviewBusy||importBusy||parentAccessBusy} onClick={()=>setDecision('approved')}>
+                {detail.reviewStatus==='approved'?'✓ Approved':detail.reviewStatus==='discarded'?'Discarded':reviewBusy?'Approving…':'Approve application'}
+              </button>
+              <span aria-hidden="true">→</span>
+              <button type="button" className="reg-primary" disabled={detail.reviewStatus!=='approved'||detail.importStatus==='imported'||importBusy||reviewBusy||parentAccessBusy} onClick={()=>void previewNewFamilyImport()}>
+                {detail.importStatus==='imported'?'✓ Imported to Sadhana':importBusy?'Importing…':'Import to Sadhana'}
+              </button>
+              <span aria-hidden="true">→</span>
+              <button type="button" className="reg-primary" disabled={detail.reviewStatus!=='approved'||detail.importStatus!=='imported'||parentAccess?.status!=='NOT_INVITED'||parentAccessBusy||importBusy||reviewBusy} onClick={()=>setConfirmParentInvite(true)}>
+                {parentAccessBusy?'Setting up…':parentAccess?.status==='INVITATION_SENT'?'✓ Invitation sent':['ACCOUNT_FOUND','EXISTING_ACCOUNT_LINKED','ACTIVE'].includes(parentAccess?.status||'')?'Account already exists':'Set up parent access'}
+              </button>
+            </div>
+            {detail.reviewStatus==='pending'&&<button type="button" className="reg-secondary" disabled={!reviewEligible||reviewBusy} onClick={()=>setDecision('discarded')}>Discard application</button>}
+            {detail.reviewStatus==='pending'&&!reviewAvailable&&<p role="status">Approval is temporarily unavailable.</p>}
+            {detail.importStatus==='imported'&&<div className="wr-invitation-status">
+              {parentAccess?.email&&<small>{parentAccess.email}</small>}
+              {!parentAccess&&!parentAccessError&&<p role="status">Checking parent account…</p>}
+              {parentAccess?.status==='INVITATION_SENT'&&<button type="button" className="reg-secondary" disabled={parentAccessBusy} onClick={()=>void resendParentInvitation()}>Resend invitation email</button>}
+              {parentAccess?.status==='NEEDS_VERIFICATION'&&<p>Review the parent account before sending an invitation.</p>}
+              {parentAccessMessage&&<p role="status">{parentAccessMessage}</p>}
+              {parentAccessError&&<p className="wr-error" role="alert">{parentAccessError}</p>}
+            </div>}
+            {(importMessage||reviewMessage)&&<p className="wr-action-result" role="status">{importMessage||reviewMessage}</p>}
             {reviewBusy&&<p role="status">Saving review…</p>}
             {reviewError&&<div className="wr-error" role="alert">{reviewError}</div>}
             {importError&&<div className="wr-error" role="alert">{importError}</div>}
@@ -267,12 +260,12 @@ export default function SrutiWebsiteRegistrations({cloud}:{cloud:CloudSession}) 
     {confirmParentInvite&&detail&&parentAccess?.status==='NOT_INVITED'&&<div className="wr-modal-backdrop">
       <div className="wr-modal" role="alertdialog" aria-modal="true" aria-labelledby="sruti-parent-invite-title">
         <div className="wr-modal-icon"><ShieldCheck size={22}/></div>
-        <h2 id="sruti-parent-invite-title">Send parent portal invitation?</h2>
-        <p>This asks Cognito to send a Sadhana account invitation to <strong>{parentAccess.email||primaryName}</strong>.</p>
-        <p>The email is not guaranteed, and sending it does not grant access to the learner's records.</p>
+        <h2 id="sruti-parent-invite-title">Set up parent portal access?</h2>
+        <p>For <strong>{parentAccess.email||primaryName}</strong>, Sadhana will link one existing account with a verified matching email, or ask Cognito to send an invitation if no account exists.</p>
+        <p>The email is not guaranteed. After the parent activates the account and signs in, they can see the linked children and their enrolled classes.</p>
         <div className="wr-modal-actions">
           <button type="button" className="wr-modal-cancel" disabled={parentAccessBusy} onClick={()=>setConfirmParentInvite(false)}>Cancel</button>
-          <button type="button" className="wr-modal-approve" disabled={parentAccessBusy} onClick={()=>void requestParentInvitation()}>{parentAccessBusy?'Sending…':'Send invitation'}</button>
+          <button type="button" className="wr-modal-approve" disabled={parentAccessBusy} onClick={()=>void requestParentInvitation()}>{parentAccessBusy?'Setting up…':'Continue'}</button>
         </div>
       </div>
     </div>}

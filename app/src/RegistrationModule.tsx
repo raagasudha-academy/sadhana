@@ -1,3 +1,4 @@
+import CascadeDeleteControl from './CascadeDeleteControl';
 import { DirectoryDataMenu, StudentCardBadges } from './DirectoryComponents';
 import { persistArchiveState } from './archiveLifecycle';
 import { filterStudentsByLocation, sortDirectoryStudents } from './directorySelectors';
@@ -56,6 +57,7 @@ export default function RegistrationModule({
   initialView,
   practiceLogs = [],
   setPracticeLogs = () => {},
+  isSuperAdmin = false,
   operationsApi = null,
   reload = async () => {},
 }: any) {
@@ -663,6 +665,7 @@ export default function RegistrationModule({
     }
   };
   const [archiveTarget, setArchiveTarget] = useState<any>(null);
+  const [cascadeBusy,setCascadeBusy]=useState(false);
   const confirmArchive = () => {
     if (!archiveTarget) return;
     const { kind, record, restore } = archiveTarget;
@@ -680,6 +683,11 @@ export default function RegistrationModule({
   const person = members.find((m) => m.id === studentFocus);
   return (
     <div className="reg-module">
+      {operationsApi&&isSuperAdmin&&(person||family)&&<CascadeDeleteControl
+        allowed={isSuperAdmin} api={operationsApi} institution={workspace}
+        target={person?{type:'students',id:person.id,name:person.name,version:person.version}:{type:'families',id:family.id,name:family.parentName,version:family.version}}
+        onDeleted={async()=>{setStudentFocus(null);setFamilyFocus(null);await reload();}}/>
+      }
       {deleteFamilyTarget && (
         <Modal
           title={`Delete family ${familyLabel(deleteFamilyTarget)} permanently?`}
@@ -753,6 +761,7 @@ export default function RegistrationModule({
       {family ? (
         <FamilyDetail
           family={family}
+          operationsApi={operationsApi}
           members={members}
           enrolments={enrolments}
           workspace={workspace}
@@ -1515,9 +1524,9 @@ export default function RegistrationModule({
       )}
       {archiveTarget && (
         <Modal
-          title={`${archiveTarget.restore ? 'Restore' : 'Archive'} ${archiveTarget.kind}`}
-          subtitle="Protected identity status change"
-          onClose={() => setArchiveTarget(null)}
+          title={`${archiveTarget.restore ? 'Restore' : 'Remove'} ${archiveTarget.kind}`}
+          subtitle={archiveTarget.record.name||archiveTarget.record.parentName}
+          onClose={() => {if(!cascadeBusy)setArchiveTarget(null);}}
         >
           <div className="reg-form">
             <div className="reg-warning">
@@ -1528,11 +1537,16 @@ export default function RegistrationModule({
                   : 'Archiving preserves identifiers, enrolments and academic history. Students with active enrolments, and families with unarchived members, cannot be archived.'}
               </span>
             </div>
+            {archiveTarget.kind==='student'&&!archiveTarget.restore&&operationsApi&&isSuperAdmin&&<CascadeDeleteControl
+              inline allowed={isSuperAdmin} api={operationsApi} institution={workspace} onBusyChange={setCascadeBusy}
+              target={{type:'students',id:archiveTarget.record.id,name:archiveTarget.record.name,version:archiveTarget.record.version}}
+              onDeleted={async()=>{setArchiveTarget(null);setStudentFocus(null);await reload();}}/>
+            }
             <div className="reg-modal-actions">
-              <button className="reg-secondary" onClick={() => setArchiveTarget(null)}>
+              <button className="reg-secondary" disabled={cascadeBusy} onClick={() => setArchiveTarget(null)}>
                 Cancel
               </button>
-              <button className="reg-primary" onClick={confirmArchive}>
+              <button className="reg-primary" disabled={cascadeBusy} onClick={confirmArchive}>
                 {archiveTarget.restore ? 'Restore record' : 'Confirm archive'}
               </button>
             </div>

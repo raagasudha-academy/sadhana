@@ -57,3 +57,27 @@
 .wr-v118-parent-actions .wr-v112-actions{margin-top:10px}
 .wr-v118-main-actions>summary:focus-visible,.wr-v118-parent-actions>summary:focus-visible{outline:3px solid #628ad8;outline-offset:2px}
 @media(max-width:640px){.wr-v118-main-actions>summary,.wr-v118-parent-actions>summary{width:100%;justify-content:space-between}}
+
+.wr-registration-stages{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.wr-registration-stages>button{min-height:42px;flex:1 1 auto}
+.wr-registration-stages>span{color:#74839a}
+.wr-registration-stages>button:disabled{cursor:default;opacity:.65}
+.wr-invitation-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wr-invitation-status small{color:#68788f}
+@media(max-width:600px){.wr-registration-stages{gap:6px}.wr-registration-stages>button{font-size:12px;padding:8px;flex:1 1 25%}.wr-registration-stages>span{font-size:12px}}
+
+.wr-action-result{margin:10px 0 0;color:#52677a;font-size:13px;line-height:1.5}
+
+
+/* Super Admin cascade review: readable mobile-friendly breakdown. */
+.cascade-review { display:grid; gap:14px; margin:16px 0; }
+.cascade-review-total { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:12px; background:#f3f6fa; color:#22314c; }
+.cascade-review-total strong { font-size:30px; font-variant-numeric:tabular-nums; }
+.cascade-review-total span { font-size:14px; }
+.cascade-review-list { overflow:hidden; border:1px solid #dfe5ef; border-radius:12px; }
+.cascade-review-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; }
+.cascade-review-row + .cascade-review-row { border-top:1px solid #e9edf3; }
+.cascade-review-row strong { font-variant-numeric:tabular-nums; }
+.cascade-review-notice,.cascade-review-retained { margin:0; font-size:13px; color:#52637e; }
+.cascade-review-blocked { border:1px solid #e9cb84; background:#fffaee; color:#71501d; border-radius:10px; padding:12px 14px; margin:0; font-size:13px; }
+@media (max-width:600px) { .cascade-review-total { padding:12px; } .cascade-review-row { padding:10px; } }

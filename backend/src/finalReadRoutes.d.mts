@@ -12,6 +12,7 @@ export type CanonicalReadDependencies={
   profile:(sub:string)=>Promise<{name?:string;photoUrl?:string}>;
 };
 export type CanonicalAccess={
+ isSuperAdmin?:(claims:RouteContext['claims'])=>boolean;
  view:(claims:RouteContext['claims'],institution:Institution)=>void;
  admin:(claims:RouteContext['claims'],institution:Institution)=>void;
  viewableInstitutions:(claims:RouteContext['claims'])=>Institution[];

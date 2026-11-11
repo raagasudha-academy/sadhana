@@ -30,7 +30,13 @@ export async function finalLinkedStudents(institution, subject, reader) {
   if(!validInstitution(institution)) throw error(400,'Choose a valid institution.');
   if(!validId(subject)) throw error(401,'Verified account required.');
   const candidates=await reader.peopleForSubject(subject);
-  const matched=matchingCognitoPerson(candidates,subject,institution);
+  let matched=matchingCognitoPerson(candidates,subject,institution);
+  // A confirmed parent invitation is identity evidence for this exact Cognito
+  // subject. Reconcile older Sruti invitations on the parent's first login.
+  if(!matched&&institution==='sruti'&&typeof reader.linkInvitedSrutiParent==='function'){
+    const linked=await reader.linkInvitedSrutiParent(subject);
+    if(linked)matched=matchingCognitoPerson([linked],subject,institution);
+  }
   if(!matched) return {records:[]};
   // Never authorise from an eventually consistent CognitoIdentityIndex result.
   const actor=await reader.person(matched.personId);

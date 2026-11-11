@@ -13,6 +13,7 @@ export interface FamilyRecord {
   id: string;
   parentName: string;
   phone: E164Phone;
+  location?: string;
   createdIn: InstitutionId;
   archived?: boolean;
 }
@@ -21,6 +22,7 @@ export interface StudentRecord {
   name: string;
   familyId: string;
   phone?: E164Phone;
+  location?: string;
   registrationType?: RegistrationType;
   adultConfirmed?: boolean;
   createdIn?: InstitutionId;

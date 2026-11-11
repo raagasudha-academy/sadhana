@@ -1,0 +1,1 @@
+export function finalCascadeDeletionRoute(context:any,deps:{isSuperAdmin:(claims:any)=>boolean;parse:(event:any)=>any;service?:{preview:(args:any)=>Promise<any>;execute:(args:any)=>Promise<any>}},env?:Record<string,string|undefined>):Promise<{status:number;body:any}|undefined>;

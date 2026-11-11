@@ -6,6 +6,16 @@ type Tokens={accessToken:string;idToken:string;refreshToken:string;expiresAt:num
 type Challenge={name:string;session:string;username:string;parameters:Record<string,string>};
 const KEY='sadhana_password_session_v1';
 const allowedChallenges=new Set(['SMS_MFA','SOFTWARE_TOKEN_MFA','EMAIL_OTP','SMS_OTP','NEW_PASSWORD_REQUIRED','PASSWORD','SELECT_CHALLENGE']);
+const needsPhone=(challenge:Challenge|null)=>{
+ const raw=challenge?.parameters?.requiredAttributes;
+ if(challenge?.name!=='NEW_PASSWORD_REQUIRED'||!raw)return false;
+ try{
+  const fields=JSON.parse(raw);
+  return Array.isArray(fields)&&fields.some(
+   (field:unknown)=>field==='phone_number'||field==='userAttributes.phone_number'
+  );
+ }catch{return false;}
+};
 const message=(err:unknown)=>err instanceof Error?err.message:'Authentication failed. Please try again.';
 
 export function readPasswordSession():Tokens|null{
@@ -44,7 +54,7 @@ export async function refreshPasswordSession(region:string,clientId:string,curre
 export default function CognitoPassword({region,clientId,onAuthenticated,onManagedLogin}:{region:string;clientId:string;onAuthenticated:(token:Tokens)=>void;onManagedLogin:()=>void}){
  const [username,setUsername]=useState('');const [password,setPassword]=useState('');
  const [challenge,setChallenge]=useState<Challenge|null>(null);const [answer,setAnswer]=useState('');
- const [newPassword,setNewPassword]=useState('');const [mode,setMode]=useState<'login'|'reset'|'confirm-reset'>('login');
+ const [newPassword,setNewPassword]=useState('');const [phone,setPhone]=useState('');const [mode,setMode]=useState<'login'|'reset'|'confirm-reset'>('login');
  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [info,setInfo]=useState('');
  const [resetCode,setResetCode]=useState('');
  useEffect(()=>{setError('');},[mode]);
@@ -53,7 +63,7 @@ export default function CognitoPassword({region,clientId,onAuthenticated,onManag
   const name=String(r.ChallengeName||'');
   if(!allowedChallenges.has(name))throw Error(`Cognito requested ${name||'an unsupported challenge'}. Please use Secure Cognito sign-in below.`);
   setChallenge({name,session:String(r.Session||''),username:user,parameters:r.ChallengeParameters||{}});
-  setAnswer('');setNewPassword('');
+  setAnswer('');setNewPassword('');setPhone('');
  };
  const handleLogin=async()=>{
   const user=username.trim().toLowerCase();if(!user||!password)return;
@@ -76,6 +86,12 @@ export default function CognitoPassword({region,clientId,onAuthenticated,onManag
     response={...response,PASSWORD:password};
    }else if(challenge.name==='NEW_PASSWORD_REQUIRED'){
     response={...response,NEW_PASSWORD:newPassword};
+     if(needsPhone(challenge)){
+      const normalized=phone.trim();
+      if(!/^\+[1-9]\d{7,14}$/.test(normalized))
+       throw Error('Enter a valid international phone number, such as +447700900123.');
+      response['userAttributes.phone_number']=normalized;
+     }
    }else{
     response={...response,[challenge.name==='SMS_MFA'?'SMS_MFA_CODE':challenge.name==='SOFTWARE_TOKEN_MFA'?'SOFTWARE_TOKEN_MFA_CODE':challenge.name==='EMAIL_OTP'?'EMAIL_OTP_CODE':'SMS_OTP_CODE']:answer.trim()};
    }
@@ -102,7 +118,15 @@ export default function CognitoPassword({region,clientId,onAuthenticated,onManag
    {!challenge&&<label className="password-field">Email address<input type="email" autoComplete="email" placeholder="you@example.com" required value={username} onChange={e=>setUsername(e.target.value)}/></label>}
    {!challenge&&mode==='login'&&<label className="password-field">Password<input type="password" autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>}
    {challenge&&<><p>{challenge.name==='NEW_PASSWORD_REQUIRED'?'Choose a new password':challenge.name==='SELECT_CHALLENGE'?'Confirm password sign-in':challenge.name==='PASSWORD'?'Enter password to continue':'Enter the verification code sent to you'}</p>
-    {challenge.name==='NEW_PASSWORD_REQUIRED'?<input type="password" autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>:challenge.name==='SELECT_CHALLENGE'||challenge.name==='PASSWORD'?null:<input autoComplete="one-time-code" required value={answer} onChange={e=>setAnswer(e.target.value)}/>}</>}
+    {challenge.name==='NEW_PASSWORD_REQUIRED'?<>
+      <label className="password-field">New password
+       <input type="password" autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>
+      </label>
+      {needsPhone(challenge)&&<label className="password-field">Mobile number
+       <input type="tel" autoComplete="tel" placeholder="+447700900123" required value={phone} onChange={e=>setPhone(e.target.value)}/>
+       <small>Include the country code, for example +44 for the UK.</small>
+      </label>}
+     </>:challenge.name==='SELECT_CHALLENGE'||challenge.name==='PASSWORD'?null:<input autoComplete="one-time-code" required value={answer} onChange={e=>setAnswer(e.target.value)}/>}</>}
    {!challenge&&mode==='confirm-reset'&&<><label className="password-field">Verification code<input required autoComplete="one-time-code" value={resetCode} onChange={e=>setResetCode(e.target.value)}/></label><label className="password-field">New password<input type="password" autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label></>}
    {error&&<p role="alert" className="auth-error">{error}</p>}
    {info&&<p role="status">{info}</p>}

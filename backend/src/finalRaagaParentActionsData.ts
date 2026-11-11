@@ -1,11 +1,11 @@
 /** DynamoDB lookups for canonical Raagasudha parent handoff. No legacy table access. */
-import {createHash} from 'node:crypto';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DynamoDBDocumentClient,GetCommand} from '@aws-sdk/lib-dynamodb';
 import {entityTable} from './entityTables.mjs';
 import {m9VerifiedCognitoLink} from './verifiedCognitoLink.ts';
 import {canonicalRaagaParentAction} from './finalRaagaParentActions.mjs';
 import {m10FinalRaagaInvitations} from './finalRaagaInvitations.ts';
+import {cognitoSubjectGuardId,guardianInstitutionGuardId} from './guardianIdentityKey.mjs';
 import type {Claims} from './model.ts';
 
 export function makeM10FinalRaagaParentActionsReader(db:{send:(command:any)=>Promise<any>}){
@@ -16,7 +16,10 @@ export function makeM10FinalRaagaParentActionsReader(db:{send:(command:any)=>Pro
   family:(id:string)=>get('families','familyId',id),
   person:(id:string)=>get('people','personId',id),
   link:(id:string)=>get('family-links','linkId',id),
-  subjectGuard:(sub:string)=>get('counters','counterId',`COGNITO_SUB#${createHash('sha256').update(sub).digest('hex')}`),
+  async subjectGuard(sub:string,inst:'raaga'|'sruti'='raaga'){
+   return await get('counters','counterId',guardianInstitutionGuardId(sub,inst))||
+    await get('counters','counterId',cognitoSubjectGuardId(sub));
+  },
   linkVerifiedAccount:(id:string,inst:'raaga',claims:Claims,subject:string)=>
     m9VerifiedCognitoLink()(id,inst,claims,true,subject),
   inviteNewAccount:(reg:any,guardian:any,actorSub:string)=>m10FinalRaagaInvitations().invite(reg,guardian,actorSub),

@@ -1,3 +1,4 @@
+import {pageForView,savedPage} from './app/pageMemory';
 import './sharedShell.css';
 import './roleWorkspace.css';
 import './workspaceVisualConsistency.css';
@@ -144,17 +145,16 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       active = false
     };
   }, [cloud?.api, familyAccessRetry]);
-  // Start every authenticated role at its dashboard after sign-in. Page
-  // navigation is still persisted below for refreshes during the session.
-  const [page, setPage] = useState('Dashboard');
+  const [page, setPage] = useState(()=>savedPage(cloud?.staff.role==='learner'?'student':cloud?.staff.role==='viewer'?'teacher':role));
   const [mobileNav, setMobileNav] = useState(false);
   useEffect(() => {
     try {
       sessionStorage.setItem('sadhana:v095:page', page);
+      sessionStorage.setItem(`sadhana:page:${cloud?.staff.role==='learner'?'student':cloud?.staff.role==='viewer'?'teacher':role}`,page);
       sessionStorage.setItem('sadhana:v095:workspace', workspace);
     } catch {/* private mode */
     }
-  }, [page, workspace]);
+  }, [page, workspace,role,cloud?.staff.role]);
   const [student, setStudent] = useState(null);
   const [classProfile, setClassProfile] = useState(null);
   const [profileTab, setProfileTab] = useState('Overview');
@@ -353,7 +353,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       try { sessionStorage.setItem('sadhana:selected-student', nextId); } catch {/* private mode */}
     }
     setWorkspace(w);
-    if (!studentMode) setPage('Dashboard');
+
     setStudent(null);
     setClassProfile(null);
     setMobileNav(false);
@@ -366,8 +366,8 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       sessionStorage.setItem('sadhana:view-as', r);
     } catch {/* private mode */
     }
-    if (r === 'teacher') setWorkspace(verifiedTeachingInstitutions[0]);
-    setPage('Dashboard');
+    if (r === 'teacher'&&!verifiedTeachingInstitutions.includes(workspace as InstitutionId)) setWorkspace(verifiedTeachingInstitutions[0]);
+    setPage(pageForView(page,r,savedPage(r)));
     setStudent(null);
     setClassProfile(null);
     setMobileNav(false);
@@ -383,7 +383,7 @@ export default function App({cloud}: { cloud?: CloudSession } = {}) {
       sessionStorage.setItem('sadhana:selected-student', choice.id);
     } catch {/* private mode */
     }
-    setPage('Dashboard');
+    setPage(pageForView(page,'student',savedPage('student')));
     setStudent(null);
     setClassProfile(null);
     setMobileNav(false);

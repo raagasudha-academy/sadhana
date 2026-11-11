@@ -20,7 +20,8 @@ export function projectM10Directory(entity,items,inst,people=[]){
    const legacy=cleanLegacy(item.legacyPayload);
    if(legacy){result.push({...legacy,version:item.version??legacy.version??1,rollNumber:item.studentProfile?.rollNumbers?.[inst]||legacy.rollNumber||''});continue;}
    if(!requiredText(item.personId)||!requiredText(item.familyId)||!requiredText(name(item)))throw Error('M10_INCOMPLETE_STUDENT');
-   result.push({id:item.personId,name:name(item),phone:item.phone||'',familyId:item.familyId,
+   const location=item.location||item.studentProfile?.preferredLocationId||'';
+   result.push({id:item.personId,name:name(item),phone:item.phone||'',...(location?{location}:{}),familyId:item.familyId,
     createdIn:inst,visibleIn:item.institutionIds,archived:item.status==='archived',version:item.version??1,
     registrationType:'family',adultConfirmed:false,rollNumber:item.studentProfile?.rollNumbers?.[inst]||''});
   }else if(entity==='families'){
@@ -30,7 +31,8 @@ export function projectM10Directory(entity,items,inst,people=[]){
    // Join the M9 primary contact. Never guess the guardian identity or use a foreign-institution person.
    const contact=people.find(p=>p.personId===item.primaryContactPersonId && hasScope(p,inst));
    if(!contact||!requiredText(name(contact))||!requiredText(contact.phone)||!requiredText(item.familyId))throw Error('M10_FAMILY_CONTACT_JOIN_REQUIRED');
-   result.push({id:item.familyId,familyNumber:item.familyNumber||'',parentName:name(contact),phone:contact.phone,createdIn:inst,
+   const location=item.location||item.preferredLocationId||contact.location||contact.preferredLocationId||'';
+   result.push({id:item.familyId,familyNumber:item.familyNumber||'',parentName:name(contact),phone:contact.phone,...(location?{location}:{}),createdIn:inst,
     visibleIn:item.institutionIds,archived:item.status==='archived',version:item.version??1});
   }else{
    if(item.institutionId!==inst)continue;

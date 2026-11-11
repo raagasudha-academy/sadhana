@@ -16,8 +16,7 @@ const verify=(reg,guardian,actorSub,institution)=>{
  if(!actorSub||!reg||reg.source!=='website'||reg.institutionId!==institution||reg.importStatus!=='imported'||
   !reg.familyId||!reg.registrationId?.startsWith('web_')||
   !guardian?.personId||guardian.familyId!==reg.familyId||guardian.status!=='active'||
-  !guardian.personTypes?.includes('guardian')||!guardian.institutionIds?.includes(institution)||
-  guardian.cognitoSub||!validEmail(guardian.email))
+  !guardian.personTypes?.includes('guardian')||!guardian.institutionIds?.includes(institution)||!validEmail(guardian.email))
   fail(409,'Imported guardian identity requires administrator reconciliation.');
  return guardian.email;
 };
@@ -32,12 +31,20 @@ export function createCanonicalRaagaInvitationFlow(ops,env=process.env,now=()=>n
   async invite(reg,guardian,actorSub){
    if(!enabled(env,`${flagPrefix}_INVITATIONS`))fail(503,'Canonical parent invitations are disabled.');
    const email=verify(reg,guardian,actorSub,institution);
+   if(guardian.cognitoSub)fail(409,'Guardian already has a Cognito identity; use verified account reconciliation.');
    if(reg.provisioningStatus!=='NOT_INVITED'||reg.parentAccountSub||reg.parentAccountUsername||reg.invitationOperationId)
     fail(409,'Parent invitation state changed. Refresh and review.');
    checkContact(await ops.contact(email),reg,guardian);
    const lookup=await ops.listByEmail(email);
-   if(lookup.paginated||lookup.count!==0)
+   if(lookup.paginated)
     fail(409,'An account may already exist for this contact. Independently verify and link it instead.');
+   if(lookup.count!==0){
+    if(institution==='sruti'&&lookup.count===1&&typeof ops.linkExistingAccount==='function'){
+     const linked=await ops.linkExistingAccount(reg,guardian,actorSub,lookup.users?.[0],email,now());
+     if(linked)return linked;
+    }
+    fail(409,'An account may already exist for this contact. Independently verify and link it instead.');
+   }
    const operationId=getId(),requestedAt=now(),username=usernameFor(reg.registrationId);
    try{await ops.reserveInvite(reg,guardian,actorSub,operationId,requestedAt);}
    catch(e){if(['TransactionCanceledException','ConditionalCheckFailedException'].includes(e?.name))
@@ -51,7 +58,9 @@ export function createCanonicalRaagaInvitationFlow(ops,env=process.env,now=()=>n
    try{await ops.completeInvite(reg,operationId,username,email,subject,now());}
    catch{fail(409,'Cognito accepted an invitation, but the canonical receipt needs reconciliation. Do not retry creation.');}
    return {status:'INVITATION_SENT',invitationSent:true,guardianAccessGranted:false,
-    message:'Cognito accepted the invitation request. Email delivery is not guaranteed; the parent must finish sign-in and account linking before viewing student records.'};
+    message:institution==='sruti'
+      ?'Cognito accepted the invitation request. After activating the account and signing in, Sadhana will link the verified parent account to the approved Sruti family. Email delivery is not guaranteed.'
+      :'Cognito accepted the invitation request. Email delivery is not guaranteed; the parent must finish sign-in and account linking before viewing student records.'};
   },
   async resend(reg,guardian,actorSub){
    if(!enabled(env,`${flagPrefix}_RESENDS`))fail(503,'Canonical invitation resends are disabled.');

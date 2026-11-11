@@ -1,16 +1,33 @@
 import {entityTable} from './entityTables.mjs';
 /** Admin-only M9 directory shadow reader; leaves legacy API responses unchanged. */
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient,ScanCommand} from '@aws-sdk/lib-dynamodb';
-import {demandInstitution} from './model.ts';
+import {DynamoDBDocumentClient,GetCommand,ScanCommand} from '@aws-sdk/lib-dynamodb';
+import {demandInstitution,httpError} from './model.ts';
 import type {Claims,InstitutionId} from './model.ts';
 import {projectM10Directory} from './coreDirectoryProjection.mjs';
 export type M10CoreEntity='students'|'families'|'enrolments';
 export type M10Client={send:(cmd:any)=>Promise<any>};
+export type M10FamilyContact={familyId:string;parentName:string;email:string;phone:string;location:string;address:Record<string,unknown>};
 const physical:Record<M10CoreEntity,string>={students:'people',families:'families',enrolments:'enrolments'};
 const maxRows:Record<M10CoreEntity,number>={students:1500,families:1000,enrolments:3000};
 export function makeM10CoreDirectoryReader(client:M10Client){
  return {
+  async familyContact(familyId:string,inst:InstitutionId,claims:Claims):Promise<M10FamilyContact>{
+   demandInstitution(claims,inst);
+   if(!/^[A-Za-z0-9_-]{4,150}$/.test(familyId))throw httpError(400,'Invalid family identifier.');
+   const family=(await client.send(new GetCommand({TableName:entityTable('families'),Key:{familyId},ConsistentRead:true}))).Item;
+   if(!family||family.familyId!==familyId||family.status!=='active'||!family.institutionIds?.includes(inst)||!family.primaryContactPersonId)
+    throw httpError(404,'Family contact details not found.');
+   const contact=(await client.send(new GetCommand({TableName:entityTable('people'),Key:{personId:family.primaryContactPersonId},ConsistentRead:true}))).Item;
+   if(!contact||contact.personId!==family.primaryContactPersonId||contact.familyId!==familyId||contact.status!=='active'||
+     !contact.institutionIds?.includes(inst)||!contact.personTypes?.includes('guardian'))throw httpError(409,'Family contact identity requires review.');
+   const parentName=[contact.firstName,contact.middleName,contact.lastName].filter(x=>typeof x==='string'&&x).join(' ').trim()||contact.displayName||'';
+   const rawAddress=family.address||contact.address||{};
+   const address=Object.fromEntries(['line1','line2','city','town','county','postcode','country'].flatMap(k=>typeof rawAddress?.[k]==='string'&&rawAddress[k].trim()?[[k,rawAddress[k].trim()]]:[]));
+   return {familyId,parentName,email:String(contact.email||family.email||''),phone:String(contact.phone||family.phone||''),
+    location:String(family.location||family.preferredLocationId||contact.location||contact.preferredLocationId||''),
+    address};
+  },
   async list(entity:M10CoreEntity,inst:InstitutionId,claims:Claims){
    demandInstitution(claims,inst);
    const records:any[]=[];let cursor:Record<string,unknown>|undefined;

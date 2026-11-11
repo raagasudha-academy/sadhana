@@ -146,11 +146,11 @@ test('AWS adapter requires atomic reservation, conditional receipt, and no PK/SK
  const {readFileSync}=await import('node:fs');
  const source=readFileSync(new URL('../finalRaagaInvitations.ts',import.meta.url),'utf8');
  assert.match(source,/TransactWriteCommand/);
- assert.match(source,/identityConditions\(guardian,reg\)/);
+ assert.match(source, /identityConditions\(guardian,\s*reg\)/);
  assert.match(source,/parentAccountEmail=:email/);
  assert.match(source,/attribute_not_exists\(invitationOperationId\)/);
  assert.match(source,/parentInvitationAttemptAt < :threshold/);
- assert.match(source,/ConditionExpression:'provisioningStatus=:creating AND invitationOperationId=:op/);
+ assert.match(source,/ConditionExpression:\s*'provisioningStatus=:creating AND invitationOperationId=:op/);
  assert.doesNotMatch(source,/SADHANA_TABLE_NAME|OPS#GLOBAL#WEB_IMPORT|makeRoutedClient/);
 });
 test('invited account can be linked only to the original Cognito subject after verification',async()=>{
