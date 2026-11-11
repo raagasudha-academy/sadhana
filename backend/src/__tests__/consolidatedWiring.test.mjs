@@ -28,3 +28,10 @@ test('approved web import verifies submitted guardian links and guards contact r
  assert.match(core,/assertWebsiteContactGuardAvailable/);
  assert.match(source('websiteImport.ts'),/assertWebsiteContactGuardAvailable\(inst,plan\.contactGuardId,contacts\)/);
 });
+test('final family contact details are routed before the legacy final-table fence',()=>{
+ const lambda=source('lambda.ts');
+ const contact=lambda.indexOf('finalFamilyContactRoute(routeContext)');
+ const fence=lambda.indexOf('Canonical final mode MUST stop here');
+ assert(contact>=0&&fence>contact,'final contact route must run before fallback routing is denied');
+ assert.match(source('finalFamilyContact.ts'),/familyContact\(parts\[1\],institution,claims\)/);
+});

@@ -57,9 +57,11 @@ test('real Families list and table filter by location',async({page})=>{
   await expect(page.getByText('Test Guardian',{exact:true})).toHaveCount(0);
 });
 
-test('real Family Details shows one Archived badge',async({page})=>{
+test('real Family Details shows the parent email and one Archived badge',async({page})=>{
   await families(page);
   await page.getByRole('button',{name:/Test Guardian/}).first().click();
+  await expect(page.getByText('test.guardian@example.org',{exact:true})).toBeVisible();
+  await expect(page.getByText('Parent contact details are unavailable.',{exact:false})).toHaveCount(0);
   const card=page.locator('.reg-student-card').filter({hasText:'Test Arjun'});
   await expect(card).toBeVisible();
   await expect(card.getByText('Archived',{exact:true})).toHaveCount(1);

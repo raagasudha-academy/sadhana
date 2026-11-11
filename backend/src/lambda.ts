@@ -90,6 +90,7 @@ import {entityTable} from './entityTables.mjs';
 import {defaultM95Reader} from './compatibility.ts';
 import {defaultM95DirectoryReader} from './directoryCompatibility.ts';
 import {defaultM10CoreDirectoryReader} from './coreDirectory.ts';
+import {finalFamilyContactRoute} from './finalFamilyContact.ts';
 
 
 
@@ -185,6 +186,7 @@ export function createHandler(repository: SadhanaRepository,options:{cascadeServ
         },finalAccess);
         if(operationsRead)return json(operationsRead.status,operationsRead.body);
       }
+      {const familyContact=await finalFamilyContactRoute(routeContext);if(familyContact)return familyContact;}
       // Legacy dashboard enrolment POST -> canonical transactional writer, never PK/SK.
       {const enrolled=await finalOperationsEnrolmentWriteRoute(routeContext,{
         assertConfigured:()=>{entityTable('people');entityTable('classes');entityTable('enrolments');entityTable('counters');entityTable('audit');},

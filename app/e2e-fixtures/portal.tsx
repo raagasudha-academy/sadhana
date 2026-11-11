@@ -13,8 +13,8 @@ import '../src/styles.css';
 const STORAGE_KEY='sadhana:e2e:fixture:v2';
 const initialTables:Record<string,any[]>={
  family:[
-  {id:'FAMILY-E2E-1',version:1,parentName:'Test Guardian',phone:'+447700900111',location:'Carlisle',archived:false},
-  {id:'FAMILY-E2E-2',version:1,parentName:'Test Northern Guardian',phone:'+447700900222',location:'Newcastle',archived:false},
+  {id:'FAMILY-E2E-1',version:1,parentName:'Test Guardian',email:'test.guardian@example.org',phone:'+447700900111',location:'Carlisle',archived:false},
+  {id:'FAMILY-E2E-2',version:1,parentName:'Test Northern Guardian',email:'northern.guardian@example.org',phone:'+447700900222',location:'Newcastle',archived:false},
  ],
  student:[
   {id:'STUDENT-E2E-2',version:1,rollNumber:'RS-2',name:'Test Meera',familyId:'FAMILY-E2E-1',location:'Carlisle',archived:false},
@@ -37,7 +37,16 @@ commitFixture();
 // Expose only synthetic state to assert identity invariants in browser tests.
 Object.defineProperty(window,'__sadhanaE2E',{value:{snapshot:()=>structuredClone(tables),writes:()=>structuredClone(writes),cascadeWrites:()=>structuredClone(cascadeWrites)}});
 const apiHandlers={
-  async listOperations(kind:string){return {records:(tables[kind]||[]).map(record=>({...record}))};},
+  async listOperations(kind:string){return {records:(tables[kind]||[]).map(record=>{
+    const copy={...record};
+    if(kind==='family')delete copy.email;
+    return copy;
+  })};},
+  async getFamilyContact(_institution:string,id:string){
+    const family=tables.family.find(x=>x.id===id);
+    if(!family)throw Error('Family not found');
+    return {familyId:id,parentName:family.parentName,email:family.email,phone:family.phone,location:family.location,address:{}};
+  },
   async updateOperation(kind:string,_institution:string,id:string,changes:Record<string,unknown>,version:number){
     const row=(tables[kind]||[]).find(x=>x.id===id);
     if(!row||row.version!==version)throw Error('Fixture update version mismatch');
