@@ -6,7 +6,6 @@ const obj=(x)=>x&&typeof x==='object'&&!Array.isArray(x)?x:{};
 const string=(x)=>typeof x==='string'?x.trim():'';
 const hash=(...parts)=>createHash('sha256').update(JSON.stringify(parts)).digest('hex');
 const nameParts=(value)=>{const s=string(value).replace(/\s+/g,' ');const parts=s.split(' ');return {firstName:parts[0],lastName:parts.slice(1).join(' '),displayName:s};};
-const identity=(person)=>hash(nameParts(person.fullName).displayName.normalize('NFKC').toLocaleLowerCase('en-GB'),person.dateOfBirth);
 export const markerId=(inst,registrationId)=>`web_${hash(inst,registrationId)}`;
 export const guardianLinkId=(inst,guardianId,studentId)=>'link_'+hash(inst,guardianId,studentId);
 export function prepareWebsiteImport(registration, institution, actorSub, counters, now='2026-11-03T00:00:00.000Z'){
@@ -35,7 +34,8 @@ export function prepareWebsiteImport(registration, institution, actorSub, counte
    seen.add(sourceId);
    const allergies=obj(s.foodAllergies);
    if(!['yes','none','no','unknown'].includes(allergies.status))fail('Student allergy response required.');
-   const identityHash=identity(p);
+   // Names and birth dates are not unique identities. Scope the guard to the source record.
+   const identityHash=hash(institution,id,sourceId);
    if(seenIdentity.has(identityHash))fail('Repeated student identity.');seenIdentity.add(identityHash);
    const studentId=sourceId===primary.personId?guardianId:`per_${hash(institution,id,'person',sourceId)}`;
    const contact=obj(s.contactPreferences);

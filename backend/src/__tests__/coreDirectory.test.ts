@@ -24,7 +24,7 @@ test('M9 enrolment projection is institution scoped',()=>{
 });
 test('legacy payload preserves contract but strips PK SK and GSIs',()=>{
  const x=projectM10Directory('students',[{...student,legacyPayload:{id:'OLD-1',PK:'secret',SK:'META',GSI1PK:'lookup',name:'Existing'}}],'raaga');
- assert.deepEqual(x.records,[{id:'OLD-1',name:'Existing',rollNumber:''}]);
+ assert.deepEqual(x.records,[{id:'OLD-1',name:'Existing',version:1,rollNumber:''}]);
 });
 test('M9 core reader accesses entity tables and refuses cross-institution requests',async()=>{
  const calls:string[]=[];
@@ -48,4 +48,11 @@ test('shadow returns exact legacy result, never switches writes or leaks cross-i
   assert.equal(await route({...context,method:'POST'}),undefined);
   await assert.rejects(()=>route({...context,claims:sruti}),/administrator/i);
  }finally{if(prior===undefined)delete process.env.M10_CORE_DIRECTORY_SHADOW;else process.env.M10_CORE_DIRECTORY_SHADOW=prior;}
+});
+
+test('student and family directory use current versions instead of stale embedded copies',()=>{
+ for(const [entity,row] of [['students',{...student,version:2,legacyPayload:{id:'per_1',version:1,name:'Existing'}}],['families',{...family,version:4,legacyPayload:{id:'fam_1',version:1,parentName:'Parent'}}]] as const){
+  const projected=projectM10Directory(entity,[row],'raaga').records[0];
+  assert.equal(projected.version,row.version);
+ }
 });

@@ -62,7 +62,7 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  // A returning primary contact must go through explicit identity/family review;
  // do not silently allocate another household or grant guardian access.
  const existingContact=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId:plan.contactGuardId},ConsistentRead:true}))).Item;
- if(existingContact)throw fail(409,'Primary contact belongs to an existing M9 family. Administrator family reconciliation is required.');
+ if(existingContact)throw fail(409,'A Sadhana family already uses this parent email. Open that family to review its learners before importing.');
  if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,verifiedGuardianLinks:plan.verifiedGuardianLinks??0,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianRelationshipsVerified:mode!=='legacy-bridge'};
  // The registration record and identity guards participate in the SAME transaction as counters and people.
  // Conditional writes ensure concurrent retries cannot allocate the same roll number.
@@ -77,7 +77,7 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
   if(e?.name==='TransactionCanceledException'||e?.name==='ConditionalCheckFailedException'){
    const committed=(await db.send(new GetCommand({TableName:tables.registrations,Key:{registrationId:id},ConsistentRead:true}))).Item;
    if(committed&&committed.institutionId===inst&&committed.externalRegistrationId===registrationId)return {alreadyImported:true,registrationId:id,familyId:committed.familyId,studentIds:committed.studentIds,externalSyncPending:inst==='raaga',guardianRelationshipsVerified:committed.identityResolutionStatus==='registration_relationships_verified'};
-   throw fail(409,'Import conflict or possible duplicate student. Resolve and retry.');
+   throw fail(409,'The registration or family details changed. Refresh and try again.');
   }
   throw e;
  }

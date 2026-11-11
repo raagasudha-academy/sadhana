@@ -18,7 +18,7 @@ export function projectM10Directory(entity,items,inst,people=[]){
   if(entity==='students'){
    if(!hasScope(item,inst)||!Array.isArray(item.personTypes)||!item.personTypes.includes('student'))continue;
    const legacy=cleanLegacy(item.legacyPayload);
-   if(legacy){result.push({...legacy,rollNumber:item.studentProfile?.rollNumbers?.[inst]||legacy.rollNumber||''});continue;}
+   if(legacy){result.push({...legacy,version:item.version??legacy.version??1,rollNumber:item.studentProfile?.rollNumbers?.[inst]||legacy.rollNumber||''});continue;}
    if(!requiredText(item.personId)||!requiredText(item.familyId)||!requiredText(name(item)))throw Error('M10_INCOMPLETE_STUDENT');
    result.push({id:item.personId,name:name(item),phone:item.phone||'',familyId:item.familyId,
     createdIn:inst,visibleIn:item.institutionIds,archived:item.status==='archived',version:item.version??1,
@@ -26,7 +26,7 @@ export function projectM10Directory(entity,items,inst,people=[]){
   }else if(entity==='families'){
    if(!hasScope(item,inst))continue;
    const legacy=cleanLegacy(item.legacyPayload);
-   if(legacy){result.push({...legacy,familyNumber:item.familyNumber||legacy.familyNumber||''});continue;}
+   if(legacy){result.push({...legacy,version:item.version??legacy.version??1,familyNumber:item.familyNumber||legacy.familyNumber||''});continue;}
    // Join the M9 primary contact. Never guess the guardian identity or use a foreign-institution person.
    const contact=people.find(p=>p.personId===item.primaryContactPersonId && hasScope(p,inst));
    if(!contact||!requiredText(name(contact))||!requiredText(contact.phone)||!requiredText(item.familyId))throw Error('M10_FAMILY_CONTACT_JOIN_REQUIRED');

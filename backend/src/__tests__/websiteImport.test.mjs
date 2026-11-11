@@ -9,3 +9,20 @@ test('duplicate student and duplicate identity blocked',()=>{const r=base();r.st
 test('allergy status is required',()=>{const r=base();delete r.students[0].foodAllergies;assert.throws(()=>prepareWebsiteImport(r,'raaga','admin',{family:0,student:0}),/allergy/);});
 test('no unsupported Sruti website source can be imported',()=>{assert.throws(()=>prepareWebsiteImport(base(),'sruti','admin',{family:0,student:0}),/Sruti/);});
 test('counter values and maximum student count fail closed',()=>{assert.throws(()=>prepareWebsiteImport(base(),'raaga','admin',{family:-1,student:0}),/Counter/);const r=base();r.students=Array.from({length:21},()=>r.students[0]);assert.throws(()=>prepareWebsiteImport(r,'raaga','admin',{family:0,student:0}),/size/);});
+
+test('different registrations may contain learners with identical names and birth dates',()=>{
+ const first=base(),second=base();
+ second.registrationId='RS-TEST-OTHER';second.people[0].email='other@example.org';
+ const a=prepareWebsiteImport(first,'raaga','admin',{family:0,student:0});
+ const b=prepareWebsiteImport(second,'raaga','admin',{family:1,student:2});
+ const guards=p=>p.items.filter(x=>x.item.sequenceType==='IDENTITY_GUARD').map(x=>x.item.counterId);
+ assert.equal(guards(a).some(id=>guards(b).includes(id)),false);
+ assert.notEqual(a.contactGuardId,b.contactGuardId);
+ second.people[0].email=first.people[0].email.toUpperCase();
+ assert.equal(prepareWebsiteImport(second,'raaga','admin',{family:1,student:2}).contactGuardId,a.contactGuardId);
+});
+test('distinct source learners with the same name and birth date remain distinct',()=>{
+ const r=base();r.people[2].fullName=r.people[1].fullName;r.people[2].dateOfBirth=r.people[1].dateOfBirth;
+ const plan=prepareWebsiteImport(r,'raaga','admin',{family:0,student:0});
+ assert.equal(new Set(plan.studentMappings.map(s=>s.studentId)).size,2);
+});

@@ -25,5 +25,5 @@ test('approved web import verifies submitted guardian links and guards contact r
  assert.match(core,/accessStatus:'approved',relationshipVerified:true/);
  assert.match(core,/verificationSource:'approved-website-registration'/);
  assert.match(core,/CONTACT_GUARD/);
- assert.match(source('websiteImport.ts'),/Primary contact belongs to an existing M9 family/);
+ assert.match(source('websiteImport.ts'),/A Sadhana family already uses this parent email/);
 });
