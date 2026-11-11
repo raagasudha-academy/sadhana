@@ -22,14 +22,20 @@ const initialTables:Record<string,any[]>={
   {id:'STUDENT-E2E-3',version:1,rollNumber:'RS-3',name:'Test Nila',familyId:'FAMILY-E2E-2',location:'Newcastle',archived:false},
  ],
  enrolment:[],attendance:[],practice:[],feedback:[],rsvp:[],
+ // Retained identity history models the production cascade policy.
+ rollReservations:[
+  {counterId:'ROLL_GLOBAL#RS-2',sequenceType:'ROLL_UNIQUE',personId:'STUDENT-E2E-2'},
+  {counterId:'ROLL_GLOBAL#RS-10',sequenceType:'ROLL_UNIQUE',personId:'STUDENT-E2E-10'},
+ ],registrationHistory:[{registrationId:'SR-2026-E2E',familyId:'FAMILY-E2E-1',importStatus:'imported'}],
 };
 const saved=sessionStorage.getItem(STORAGE_KEY);
 const tables:Record<string,any[]>=saved?JSON.parse(saved):structuredClone(initialTables);
 const writes:Array<{kind:string,id:string,changes:Record<string,unknown>}>=[];
+const cascadeWrites:Array<{kind:string;id:string}> = [];
 const commitFixture=()=>sessionStorage.setItem(STORAGE_KEY,JSON.stringify(tables));
 commitFixture();
 // Expose only synthetic state to assert identity invariants in browser tests.
-Object.defineProperty(window,'__sadhanaE2E',{value:{snapshot:()=>structuredClone(tables),writes:()=>structuredClone(writes)}});
+Object.defineProperty(window,'__sadhanaE2E',{value:{snapshot:()=>structuredClone(tables),writes:()=>structuredClone(writes),cascadeWrites:()=>structuredClone(cascadeWrites)}});
 const apiHandlers={
   async listOperations(kind:string){return {records:(tables[kind]||[]).map(record=>({...record}))};},
   async updateOperation(kind:string,_institution:string,id:string,changes:Record<string,unknown>,version:number){
@@ -42,6 +48,30 @@ const apiHandlers={
     commitFixture();
     return {record:{...row}};
   },
+  async previewCascadeDelete(_institution:string,target:{type:string;id:string;version:number}){
+    const family=target.type==='families';
+    const learners=family?tables.student.filter(x=>x.familyId===target.id):tables.student.filter(x=>x.id===target.id);
+    const counts=[...(family?[{label:'families',count:1}]:[]),{label:'people',count:learners.length}];
+    return {targetType:target.type,targetId:target.id,expectedVersion:target.version,signature:'fixture-signed-preview',counts,total:counts.reduce((sum,row)=>sum+row.count,0),studentCount:learners.length,
+      retained:[{label:'Website registrations retained for reconciliation',count:1}],executionEnabled:true,executionBlocked:false,
+      notice:'The source website registration is retained; its Sadhana import mapping will be updated to record this removal.'};
+  },
+  async executeCascadeDelete(_institution:string,target:{type:string;id:string},signature:string){
+    if(signature!=='fixture-signed-preview')throw Error('Fixture deletion preview mismatch');
+    if(target.type==='families'){
+      const learners=tables.student.filter(x=>x.familyId===target.id);
+      tables.student=tables.student.filter(x=>x.familyId!==target.id);
+      tables.family=tables.family.filter(x=>x.id!==target.id);
+      cascadeWrites.push({kind:'family',id:target.id},...learners.map(x=>({kind:'student',id:x.id})));
+      // Deliberately retain registration history and ROLL_UNIQUE reservations.
+      const history=tables.registrationHistory[0];history.studentIds=[];history.familyDeleted=true;
+    } else {
+      tables.student=tables.student.filter(x=>x.id!==target.id);
+      cascadeWrites.push({kind:'student',id:target.id});
+    }
+    commitFixture();
+    return {deleted:true};
+  },
   async listSchedule(){return {records:[],more:false,source:'fixture'};},
   async list(){return {records:[],more:false};},
   async listTeachers(){return {records:[],more:false};},
@@ -53,7 +83,7 @@ const api=new Proxy(apiHandlers,{get(target,key){
   if(Object.prototype.hasOwnProperty.call(target,key))return (target as any)[key];
   return (..._args:unknown[])=>Promise.reject(Error(`Unmocked portal API method: ${String(key)}`));
 }}) as unknown as SadhanaApiClient;
-const cloud:CloudSession={staff:{subject:'e2e-staff',role:'admin',displayName:'Test Administrator',institutions:['raaga','sruti'],adminInstitutions:['raaga','sruti']},api,signOut:async()=>{}};
+const cloud:CloudSession={staff:{subject:'e2e-staff',role:'admin',isSuperAdmin:true,displayName:'Test Administrator',institutions:['raaga','sruti'],adminInstitutions:['raaga','sruti']},api,signOut:async()=>{}};
 // Explicitly select a real app route with synthetic data, without requiring Cognito.
 sessionStorage.setItem('sadhana:v095:workspace','raaga');
 sessionStorage.setItem('sadhana:v095:page','Families & Students');

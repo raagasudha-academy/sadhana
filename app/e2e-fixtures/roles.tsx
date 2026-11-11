@@ -29,6 +29,18 @@ const profiles:Record<string,{preferredName:string;phone:string;about:string;ver
 };
 const learnerMedia:Record<string,Array<{id:string;purpose:string;mime:string;url:string;createdAt:string}>>={};
 const writes:Array<{kind:string;id?:string;value:unknown}>=[];
+let parentAccessStatus='NOT_INVITED';
+let registration:any={
+  registrationId:'RS-2026-E2E-SHARED-EMAIL',submittedAt:'2026-11-08T09:00:00.000Z',reviewStatus:'approved',registrationType:'New family',preferredLocationId:'Carlisle',
+  primaryContactPersonId:'PARENT-E2E',
+  people:[{personId:'PARENT-E2E',fullName:'Fixture Parent',email:'shared-parent@example.test',phone:'+447700900000',address:{city:'Carlisle',country:'United Kingdom'}},
+    {personId:'CHILD-E2E-1',fullName:'Fixture Child One',dateOfBirth:'2016-02-01'},
+    {personId:'CHILD-E2E-2',fullName:'Fixture Child Two',dateOfBirth:'2018-04-03'}],
+  students:[{personId:'CHILD-E2E-1',studentType:'Child',preferredLocationId:'Carlisle',classEnrolmentRequested:true,preferredClassId:'E2E-CLASS'},
+    {personId:'CHILD-E2E-2',studentType:'Child',preferredLocationId:'Carlisle',classEnrolmentRequested:true,preferredClassId:'E2E-CLASS'}],
+  relationships:[{guardianPersonId:'PARENT-E2E',studentPersonId:'CHILD-E2E-1',verificationStatus:'verified'},{guardianPersonId:'PARENT-E2E',studentPersonId:'CHILD-E2E-2',verificationStatus:'verified'}],
+};
+const registrationCalls:Array<{kind:string;value:unknown}>=[];
 const myProfile={name:role==='guardian'?'Fixture Guardian':'Fixture Student',givenName:'Fixture',familyName:role==='guardian'?'Guardian':'Student',email:`${role}@example.test`,emailVerified:true,phone:'+447700900000',phoneVerified:true};
 let pendingPhone='';
 const apiHandlers:Record<string,(...args:any[])=>any>={
@@ -60,6 +72,17 @@ const apiHandlers:Record<string,(...args:any[])=>any>={
   listTeacherLinks:async()=>({institution:'sruti',teachers:[],rows:[],more:false}),
   listLearningResources:async(_institution:string,studentId?:string)=>({records:fixtureSyllabus.filter(record=>!studentId||record.status==='published'),stages:fixtureSyllabus.map(record=>({programme:record.programme,stage:record.stage,levelNumber:record.levelNumber,published:record.status==='published'})),more:false,source:'fixture'}),
   listLearningResourceClasses:async()=>({records:[]}),
+  listWebsiteRegistrations:async(filter?:{status?:string})=>({records:filter?.status==='approved'?[structuredClone(registration)]:[]}),
+  getWebsiteRegistration:async()=>({registration:structuredClone(registration)}),
+  importWebsiteRegistration:async(_id:string,body:{preview?:boolean;confirmReference?:string})=>{
+    registrationCalls.push({kind:body.preview?'preview-import':'execute-import',value:structuredClone(body)});
+    if(body.preview)return {preview:true,readyToExecute:true};
+    if(body.confirmReference!=='RS-2026-E2E-SHARED-EMAIL')throw Error('Fixture registration reference mismatch');
+    registration={...registration,sadhanaImport:{status:'imported'}};
+    return {imported:true,registrationId:registration.registrationId,familyId:'RAAGA-FAMILY-E2E',studentRollNumbers:{'CHILD-E2E-1':'RS-201','CHILD-E2E-2':'RS-202'}};
+  },
+  getParentAccessStatus:async()=>({registrationId:registration.registrationId,imported:registration.sadhanaImport?.status==='imported',status:parentAccessStatus,updatedAt:null}),
+  linkExistingParentAccount:async()=>{parentAccessStatus='ACTIVE';registrationCalls.push({kind:'link-existing-parent',value:registration.registrationId});return {message:'The existing parent login is linked to this Ragasudha family.'};},
 };
 const api=new Proxy(apiHandlers,{get(target,key){
   if(typeof key==='symbol'||key==='then')return undefined;
@@ -74,6 +97,7 @@ const staff:CloudSession['staff']=role==='admin'
     : {subject:`e2e-${role}`,role:'learner',displayName:role==='guardian'?'Fixture Guardian':'Fixture Student',institutions:['sruti']};
 const cloud:CloudSession={staff,api,signOut:async()=>{},beginPhoneChange:async(phone)=>{pendingPhone=phone;writes.push({kind:'phone-code-request',value:phone});},verifyPhoneChange:async(code)=>{if(code!=='123456')throw Error('The verification code is incorrect.');myProfile.phone=pendingPhone;myProfile.phoneVerified=true;writes.push({kind:'phone-verified',value:pendingPhone});}};
 Object.defineProperty(window,'__sadhanaProfileE2E',{value:{snapshot:()=>structuredClone({profile:myProfile,learnerProfiles:profiles,learnerMedia,writes})}});
+Object.defineProperty(window,'__sadhanaRegistrationE2E',{value:{calls:()=>structuredClone(registrationCalls),snapshot:()=>structuredClone({registration,parentAccessStatus})}});
 sessionStorage.setItem('sadhana:v095:workspace','sruti');
 sessionStorage.setItem('sadhana:v095:page','Dashboard');
 sessionStorage.removeItem('sadhana:view-as');

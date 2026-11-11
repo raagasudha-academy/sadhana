@@ -30,7 +30,7 @@ python3 -m unittest discover -s backend/test -p 'test_*.py'
 
 ## Backend end-to-end tests
 
-The local authenticated API E2E suite is under `test/e2e-tests/backend/`. It starts an ephemeral HTTP server around the real Lambda handler, injects synthetic API Gateway authorizer claims, runs the real `SadhanaRepository` against an in-memory DynamoDB DocumentClient double, and verifies create/read/update/audit flows, permission denials, academy isolation, input validation, health mode contracts, final-mode route blocking and retired calendar sync. It makes no AWS calls and does not verify a deployed API Gateway authorizer or Lambda environment.
+The local authenticated API E2E suite is under `test/e2e-tests/backend/`. It starts an ephemeral HTTP server around the real Lambda handler, injects synthetic API Gateway authorizer claims, and uses in-memory DynamoDB doubles. It verifies create/read/update/audit flows, permission denials, academy isolation, input validation, health mode contracts, final-mode route blocking, retired calendar sync, and final-mode family deletion with permanent roll reservations. It makes no AWS calls and does not verify a deployed API Gateway authorizer or Lambda environment.
 
 Run it with:
 
@@ -42,9 +42,9 @@ npm run test:e2e:backend
 
 ## Playwright browser tests
 
-Playwright tests are organized by page/feature under `test/playwrighttests/pages/<feature>/`, with role cases grouped inside each page suite. Examples include `dashboard/`, `classes-timetable/`, `families-students/`, `my-learning/` and `my-profile/`. Shared synthetic sessions and network restrictions are in `test/playwrighttests/fixtures/`.
+Playwright tests are organized by page/feature under `test/playwrighttests/pages/<feature>/`, with role cases grouped inside each page suite. Examples include `dashboard/`, `classes-timetable/`, `families-students/`, `my-learning/` and `my-profile/`. Shared synthetic sessions and network restrictions are in `test/playwrighttests/fixtures/`. Family deletion verifies source registration history and roll reservation retention; website registration covers a second academy family for a parent with an existing Sruti login and linking that verified account.
 
-Each role/page navigation spec has a matching screenshot baseline beside it in a `page.spec.ts-snapshots/` folder. The current suite has 36 screenshot baselines across admin, teacher, student and guardian views, plus interaction, responsive and visual regression tests for the administrator family/student directory. The full current Playwright run passes 51 tests, including administrator and teacher My Profile access. All role fixtures use synthetic data and block requests outside the local Vite server.
+Each role/page navigation spec has a matching screenshot baseline beside it in a `page.spec.ts-snapshots/` folder. The current suite has 44 screenshot baselines across admin, teacher, student and guardian views, plus interaction, responsive and visual regression tests for the administrator family/student directory. The full current Playwright run passes 60 tests, including administrator and teacher My Profile access. All role fixtures use synthetic data and block requests outside the local Vite server.
 
 Run browser tests and compare them with the screenshots using:
 
@@ -60,4 +60,4 @@ npm run test:e2e:update
 
 ## Coverage status
 
-The route audit has a regression gate: every one of its 158 unique method/path rows must point to an existing test file, all referenced files must resolve, and no row may claim its route execution test is missing. This proves traceability, not complete behavioral coverage. The backend suites currently contain 396 TypeScript tests and 473 MJS tests; the HTTP API E2E suite has 4 scenarios. Continue closing per-route gaps for permissions, academy isolation, guardian revocation, validation, writes/audits and DELETE behavior. Deployed AWS behavior remains separately verified.
+The route audit has a regression gate: every one of its 158 unique method/path rows must point to an existing test file, all referenced files must resolve, and no row may claim its route execution test is missing. This proves traceability, not complete behavioral coverage. Backend typecheck and TypeScript/MJS regression suites pass; the local HTTP API E2E suite has 5 scenarios. Continue closing per-route gaps for permissions, academy isolation, guardian revocation, validation, writes/audits and DELETE behavior. Deployed AWS behavior remains separately verified.

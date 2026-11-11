@@ -17,6 +17,7 @@ test('real portal renders synthetic students in registration directory',async({p
 
 test('real portal renders filter and directory navigation controls',async({page})=>{
   await expect(page.getByText('Test Meera').first()).toBeVisible();
-  await expect(page.getByRole('button',{name:/families/i}).first()).toBeVisible();
-  await expect(page.getByRole('button',{name:/students/i}).first()).toBeVisible();
+  const tabs=page.locator('.reg-tabs');
+  await expect(tabs.getByRole('button',{name:'Family & Relationships',exact:true})).toBeVisible();
+  await expect(tabs.getByRole('button',{name:'Students',exact:true})).toBeVisible();
 });

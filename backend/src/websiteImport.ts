@@ -8,7 +8,7 @@ import {fetchWebsiteRegistration,updateWebsiteRegistrationImport} from './websit
 import {expectedWebsiteMapping} from './websiteSyncCore.mjs';
 import {demandInstitution,httpError} from './model.ts';
 import type {Claims, InstitutionId} from './model.ts';
-import {markerId,prepareWebsiteImport} from './websiteImportCore.mjs';
+import {assertWebsiteContactGuardAvailable,contactGuardOwnerInstitution,markerId,prepareWebsiteImport} from './websiteImportCore.mjs';
 import {prepareLegacyImportBridge} from './legacyImportBridge.mjs';
 import {toApprovedM9Registration} from './srutiIntakeCore.mjs';
 import {canonicalRaagaRegistration} from './raagaImportSource.mjs';
@@ -67,19 +67,21 @@ export async function m95ImportApprovedWebsiteRegistration(inst:InstitutionId,cl
  // both historical key formats to prevent duplicate families within one
  // academy after the guard-key migration.
  const primaryEmail=String(plan.items.find((x:any)=>x.table==='families')?.item?.email||'').trim().toLowerCase();
- const contactKeys=[...new Set([plan.contactGuardId,`CONTACT#${inst}#${contactHash(inst,primaryEmail)}`,`CONTACT#${contactHash(primaryEmail)}`])];
- const contacts=await Promise.all(contactKeys.map(async counterId=>({counterId,item:(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId},ConsistentRead:true}))).Item})));
- for(const {counterId,item} of contacts){
-  if(!item)continue;
-  let ownerInstitution=item.institutionId;
-  if(!['raaga','sruti'].includes(ownerInstitution)&&item.familyId){
-   const owner=(await db.send(new GetCommand({TableName:tables.families,Key:{familyId:item.familyId},ConsistentRead:true}))).Item;
-   if(Array.isArray(owner?.institutionIds)&&owner.institutionIds.length===1)ownerInstitution=owner.institutionIds[0];
-  }
-  if(!['raaga','sruti'].includes(ownerInstitution))throw fail(409,'Parent email is already reserved by a family that needs manual institution review.');
-  if(ownerInstitution===inst)throw fail(409,'A Sadhana family already uses this parent email in this institution. Open that family to review its learners before importing.');
-  if(counterId===plan.contactGuardId)throw fail(409,'Parent contact identity conflicts with an existing family key. Review the family identity before importing.');
- }
+ const contactKeys=[...new Set([
+  plan.contactGuardId, // v2: institution and email are both included in the hash
+  `CONTACT#${inst}#${contactHash(primaryEmail)}`, // prior academy-scoped key
+  `CONTACT#${contactHash(primaryEmail)}`, // legacy global key
+ ])];
+ const contacts=await Promise.all(contactKeys.map(async counterId=>{
+  const item=(await db.send(new GetCommand({TableName:tables.counters,Key:{counterId},ConsistentRead:true}))).Item;
+  if(!item)return {counterId,item,ownerInstitution:undefined};
+  const owner=item.familyId
+   ?(await db.send(new GetCommand({TableName:tables.families,Key:{familyId:item.familyId},ConsistentRead:true}))).Item
+   :undefined;
+  const ownerInstitution=contactGuardOwnerInstitution(item,owner);
+  return {counterId,item,ownerInstitution};
+ }));
+ assertWebsiteContactGuardAvailable(inst,plan.contactGuardId,contacts);
  if(!execute)return {preview:true,registrationId:id,familyNumber:plan.familyNumber,studentCount:plan.studentMappings.length,verifiedGuardianLinks:plan.verifiedGuardianLinks??0,externalSyncPending:inst==='raaga'&&mode!=='legacy-bridge',legacyBridge:mode==='legacy-bridge',writeCount:plan.items.length+2+(inst==='sruti'?1:0),readyForExecute:true,guardianRelationshipsVerified:mode!=='legacy-bridge'};
  // The registration record and identity guards participate in the SAME transaction as counters and people.
  // Conditional writes ensure concurrent retries cannot allocate the same roll number.

@@ -92,6 +92,28 @@ test('real Archive reload Restore preserves permanent identity and only updates 
   expect(writes).toEqual([{kind:'student',id:before.id,changes:{archived:false}}]);
 });
 
+test('Super Admin family deletion retains source registration history and roll reservations',async({page})=>{
+  await families(page);
+  await page.getByRole('button',{name:/Test Guardian/}).first().click();
+  await page.getByRole('button',{name:'Review deletion'}).click();
+  const review=page.getByRole('alertdialog',{name:'Delete Test Guardian permanently'});
+  await expect(review).toBeVisible();
+  await expect(review.getByText('records in proposed deletion')).toBeVisible();
+  await expect(review.getByText(/Website registrations retained for reconciliation \(1\)/)).toBeVisible();
+  await expect(review.getByText(/source website registration is retained/i)).toBeVisible();
+  const input=review.locator('.password-field input');
+  await input.fill('DELETE');
+  await review.getByRole('button',{name:'Delete permanently'}).click();
+  await expect(review).toHaveCount(0);
+  const after=await page.evaluate(()=>(window as any).__sadhanaE2E.snapshot());
+  expect(after.family.some((x:any)=>x.id==='FAMILY-E2E-1')).toBe(false);
+  expect(after.student.some((x:any)=>x.familyId==='FAMILY-E2E-1')).toBe(false);
+  expect(after.registrationHistory).toEqual([{registrationId:'SR-2026-E2E',familyId:'FAMILY-E2E-1',importStatus:'imported',studentIds:[],familyDeleted:true}]);
+  expect(after.rollReservations.map((x:any)=>x.counterId).sort()).toEqual(['ROLL_GLOBAL#RS-10','ROLL_GLOBAL#RS-2']);
+  const writes=await page.evaluate(()=>(window as any).__sadhanaE2E.cascadeWrites());
+  expect(writes).toEqual([{kind:'family',id:'FAMILY-E2E-1'},{kind:'student',id:'STUDENT-E2E-2'},{kind:'student',id:'STUDENT-E2E-10'}]);
+});
+
 test('real CSV data menu opens import workflow and exposes export action',async({page})=>{
   await page.locator('summary[aria-label="CSV data actions"]').click();
   await expect(page.getByRole('button',{name:'Export filtered CSV'})).toBeVisible();

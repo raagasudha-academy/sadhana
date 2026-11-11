@@ -8,6 +8,26 @@ const hash=(...parts)=>createHash('sha256').update(JSON.stringify(parts)).digest
 const nameParts=(value)=>{const s=string(value).replace(/\s+/g,' ');const parts=s.split(' ');return {firstName:parts[0],lastName:parts.slice(1).join(' '),displayName:s};};
 export const markerId=(inst,registrationId)=>`web_${hash(inst,registrationId)}`;
 export const guardianLinkId=(inst,guardianId,studentId)=>'link_'+hash(inst,guardianId,studentId);
+/** Resolve the owner from its family record when the guard references one.
+ * Older contact guards can retain a stale institutionId after data migration. */
+export function contactGuardOwnerInstitution(counter,family){
+ if(!counter||typeof counter!=='object')return undefined;
+ if(counter.familyId){
+  if(family?.familyId!==counter.familyId||!Array.isArray(family.institutionIds)||family.institutionIds.length!==1||!['raaga','sruti'].includes(family.institutionIds[0]))return undefined;
+  return family.institutionIds[0];
+ }
+ return ['raaga','sruti'].includes(counter.institutionId)?counter.institutionId:undefined;
+}
+/** Enforce parent-contact uniqueness within one academy while allowing a
+ * separate family in another academy for the same verified parent login. */
+export function assertWebsiteContactGuardAvailable(institution,plannedGuardId,contacts){
+ for(const {counterId,item,ownerInstitution} of contacts){
+  if(!item)continue;
+  if(!['raaga','sruti'].includes(ownerInstitution))fail('Parent email is already reserved by a family that needs manual institution review.');
+  if(ownerInstitution===institution)fail('A Sadhana family already uses this parent email in this institution. Open that family to review its learners before importing.');
+  if(counterId===plannedGuardId)fail('Parent contact identity conflicts with an existing family key. Review the family identity before importing.');
+ }
+}
 export function prepareWebsiteImport(registration, institution, actorSub, counters, now='2026-11-03T00:00:00.000Z'){
  const r=obj(registration);const id=string(r.registrationId);
  if(institution!=='raaga'&&institution!=='sruti')fail('Unsupported institution.');
@@ -24,7 +44,9 @@ export function prepareWebsiteImport(registration, institution, actorSub, counte
  if(!primary||!string(primary.fullName)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(string(primary.email))||!/^\+[1-9]\d{7,14}$/.test(string(primary.phone)))fail('Primary contact is incomplete.');
  if(!Number.isSafeInteger(counters?.family)||counters.family<0||!Number.isSafeInteger(counters?.student)||counters.student<0)fail('Counter values not verified.');
  const familyId=`fam_${hash(institution,id)}`,guardianId=`per_${hash(institution,id,'person',primary.personId)}`;
- const contactGuardId=`CONTACT#${institution}#${hash(string(primary.email).toLowerCase())}`;
+ // V2 hashes the institution with the email. The previous key hashed email
+ // alone after the institution prefix and could collide with a migrated guard.
+ const contactGuardId=`CONTACT#${institution}#${hash(institution,string(primary.email).toLowerCase())}`;
  const familyNumber=String(counters.family+1).padStart(3,'0');
  const seen=new Set(),seenIdentity=new Set(),records=[],guards=[],links=[];
  const preferredLocationId=string(r.preferredLocationId||primary.preferredLocationId);

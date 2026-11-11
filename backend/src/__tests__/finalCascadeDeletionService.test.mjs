@@ -31,7 +31,7 @@ function store(extra={}){
    }
    for(const item of cmd.input.TransactItems){
     if(item.Delete){const action=item.Delete,e=action.TableName.replace(/^sadhana-dev-/,'');data[e]=data[e].filter(row=>!Object.entries(action.Key).every(([k,v])=>row[k]===v));}
-    else if(item.Update){const action=item.Update,e=action.TableName.replace(/^sadhana-dev-/,'');const row=data[e].find(r=>Object.entries(action.Key).every(([k,v])=>r[k]===v));const values=action.ExpressionAttributeValues;Object.assign(row,{studentIds:values[':students'],sourceStudentIds:values[':sources'],deletedStudentIds:values[':deleted'],version:values[':next'],updatedAt:values[':now']});}
+    else if(item.Update){const action=item.Update,e=action.TableName.replace(/^sadhana-dev-/,'');const row=data[e].find(r=>Object.entries(action.Key).every(([k,v])=>r[k]===v));const values=action.ExpressionAttributeValues;Object.assign(row,{studentIds:values[':students'],sourceStudentIds:values[':sources'],deletedStudentIds:values[':deleted'],version:values[':next'],updatedAt:values[':now']});if(values[':yes']===true)Object.assign(row,{familyDeleted:true,familyDeletedAt:values[':now'],familyDeletedBy:values[':actor']});}
     else{const action=item.Put,e=action.TableName.replace(/^sadhana-dev-/,'')==='audit-records'?'audit':action.TableName.replace(/^sadhana-dev-/,'');(data[e]||=[]).push(action.Item);}
    }
    return {};
@@ -108,6 +108,41 @@ test('family cascade permanently retains every deleted student roll reservation'
  await svc.execute({...familyArgs,signature:preview.signature});
  assert.equal(db.data.people.length,0);
  assert.equal(db.data.families.length,0);
+ assert.deepEqual(db.data.counters.map(row=>row.counterId).sort(),['ROLL_GLOBAL#SR-123','ROLL_GLOBAL#SR-124']);
+});
+test('imported family cascade reconciles its exact website marker, keeps history and reserves all rolls',async()=>{
+ const externalRegistrationId='RS-2026-FAMILY',sourcePersonIds=['RS-PERSON-1','RS-PERSON-2'];
+ const students=[
+  {...root(),personId:'PERSON-family1',sourceWebsiteRegistrationId:externalRegistrationId,studentProfile:{rollNumbers:{sruti:'SR-123'}}},
+  {...root(),personId:'PERSON-family2',sourceWebsiteRegistrationId:externalRegistrationId,studentProfile:{rollNumbers:{sruti:'SR-124'}}},
+ ];
+ const marker={registrationId:markerId('sruti',externalRegistrationId),institutionId:'sruti',source:'website',externalRegistrationId,
+  importStatus:'imported',familyId:'FAMILY-test1',studentIds:students.map(x=>x.personId),sourceStudentIds:Object.fromEntries(sourcePersonIds.map((x,i)=>[x,students[i].personId])),version:3};
+ const source={registrationId:externalRegistrationId,source:'raagasudha-website',institutionId:'raaga',importStatus:'imported',version:1};
+ const db=store({people:students,registrations:[marker,source],counters:[
+  {counterId:'ROLL_GLOBAL#SR-123',sequenceType:'ROLL_UNIQUE',institutionId:'sruti',personId:students[0].personId},
+  {counterId:'ROLL_GLOBAL#SR-124',sequenceType:'ROLL_UNIQUE',institutionId:'sruti',personId:students[1].personId}
+ ]});
+ const svc=makeFinalCascadeDeletionService({db,allowExecute:true});
+ const familyArgs={...args,type:'family',id:'FAMILY-test1'};
+ const preview=await svc.preview(familyArgs);
+ assert.equal(preview.executionBlocked,false);
+ assert.equal(preview.executionEnabled,true);
+ assert.deepEqual(preview.retained,[{label:'Website registrations retained for reconciliation',count:1}]);
+ await svc.execute({...familyArgs,signature:preview.signature});
+ assert.equal(db.data.people.length,0);
+ assert.equal(db.data.families.length,0);
+ const updatedMarker=db.data.registrations.find(row=>row.registrationId===marker.registrationId);
+ assert.deepEqual(updatedMarker.studentIds,[]);
+ assert.deepEqual(updatedMarker.sourceStudentIds,{});
+ assert.equal(updatedMarker.familyDeleted,true);
+ assert.equal(updatedMarker.familyDeletedBy,args.actor);
+ assert.equal(updatedMarker.familyDeletedAt,updatedMarker.updatedAt);
+ assert.deepEqual(updatedMarker.deletedStudentIds.map(x=>({personId:x.personId,sourcePersonId:x.sourcePersonId,sourceRegistrationId:x.sourceRegistrationId})),[
+  {personId:'PERSON-family1',sourcePersonId:sourcePersonIds[0],sourceRegistrationId:externalRegistrationId},
+  {personId:'PERSON-family2',sourcePersonId:sourcePersonIds[1],sourceRegistrationId:externalRegistrationId},
+ ]);
+ assert.equal(db.data.registrations.some(row=>row.registrationId===externalRegistrationId),true,'external registration history remains');
  assert.deepEqual(db.data.counters.map(row=>row.counterId).sort(),['ROLL_GLOBAL#SR-123','ROLL_GLOBAL#SR-124']);
 });
 test('imported student deletion reconciles its Sadhana marker and permanently retains its roll',async()=>{

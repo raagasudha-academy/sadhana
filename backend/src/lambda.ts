@@ -93,7 +93,8 @@ import {defaultM10CoreDirectoryReader} from './coreDirectory.ts';
 
 
 
-export function createHandler(repository: SadhanaRepository){
+export function createHandler(repository: SadhanaRepository,options:{cascadeServiceFactory?:typeof makeFinalCascadeDeletionService}={}){
+  const cascadeServiceFactory=options.cascadeServiceFactory??makeFinalCascadeDeletionService;
   const m10CoreDirectoryRoutes=makeM10CoreDirectoryRoutes(undefined,(entity,inst,claims)=>repository.list(entity,inst,claims) as Promise<{records:Record<string,any>[];more:boolean}>);
   const m95DirectoryRoutes=makeM95DirectoryRoutes(
    undefined,
@@ -289,12 +290,12 @@ export function createHandler(repository: SadhanaRepository){
       {const result=await finalOperationsFamilyDeleteRoute(routeContext,{
         isSuperAdmin,
         parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):''),
-        service:makeFinalCascadeDeletionService(),
+        service:cascadeServiceFactory(),
       });if(result)return json(result.status,result.body);}
       {const result=await finalCascadeDeletionRoute(routeContext,{
         isSuperAdmin,
         parse:request=>readJSON(request.body?(request.isBase64Encoded?Buffer.from(request.body,'base64').toString('utf8'):request.body):''),
-        service:makeFinalCascadeDeletionService(),
+        service:cascadeServiceFactory(),
       });if(result)return json(result.status,result.body);}
       // Canonical final mode MUST stop here. M10 pilot, M9 onboarding,
       // legacy identity, and the PK/SK repository below are NOT final routes.
