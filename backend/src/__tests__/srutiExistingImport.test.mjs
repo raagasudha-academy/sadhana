@@ -109,7 +109,8 @@ class MockTransactWriteCommand {
   }
 }
 const rows = () => ({
-  'sadhana-dev-registrations': { [ref]: structuredClone(reg) },
+  'sruti-dev-student-registrations': { [ref]: structuredClone(reg) },
+  'sadhana-dev-registrations': {},
   'sadhana-dev-people': Object.fromEntries(
     [guardian, ...children].map((p) => [p.personId, structuredClone(p)]),
   ),
@@ -148,6 +149,7 @@ function mockDb() {
 process.env.SADHANA_ENTITY_TABLE_SET = 'final';
 process.env.SADHANA_ENTITY_FINAL_ACK = 'enabled';
 process.env.SADHANA_DATA_MODE = 'final';
+process.env.SADHANA_ENTITY_STAGE = 'dev';
 test('preview reuses guardian and both exact child IDs without writing', async () => {
   const db = mockDb();
   const result = await srutiExistingIdentityImport(db, ref, 'actor-123', body, false);
@@ -199,7 +201,7 @@ test('execute atomically imports membership with verified relationships from the
     ),
   );
   assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-registrations').length, 1);
-  assert.equal(tx.filter((w) => w.Update?.TableName === 'sadhana-dev-registrations').length, 1);
+  assert.equal(tx.filter((w) => w.Update?.TableName === 'sruti-dev-student-registrations').length, 1);
   assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-audit-records').length, 1);
   assert.ok(tx.every((w) => w.Put?.ConditionExpression || w.Update?.ConditionExpression));
 });
@@ -241,7 +243,7 @@ test('incorrect date of birth blocks cross-academy mapping', async () => {
 });
 test('successful prior import is idempotent only with identical mapping', async () => {
   const db = mockDb();
-  db.data['sadhana-dev-registrations'][ref].importStatus = 'imported';
+  db.data['sruti-dev-student-registrations'][ref].importStatus = 'imported';
   db.data['sadhana-dev-registrations'][markerId('sruti', ref)] = {
     registrationId: markerId('sruti', ref),
     institutionId: 'sruti',
