@@ -14,8 +14,13 @@ test.beforeEach(async ({ page }) => {
 async function chooseFilter(page: Page, name: string) {
   const menu = page.locator('.reg-combined-filters');
   if (!(await menu.evaluate((el) => (el as HTMLDetailsElement).open)))
-    await menu.locator('summary').click();
-  await menu.getByRole('radio', { name, exact: true }).check();
+    await menu.locator(':scope > summary').click();
+  if (name === 'Carlisle' || name === 'Newcastle') {
+    const location = menu.locator('.reg-filter-section').filter({ hasText: 'Location' });
+    if (!(await location.evaluate((el) => (el as HTMLDetailsElement).open)))
+      await location.locator(':scope > summary').click();
+  }
+  await menu.getByRole('checkbox', { name, exact: true }).check();
 }
 const rows = (page: Page) => page.locator('.reg-directory-table tbody tr');
 async function table(page: Page) {

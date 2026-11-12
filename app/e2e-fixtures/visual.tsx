@@ -95,7 +95,7 @@ function App() {
         </button>
         <DirectoryDataMenu
           onImport={() => setAction('Import CSV')}
-          onExport={() => setAction('Export CSV')}
+          onExportCurrent={() => setAction('Export CSV')}
         />
       </section>
       <output aria-label="Last CSV action">Last action: {action}</output>
