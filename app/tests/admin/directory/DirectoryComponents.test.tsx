@@ -35,7 +35,7 @@ describe('Family Details student status badges', () => {
 
 describe('Directory CSV actions', () => {
   it('uses a downward arrow for Import and upward arrow for Export', () => {
-    render(<DirectoryDataMenu onImport={() => {}} onExport={() => {}} />);
+    render(<DirectoryDataMenu onImport={() => {}} onExportCurrent={() => {}} />);
     const importButton = screen.getByRole('button', { name: 'Import CSV' });
     const exportButton = screen.getByRole('button', { name: 'Export filtered CSV' });
     expect(
@@ -48,7 +48,9 @@ describe('Directory CSV actions', () => {
   it('dispatches only the requested CSV action and closes the menu', () => {
     const onImport = vi.fn();
     const onExport = vi.fn();
-    const { container } = render(<DirectoryDataMenu onImport={onImport} onExport={onExport} />);
+    const { container } = render(
+      <DirectoryDataMenu onImport={onImport} onExportCurrent={onExport} />,
+    );
     const details = container.querySelector('details')!;
     details.open = true;
     fireEvent.click(screen.getByRole('button', { name: 'Import CSV' }));
