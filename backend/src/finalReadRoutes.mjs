@@ -18,6 +18,7 @@ export async function finalReadRoute(context, readers, access, env = process.env
   const schedule = root === 'schedule' && parts.length === 1;
   const managedEvents = root === 'events' && parts.length === 1;
   const coreDirectory = ['students', 'families', 'enrolments'].includes(root) && parts.length === 1;
+  const studentDetails = root === 'students' && parts.length === 3 && parts[2] === 'details';
   const audit = root === 'audit' && parts.length === 1;
   const practice = root === 'practice' && parts.length === 1;
   if (!(
@@ -28,6 +29,7 @@ export async function finalReadRoute(context, readers, access, env = process.env
     schedule ||
     managedEvents ||
     coreDirectory ||
+    studentDetails ||
     audit ||
     practice
   ))
@@ -85,6 +87,12 @@ export async function finalReadRoute(context, readers, access, env = process.env
   access.admin(claims, institution);
   if (managedEvents) return { status: 200, body: await readers.managedEvents(institution) };
   if (coreDirectory) return { status: 200, body: await readers.core(root, institution, claims) };
+  if (studentDetails) {
+    return {
+      status: 200,
+      body: await readers.studentDetails(parts[1], institution, claims),
+    };
+  }
   if (audit) return { status: 200, body: await readers.audit(institution) };
   const studentId = query.studentId;
   if (typeof studentId !== 'string' || !/^[-_a-zA-Z0-9]{4,150}$/.test(studentId)) {

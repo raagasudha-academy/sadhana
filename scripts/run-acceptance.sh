@@ -6,5 +6,5 @@ printf '\n=== Backend authorization / homework regression suite ===\n'
 printf '\n=== Frontend type, unit, lint and build ===\n'
 npm run verify
 printf '\n=== Local browser E2E (includes responsive viewports) ===\n'
-npm run test:e2e
+npm run test:frontend:playwright
 printf '\n=== PASS: Local suites complete; NOT a live homework/timetable/email acceptance ===\n'

@@ -33,6 +33,7 @@ type Resource = {
   studentMessage: string;
   objective: string;
   duration: string;
+  expectedOutcome: string;
   fileName: string;
   mimeType: string;
   fileSize: number;
@@ -63,6 +64,7 @@ type Draft = {
   studentMessage: string;
   objective: string;
   duration: string;
+  expectedOutcome: string;
   versionLabel: string;
   status: Status;
 };
@@ -80,6 +82,7 @@ const blank: Draft = {
   studentMessage: '',
   objective: '',
   duration: '',
+  expectedOutcome: '',
   versionLabel: '',
   status: 'draft',
 };
@@ -178,6 +181,7 @@ export default function SyllabusLibrary({
       studentMessage: record.studentMessage || '',
       objective: record.objective || '',
       duration: record.duration || '',
+      expectedOutcome: record.expectedOutcome || '',
       versionLabel: record.versionLabel,
       status: record.status,
     });
@@ -213,6 +217,10 @@ export default function SyllabusLibrary({
       }
       const data = {
         ...form,
+        ...(form.category === 'syllabus' &&
+        (form.expectedOutcome.trim() || editing?.expectedOutcome)
+          ? { expectedOutcome: form.expectedOutcome }
+          : { expectedOutcome: undefined }),
         url: form.url.trim(),
         ...(form.category === 'syllabus'
           ? { levelNumber: Number(form.levelNumber) }
@@ -252,6 +260,7 @@ export default function SyllabusLibrary({
         studentMessage: record.studentMessage,
         objective: record.objective,
         duration: record.duration,
+        expectedOutcome: record.expectedOutcome,
         versionLabel: record.versionLabel,
         status,
         expectedVersion: record.version,
@@ -600,7 +609,9 @@ export default function SyllabusLibrary({
                                                     )}
                                                   </div>
                                                 </div>
-                                                {(record.objective || record.description) && (
+                                                {(record.objective ||
+                                                  record.description ||
+                                                  record.expectedOutcome) && (
                                                   <div className="syllabus-stage-learning">
                                                     {record.objective && (
                                                       <div>
@@ -612,6 +623,12 @@ export default function SyllabusLibrary({
                                                       <div>
                                                         <strong>Learning content</strong>
                                                         <p>{record.description}</p>
+                                                      </div>
+                                                    )}
+                                                    {record.expectedOutcome && (
+                                                      <div>
+                                                        <strong>Expected outcome</strong>
+                                                        <p>{record.expectedOutcome}</p>
                                                       </div>
                                                     )}
                                                   </div>
@@ -903,6 +920,18 @@ export default function SyllabusLibrary({
                         onChange={(event) => setForm({ ...form, description: event.target.value })}
                       />
                     </label>
+                    <label>
+                      Expected outcome <span>Optional</span>
+                      <textarea
+                        maxLength={1200}
+                        rows={3}
+                        placeholder="What should the student be able to do?"
+                        value={form.expectedOutcome}
+                        onChange={(event) =>
+                          setForm({ ...form, expectedOutcome: event.target.value })
+                        }
+                      />
+                    </label>
                   </>
                 ) : (
                   <label>
@@ -1057,6 +1086,7 @@ export default function SyllabusLibrary({
                           Number(form.levelNumber) > 999 ||
                           (!form.description.trim() &&
                             !form.objective.trim() &&
+                            !form.expectedOutcome.trim() &&
                             !form.studentMessage.trim() &&
                             !form.url.trim() &&
                             !file &&

@@ -1,5 +1,5 @@
 /** Optional one-time utility for adding Sadhana branding. The official icon is already in /public.
- * Run: npm run icon:install -- /absolute/path/to/sadhana-icon.png
+ * Run: npx tsx scripts/installIcon.ts /absolute/path/to/sadhana-icon.png
  * Requires the devDependency 'sharp'. Preserves transparency and pads without cropping.
  */
 import sharp from 'sharp';
@@ -8,7 +8,7 @@ import { access, mkdir } from 'node:fs/promises';
 
 async function main(): Promise<void> {
   const source = process.argv[2];
-  if (!source) throw new Error('Usage: npm run icon:install -- /path/to/icon.png');
+  if (!source) throw new Error('Usage: npx tsx scripts/installIcon.ts /path/to/icon.png');
   await access(resolve(source));
   const publicDir = resolve(process.cwd(), 'public');
   await mkdir(publicDir, { recursive: true });

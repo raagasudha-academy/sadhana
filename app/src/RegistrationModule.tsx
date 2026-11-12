@@ -5,7 +5,7 @@ import { filterStudentsByLocation, sortDirectoryStudents } from './directorySele
 import './registrationUxPolish.css';
 import './registrationFamilyCards.css';
 import './quickUnenrol.css';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -65,6 +65,119 @@ import {
 } from './features/registration/registrationFamilies';
 import { StudentRecord } from './features/registration/registrationStudents';
 
+const ageFromDateOfBirth = (value: unknown) => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+  const [year, month, day] = value.split('-').map(Number);
+  const birthDate = new Date(year, month - 1, day);
+  if (
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  )
+    return '';
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  if (month < today.getMonth() + 1 || (month === today.getMonth() + 1 && day < today.getDate()))
+    age--;
+  return age >= 0 && age < 125 ? String(age) : '';
+};
+
+const displayAddress = (value: any) => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  return Object.values(value)
+    .filter((part) => typeof part === 'string' && part.trim())
+    .join(', ');
+};
+
+const displayStructuredDetails = (value: any) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  return Object.entries(value)
+    .filter(([, detail]) => detail !== '' && detail !== null && detail !== undefined)
+    .map(([label, detail]) => {
+      const readable = Array.isArray(detail)
+        ? detail.join(', ')
+        : typeof detail === 'object'
+          ? JSON.stringify(detail)
+          : String(detail);
+      return readable ? `${label}: ${readable}` : '';
+    })
+    .filter(Boolean)
+    .join('; ');
+};
+
+const displayAllergyDetails = (value: any) => {
+  if (!value || typeof value !== 'object') return '';
+  return [
+    value.status === 'none' || value.status === 'no' ? 'No known allergies' : value.status,
+    ...(Array.isArray(value.allergens) ? value.allergens : []),
+    value.otherAllergens,
+    value.details,
+    value.reactionDetails,
+    value.emergencyInstructions,
+    value.carriesEmergencyMedication ? 'Carries emergency medication' : '',
+  ]
+    .filter(Boolean)
+    .join('; ');
+};
+
+const consentText = (student: any) => {
+  const consent =
+    student.mediaConsent ||
+    student.studentProfile?.mediaConsent ||
+    student.consents?.photography ||
+    student.studentProfile?.consents?.photography;
+  if (typeof consent === 'boolean') return consent ? 'Granted' : 'Declined';
+  if (typeof consent?.granted === 'boolean') return consent.granted ? 'Granted' : 'Declined';
+  if (typeof consent?.photography === 'boolean')
+    return consent.photography ? 'Granted' : 'Declined';
+  return 'Not recorded';
+};
+
+const expandedStudentFields = (student: any, family: any, classes: string[], details: any = {}) => {
+  const profile = { ...(student.studentProfile || {}), ...(details.studentProfile || {}) };
+  const familyContact = details.familyContact || {};
+  const emergency =
+    profile.emergencyContactOverride ||
+    student.emergencyContact ||
+    familyContact.emergencyContact ||
+    {};
+  const allergy = profile.foodAllergies || student.foodAllergies;
+  const dateOfBirth = profile.dateOfBirth || student.dateOfBirth;
+  const mediaConsent = details.mediaConsent || profile.mediaConsent || student.mediaConsent;
+  return {
+    'Date of birth': dateOfBirth || '',
+    Age: ageFromDateOfBirth(dateOfBirth),
+    'Student email': student.email || details.email || family?.email || familyContact.email || '',
+    'Parent / guardian': family?.parentName || '',
+    'Parent email': family?.email || familyContact.email || '',
+    'Parent phone': family?.phone || familyContact.phone || '',
+    Address: displayAddress(
+      student.contactAddress || student.address || details.address || familyContact.address,
+    ),
+    'Emergency contact': emergency.name || emergency.fullName || emergency.contactName || '',
+    'Emergency phone': emergency.phone || emergency.mobile || emergency.contactPhone || '',
+    'Dietary requirements / allergies': displayAllergyDetails(allergy),
+    'Medical notes':
+      profile.healthNotes || profile.srutiLearning?.medicalNotes || student.healthNotes || '',
+    'Additional notes':
+      profile.notes || student.notes || details.familyContact?.registrationNotes || '',
+    'Social media consent': consentText({ ...student, studentProfile: profile, mediaConsent }),
+    'Consent recorded at': mediaConsent?.recordedAt || profile.mediaConsent?.recordedAt || '',
+    'Preferred class': profile.preferredClassId || student.preferredClassId || '',
+    'Proposed start date': profile.proposedStartDate || student.proposedStartDate || '',
+    'Contact preferences': displayStructuredDetails(
+      profile.contactPreferences || student.contactPreferences,
+    ),
+    'Other registration details': displayStructuredDetails(
+      profile.srutiLearning || student.srutiLearning,
+    ),
+    'Website registration':
+      student.sourceWebsiteRegistrationId || details.sourceWebsiteRegistrationId || '',
+    Classes: classes.join('; '),
+  };
+};
+
 export default function RegistrationModule({
   workspace,
   families,
@@ -107,7 +220,9 @@ export default function RegistrationModule({
       if (initialView) return initialView;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:view`) === 'table'
         ? 'table'
-        : 'list';
+        : sessionStorage.getItem(`sadhana:registration:${workspace}:view`) === 'list'
+          ? 'list'
+          : 'table';
     } catch {
       return 'list';
     }
@@ -117,6 +232,9 @@ export default function RegistrationModule({
   const [tableDirection, setTableDirection] = useState<'asc' | 'desc'>('asc');
   const [tableLocation, setTableLocation] = useState('All');
   const [directoryClass, setDirectoryClass] = useState('All');
+  const [showAllFields, setShowAllFields] = useState(false);
+  const [studentDetails, setStudentDetails] = useState<Record<string, any>>({});
+  const [detailsError, setDetailsError] = useState('');
   const changeTableSort = (column: 'roll' | 'name') => {
     if (tableSort === column) setTableDirection((v) => (v === 'asc' ? 'desc' : 'asc'));
     else {
@@ -212,45 +330,71 @@ export default function RegistrationModule({
             ? 'Archived'
             : 'Registered';
   };
-  const classNames = (m: any) => [
-    ...new Set(
+  const classNames = (m: any): string[] => [
+    ...new Set<string>(
       scoped
         .filter((e) => e.studentId === m.id && !e.archived)
-        .map((e) => classes.find((c) => c.id === e.classId)?.name)
-        .filter(Boolean),
+        .map((e) => classes.find((c) => c.id === e.classId)?.name as string | undefined)
+        .filter((name): name is string => Boolean(name)),
     ),
   ];
   const locationFor = (m: any) =>
-    readableLocation(m.location || families.find((f) => f.id === m.familyId)?.location) || '—';
+    readableLocation(families.find((f) => f.id === m.familyId)?.location || m.location) || '—';
   const contactFor = (m: any) => m.phone || families.find((f) => f.id === m.familyId)?.phone || '';
-  const exportCSV = () => {
+  const exportCSV = async (allStudentFields = false) => {
+    const details = allStudentFields ? await loadStudentDetails(tableStudents) : studentDetails;
+    const defaultHeader = ['Roll No.', 'Student', 'Location', 'Phone', 'Classes', 'Status'];
+    const detailHeader = [
+      'Date of birth',
+      'Age',
+      'Student email',
+      'Parent / guardian',
+      'Parent email',
+      'Parent phone',
+      'Address',
+      'Emergency contact',
+      'Emergency phone',
+      'Dietary requirements / allergies',
+      'Medical notes',
+      'Additional notes',
+      'Social media consent',
+      'Consent recorded at',
+      'Preferred class',
+      'Proposed start date',
+      'Contact preferences',
+      'Other registration details',
+      'Website registration',
+    ];
     const header =
       area !== 'families'
-        ? [
-            'Roll No.',
-            'Student',
-            'Location',
-            'Classes',
-            'Status',
-            'Family ID',
-            'Guardian',
-            'Contact Phone',
-          ]
+        ? [...defaultHeader, ...(allStudentFields ? detailHeader : [])]
         : ['Family ID', 'Parent / Guardian', 'Location', 'Students', 'Status', 'WhatsApp'];
     const rows =
       area !== 'families'
-        ? visibleStudents.map((m) => {
+        ? tableStudents.map((m) => {
             const f = families.find((f) => f.id === m.familyId);
-            return [
+            const classList = classNames(m);
+            const base = [
               studentLabel(m),
               m.name,
               locationFor(m),
-              classNames(m).join('; '),
-              studentStatus(m),
-              f ? familyLabel(f) : '',
-              f?.parentName || '',
               contactFor(m),
+              classList.join('; '),
+              studentStatus(m),
             ];
+            return allStudentFields
+              ? [
+                  ...base,
+                  ...Object.values(
+                    expandedStudentFields(
+                      m,
+                      f,
+                      classList,
+                      details[`${workspace}:${m.id}:${m.version || 0}`],
+                    ),
+                  ).slice(0, -1),
+                ]
+              : base;
           })
         : visibleFamilies.map((f) => [
             familyLabel(f),
@@ -277,7 +421,7 @@ export default function RegistrationModule({
     const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sadhana-${area}-${workspace}.csv`;
+    a.download = `sadhana-${area}-${workspace}${allStudentFields ? '-all-fields' : ''}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -493,6 +637,44 @@ export default function RegistrationModule({
     tableDirection,
     studentLabel,
   );
+  const loadStudentDetails = useCallback(
+    async (rows: any[]) => {
+      if (typeof operationsApi?.getStudentDetails !== 'function') {
+        setDetailsError('Detailed student fields are unavailable from this API version.');
+        return studentDetails;
+      }
+      const missing = rows.filter(
+        (student) => !studentDetails[`${workspace}:${student.id}:${student.version || 0}`],
+      );
+      if (!missing.length) return studentDetails;
+      const loaded: Record<string, any> = {};
+      let failed = false;
+      let firstError = '';
+      for (let offset = 0; offset < missing.length; offset += 8) {
+        const batch = missing.slice(offset, offset + 8);
+        const results = await Promise.allSettled(
+          batch.map((student) => operationsApi.getStudentDetails(workspace, student.id)),
+        );
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled')
+            loaded[`${workspace}:${batch[index].id}:${batch[index].version || 0}`] = result.value;
+          else {
+            failed = true;
+            if (!firstError)
+              firstError =
+                result.reason instanceof Error ? result.reason.message : 'Request failed.';
+          }
+        });
+      }
+      if (Object.keys(loaded).length) setStudentDetails((current) => ({ ...current, ...loaded }));
+      setDetailsError(failed ? `Some detailed fields could not be loaded: ${firstError}` : '');
+      return { ...studentDetails, ...loaded };
+    },
+    [operationsApi, studentDetails, workspace],
+  );
+  useEffect(() => {
+    if (showAllFields && area !== 'families') void loadStudentDetails(tableStudents);
+  }, [showAllFields, area, tableStudents, loadStudentDetails]);
   const familyLocations = Array.from(
     new Set<string>(
       families
@@ -813,6 +995,7 @@ export default function RegistrationModule({
                     setQuery('');
                     setFilter('All');
                     setTableLocation('All');
+                    setDirectoryClass('All');
                   }}
                 >
                   Students
@@ -824,6 +1007,7 @@ export default function RegistrationModule({
                     setQuery('');
                     setFilter('All');
                     setTableLocation('All');
+                    setDirectoryClass('All');
                   }}
                 >
                   Family & Relationships
@@ -854,74 +1038,91 @@ export default function RegistrationModule({
                   />
                 </div>
                 <details className="reg-combined-filters">
-                  <summary aria-label="Status and location filters">
+                  <summary aria-label="Status, class and location filters">
                     <Filter size={15} /> Filters
-                    {filter !== 'All' || tableLocation !== 'All' ? ' · Active' : ''}
+                    {filter !== 'All' || tableLocation !== 'All' || directoryClass !== 'All'
+                      ? ' · Active'
+                      : ''}
                   </summary>
                   <div className="reg-combined-filter-panel">
-                    <fieldset>
-                      <legend>Status</legend>
-                      {['All', 'Active', 'Upcoming', 'Registered', 'Archived'].map((v) => (
-                        <label key={v}>
-                          <input
-                            type="radio"
-                            name="directory-status"
-                            checked={filter === v}
-                            onChange={() => setFilter(v)}
-                          />
-                          {v === 'All' ? 'All statuses' : v}
-                        </label>
-                      ))}
-                    </fieldset>
-                    <fieldset>
-                      <legend>Location</legend>
-                      {['All', ...(area === 'families' ? familyLocations : tableLocations)].map(
-                        (loc) => (
-                          <label key={loc}>
+                    <details className="reg-filter-section" open>
+                      <summary>Status</summary>
+                      <fieldset>
+                        <legend>Status</legend>
+                        {['All', 'Active', 'Upcoming', 'Registered', 'Archived'].map((v) => (
+                          <label key={v}>
                             <input
                               type="radio"
-                              name="directory-location"
-                              checked={tableLocation === loc}
-                              onChange={() => setTableLocation(loc)}
+                              name="directory-status"
+                              checked={filter === v}
+                              onChange={() => setFilter(v)}
                             />
-                            {loc === 'All' ? 'All locations' : loc}
+                            {v === 'All' ? 'All statuses' : v}
                           </label>
-                        ),
-                      )}
-                    </fieldset>
+                        ))}
+                      </fieldset>
+                    </details>
+                    {area === 'students' && (
+                      <details className="reg-filter-section">
+                        <summary>Class</summary>
+                        <fieldset>
+                          <legend>Class</legend>
+                          {[
+                            { id: 'All', name: 'All classes' },
+                            ...classes.map((c: any) => ({ id: c.id, name: c.name })),
+                          ].map((c) => (
+                            <label key={c.id}>
+                              <input
+                                type="radio"
+                                name="directory-class"
+                                checked={directoryClass === c.id}
+                                onChange={() => setDirectoryClass(c.id)}
+                              />
+                              {c.name}
+                            </label>
+                          ))}
+                        </fieldset>
+                      </details>
+                    )}
+                    <details className="reg-filter-section">
+                      <summary>Location</summary>
+                      <fieldset>
+                        <legend>Location</legend>
+                        {['All', ...(area === 'families' ? familyLocations : tableLocations)].map(
+                          (loc) => (
+                            <label key={loc}>
+                              <input
+                                type="radio"
+                                name="directory-location"
+                                checked={tableLocation === loc}
+                                onChange={() => setTableLocation(loc)}
+                              />
+                              {loc === 'All' ? 'All locations' : loc}
+                            </label>
+                          ),
+                        )}
+                      </fieldset>
+                    </details>
                     <button
                       type="button"
                       onClick={() => {
                         setFilter('All');
                         setTableLocation('All');
+                        setDirectoryClass('All');
                       }}
                     >
                       Clear filters
                     </button>
                   </div>
                 </details>
-                {area === 'students' && (
-                  <select
-                    className="reg-secondary reg-class-select"
-                    aria-label="Filter students by class"
-                    value={directoryClass}
-                    onChange={(e) => setDirectoryClass(e.target.value)}
-                  >
-                    <option value="All">All classes</option>
-                    {classes.map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
                 <DirectoryDataMenu
                   onImport={() => {
                     setImportRows([]);
                     setImportErrors([]);
                     setDialog('import-csv');
                   }}
-                  onExport={() => exportCSV()}
+                  onExportCurrent={() => exportCSV(false)}
+                  onExportAll={area === 'families' ? undefined : () => exportCSV(true)}
                 />
               </div>
             </div>
@@ -945,7 +1146,10 @@ export default function RegistrationModule({
                   type="button"
                   className={view === 'list' ? 'current' : ''}
                   aria-pressed={view === 'list'}
-                  onClick={() => setView('list')}
+                  onClick={() => {
+                    setView('list');
+                    setShowAllFields(false);
+                  }}
                 >
                   <List size={15} /> List
                 </button>
@@ -969,9 +1173,23 @@ export default function RegistrationModule({
                 }}
               >
                 {area !== 'families' && (
-                  <button type="button" className="reg-secondary" onClick={() => openEnrol()}>
-                    <GraduationCap size={16} /> Enrol student
-                  </button>
+                  <>
+                    <label className="reg-show-all-fields">
+                      <input
+                        type="checkbox"
+                        checked={showAllFields}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setShowAllFields(checked);
+                          if (checked) setView('table');
+                        }}
+                      />
+                      Show all fields
+                    </label>
+                    <button type="button" className="reg-secondary" onClick={() => openEnrol()}>
+                      <GraduationCap size={16} /> Enrol student
+                    </button>
+                  </>
                 )}
                 <button
                   type="button"
@@ -984,20 +1202,56 @@ export default function RegistrationModule({
               </div>
             </div>
             {view === 'table' && area !== 'families' && (
-              <p className="reg-table-result-count" role="status">
-                {tableStudents.length} student{tableStudents.length === 1 ? '' : 's'} shown
-              </p>
+              <>
+                <p className="reg-table-result-count" role="status">
+                  {tableStudents.length} student{tableStudents.length === 1 ? '' : 's'} shown
+                </p>
+                {detailsError && (
+                  <p className="reg-details-error" role="status">
+                    {detailsError}
+                  </p>
+                )}
+              </>
             )}
             {view === 'table' ? (
               <div style={{ overflowX: 'auto' }}>
                 <table
-                  className="reg-directory-table"
+                  className={`reg-directory-table${showAllFields ? ' is-expanded' : ''}`}
                   style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}
                 >
                   <thead>
                     <tr>
                       {(area !== 'families'
-                        ? ['Roll No.', 'Student', 'Location', 'Phone', 'Classes', 'Status']
+                        ? [
+                            'Roll No.',
+                            'Student',
+                            ...(showAllFields ? ['Date of birth', 'Age'] : []),
+                            'Location',
+                            'Phone',
+                            ...(showAllFields
+                              ? [
+                                  'Student email',
+                                  'Parent / guardian',
+                                  'Parent email',
+                                  'Parent phone',
+                                  'Address',
+                                  'Emergency contact',
+                                  'Emergency phone',
+                                  'Dietary requirements / allergies',
+                                  'Medical notes',
+                                  'Additional notes',
+                                  'Social media consent',
+                                  'Consent recorded at',
+                                  'Preferred class',
+                                  'Proposed start date',
+                                  'Contact preferences',
+                                  'Other registration details',
+                                  'Website registration',
+                                ]
+                              : []),
+                            'Classes',
+                            'Status',
+                          ]
                         : [
                             'Family ID',
                             'Parent / Guardian',
@@ -1058,30 +1312,56 @@ export default function RegistrationModule({
                   </thead>
                   <tbody>
                     {area !== 'families'
-                      ? tableStudents.map((m) => (
-                          <tr
-                            key={m.id}
-                            onClick={() => setStudentFocus(m.id)}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') setStudentFocus(m.id);
-                            }}
-                            style={{ cursor: 'pointer', borderBottom: '1px solid #edf0f5' }}
-                          >
-                            <td style={{ padding: 12 }}>{studentLabel(m)}</td>
-                            <td style={{ padding: 12 }}>
-                              <strong>{m.name}</strong>
-                            </td>
-                            <td style={{ padding: 12 }}>{locationFor(m)}</td>
-                            <td style={{ padding: 12, whiteSpace: 'nowrap' }}>
-                              {contactFor(m) || '—'}
-                            </td>
-                            <td style={{ padding: 12 }}>{classNames(m).join(', ') || '—'}</td>
-                            <td style={{ padding: 12 }}>
-                              <Status status={studentStatus(m)} />
-                            </td>
-                          </tr>
-                        ))
+                      ? tableStudents.map((m) => {
+                          const family = families.find((f) => f.id === m.familyId);
+                          const classList = classNames(m);
+                          const extended = expandedStudentFields(
+                            m,
+                            family,
+                            classList,
+                            studentDetails[`${workspace}:${m.id}:${m.version || 0}`],
+                          );
+                          return (
+                            <tr
+                              key={m.id}
+                              onClick={() => setStudentFocus(m.id)}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') setStudentFocus(m.id);
+                              }}
+                              style={{ cursor: 'pointer', borderBottom: '1px solid #edf0f5' }}
+                            >
+                              <td style={{ padding: 12 }}>{studentLabel(m)}</td>
+                              <td style={{ padding: 12 }}>
+                                <strong>{m.name}</strong>
+                              </td>
+                              {showAllFields && (
+                                <>
+                                  <td style={{ padding: 12, whiteSpace: 'nowrap' }}>
+                                    {extended['Date of birth'] || '—'}
+                                  </td>
+                                  <td style={{ padding: 12 }}>{extended.Age || '—'}</td>
+                                </>
+                              )}
+                              <td style={{ padding: 12 }}>{locationFor(m)}</td>
+                              <td style={{ padding: 12, whiteSpace: 'nowrap' }}>
+                                {contactFor(m) || '—'}
+                              </td>
+                              {showAllFields &&
+                                Object.entries(extended)
+                                  .slice(2, -1)
+                                  .map(([field, value]) => (
+                                    <td key={field} style={{ padding: 12, minWidth: 140 }}>
+                                      {value || '—'}
+                                    </td>
+                                  ))}
+                              <td style={{ padding: 12 }}>{classList.join(', ') || '—'}</td>
+                              <td style={{ padding: 12 }}>
+                                <Status status={studentStatus(m)} />
+                              </td>
+                            </tr>
+                          );
+                        })
                       : visibleFamilies.map((f) => (
                           <tr
                             key={f.id}

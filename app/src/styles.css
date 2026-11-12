@@ -5569,6 +5569,42 @@ input:focus-visible {
   gap: 9px;
   min-width: 0;
 }
+.reg-filter-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  color: #34445e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.reg-filter-section > summary::-webkit-details-marker {
+  display: none;
+}
+.reg-filter-section > summary::after {
+  content: '⌄';
+  color: #748199;
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.reg-filter-section[open] > summary::after {
+  transform: rotate(180deg);
+}
+.reg-filter-section fieldset legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .reg-combined-filter-panel legend {
   font-weight: 700;
   margin-bottom: 8px;
@@ -5590,9 +5626,28 @@ input:focus-visible {
   padding: 8px;
   cursor: pointer;
 }
-.reg-class-select {
-  max-width: 280px;
-  min-width: 175px;
+.reg-show-all-fields {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #465570;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.reg-show-all-fields input {
+  width: 16px;
+  height: 16px;
+  accent-color: #5972a8;
+}
+.reg-details-error {
+  margin: 4px 0 12px;
+  color: #9b3e48;
+  font-size: 13px;
+}
+.reg-module .reg-directory-table.is-expanded {
+  min-width: 2300px;
 }
 .sadhana-class-tabs {
   display: flex;

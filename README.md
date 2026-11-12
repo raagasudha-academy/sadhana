@@ -42,10 +42,10 @@ Install dependencies with `npm ci` at the repository root and `npm ci` in `backe
 | `npm run test:backend:e2e`                  | Local authenticated HTTP API E2E tests                                     |
 | `npm run test:frontend:playwright`          | Browser tests using Playwright                                             |
 | `npm run test:e2e:all`                      | Both API and browser E2E suites                                            |
-| `npm run test:product`                      | Frontend/backend unit tests plus both E2E suites                           |
+| `npm run test:all`                          | Frontend/backend unit tests plus both E2E suites                           |
 | `npm run verify` / `npm run verify:backend` | Frontend format/lint/typecheck/tests/build / backend typecheck/tests/build |
 
-The original aliases remain available: `npm test` runs frontend unit tests and `npm run test:e2e` runs Playwright. Python helper tests use the command in the test suite map.
+`npm test` remains a short alias for frontend unit tests. Use `npm run test:frontend:playwright` for browser tests. Python helper tests use the command in the test suite map.
 
 The Python helper tests also need `boto3` installed. Run `python -m unittest discover -s backend/test -p 'test_*.py'` from a Python environment with `boto3` available; the repository's `.venv-aws-test` already includes it.
 

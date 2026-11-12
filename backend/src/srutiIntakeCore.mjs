@@ -168,6 +168,7 @@ export function toApprovedM9Registration(record) {
       email: g.email,
       phone: g.phone,
       address,
+      emergencyContact: { name: g.emergencyName, phone: g.emergencyPhone },
       roles: payload.registrationType === 'child' ? ['guardian'] : ['guardian', 'student'],
     },
   ];
@@ -214,6 +215,10 @@ export function toApprovedM9Registration(record) {
     reviewStatus: 'approved',
     registrationType: payload.registrationType,
     submittedAt: record.submittedAt,
+    mediaConsent: {
+      granted: payload.consents.photography,
+      recordedAt: record.submittedAt,
+    },
     primaryContactPersonId: primaryId,
     people,
     students,

@@ -202,6 +202,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           studentMessage: string;
           objective: string;
           duration: string;
+          expectedOutcome: string;
           fileName: string;
           mimeType: string;
           fileSize: number;
@@ -260,6 +261,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         studentMessage?: string;
         objective?: string;
         duration?: string;
+        expectedOutcome?: string;
         versionLabel?: string;
         status?: 'draft' | 'published' | 'archived';
         mediaKey?: string;
@@ -284,6 +286,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         studentMessage?: string;
         objective?: string;
         duration?: string;
+        expectedOutcome?: string;
         versionLabel?: string;
         status: 'draft' | 'published' | 'archived';
         expectedVersion: number;
@@ -1457,6 +1460,20 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         location: string;
         address: Record<string, unknown>;
       }>('GET', `/families/${encodeURIComponent(familyId)}/contact`, { institution }),
+    getStudentDetails: (institution: InstitutionId, studentId: string) =>
+      request<{
+        email: string;
+        address: Record<string, unknown>;
+        sourceWebsiteRegistrationId: string;
+        studentProfile: Record<string, any>;
+        familyContact: {
+          email: string;
+          phone: string;
+          address: Record<string, unknown>;
+          emergencyContact: Record<string, unknown>;
+          registrationNotes: string;
+        };
+      }>('GET', `/students/${encodeURIComponent(studentId)}/details`, { institution }),
     searchIdentity: (q: string) =>
       request<SearchResponse>('GET', '/identities/search', { params: { q } }),
     create: (resource: ResourceName, institution: InstitutionId, data: ResourcePayload) =>

@@ -31,10 +31,12 @@ export function StudentCardBadges({
 /** Directory data menu: actions are injected so rendering tests never touch CSV or DynamoDB. */
 export function DirectoryDataMenu({
   onImport,
-  onExport,
+  onExportCurrent,
+  onExportAll,
 }: {
   onImport: () => void;
-  onExport: () => void;
+  onExportCurrent: () => void;
+  onExportAll?: () => void;
 }) {
   return (
     <details className="reg-data-menu">
@@ -55,11 +57,22 @@ export function DirectoryDataMenu({
           type="button"
           onClick={(e) => {
             e.currentTarget.closest('details')?.removeAttribute('open');
-            onExport();
+            onExportCurrent();
           }}
         >
           <Upload size={16} aria-hidden="true" data-testid="export-arrow" /> Export filtered CSV
         </button>
+        {onExportAll && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.currentTarget.closest('details')?.removeAttribute('open');
+              onExportAll();
+            }}
+          >
+            <Upload size={16} aria-hidden="true" /> Export all student fields
+          </button>
+        )}
       </div>
     </details>
   );

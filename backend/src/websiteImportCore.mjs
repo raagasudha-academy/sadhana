@@ -132,6 +132,15 @@ export function prepareWebsiteImport(
     guards = [],
     links = [];
   const preferredLocationId = string(r.preferredLocationId || primary.preferredLocationId);
+  const submittedConsent = obj(r.mediaConsent);
+  const mediaConsent =
+    typeof submittedConsent.granted === 'boolean'
+      ? {
+          granted: submittedConsent.granted,
+          recordedAt: string(submittedConsent.recordedAt || r.submittedAt),
+          institution,
+        }
+      : undefined;
   const peopleItems = [
     {
       personId: guardianId,
@@ -178,6 +187,7 @@ export function prepareWebsiteImport(
         ? guardianId
         : `per_${hash(institution, id, 'person', sourceId)}`;
     const contact = obj(s.contactPreferences);
+    const adult = s.studentType === 'adult' || sourceId === primary.personId;
     for (const type of ['email', 'phone', 'address'])
       if (
         contact[`${type}Source`] === 'guardian' &&
@@ -187,13 +197,20 @@ export function prepareWebsiteImport(
         fail('Additional guardian inheritance requires identity review.');
     const use = (type) => contact[`${type}Source`] === 'guardian';
     const address = use('address') ? obj(primary.address) : obj(p.address);
-    const adult = s.studentType === 'adult' || sourceId === primary.personId;
-    const email = use('email') ? string(primary.email) : string(p.email);
+    const emailUsesGuardian = !adult && (use('email') || !string(p.email));
+    const email = emailUsesGuardian ? string(primary.email) : string(p.email);
     const phone = use('phone') ? string(primary.phone) : string(p.phone);
+    const contactPreferences = emailUsesGuardian
+      ? {
+          ...contact,
+          emailSource: 'guardian',
+          guardianPersonId: contact.guardianPersonId || primary.personId,
+        }
+      : contact;
     if (adult && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\+[1-9]\d{7,14}$/.test(phone)))
       fail('Adult learner needs valid contact details.');
     const number = String(counters.student + i + 1).padStart(3, '0');
-    const studentLocation = string(s.preferredLocationId || preferredLocationId);
+    const studentLocation = string(preferredLocationId || s.preferredLocationId);
     const person = {
       personId: studentId,
       ...nameParts(p.fullName),
@@ -208,6 +225,7 @@ export function prepareWebsiteImport(
       studentProfile: {
         dateOfBirth: p.dateOfBirth,
         foodAllergies: allergies,
+        ...(mediaConsent ? { mediaConsent } : {}),
         ...(institution === 'sruti' && s.srutiLearning ? { srutiLearning: s.srutiLearning } : {}),
         rollNumber: academyRoll(institution, counters.student + i + 1),
         rollNumbers: { [institution]: academyRoll(institution, counters.student + i + 1) },
@@ -218,7 +236,7 @@ export function prepareWebsiteImport(
         healthNotes: string(s.healthNotes),
         notes: string(s.notes),
         emergencyContactOverride: obj(s.emergencyContactOverride),
-        contactPreferences: contact,
+        contactPreferences,
         photoSource: s.photo ? { registrationId: id, personId: sourceId } : undefined,
       },
       createdAt: now,
@@ -284,6 +302,12 @@ export function prepareWebsiteImport(
     institutionIds: [institution],
     email: string(primary.email).toLowerCase(),
     address: obj(primary.address),
+    ...(string(primary.additionalNotes)
+      ? { registrationNotes: string(primary.additionalNotes) }
+      : {}),
+    ...(Object.keys(obj(primary.emergencyContact)).length
+      ? { emergencyContact: obj(primary.emergencyContact) }
+      : {}),
     location: preferredLocationId,
     preferredLocationId,
     status: 'active',

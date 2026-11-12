@@ -23,6 +23,14 @@ export function makeM10CoreDirectoryAuthoritativeRoutes(
     demandInstitution(claims, inst);
     if (process.env.M9_TARGET_REPOSITORY_ENABLED !== 'read-only')
       return json(503, { error: 'M9 core directory is disabled.' });
+    if (
+      method === 'GET' &&
+      parts[0] === 'students' &&
+      parts.length === 3 &&
+      parts[2] === 'details'
+    ) {
+      return json(200, await getReader().studentDetails(parts[1], inst, claims));
+    }
     if (method === 'GET' && parts.length === 1) {
       const page = await getReader().list(parts[0] as M10CoreEntity, inst, claims);
       // Projection throws on incomplete/duplicate identity or missing contact. Do not catch:

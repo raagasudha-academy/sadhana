@@ -158,6 +158,8 @@ export function createHandler(
       directory: (action, inst, claims) => directoryReader[action](inst, claims),
       managedEvents: (inst) => scheduleReader.managedEvents(inst),
       core: (entity, inst, claims) => coreReader.list(entity, inst, claims),
+      studentDetails: (studentId, inst, claims) =>
+        coreReader.studentDetails(studentId, inst, claims),
       audit: (inst) => finalOperationalReader.audit(inst),
       practice: (inst, studentId) => finalOperationalReader.practice(inst, studentId),
       profile: (sub) => getOwnProfile(sub),

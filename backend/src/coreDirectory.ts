@@ -23,6 +23,87 @@ const physical: Record<M10CoreEntity, string> = {
 const maxRows: Record<M10CoreEntity, number> = { students: 1500, families: 1000, enrolments: 3000 };
 export function makeM10CoreDirectoryReader(client: M10Client) {
   return {
+    async studentDetails(studentId: string, inst: InstitutionId, claims: Claims) {
+      demandInstitution(claims, inst);
+      if (!/^[A-Za-z0-9_-]{4,150}$/.test(studentId))
+        throw httpError(400, 'Invalid student identifier.');
+      const student = (
+        await client.send(
+          new GetCommand({
+            TableName: entityTable('people'),
+            Key: { personId: studentId },
+            ConsistentRead: true,
+          }),
+        )
+      ).Item;
+      if (
+        !student ||
+        student.personId !== studentId ||
+        !['active', 'archived'].includes(student.status) ||
+        !student.institutionIds?.includes(inst) ||
+        !student.personTypes?.includes('student')
+      )
+        throw httpError(404, 'Student details not found.');
+
+      const family = student.familyId
+        ? await client.send(
+            new GetCommand({
+              TableName: entityTable('families'),
+              Key: { familyId: student.familyId },
+              ConsistentRead: true,
+            }),
+          )
+        : { Item: null };
+      const familyRecord =
+        family.Item?.familyId === student.familyId &&
+        family.Item?.status === 'active' &&
+        family.Item?.institutionIds?.includes(inst)
+          ? family.Item
+          : null;
+      const primaryContactPersonId = familyRecord?.primaryContactPersonId;
+      const guardian = primaryContactPersonId
+        ? await client.send(
+            new GetCommand({
+              TableName: entityTable('people'),
+              Key: { personId: primaryContactPersonId },
+              ConsistentRead: true,
+            }),
+          )
+        : { Item: null };
+      const guardianRecord =
+        guardian.Item?.personId === primaryContactPersonId &&
+        guardian.Item?.familyId === student.familyId &&
+        guardian.Item?.status === 'active' &&
+        guardian.Item?.institutionIds?.includes(inst) &&
+        guardian.Item?.personTypes?.includes('guardian')
+          ? guardian.Item
+          : null;
+      const profile = student.studentProfile || {};
+      const primary = guardianRecord;
+      return {
+        email: String(student.email || ''),
+        address: student.address || {},
+        sourceWebsiteRegistrationId: String(student.sourceWebsiteRegistrationId || ''),
+        studentProfile: {
+          dateOfBirth: String(profile.dateOfBirth || ''),
+          foodAllergies: profile.foodAllergies || {},
+          healthNotes: String(profile.healthNotes || ''),
+          emergencyContactOverride: profile.emergencyContactOverride || {},
+          preferredClassId: String(profile.preferredClassId || ''),
+          proposedStartDate: String(profile.proposedStartDate || ''),
+          contactPreferences: profile.contactPreferences || {},
+          srutiLearning: profile.srutiLearning || {},
+          mediaConsent: profile.mediaConsent || {},
+        },
+        familyContact: {
+          email: String(familyRecord?.email || primary?.email || ''),
+          phone: String(familyRecord?.phone || primary?.phone || ''),
+          address: familyRecord?.address || primary?.address || {},
+          emergencyContact: familyRecord?.emergencyContact || primary?.emergencyContact || {},
+          registrationNotes: String(familyRecord?.registrationNotes || ''),
+        },
+      };
+    },
     async familyContact(
       familyId: string,
       inst: InstitutionId,

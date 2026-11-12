@@ -42,6 +42,7 @@ type ResourceInput = {
   studentMessage?: string;
   objective?: string;
   duration?: string;
+  expectedOutcome?: string;
   versionLabel?: string;
   status?: 'draft' | 'published' | 'archived';
   mediaKey?: string;
@@ -101,6 +102,7 @@ function validate(
     'studentMessage',
     'objective',
     'duration',
+    'expectedOutcome',
   ];
   if (Object.keys(input).some((k) => !allowed.includes(k)))
     throw httpError(400, 'Unsupported resource field.');
@@ -129,6 +131,10 @@ function validate(
     typeof input.duration === 'string'
       ? cleanText(input.duration, 80)
       : cleanText(existing?.duration, 80);
+  const expectedOutcome =
+    typeof input.expectedOutcome === 'string'
+      ? input.expectedOutcome.trim().slice(0, 1200)
+      : String(existing?.expectedOutcome || '');
   if (
     !title ||
     !['syllabus', 'getting-started', 'practice', 'policies'].includes(category) ||
@@ -167,7 +173,7 @@ function validate(
     !url &&
     !mediaKey &&
     !hasExistingFile &&
-    !(category === 'syllabus' && (description || studentMessage || objective))
+    !(category === 'syllabus' && (description || studentMessage || objective || expectedOutcome))
   )
     throw httpError(400, 'Add syllabus content, a secure link or upload a file.');
   if (
@@ -190,7 +196,7 @@ function validate(
     url,
     classIds,
     ...(category === 'syllabus' && hasCurriculumFields
-      ? { programme, stage, levelNumber, studentMessage, objective, duration }
+      ? { programme, stage, levelNumber, studentMessage, objective, duration, expectedOutcome }
       : {}),
     ...(versionLabel ? { versionLabel } : {}),
     ...(status ? { status } : {}),
@@ -557,6 +563,7 @@ async function publicResource(r: any) {
     studentMessage: r.studentMessage || '',
     objective: r.objective || '',
     duration: r.duration || '',
+    expectedOutcome: r.expectedOutcome || '',
     fileName: r.fileName || '',
     mimeType: r.mimeType || '',
     fileSize: r.fileSize || 0,

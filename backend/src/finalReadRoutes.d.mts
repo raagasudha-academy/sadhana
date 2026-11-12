@@ -15,6 +15,11 @@ export type CanonicalReadDependencies = {
     institution: Institution,
     claims: RouteContext['claims'],
   ) => Promise<unknown>;
+  studentDetails: (
+    studentId: string,
+    institution: Institution,
+    claims: RouteContext['claims'],
+  ) => Promise<unknown>;
   audit: (institution: Institution) => Promise<unknown>;
   practice: (institution: Institution, studentId: string) => Promise<unknown>;
   profile: (sub: string) => Promise<{ name?: string; photoUrl?: string }>;

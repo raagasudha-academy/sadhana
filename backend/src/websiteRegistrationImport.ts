@@ -191,6 +191,9 @@ export async function importApprovedWebsiteRegistration(
   const parentName = str(guardian.fullName);
   const email = str(guardian.email).toLowerCase();
   const phone = str(guardian.phone);
+  const parentLocation = websiteLocation(
+    registration.preferredLocationId || guardian.preferredLocationId,
+  );
   if (!parentName || !emailOK(email) || !validPhone(phone))
     throw fail(
       422,
@@ -209,9 +212,11 @@ export async function importApprovedWebsiteRegistration(
       String(registration.primaryContactPersonId || ''),
     );
     // This is an administrative student record, NOT a verified portal identity.
+    const emailUsesGuardian =
+      !isAdult && (s.contactPreferences?.emailSource === 'guardian' || !str(p.email));
     const memberEmail = isAdult
       ? str(p.email).toLowerCase()
-      : s.contactPreferences?.emailSource === 'guardian'
+      : emailUsesGuardian
         ? email
         : str(p.email).toLowerCase();
     const memberPhone = isAdult
@@ -231,7 +236,7 @@ export async function importApprovedWebsiteRegistration(
       email: memberEmail,
       phone: memberPhone,
       adultConfirmed: isAdult,
-      location: websiteLocation(s.preferredLocationId || registration.preferredLocationId),
+      location: parentLocation || websiteLocation(s.preferredLocationId),
       relationship,
       foodAllergies: {
         status: allergy.status,
@@ -246,7 +251,14 @@ export async function importApprovedWebsiteRegistration(
       preferredClassId: str(s.preferredClassId),
       proposedStartDate: str(s.proposedStartDate),
       photo: s.photo ? { websiteRegistrationId: registrationId, personId: s.personId } : undefined,
-      contactPreferences: obj(s.contactPreferences),
+      contactPreferences: emailUsesGuardian
+        ? {
+            ...obj(s.contactPreferences),
+            emailSource: 'guardian',
+            guardianPersonId:
+              obj(s.contactPreferences).guardianPersonId || registration.primaryContactPersonId,
+          }
+        : obj(s.contactPreferences),
       // Preserve the address selected in the website intake form, including guardian inheritance.
       contactAddress:
         obj(s.contactPreferences).addressSource === 'guardian'
@@ -437,7 +449,7 @@ export async function importApprovedWebsiteRegistration(
     parentName,
     email,
     phone,
-    location: websiteLocation(registration.preferredLocationId),
+    location: parentLocation,
     familyNumber,
     version: 1,
     createdAt: now,
