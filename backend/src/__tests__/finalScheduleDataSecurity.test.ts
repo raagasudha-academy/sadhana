@@ -44,7 +44,7 @@ function make(rows: Record<string, Item[] | Item | null> = {}) {
         actions.push(input.TransactItems);
         for (const action of input.TransactItems) {
           if (!action.Delete) continue;
-          const entity = String(action.Delete.TableName).split('sadhana-dev-').at(-1)!;
+          const entity = String(action.Delete.TableName).split('dev-sadhana-').at(-1)!;
           const id = String(action.Delete.Key.classId ?? action.Delete.Key.sessionId);
           delete rows[`${entity}:${id}`];
           if (Array.isArray(rows[entity]))
@@ -54,8 +54,8 @@ function make(rows: Record<string, Item[] | Item | null> = {}) {
         }
         return {};
       }
-      const table = String(input.TableName).replace('sadhana-dev-audit-records', 'audit');
-      const entity = table.split('sadhana-dev-').at(-1)!;
+      const table = String(input.TableName).replace('dev-sadhana-audit-records', 'audit');
+      const entity = table.split('dev-sadhana-').at(-1)!;
       if (input.Key) {
         const id = String(input.Key.classId ?? input.Key.sessionId);
         return {

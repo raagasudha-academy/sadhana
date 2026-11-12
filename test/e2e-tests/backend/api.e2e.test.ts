@@ -75,10 +75,10 @@ function memoryDocumentClient() {
 
 /** Canonical-table memory double for the actual final-mode Lambda DELETE route. */
 function memoryCanonicalDocumentClient(data: Record<string, Row[]>) {
-  const table = (name: string) =>
-    name.replace(/^sadhana-dev-/, '') === 'audit-records'
-      ? 'audit'
-      : name.replace(/^sadhana-dev-/, '');
+  const table = (name: string) => {
+    const entity = name.replace(/^(?:dev-sadhana-|sadhana-dev-)/, '');
+    return entity === 'audit-records' ? 'audit' : entity;
+  };
   return {
     async send(command: any) {
       const name = command?.constructor?.name,

@@ -20,7 +20,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub 'sadhana-prod-portal-${AWS::AccountId}'
+      BucketName: !Sub 'prod-sadhana-portal-${AWS::AccountId}'
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -40,7 +40,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: !Sub 'sadhana-prod-portal-${AWS::AccountId}'
+        Name: !Sub 'prod-sadhana-portal-${AWS::AccountId}'
         Description: Restricts production portal asset access to its CloudFront distribution.
         OriginAccessControlOriginType: s3
         SigningBehavior: always
@@ -50,7 +50,7 @@ Resources:
     Type: AWS::CloudFront::ResponseHeadersPolicy
     Properties:
       ResponseHeadersPolicyConfig:
-        Name: !Sub 'sadhana-prod-portal-security-${AWS::AccountId}'
+        Name: !Sub 'prod-sadhana-portal-security-${AWS::AccountId}'
         Comment: Security headers for the Sadhana production portal.
         SecurityHeadersConfig:
           ContentTypeOptions:

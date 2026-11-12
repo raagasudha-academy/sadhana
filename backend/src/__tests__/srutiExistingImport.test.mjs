@@ -109,14 +109,14 @@ class MockTransactWriteCommand {
   }
 }
 const rows = () => ({
-  'sruti-dev-student-registrations': { [ref]: structuredClone(reg) },
-  'sadhana-dev-registrations': {},
-  'sadhana-dev-people': Object.fromEntries(
+  'dev-sruti-student-registrations': { [ref]: structuredClone(reg) },
+  'dev-sadhana-registrations': {},
+  'dev-sadhana-people': Object.fromEntries(
     [guardian, ...children].map((p) => [p.personId, structuredClone(p)]),
   ),
-  'sadhana-dev-families': { [family.familyId]: structuredClone(family) },
-  'sadhana-dev-family-links': Object.fromEntries(links.map((l) => [l.linkId, structuredClone(l)])),
-  'sadhana-dev-counters': {
+  'dev-sadhana-families': { [family.familyId]: structuredClone(family) },
+  'dev-sadhana-family-links': Object.fromEntries(links.map((l) => [l.linkId, structuredClone(l)])),
+  'dev-sadhana-counters': {
     'sruti#FAMILY_NUMBER': { counterId: 'sruti#FAMILY_NUMBER', lastAllocated: 2 },
     'sruti#STUDENT_ROLL': { counterId: 'sruti#STUDENT_ROLL', lastAllocated: 5 },
   },
@@ -181,13 +181,13 @@ test('execute atomically imports membership with verified relationships from the
     'sruti-child-1': 'RS-001',
     'sruti-child-2': 'RS-002',
   });
-  assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-people').length, 3);
+  assert.equal(tx.filter((w) => w.Put?.TableName === 'dev-sadhana-people').length, 3);
   const guardianMembership = tx.find(
-    (w) => w.Put?.TableName === 'sadhana-dev-people' && w.Put.Item.personId === guardian.personId,
+    (w) => w.Put?.TableName === 'dev-sadhana-people' && w.Put.Item.personId === guardian.personId,
   );
   assert.deepEqual(guardianMembership.Put.Item.institutionIds, ['raaga', 'sruti']);
   const createdLinks = tx
-    .filter((w) => w.Put?.TableName === 'sadhana-dev-family-links')
+    .filter((w) => w.Put?.TableName === 'dev-sadhana-family-links')
     .map((w) => w.Put.Item);
   assert.equal(createdLinks.length, 2);
   assert(
@@ -200,12 +200,12 @@ test('execute atomically imports membership with verified relationships from the
         x.reviewedBy === 'actor-123',
     ),
   );
-  assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-registrations').length, 1);
+  assert.equal(tx.filter((w) => w.Put?.TableName === 'dev-sadhana-registrations').length, 1);
   assert.equal(
-    tx.filter((w) => w.Update?.TableName === 'sruti-dev-student-registrations').length,
+    tx.filter((w) => w.Update?.TableName === 'dev-sruti-student-registrations').length,
     1,
   );
-  assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-audit-records').length, 1);
+  assert.equal(tx.filter((w) => w.Put?.TableName === 'dev-sadhana-audit-records').length, 1);
   assert.ok(tx.every((w) => w.Put?.ConditionExpression || w.Update?.ConditionExpression));
 });
 test('wrong existing child mapping is blocked before any writes', async () => {
@@ -219,7 +219,7 @@ test('wrong existing child mapping is blocked before any writes', async () => {
 });
 test('unverified Raagasudha link cannot be treated as identity proof', async () => {
   const db = mockDb();
-  db.data['sadhana-dev-family-links'][links[0].linkId].relationshipVerified = false;
+  db.data['dev-sadhana-family-links'][links[0].linkId].relationshipVerified = false;
   await assert.rejects(
     srutiExistingIdentityImport(db, ref, 'actor-123', body, true),
     /independently verified/i,
@@ -228,7 +228,7 @@ test('unverified Raagasudha link cannot be treated as identity proof', async () 
 });
 test('duplicate Sruti membership is refused', async () => {
   const db = mockDb();
-  db.data['sadhana-dev-people'][children[0].personId].institutionIds.push('sruti');
+  db.data['dev-sadhana-people'][children[0].personId].institutionIds.push('sruti');
   await assert.rejects(
     srutiExistingIdentityImport(db, ref, 'actor-123', body, true),
     /identity\/academy/i,
@@ -237,7 +237,7 @@ test('duplicate Sruti membership is refused', async () => {
 });
 test('incorrect date of birth blocks cross-academy mapping', async () => {
   const db = mockDb();
-  db.data['sadhana-dev-people'][children[0].personId].studentProfile.dateOfBirth = '2018-01-01';
+  db.data['dev-sadhana-people'][children[0].personId].studentProfile.dateOfBirth = '2018-01-01';
   await assert.rejects(
     srutiExistingIdentityImport(db, ref, 'actor-123', body, true),
     /date-of-birth/i,
@@ -246,8 +246,8 @@ test('incorrect date of birth blocks cross-academy mapping', async () => {
 });
 test('successful prior import is idempotent only with identical mapping', async () => {
   const db = mockDb();
-  db.data['sruti-dev-student-registrations'][ref].importStatus = 'imported';
-  db.data['sadhana-dev-registrations'][markerId('sruti', ref)] = {
+  db.data['dev-sruti-student-registrations'][ref].importStatus = 'imported';
+  db.data['dev-sadhana-registrations'][markerId('sruti', ref)] = {
     registrationId: markerId('sruti', ref),
     institutionId: 'sruti',
     externalRegistrationId: ref,
@@ -279,8 +279,8 @@ test('successful prior import is idempotent only with identical mapping', async 
 
 test('an old-format roll requires migration rather than allocating a second number', async () => {
   const db = mockDb();
-  delete db.data['sadhana-dev-people'][children[0].personId].studentProfile.rollNumber;
-  db.data['sadhana-dev-people'][children[0].personId].studentProfile.rollNumbers = {
+  delete db.data['dev-sadhana-people'][children[0].personId].studentProfile.rollNumber;
+  db.data['dev-sadhana-people'][children[0].personId].studentProfile.rollNumbers = {
     raaga: '001-001',
   };
   await assert.rejects(

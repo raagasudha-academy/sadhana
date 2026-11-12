@@ -40,11 +40,11 @@ Conditions:
 Mappings:
   StageTables:
     dev:
-      SrutiSource: sruti-dev-student-registrations
+      SrutiSource: dev-sruti-student-registrations
     staging:
-      SrutiSource: sruti-staging-student-registrations
+      SrutiSource: staging-sruti-student-registrations
     prod:
-      SrutiSource: sruti-student-registrations
+      SrutiSource: prod-sruti-student-registrations
 
 Resources:
   SadhanaHomeworkMedia:
@@ -52,7 +52,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub 'sadhana-${Stage}-homework-media-${AWS::AccountId}-${AWS::Region}'
+      BucketName: !Sub '${Stage}-sadhana-homework-media-${AWS::AccountId}-${AWS::Region}'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -92,7 +92,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: !Sub sadhana-${Stage}-main
+      TableName: !Sub ${Stage}-sadhana-main
       BillingMode: PAY_PER_REQUEST
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: !If [UsePitr, true, false]
@@ -126,7 +126,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub 'sadhana-${Stage}-profile-photos-${AWS::AccountId}-${AWS::Region}'
+      BucketName: !Sub '${Stage}-sadhana-profile-photos-${AWS::AccountId}-${AWS::Region}'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -143,6 +143,7 @@ Resources:
   SadhanaApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      ApiName: !Sub '${Stage}-sadhana-api'
       StageName: !Ref Stage
       CorsConfiguration:
         AllowOrigins: !Ref AllowedPortalOrigins
@@ -171,6 +172,7 @@ Resources:
         Minify: false
         Sourcemap: false
     Properties:
+      FunctionName: !Sub '${Stage}-sadhana-api'
       Runtime: nodejs22.x
       Handler: src/lambda.handler
 
@@ -182,7 +184,7 @@ Resources:
           SADHANA_TABLE_NAME: !If
             - CreateAggregateTable
             - !Ref SadhanaTable
-            - !Sub 'sadhana-${Stage}-main'
+            - !Sub '${Stage}-sadhana-main'
           SADHANA_ENTITY_STAGE: !Ref Stage
           SRUTI_SOURCE_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiSource]
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
@@ -207,13 +209,13 @@ Resources:
                 - !If
                   - CreateAggregateTable
                   - !GetAtt SadhanaTable.Arn
-                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-main'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-main'
                 - !If
                   - CreateAggregateTable
                   - !Sub '${SadhanaTable.Arn}/index/*'
-                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-main/index/*'
-                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-*'
-                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-*/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-main/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-*/index/*'
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
@@ -273,4 +275,4 @@ Outputs:
     Description: Cognito-protected API base URL; NOT PUBLIC DATA ACCESS
     Value: !Sub https://${SadhanaApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/api
   TableName:
-    Value: !If [CreateAggregateTable, !Ref SadhanaTable, !Sub 'sadhana-${Stage}-main']
+    Value: !If [CreateAggregateTable, !Ref SadhanaTable, !Sub '${Stage}-sadhana-main']

@@ -107,7 +107,7 @@ test('valid registration conditionally writes one M9 record and returns a small 
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
       SADHANA_ENTITY_STAGE: 'prod',
-      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'sruti-student-registrations',
+      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'prod-sruti-student-registrations',
     },
     async () => {
       const commands: any[] = [];
@@ -124,7 +124,7 @@ test('valid registration conditionally writes one M9 record and returns a small 
       assert.match(body.registrationId, /^SR-2026-[A-F0-9]{6}$/);
       assert.equal(commands.length, 1);
       assert.ok(commands[0] instanceof PutCommand);
-      assert.equal(commands[0].input.TableName, 'sruti-student-registrations');
+      assert.equal(commands[0].input.TableName, 'prod-sruti-student-registrations');
       assert.equal(commands[0].input.ConditionExpression, 'attribute_not_exists(registrationId)');
       assert.equal(commands[0].input.Item.institutionId, 'sruti');
       assert.equal(commands[0].input.Item.reviewStatus, 'pending');
@@ -136,7 +136,7 @@ test('dev intake remains disabled even if its enable flag is set', async () =>
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
       SADHANA_ENTITY_STAGE: 'dev',
-      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'sruti-dev-student-registrations',
+      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'dev-sruti-student-registrations',
     },
     async () => {
       let calls = 0;
@@ -165,7 +165,7 @@ test('repeated collisions and storage errors fail closed without logging registr
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
       SADHANA_ENTITY_STAGE: 'prod',
-      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'sruti-student-registrations',
+      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'prod-sruti-student-registrations',
     },
     async () => {
       const original = console.error;

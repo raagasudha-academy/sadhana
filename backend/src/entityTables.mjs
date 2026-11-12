@@ -38,5 +38,7 @@ export function entityTable(entity, options = {}) {
       throw new Error('Final entity tables blocked: explicit cutover approval is missing');
   }
   const suffix = set === 'final' ? (entity === 'audit' ? 'audit-records' : entity) : `m9-${entity}`;
-  return `sadhana-${stage}-${suffix}`;
+  // Keep the deployed M9 router on its existing physical tables until its
+  // separately gated cutover; canonical final tables use env-first names.
+  return set === 'm9' ? `sadhana-${stage}-${suffix}` : `${stage}-sadhana-${suffix}`;
 }

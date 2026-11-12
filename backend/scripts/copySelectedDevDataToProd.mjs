@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** One-time, additive copy of approved Sadhana dev reference data into prod.
- * Reads canonical sadhana-dev tables only. Never reads learner/family/registration
+ * Reads canonical dev-sadhana tables only. Never reads learner/family/registration
  * tables, never copies Cognito subjects, and never overwrites or deletes prod rows.
  */
 import { createHash } from 'node:crypto';
@@ -17,26 +17,26 @@ const ACCOUNT = '627821644317';
 const ACK = 'COPY_SELECTED_DEV_DATA_TO_PROD';
 const INSTITUTIONS = new Set(['raaga', 'sruti', 'shared']);
 const TABLES = Object.freeze({
-  classes: { source: 'sadhana-dev-classes', target: 'sadhana-prod-classes', key: 'classId' },
-  sessions: { source: 'sadhana-dev-sessions', target: 'sadhana-prod-sessions', key: 'sessionId' },
-  venues: { source: 'sadhana-dev-venues', target: 'sadhana-prod-venues', key: 'venueId' },
-  events: { source: 'sadhana-dev-events', target: 'sadhana-prod-events', key: 'eventId' },
-  people: { source: 'sadhana-dev-people', target: 'sadhana-prod-people', key: 'personId' },
+  classes: { source: 'dev-sadhana-classes', target: 'prod-sadhana-classes', key: 'classId' },
+  sessions: { source: 'dev-sadhana-sessions', target: 'prod-sadhana-sessions', key: 'sessionId' },
+  venues: { source: 'dev-sadhana-venues', target: 'prod-sadhana-venues', key: 'venueId' },
+  events: { source: 'dev-sadhana-events', target: 'prod-sadhana-events', key: 'eventId' },
+  people: { source: 'dev-sadhana-people', target: 'prod-sadhana-people', key: 'personId' },
 });
 const ALL_PROD_ENTITY_TABLES = Object.freeze([
-  'sadhana-prod-institutions',
-  'sadhana-prod-families',
-  'sadhana-prod-family-links',
-  'sadhana-prod-enrolments',
-  'sadhana-prod-attendance',
-  'sadhana-prod-practice',
-  'sadhana-prod-homework',
-  'sadhana-prod-submissions',
-  'sadhana-prod-rsvps',
-  'sadhana-prod-registrations',
-  'sadhana-prod-notifications',
-  'sadhana-prod-audit-records',
-  'sadhana-prod-counters',
+  'prod-sadhana-institutions',
+  'prod-sadhana-families',
+  'prod-sadhana-family-links',
+  'prod-sadhana-enrolments',
+  'prod-sadhana-attendance',
+  'prod-sadhana-practice',
+  'prod-sadhana-homework',
+  'prod-sadhana-submissions',
+  'prod-sadhana-rsvps',
+  'prod-sadhana-registrations',
+  'prod-sadhana-notifications',
+  'prod-sadhana-audit-records',
+  'prod-sadhana-counters',
 ]);
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
   marshallOptions: { removeUndefinedValues: true },
@@ -436,8 +436,8 @@ async function buildPlan() {
     summary: {
       readOnly: true,
       account,
-      source: 'canonical sadhana-dev tables',
-      destination: 'sadhana-prod tables',
+      source: 'canonical dev-sadhana tables',
+      destination: 'prod-sadhana tables',
       recordCounts: Object.fromEntries(
         Object.entries(selected.output).map(([table, rows]) => [table, rows.length]),
       ),
@@ -488,14 +488,14 @@ async function targetPlan(plan) {
     if ((await scan(tableName)).length !== 0)
       fail(`${tableName} contains data outside the approved copy scope; no records were written.`);
   }
-  const srutiSource = await describe('sruti-student-registrations');
+  const srutiSource = await describe('prod-sruti-student-registrations');
   if (
     srutiSource.table.TableStatus !== 'ACTIVE' ||
     srutiSource.table.DeletionProtectionEnabled !== true ||
     srutiSource.pitr !== 'ENABLED'
   )
     fail('Prod Sruti source table is not ACTIVE with deletion protection and PITR.');
-  if ((await scan('sruti-student-registrations')).length !== 0)
+  if ((await scan('prod-sruti-student-registrations')).length !== 0)
     fail('Prod Sruti source table is not empty; no records were written.');
   return targets;
 }

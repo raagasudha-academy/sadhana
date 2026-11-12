@@ -58,7 +58,7 @@ function fixture() {
       if (op === 'TransactWriteCommand')
         throw Error('No destructive transaction should be attempted');
       const tableName = cmd.input.TableName;
-      const entity = tableName.replace(/^sadhana-dev-/, '').replace(/^audit-records$/, 'audit');
+      const entity = tableName.replace(/^dev-sadhana-/, '').replace(/^audit-records$/, 'audit');
       if (op === 'GetCommand')
         return {
           Item: (data[entity] || []).find((row) =>

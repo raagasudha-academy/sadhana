@@ -74,7 +74,7 @@ test('confirmed invited Sruti parent links transactionally with the reserved sou
           if (key.counterId?.startsWith('COGNITO_SUB#')) return {};
         }
         if (command instanceof QueryCommand) {
-          assert.equal(command.input.TableName, 'sadhana-dev-people');
+          assert.equal(command.input.TableName, 'dev-sadhana-people');
           assert.equal(command.input.IndexName, 'CognitoIdentityIndex');
           assert.equal(command.input.ExpressionAttributeValues?.[':value'], subject);
           return { Items: [] };
@@ -111,7 +111,7 @@ test('confirmed invited Sruti parent links transactionally with the reserved sou
     const linked = await reader.linkInvitedSrutiParent(subject);
     assert.equal(linked?.cognitoSub, subject);
     const registrationUpdate = transaction.find(
-      (action) => action.Update?.TableName === 'sadhana-dev-registrations',
+      (action) => action.Update?.TableName === 'dev-sadhana-registrations',
     )?.Update;
     assert.match(registrationUpdate.ConditionExpression, /#source=:source/);
     assert.equal(registrationUpdate.ExpressionAttributeNames['#source'], 'source');

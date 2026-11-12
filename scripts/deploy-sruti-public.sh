@@ -11,9 +11,8 @@ REGION=us-east-1
 ACCOUNT=627821644317
 STAGE="${SADHANA_STAGE:-dev}"
 case "$STAGE" in dev|staging|prod) ;; *) echo 'SADHANA_STAGE must be dev, staging, or prod' >&2; exit 2;; esac
-STACK="sadhana-${STAGE}-sruti-public-intake"
-TABLE="sruti-${STAGE}-student-registrations"
-[[ "$STAGE" == prod ]] && TABLE=sruti-student-registrations
+STACK="${STAGE}-sadhana-sruti-public-intake"
+TABLE="${STAGE}-sruti-student-registrations"
 if [[ "$MODE" == --enable && "$STAGE" != prod ]]; then
   echo 'Live public registration intake can only be enabled for prod; dev accepts sanitized test records through controlled seeding.' >&2
   exit 2
@@ -44,7 +43,7 @@ WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 cp /tmp/sadhana-sruti-intake-index.mjs "$WORK/index.mjs"
 (cd "$WORK" && zip -q intake.zip index.mjs)
 KEY="sruti-intake/$(shasum -a 256 "$WORK/intake.zip" | awk '{print $1}').zip"
-BUCKET="sadhana-${STAGE}-intake-deploy-${ACCOUNT}-${REGION}"
+BUCKET="${STAGE}-sadhana-intake-deploy-${ACCOUNT}-${REGION}"
 if ! aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
   aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" >/dev/null
   aws s3api put-public-access-block --bucket "$BUCKET" --region "$REGION" --public-access-block-configuration 'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'

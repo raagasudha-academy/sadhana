@@ -4,7 +4,7 @@ Description: Invitation-only Sadhana production staff identity and OAuth client.
 Parameters:
   CognitoDomainPrefix:
     Type: String
-    Default: sadhana-prod-627821644317
+    Default: prod-sadhana-627821644317
     Description: Globally unique managed Cognito login domain prefix.
   PortalDomains:
     Type: CommaDelimitedList
@@ -17,7 +17,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      UserPoolName: sadhana-prod-staff
+      UserPoolName: prod-sadhana-staff
       DeletionProtection: ACTIVE
       UsernameAttributes: [email]
       AutoVerifiedAttributes: [email]

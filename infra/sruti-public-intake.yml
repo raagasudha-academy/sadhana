@@ -15,7 +15,7 @@ Parameters:
     AllowedValues: [disabled, enabled]
   SourceTableName:
     Type: String
-    Default: sruti-dev-student-registrations
+    Default: dev-sruti-student-registrations
 Resources:
   IntakeRole:
     Type: AWS::IAM::Role
@@ -39,6 +39,7 @@ Resources:
   IntakeFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: !Sub '${Stage}-sruti-public-intake'
       Runtime: nodejs22.x
       Architectures: [arm64]
       Handler: index.handler
@@ -60,7 +61,7 @@ Resources:
   IntakeApi:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: !Sub 'sadhana-${Stage}-sruti-public-intake'
+      Name: !Sub '${Stage}-sadhana-sruti-public-intake'
       Description: 'Public registration intake only - no admin or read endpoints'
       EndpointConfiguration: { Types: [REGIONAL] }
       DisableExecuteApiEndpoint: false
@@ -124,7 +125,7 @@ Resources:
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
-      Name: !Sub 'sadhana-${Stage}-sruti-intake-waf'
+      Name: !Sub '${Stage}-sadhana-sruti-intake-waf'
       Scope: REGIONAL
       DefaultAction: { Allow: {} }
       VisibilityConfig:

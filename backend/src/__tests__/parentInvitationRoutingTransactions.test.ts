@@ -121,14 +121,14 @@ for (const institution of ['raaga', 'sruti'] as const) {
       )?.Put;
 
       assert.ok(route, 'Initial invitation must create email route');
-      assert.equal(route.TableName, 'sadhana-dev-counters');
+      assert.equal(route.TableName, 'dev-sadhana-counters');
       assert.equal(route.Item.counterId, `EMAIL_ROUTE#${username}`);
       assert.equal(route.Item.institutionId, institution);
       assert.equal(route.Item.recipientEmail, email);
       assert.equal(route.Item.status, 'pending');
       assert.match(route.ConditionExpression, /attribute_not_exists/);
-      assert.ok(initial.some((action) => action.Update?.TableName === 'sadhana-dev-registrations'));
-      assert.ok(initial.some((action) => action.Put?.TableName === 'sadhana-dev-audit-records'));
+      assert.ok(initial.some((action) => action.Update?.TableName === 'dev-sadhana-registrations'));
+      assert.ok(initial.some((action) => action.Put?.TableName === 'dev-sadhana-audit-records'));
 
       const invited = {
         ...registration,
@@ -141,12 +141,12 @@ for (const institution of ['raaga', 'sruti'] as const) {
       await service.resend(invited, guardian, 'admin-test');
 
       const resend = transactions.find((actions) =>
-        actions.some((action) => action.Update?.TableName === 'sadhana-dev-counters'),
+        actions.some((action) => action.Update?.TableName === 'dev-sadhana-counters'),
       );
 
       assert.ok(resend, 'Resend must reserve email route');
       const update = resend.find(
-        (action) => action.Update?.TableName === 'sadhana-dev-counters',
+        (action) => action.Update?.TableName === 'dev-sadhana-counters',
       ).Update;
 
       assert.equal(update.Key.counterId, `EMAIL_ROUTE#${username}`);
@@ -155,7 +155,7 @@ for (const institution of ['raaga', 'sruti'] as const) {
       assert.match(update.ConditionExpression, /attribute_not_exists/);
       assert.match(update.ConditionExpression, /recipientEmail=:email/);
       assert.match(update.ConditionExpression, /#status=:pending/);
-      assert.ok(resend.some((action) => action.Put?.TableName === 'sadhana-dev-audit-records'));
+      assert.ok(resend.some((action) => action.Put?.TableName === 'dev-sadhana-audit-records'));
     } finally {
       for (const key of keys) {
         if (previous[key] === undefined) delete process.env[key];

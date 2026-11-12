@@ -68,7 +68,7 @@ test('assigned teacher archives homework atomically and records audit without de
     const actions = f.tx[0];
     assert.equal(actions.length, 4);
     const update = actions.find((a: any) => a.Update)?.Update;
-    assert.match(update.TableName, /sadhana-dev-homework$/);
+    assert.match(update.TableName, /dev-sadhana-homework$/);
     assert.match(update.ConditionExpression, /classId=:class/);
     assert.match(update.UpdateExpression, /#status=:archived/);
     assert.equal(

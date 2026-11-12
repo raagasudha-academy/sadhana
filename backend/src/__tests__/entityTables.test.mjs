@@ -55,9 +55,9 @@ test('approved canonical names include the audit-records exception', () =>
       SADHANA_ENTITY_FINAL_ACK: 'enabled',
     },
     () => {
-      assert.equal(entityTable('audit'), 'sadhana-dev-audit-records');
-      assert.equal(entityTable('classes'), 'sadhana-dev-classes');
-      assert.equal(entityTable('family-links'), 'sadhana-dev-family-links');
+      assert.equal(entityTable('audit'), 'dev-sadhana-audit-records');
+      assert.equal(entityTable('classes'), 'dev-sadhana-classes');
+      assert.equal(entityTable('family-links'), 'dev-sadhana-family-links');
     },
   ));
 

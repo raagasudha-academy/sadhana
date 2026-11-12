@@ -34,7 +34,7 @@ function store(extra = {}) {
       const name =
         cmd.constructor.name === 'TransactWriteCommand'
           ? ''
-          : cmd.input.TableName.replace(/^sadhana-dev-/, '');
+          : cmd.input.TableName.replace(/^dev-sadhana-/, '');
       const entity = name === 'audit-records' ? 'audit' : name;
       if (cmd.constructor.name === 'GetCommand')
         return {
@@ -53,7 +53,7 @@ function store(extra = {}) {
       if (cmd.constructor.name === 'TransactWriteCommand') {
         for (const item of cmd.input.TransactItems) {
           const action = item.Delete || item.Put || item.Update,
-            tableName = action.TableName.replace(/^sadhana-dev-/, '');
+            tableName = action.TableName.replace(/^dev-sadhana-/, '');
           const e = tableName === 'audit-records' ? 'audit' : tableName;
           if (item.Delete || item.Update) {
             const row = (data[e] || []).find((r) =>
@@ -67,13 +67,13 @@ function store(extra = {}) {
         for (const item of cmd.input.TransactItems) {
           if (item.Delete) {
             const action = item.Delete,
-              e = action.TableName.replace(/^sadhana-dev-/, '');
+              e = action.TableName.replace(/^dev-sadhana-/, '');
             data[e] = data[e].filter(
               (row) => !Object.entries(action.Key).every(([k, v]) => row[k] === v),
             );
           } else if (item.Update) {
             const action = item.Update,
-              e = action.TableName.replace(/^sadhana-dev-/, '');
+              e = action.TableName.replace(/^dev-sadhana-/, '');
             const row = data[e].find((r) =>
               Object.entries(action.Key).every(([k, v]) => r[k] === v),
             );
@@ -94,9 +94,9 @@ function store(extra = {}) {
           } else {
             const action = item.Put,
               e =
-                action.TableName.replace(/^sadhana-dev-/, '') === 'audit-records'
+                action.TableName.replace(/^dev-sadhana-/, '') === 'audit-records'
                   ? 'audit'
-                  : action.TableName.replace(/^sadhana-dev-/, '');
+                  : action.TableName.replace(/^dev-sadhana-/, '');
             (data[e] ||= []).push(action.Item);
           }
         }
