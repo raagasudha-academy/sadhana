@@ -4,6 +4,14 @@ export default defineConfig({
   fullyParallel: true,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
+  expect: {
+    toHaveScreenshot: {
+      // Local snapshots are captured on macOS 27; GitHub's macOS runner may
+      // rasterize system fonts slightly differently. Keep visual checks strict
+      // while allowing small platform-only pixel drift.
+      maxDiffPixelRatio: 0.011,
+    },
+  },
   use: {
     baseURL: 'http://127.0.0.1:4179',
     trace: 'retain-on-failure',
