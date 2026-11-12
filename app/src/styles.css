@@ -5584,6 +5584,12 @@ input:focus-visible {
 .reg-filter-section > summary::-webkit-details-marker {
   display: none;
 }
+.reg-filter-selection-summary {
+  color: #748199;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: auto;
+}
 .reg-filter-section > summary::after {
   content: '⌄';
   color: #748199;

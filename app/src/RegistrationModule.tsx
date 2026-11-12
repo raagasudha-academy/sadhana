@@ -1,7 +1,7 @@
 import CascadeDeleteControl from './CascadeDeleteControl';
 import { DirectoryDataMenu, StudentCardBadges } from './DirectoryComponents';
 import { persistArchiveState } from './archiveLifecycle';
-import { filterStudentsByLocation, sortDirectoryStudents } from './directorySelectors';
+import { sortDirectoryStudents } from './directorySelectors';
 import './registrationUxPolish.css';
 import './registrationFamilyCards.css';
 import './quickUnenrol.css';
@@ -80,6 +80,35 @@ const ageFromDateOfBirth = (value: unknown) => {
   if (month < today.getMonth() + 1 || (month === today.getMonth() + 1 && day < today.getDate()))
     age--;
   return age >= 0 && age < 125 ? String(age) : '';
+};
+
+const parseStatusFilters = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+  if (typeof value !== 'string' || !value || value === 'All') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed))
+      return parsed.filter((item): item is string => typeof item === 'string');
+  } catch {
+    // Older saved values stored a single status such as "Active".
+  }
+  return [value];
+};
+
+const toggleFilterValue = (
+  selected: string[],
+  value: string,
+  checked: boolean,
+  allValues: string[],
+) => {
+  const next = checked
+    ? selected.includes(value)
+      ? selected
+      : [...selected, value]
+    : selected.filter((item) => item !== value);
+  return checked && allValues.length > 0 && allValues.every((item) => next.includes(item))
+    ? []
+    : next;
 };
 
 const displayAddress = (value: any) => {
@@ -239,12 +268,12 @@ export default function RegistrationModule({
     }
   });
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState(() => {
+  const [filter, setFilter] = useState<string[]>(() => {
     try {
-      if (initialFilter !== undefined) return initialFilter;
-      return sessionStorage.getItem(`sadhana:registration:${workspace}:filter`) || 'All';
+      if (initialFilter !== undefined) return parseStatusFilters(initialFilter);
+      return parseStatusFilters(sessionStorage.getItem(`sadhana:registration:${workspace}:filter`));
     } catch {
-      return 'All';
+      return [];
     }
   });
   const [view, setView] = useState<'list' | 'table'>(() => {
@@ -262,8 +291,8 @@ export default function RegistrationModule({
   // v096-table-sort-marker: presentation-only controls, never modify persisted records.
   const [tableSort, setTableSort] = useState<'roll' | 'name'>('roll');
   const [tableDirection, setTableDirection] = useState<'asc' | 'desc'>('asc');
-  const [tableLocation, setTableLocation] = useState('All');
-  const [directoryClass, setDirectoryClass] = useState('All');
+  const [tableLocation, setTableLocation] = useState<string[]>([]);
+  const [directoryClass, setDirectoryClass] = useState<string[]>([]);
   const [showAllFields, setShowAllFields] = useState(false);
   const [studentDetails, setStudentDetails] = useState<Record<string, any>>({});
   const [detailsError, setDetailsError] = useState('');
@@ -277,7 +306,10 @@ export default function RegistrationModule({
   useEffect(() => {
     try {
       sessionStorage.setItem(`sadhana:registration:${workspace}:area`, area);
-      sessionStorage.setItem(`sadhana:registration:${workspace}:filter`, filter);
+      sessionStorage.setItem(
+        `sadhana:registration:${workspace}:filter`,
+        filter.length ? JSON.stringify(filter) : 'All',
+      );
       sessionStorage.setItem(`sadhana:registration:${workspace}:view`, view);
     } catch {
       /* private mode */
@@ -648,7 +680,7 @@ export default function RegistrationModule({
       .includes(query.toLowerCase());
     const statuses = scoped.filter((e) => e.studentId === m.id).map(getEnrolmentStatus);
     const status = studentStatus(m);
-    return matches && (filter === 'All' || filter === status);
+    return matches && (!filter.length || filter.includes(status));
   });
   const tableLocations = Array.from(
     new Set<string>(
@@ -660,11 +692,20 @@ export default function RegistrationModule({
   ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   const classFilteredStudents = visibleStudents.filter(
     (m) =>
-      directoryClass === 'All' ||
-      scoped.some((e) => e.studentId === m.id && e.classId === directoryClass && !e.archived),
+      !directoryClass.length ||
+      scoped.some((e) => e.studentId === m.id && directoryClass.includes(e.classId) && !e.archived),
   );
   const tableStudents = sortDirectoryStudents(
-    filterStudentsByLocation(classFilteredStudents, tableLocation, locationFor),
+    classFilteredStudents.filter(
+      (student) =>
+        !tableLocation.length ||
+        tableLocation.some(
+          (location) =>
+            String(locationFor(student) || '')
+              .trim()
+              .toLocaleLowerCase() === location.trim().toLocaleLowerCase(),
+        ),
+    ),
     tableSort,
     tableDirection,
     studentLabel,
@@ -728,17 +769,20 @@ export default function RegistrationModule({
     )
     .filter(
       (f) =>
-        (tableLocation === 'All' ||
-          String(f.location || '')
-            .trim()
-            .toLocaleLowerCase() === tableLocation.toLocaleLowerCase()) &&
+        (!tableLocation.length ||
+          tableLocation.some(
+            (location) =>
+              String(f.location || '')
+                .trim()
+                .toLocaleLowerCase() === location.toLocaleLowerCase(),
+          )) &&
         `${f.parentName} ${f.location || ''} ${f.id} ${familyLabel(f)} ${members
           .filter((m) => m.familyId === f.id)
           .map((m) => m.name)
           .join(' ')}`
           .toLowerCase()
           .includes(query.toLowerCase()) &&
-        (filter === 'All' || familyStatus(f) === filter),
+        (!filter.length || filter.includes(familyStatus(f))),
     );
   const openEnrol = (studentId = '', classId = '') => {
     setNewEnrolStudents([]);
@@ -850,7 +894,7 @@ export default function RegistrationModule({
         setFamilyFocus(null);
         setArea('students');
         setQuery('');
-        setFilter('All');
+        setFilter([]);
       },
     );
   const updateRecord = (
@@ -886,7 +930,7 @@ export default function RegistrationModule({
         setStudentFocus(null);
         setArea('families');
         setQuery('');
-        setFilter('All');
+        setFilter([]);
       },
     );
   const [archiveTarget, setArchiveTarget] = useState<any>(null);
@@ -1025,9 +1069,9 @@ export default function RegistrationModule({
                   onClick={() => {
                     setArea('students');
                     setQuery('');
-                    setFilter('All');
-                    setTableLocation('All');
-                    setDirectoryClass('All');
+                    setFilter([]);
+                    setTableLocation([]);
+                    setDirectoryClass([]);
                   }}
                 >
                   Students
@@ -1037,9 +1081,9 @@ export default function RegistrationModule({
                   onClick={() => {
                     setArea('families');
                     setQuery('');
-                    setFilter('All');
-                    setTableLocation('All');
-                    setDirectoryClass('All');
+                    setFilter([]);
+                    setTableLocation([]);
+                    setDirectoryClass([]);
                   }}
                 >
                   Family & Relationships
@@ -1072,31 +1116,61 @@ export default function RegistrationModule({
                 <details className="reg-combined-filters">
                   <summary aria-label="Status, class and location filters">
                     <Filter size={15} /> Filters
-                    {filter !== 'All' || tableLocation !== 'All' || directoryClass !== 'All'
+                    {filter.length || tableLocation.length || directoryClass.length
                       ? ' · Active'
                       : ''}
                   </summary>
                   <div className="reg-combined-filter-panel">
                     <details className="reg-filter-section" open>
-                      <summary>Status</summary>
+                      <summary>
+                        <span>Status</span>
+                        <span className="reg-filter-selection-summary">
+                          {filter.length ? `${filter.length} selected` : 'All statuses'}
+                        </span>
+                      </summary>
                       <fieldset>
                         <legend>Status</legend>
-                        {['All', 'Active', 'Upcoming', 'Registered', 'Archived'].map((v) => (
+                        <label>
+                          <input
+                            type="checkbox"
+                            name="directory-status"
+                            checked={filter.length === 0}
+                            onChange={() => setFilter([])}
+                          />
+                          All statuses
+                        </label>
+                        {['Active', 'Upcoming', 'Registered', 'Archived'].map((v) => (
                           <label key={v}>
                             <input
-                              type="radio"
+                              type="checkbox"
                               name="directory-status"
-                              checked={filter === v}
-                              onChange={() => setFilter(v)}
+                              checked={filter.includes(v)}
+                              onChange={(event) =>
+                                setFilter((selected) =>
+                                  toggleFilterValue(selected, v, event.target.checked, [
+                                    'Active',
+                                    'Upcoming',
+                                    'Registered',
+                                    'Archived',
+                                  ]),
+                                )
+                              }
                             />
-                            {v === 'All' ? 'All statuses' : v}
+                            {v}
                           </label>
                         ))}
                       </fieldset>
                     </details>
                     {area === 'students' && (
                       <details className="reg-filter-section">
-                        <summary>Class</summary>
+                        <summary>
+                          <span>Class</span>
+                          <span className="reg-filter-selection-summary">
+                            {directoryClass.length
+                              ? `${directoryClass.length} selected`
+                              : 'All classes'}
+                          </span>
+                        </summary>
                         <fieldset>
                           <legend>Class</legend>
                           {[
@@ -1105,10 +1179,25 @@ export default function RegistrationModule({
                           ].map((c) => (
                             <label key={c.id}>
                               <input
-                                type="radio"
+                                type="checkbox"
                                 name="directory-class"
-                                checked={directoryClass === c.id}
-                                onChange={() => setDirectoryClass(c.id)}
+                                checked={
+                                  c.id === 'All'
+                                    ? directoryClass.length === 0
+                                    : directoryClass.includes(c.id)
+                                }
+                                onChange={(event) =>
+                                  c.id === 'All'
+                                    ? setDirectoryClass([])
+                                    : setDirectoryClass((selected) =>
+                                        toggleFilterValue(
+                                          selected,
+                                          c.id,
+                                          event.target.checked,
+                                          classes.map((item: any) => item.id),
+                                        ),
+                                      )
+                                }
                               />
                               {c.name}
                             </label>
@@ -1117,17 +1206,39 @@ export default function RegistrationModule({
                       </details>
                     )}
                     <details className="reg-filter-section">
-                      <summary>Location</summary>
+                      <summary>
+                        <span>Location</span>
+                        <span className="reg-filter-selection-summary">
+                          {tableLocation.length
+                            ? `${tableLocation.length} selected`
+                            : 'All locations'}
+                        </span>
+                      </summary>
                       <fieldset>
                         <legend>Location</legend>
                         {['All', ...(area === 'families' ? familyLocations : tableLocations)].map(
                           (loc) => (
                             <label key={loc}>
                               <input
-                                type="radio"
+                                type="checkbox"
                                 name="directory-location"
-                                checked={tableLocation === loc}
-                                onChange={() => setTableLocation(loc)}
+                                checked={
+                                  loc === 'All'
+                                    ? tableLocation.length === 0
+                                    : tableLocation.includes(loc)
+                                }
+                                onChange={(event) =>
+                                  loc === 'All'
+                                    ? setTableLocation([])
+                                    : setTableLocation((selected) =>
+                                        toggleFilterValue(
+                                          selected,
+                                          loc,
+                                          event.target.checked,
+                                          area === 'families' ? familyLocations : tableLocations,
+                                        ),
+                                      )
+                                }
                               />
                               {loc === 'All' ? 'All locations' : loc}
                             </label>
@@ -1138,9 +1249,9 @@ export default function RegistrationModule({
                     <button
                       type="button"
                       onClick={() => {
-                        setFilter('All');
-                        setTableLocation('All');
-                        setDirectoryClass('All');
+                        setFilter([]);
+                        setTableLocation([]);
+                        setDirectoryClass([]);
                       }}
                     >
                       Clear filters

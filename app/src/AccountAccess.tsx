@@ -65,7 +65,6 @@ export default function AccountAccess({
       setBusy(false);
     }
   };
-  const mySubject = cloud.staff.subject;
   const [accounts, setAccounts] = useState<
     Record<string, { name: string; email: string; verified: true }>
   >({});
@@ -212,7 +211,6 @@ export default function AccountAccess({
   const eligibleGuardians = Object.entries(accounts).filter(([subject]) =>
     guardianSubjects.has(subject),
   );
-  const myApproved = rows.filter((r) => r.subject === mySubject && r.status === 'approved');
   const selected = rows.filter((r) => filter === 'all' || r.status === filter);
   const unavailable = /unknown endpoint|not found|404/i.test(error);
   const accountResolved = (r: RequestRow) => accounts[r.subject]?.verified === true;
@@ -224,8 +222,8 @@ export default function AccountAccess({
         <div>
           <h2>Account Access</h2>
           <p>
-            Manage student and guardian access for{' '}
-            {institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam'}.
+            Review parent access for {institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam'}{' '}
+            students.
           </p>
         </div>
         <button type="button" onClick={() => void load()} disabled={busy || loading}>
@@ -234,16 +232,15 @@ export default function AccountAccess({
       </header>
       <section className="access-self-link" aria-label="Assign family access">
         <div>
-          <h3>Link a child to a parent / guardian</h3>
+          <h3>Create a guardian request</h3>
           <p>
-            Choose the existing student and the account that will receive access. The administrator
-            processing this request is not linked to the child. Verify the registered family
-            relationship before approving.
+            Select a student and verified guardian account. The request stays pending until
+            approved.
           </p>
         </div>
         <div className="access-self-controls access-guardian-grid">
           <label htmlFor="access-child">
-            Student (name / roll number)
+            Student
             <select
               id="access-child"
               value={studentId}
@@ -298,19 +295,20 @@ export default function AccountAccess({
               canonicalQueue
             }
           >
-            Create pending guardian request
+            Create pending request
           </button>
         </div>
-        <p className="access-relationship-note">
-          Only existing verified guardian relationships are shown. An administrator is not
-          automatically a parent. To add a new parent-child relationship, first link the registered
-          family record to the correct account through a verified family-access workflow. Historical
-          Student (self) links are not guardian evidence.
-        </p>
+        <details className="access-guidance">
+          <summary>Who can receive a request?</summary>
+          <p>
+            Only accounts with a verified family relationship are listed. Admin status and
+            historical Student (self) links do not prove guardianship. Link new family relationships
+            through the verified family-access workflow first.
+          </p>
+        </details>
         {canonicalQueue && (
-          <p className="access-relationship-note">
-            New on-behalf account requests require a separately verified canonical onboarding
-            workflow and are not enabled during final cutover.
+          <p className="access-relationship-note access-compact-note">
+            Manual requests are unavailable in final mode. Use verified family onboarding.
           </p>
         )}
         {requestError && (
@@ -324,15 +322,14 @@ export default function AccountAccess({
           className="access-self-link access-v1274-cross"
           aria-label="Cross-academy guardian requests"
         >
-          <h3>Existing family relationship · Sruti enrolment</h3>
+          <h3>Extend a verified guardian link to Śruti</h3>
           <p>
-            Create a pending Sruti request only for an existing approved Raagasudha guardian
-            relationship and a student enrolled in Sruti. This does not grant access. Independently
-            verify the relationship before approval.
+            Select an approved Raagasudha guardian relationship for a student enrolled in Śruti. The
+            request stays pending until reviewed.
           </p>
           <div className="access-v1274-cross-grid">
             <label>
-              Verified student and guardian
+              Student and guardian
               <select value={srutiPair} onChange={(e) => setSrutiPair(e.target.value)}>
                 <option value="">Choose student and guardian…</option>
                 {srutiCandidates
@@ -370,53 +367,45 @@ export default function AccountAccess({
               disabled={busy}
               onClick={() => void loadSrutiCandidates()}
             >
-              Refresh candidates
+              Refresh list
             </button>
           </div>
-          <p className="access-relationship-note">
-            A separate administrator review is required. Existing approved links are excluded from
-            this list.
-          </p>
         </section>
       )}
-      <div className="access-controls">
-        <label>
-          Show{' '}
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="revoked">Revoked</option>
-            <option value="all">All</option>
-          </select>
-        </label>
-        <span>
-          {loading
-            ? 'Checking requests…'
-            : error
-              ? 'Requests unavailable'
-              : `${selected.length} requests`}
-        </span>
+      <div className="access-requests-heading">
+        <h3>Access requests</h3>
+        <div className="access-controls">
+          <label>
+            Status
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="revoked">Revoked</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+          <span>
+            {loading
+              ? 'Checking requests…'
+              : error
+                ? 'Requests unavailable'
+                : `${selected.length} requests`}
+          </span>
+        </div>
       </div>
       {reconciliationRequired > 0 && (
-        <p role="alert" className="access-relationship-note">
-          {reconciliationRequired} guardian access record(s) need separate administrator identity
-          reconciliation and are excluded from the approval queue. No access has been granted for
-          these records.
+        <p role="alert" className="access-relationship-note access-compact-note">
+          {reconciliationRequired} request(s) are withheld for identity review. No access has been
+          granted.
         </p>
       )}
       {error && (
         <div role="alert" className="access-error">
           <strong>
-            {unavailable
-              ? 'Account Access API is not deployed yet'
-              : 'Unable to load account requests'}
+            {unavailable ? 'Account Access is unavailable' : 'Unable to load account requests'}
           </strong>
-          <p>
-            {unavailable
-              ? 'The frontend is installed, but the running development Lambda does not recognise the Account Access endpoint. Deploy the verified backend before submitting or approving requests.'
-              : error}
-          </p>
+          <p>{unavailable ? 'Deploy the backend update, then refresh this page.' : error}</p>
         </div>
       )}
       {loading ? (

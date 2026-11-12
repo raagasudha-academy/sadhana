@@ -56,6 +56,61 @@
   }
 }
 
+@media (min-width: 900px) {
+  .access-console .access-guardian-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .access-console .access-guardian-create {
+    grid-column: auto;
+    align-self: end;
+  }
+}
+
+.access-console .access-self-link > div:first-child p {
+  margin: 0;
+  color: #687990;
+  font-size: 13px;
+}
+.access-console .access-guidance {
+  margin-top: 12px;
+  color: #687990;
+  font-size: 12px;
+}
+.access-console .access-guidance summary {
+  width: fit-content;
+  color: #4d6388;
+  font-weight: 650;
+  cursor: pointer;
+}
+.access-console .access-guidance p {
+  max-width: 78ch;
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.access-console .access-compact-note {
+  margin: 10px 0 0;
+}
+.access-console .access-requests-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 22px 0 10px;
+}
+.access-console .access-requests-heading h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.app-shell .access-console.access-page-panel .access-requests-heading .access-controls {
+  margin: 0;
+}
+@media (max-width: 700px) {
+  .access-console .access-requests-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 /* sadhana-v116 parent portal polish: presentation only, no auth/data changes */
 .sadhana-v116-family-shell {
   min-height: 100vh;
