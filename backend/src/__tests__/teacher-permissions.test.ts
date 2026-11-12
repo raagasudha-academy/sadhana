@@ -19,7 +19,7 @@ function call(
   method: string,
   path: string,
   body?: object,
-  institution = 'sruti'
+  institution = 'sruti',
 ) {
   return handler({
     pathParameters: { proxy: path },
@@ -40,39 +40,26 @@ function call(
 }
 
 test('viewer cannot register teachers', async () => {
-  const result = await call(
-    ['sruti-viewer'], 'POST', 'teachers', teacher
-  );
+  const result = await call(['sruti-viewer'], 'POST', 'teachers', teacher);
   assert.equal(result.statusCode, 403);
 });
 
 test('viewer cannot edit teacher profiles', async () => {
-  const result = await call(
-    ['sruti-viewer'], 'PATCH',
-    'teachers/TEACHER-example', teacher
-  );
+  const result = await call(['sruti-viewer'], 'PATCH', 'teachers/TEACHER-example', teacher);
   assert.equal(result.statusCode, 403);
 });
 
 test('Raagasudha admin cannot register Sruti teachers', async () => {
-  const result = await call(
-    ['raagasudha-admin'], 'POST', 'teachers', teacher
-  );
+  const result = await call(['raagasudha-admin'], 'POST', 'teachers', teacher);
   assert.equal(result.statusCode, 403);
 });
 
 test('viewer cannot read another institution registry', async () => {
-  const result = await call(
-    ['raagasudha-viewer'], 'GET', 'teachers',
-    undefined, 'sruti'
-  );
+  const result = await call(['raagasudha-viewer'], 'GET', 'teachers', undefined, 'sruti');
   assert.equal(result.statusCode, 403);
 });
 
 test('teacher registration validates required name', async () => {
-  const result = await call(
-    ['sruti-admin'], 'POST', 'teachers',
-    { ...teacher, displayName: '' }
-  );
+  const result = await call(['sruti-admin'], 'POST', 'teachers', { ...teacher, displayName: '' });
   assert.equal(result.statusCode, 400);
 });

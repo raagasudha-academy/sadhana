@@ -1,18 +1,11 @@
-import {
-  KmsKeyringNode,
-  buildClient,
-  CommitmentPolicy
-} from '@aws-crypto/client-node';
-import {
-  SESv2Client,
-  SendEmailCommand
-} from '@aws-sdk/client-sesv2';
-import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb';
-import {entityTable} from './entityTables.mjs';
-import {resolveParentEmailRoute} from './parentEmailRouteResolver.ts';
-import {resolveInstitutionSender} from './institutionEmailSenders.ts';
-import {parentInvitationTemplate} from './parentInvitationTemplate.ts';
+import { KmsKeyringNode, buildClient, CommitmentPolicy } from '@aws-crypto/client-node';
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { entityTable } from './entityTables.mjs';
+import { resolveParentEmailRoute } from './parentEmailRouteResolver.ts';
+import { resolveInstitutionSender } from './institutionEmailSenders.ts';
+import { parentInvitationTemplate } from './parentInvitationTemplate.ts';
 
 export type EmailEvent = {
   triggerSource: string;
@@ -39,10 +32,7 @@ type Message = {
 type Dependencies = {
   userPoolId: string;
   loginUrl: string;
-  resolve: (
-    username: string,
-    email: string
-  ) => Promise<Institution>;
+  resolve: (username: string, email: string) => Promise<Institution>;
   decrypt: (code: string) => Promise<string>;
   send: (message: Message) => Promise<void>;
 };
@@ -55,20 +45,23 @@ const SUPPORTED = new Set([
   'CustomEmailSender_UpdateUserAttribute',
   'CustomEmailSender_VerifyUserAttribute',
   'CustomEmailSender_Authentication',
-  'CustomEmailSender_AccountTakeOverNotification'
+  'CustomEmailSender_AccountTakeOverNotification',
 ]);
 
-const GENERAL_FROM =
-  'Sadhana Portal <noreply@sruti.co.uk>';
+const GENERAL_FROM = 'Sadhana Portal <noreply@sruti.co.uk>';
 
 const escapeHTML = (value: string) =>
-  value.replace(/[&<>"']/g, c => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }[c] || c));
+  value.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[c] || c,
+  );
 
 function formatFrom(name: string, email: string) {
   const encoded = /[^\x20-\x7e]/.test(name)
@@ -77,36 +70,32 @@ function formatFrom(name: string, email: string) {
   return `${encoded} <${email}>`;
 }
 
-function makeCodeMessage(
-  type: string,
-  code: string,
-  loginUrl: string
-) {
+function makeCodeMessage(type: string, code: string, loginUrl: string) {
   const content: Record<string, [string, string]> = {
     CustomEmailSender_SignUp: [
       'Confirm your Sadhana account',
-      'Use this code to confirm your Sadhana account.'
+      'Use this code to confirm your Sadhana account.',
     ],
     CustomEmailSender_ResendCode: [
       'Your new Sadhana confirmation code',
-      'Use this replacement confirmation code.'
+      'Use this replacement confirmation code.',
     ],
     CustomEmailSender_ForgotPassword: [
       'Reset your Sadhana password',
-      'Use this code to reset your Sadhana password.'
+      'Use this code to reset your Sadhana password.',
     ],
     CustomEmailSender_UpdateUserAttribute: [
       'Verify your new email address',
-      'Use this code to verify your updated email address.'
+      'Use this code to verify your updated email address.',
     ],
     CustomEmailSender_VerifyUserAttribute: [
       'Verify your Sadhana email address',
-      'Use this code to verify your email address.'
+      'Use this code to verify your email address.',
     ],
     CustomEmailSender_Authentication: [
       'Your Sadhana sign-in code',
-      'Use this one-time code to sign in to Sadhana.'
-    ]
+      'Use this one-time code to sign in to Sadhana.',
+    ],
   };
 
   const details = content[type];
@@ -134,11 +123,12 @@ function makeCodeMessage(
       </p>
     </div>`;
 
-  const text = `${instruction}\n\n${code}\n\n` +
+  const text =
+    `${instruction}\n\n${code}\n\n` +
     `Open Sadhana: ${loginUrl}\n\n` +
     'If you did not request this, do not share the code.';
 
-  return {subject, html, text};
+  return { subject, html, text };
 }
 
 export function makeInstitutionEmailSender(deps: Dependencies) {
@@ -152,11 +142,7 @@ export function makeInstitutionEmailSender(deps: Dependencies) {
     }
 
     const email = event.request?.userAttributes?.email;
-    if (
-      !email ||
-      email !== email.trim() ||
-      !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)
-    ) {
+    if (!email || email !== email.trim() || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) {
       throw Error('Invalid email recipient');
     }
 
@@ -174,10 +160,7 @@ export function makeInstitutionEmailSender(deps: Dependencies) {
       // Parent invitations MUST have a validated route.
       // Other admin-created accounts use neutral branding.
       if (event.userName.startsWith('parent-')) {
-        const institution = await deps.resolve(
-          event.userName,
-          email.toLowerCase()
-        );
+        const institution = await deps.resolve(event.userName, email.toLowerCase());
         const sender = resolveInstitutionSender(institution);
         from = formatFrom(sender.name, sender.email);
       }
@@ -193,29 +176,28 @@ export function makeInstitutionEmailSender(deps: Dependencies) {
       // Decode once; the invitation template handles output escaping.
       const password = encryptedPassword.replace(
         /&(?:lt|gt|quot|#39|#x27|amp);/g,
-        entity => ({
-          '&lt;': '<',
-          '&gt;': '>',
-          '&quot;': '"',
-          '&#39;': "'",
-          '&#x27;': "'",
-          '&amp;': '&'
-        }[entity] ?? entity)
+        (entity) =>
+          ({
+            '&lt;': '<',
+            '&gt;': '>',
+            '&quot;': '"',
+            '&#39;': "'",
+            '&#x27;': "'",
+            '&amp;': '&',
+          })[entity] ?? entity,
       );
 
       const invitation = parentInvitationTemplate(
         event.request.userAttributes?.name || 'there',
         password,
         deps.loginUrl,
-        email
+        email,
       );
 
       subject = 'Welcome to Sadhana — set up your account';
       html = invitation.html;
       text = invitation.text;
-    } else if (
-      type === 'CustomEmailSender_AccountTakeOverNotification'
-    ) {
+    } else if (type === 'CustomEmailSender_AccountTakeOverNotification') {
       // No verification code is required for this event.
       subject = 'Security notice for your Sadhana account';
       text =
@@ -242,11 +224,7 @@ export function makeInstitutionEmailSender(deps: Dependencies) {
       const code = await deps.decrypt(event.request.code);
       if (!code) throw Error('Verification code unavailable');
 
-      ({subject, html, text} = makeCodeMessage(
-        type,
-        code,
-        deps.loginUrl
-      ));
+      ({ subject, html, text } = makeCodeMessage(type, code, deps.loginUrl));
     }
 
     await deps.send({
@@ -254,16 +232,14 @@ export function makeInstitutionEmailSender(deps: Dependencies) {
       to: email,
       subject,
       html,
-      text
+      text,
     });
 
     return event;
   };
 }
 
-export async function handler(
-  event: EmailEvent
-): Promise<EmailEvent> {
+export async function handler(event: EmailEvent): Promise<EmailEvent> {
   const region = process.env.AWS_REGION || 'us-east-1';
   const keyArn = process.env.SADHANA_EMAIL_KMS_KEY_ARN;
   const userPoolId = process.env.SADHANA_COGNITO_USER_POOL_ID;
@@ -273,17 +249,13 @@ export async function handler(
     throw Error('Email sender environment incomplete');
   }
 
-  const db = DynamoDBDocumentClient.from(
-    new DynamoDBClient({region})
-  );
-  const ses = new SESv2Client({region});
+  const db = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
+  const ses = new SESv2Client({ region });
 
-  const {decrypt} = buildClient(
-    CommitmentPolicy.REQUIRE_ENCRYPT_ALLOW_DECRYPT
-  );
+  const { decrypt } = buildClient(CommitmentPolicy.REQUIRE_ENCRYPT_ALLOW_DECRYPT);
 
   const keyring = new KmsKeyringNode({
-    generatorKeyId: keyArn
+    generatorKeyId: keyArn,
   });
 
   return makeInstitutionEmailSender({
@@ -295,46 +267,45 @@ export async function handler(
         db,
         {
           counters: entityTable('counters'),
-          registrations: entityTable('registrations')
+          registrations: entityTable('registrations'),
         },
         username,
-        email
+        email,
       ),
 
-    decrypt: async encrypted => {
-      const result = await decrypt(
-        keyring,
-        Buffer.from(encrypted, 'base64')
-      );
+    decrypt: async (encrypted) => {
+      const result = await decrypt(keyring, Buffer.from(encrypted, 'base64'));
       return Buffer.from(result.plaintext).toString('utf8');
     },
 
-    send: async message => {
-      await ses.send(new SendEmailCommand({
-        FromEmailAddress: message.from,
-        Destination: {
-          ToAddresses: [message.to]
-        },
-        Content: {
-          Simple: {
-            Subject: {
-              Data: message.subject,
-              Charset: 'UTF-8'
-            },
-            Body: {
-              Html: {
-                Data: message.html,
-                Charset: 'UTF-8'
+    send: async (message) => {
+      await ses.send(
+        new SendEmailCommand({
+          FromEmailAddress: message.from,
+          Destination: {
+            ToAddresses: [message.to],
+          },
+          Content: {
+            Simple: {
+              Subject: {
+                Data: message.subject,
+                Charset: 'UTF-8',
               },
-              Text: {
-                Data: message.text,
-                Charset: 'UTF-8'
-              }
-            }
-          }
-        },
-        ConfigurationSetName: 'sadhana-email-tracking'
-      }));
-    }
+              Body: {
+                Html: {
+                  Data: message.html,
+                  Charset: 'UTF-8',
+                },
+                Text: {
+                  Data: message.text,
+                  Charset: 'UTF-8',
+                },
+              },
+            },
+          },
+          ConfigurationSetName: 'sadhana-email-tracking',
+        }),
+      );
+    },
   })(event);
 }

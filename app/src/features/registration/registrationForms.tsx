@@ -1,7 +1,7 @@
-import {useState} from 'react';
-import {Plus, ShieldCheck, X} from 'lucide-react';
+import { useState } from 'react';
+import { Plus, ShieldCheck, X } from 'lucide-react';
 import PhoneField from '../../PhoneField';
-import {clean, familyLabel, Modal, Field} from './registrationShared';
+import { clean, familyLabel, Modal, Field } from './registrationShared';
 
 export function RegisterFamily({ onSave, onClose }: any) {
   const [parentName, setParentName] = useState('');
@@ -314,7 +314,11 @@ export function AddChild({ family, onSave, onClose }: any) {
         onSubmit={(e) => {
           e.preventDefault();
           if (useExistingGuardian) {
-            onSave({familyId:family.id,relationship:'parent_guardian',existingPersonRole:'primary_guardian'});
+            onSave({
+              familyId: family.id,
+              relationship: 'parent_guardian',
+              existingPersonRole: 'primary_guardian',
+            });
             return;
           }
           if (!clean(name)) return;
@@ -332,31 +336,42 @@ export function AddChild({ family, onSave, onClose }: any) {
         }}
       >
         <label className="reg-form-checkbox">
-          <input type="checkbox" checked={useExistingGuardian}
-            onChange={e=>setUseExistingGuardian(e.target.checked)}/>
+          <input
+            type="checkbox"
+            checked={useExistingGuardian}
+            onChange={(e) => setUseExistingGuardian(e.target.checked)}
+          />
           Register the existing parent / guardian as a student
         </label>
-        {useExistingGuardian && <p className="reg-help">The existing family contact will also become a student. Their guardian account and family links stay unchanged. You can enrol them into a class next.</p>}
-        {!useExistingGuardian && <><Field label="Student full name *">
-          <input
-            autoFocus
-            required
-            maxLength={90}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Full name"
-          />
-        </Field>
-        <Field label="Student email (optional for children)">
-          <input
-            type="email"
-            maxLength={180}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <PhoneField label="Student WhatsApp" value={phone} onChange={setPhone} optional />
-        </>}
+        {useExistingGuardian && (
+          <p className="reg-help">
+            The existing family contact will also become a student. Their guardian account and
+            family links stay unchanged. You can enrol them into a class next.
+          </p>
+        )}
+        {!useExistingGuardian && (
+          <>
+            <Field label="Student full name *">
+              <input
+                autoFocus
+                required
+                maxLength={90}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+              />
+            </Field>
+            <Field label="Student email (optional for children)">
+              <input
+                type="email"
+                maxLength={180}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </Field>
+            <PhoneField label="Student WhatsApp" value={phone} onChange={setPhone} optional />
+          </>
+        )}
         {error && (
           <p className="reg-error" role="alert">
             {error}
@@ -367,7 +382,7 @@ export function AddChild({ family, onSave, onClose }: any) {
             Cancel
           </button>
           <button type="submit" className="reg-primary">
-            <Plus size={16} /> {useExistingGuardian?'Register parent as student':'Add student'}
+            <Plus size={16} /> {useExistingGuardian ? 'Register parent as student' : 'Add student'}
           </button>
         </div>
       </form>

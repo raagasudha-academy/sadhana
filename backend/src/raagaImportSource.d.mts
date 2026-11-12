@@ -1,1 +1,1 @@
-export function canonicalRaagaRegistration<T>(record:T):T;
+export function canonicalRaagaRegistration<T>(record: T): T;

@@ -1,15 +1,79 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validatePractice,validateRsvp,isActiveEnrolment,canRsvp} from '../learnerWriteRules.mjs';
-const good={classId:'CLASS-RAAGA-TEST',date:'2026-11-03',minutes:20,topic:'Raga',comments:''};
-test('validates practice and drops whitespace',()=>assert.equal(validatePractice({...good,topic:'  Raga  '},()=>true).topic,'Raga'));
-test('rejects extra practice fields',()=>assert.throws(()=>validatePractice({...good,studentId:'victim'},()=>true),{status:400}));
-test('rejects out-of-window practice',()=>assert.throws(()=>validatePractice(good,()=>false),{status:400}));
-test('rejects invalid practice duration',()=>assert.throws(()=>validatePractice({...good,minutes:0},()=>true),{status:400}));
-test('rejects malicious RSVP payloads',()=>assert.throws(()=>validateRsvp({sessionId:'ABC1',intention:'attending',institutionId:'sruti'}),{status:400}));
-test('rejects malformed RSVP IDs',()=>assert.throws(()=>validateRsvp({sessionId:'../../../',intention:'attending'}),{status:400}));
-test('does not authorise enrolment in another institution',()=>assert.equal(isActiveEnrolment({institutionId:'sruti',status:'active',studentId:'S1',classId:'C1'},'raaga','S1','C1','2026-11-03'),false));
-test('rejects inactive enrolment',()=>assert.equal(isActiveEnrolment({institutionId:'raaga',status:'archived',studentId:'S1',classId:'C1'},'raaga','S1','C1','2026-11-03'),false));
-test('does not allow past RSVP',()=>assert.equal(canRsvp({recordType:'class-session',localDate:'2026-11-02'},'2026-11-03','11:00'),false));
-test('closes RSVP after session starts',()=>assert.equal(canRsvp({recordType:'class-session',localDate:'2026-11-03',localStartTime:'10:00'},'2026-11-03','11:00'),false));
-test('allows upcoming RSVP',()=>assert.equal(canRsvp({recordType:'class-session',localDate:'2026-11-04',localStartTime:'10:00'},'2026-11-03','11:00'),true));
+import {
+  validatePractice,
+  validateRsvp,
+  isActiveEnrolment,
+  canRsvp,
+} from '../learnerWriteRules.mjs';
+const good = {
+  classId: 'CLASS-RAAGA-TEST',
+  date: '2026-11-03',
+  minutes: 20,
+  topic: 'Raga',
+  comments: '',
+};
+test('validates practice and drops whitespace', () =>
+  assert.equal(validatePractice({ ...good, topic: '  Raga  ' }, () => true).topic, 'Raga'));
+test('rejects extra practice fields', () =>
+  assert.throws(() => validatePractice({ ...good, studentId: 'victim' }, () => true), {
+    status: 400,
+  }));
+test('rejects out-of-window practice', () =>
+  assert.throws(() => validatePractice(good, () => false), { status: 400 }));
+test('rejects invalid practice duration', () =>
+  assert.throws(() => validatePractice({ ...good, minutes: 0 }, () => true), { status: 400 }));
+test('rejects malicious RSVP payloads', () =>
+  assert.throws(
+    () => validateRsvp({ sessionId: 'ABC1', intention: 'attending', institutionId: 'sruti' }),
+    { status: 400 },
+  ));
+test('rejects malformed RSVP IDs', () =>
+  assert.throws(() => validateRsvp({ sessionId: '../../../', intention: 'attending' }), {
+    status: 400,
+  }));
+test('does not authorise enrolment in another institution', () =>
+  assert.equal(
+    isActiveEnrolment(
+      { institutionId: 'sruti', status: 'active', studentId: 'S1', classId: 'C1' },
+      'raaga',
+      'S1',
+      'C1',
+      '2026-11-03',
+    ),
+    false,
+  ));
+test('rejects inactive enrolment', () =>
+  assert.equal(
+    isActiveEnrolment(
+      { institutionId: 'raaga', status: 'archived', studentId: 'S1', classId: 'C1' },
+      'raaga',
+      'S1',
+      'C1',
+      '2026-11-03',
+    ),
+    false,
+  ));
+test('does not allow past RSVP', () =>
+  assert.equal(
+    canRsvp({ recordType: 'class-session', localDate: '2026-11-02' }, '2026-11-03', '11:00'),
+    false,
+  ));
+test('closes RSVP after session starts', () =>
+  assert.equal(
+    canRsvp(
+      { recordType: 'class-session', localDate: '2026-11-03', localStartTime: '10:00' },
+      '2026-11-03',
+      '11:00',
+    ),
+    false,
+  ));
+test('allows upcoming RSVP', () =>
+  assert.equal(
+    canRsvp(
+      { recordType: 'class-session', localDate: '2026-11-04', localStartTime: '10:00' },
+      '2026-11-03',
+      '11:00',
+    ),
+    true,
+  ));

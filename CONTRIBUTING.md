@@ -1,42 +1,37 @@
-# Sadhana source conventions
+# Sadhana contribution guide
 
-## Architecture
+## Repository layout
 
-Sadhana is a **modular monolith**: a Vite/React frontend and an AWS Lambda backend. A folder does not imply an independently deployed microservice. Preserve existing API paths, Cognito authorisation, institution scoping, DynamoDB keys and Lambda handler contract during structural changes.
+Sadhana is a modular monolith: a Vite/React frontend and an AWS Lambda backend. A folder does not imply an independently deployed service. Preserve API paths, Cognito authorization, institution scoping, DynamoDB keys and the Lambda handler contract when changing structure.
 
-- `src/app/`: application composition, shell, navigation.
-- `src/features/<domain>/`: domain-specific UI, hooks and local CSS.
-- `src/components/`: presentation components reused across features.
-- `src/api/`: shared frontend API boundary.
-- `backend/src/`: modular domain logic behind a single Lambda entrypoint; backend TypeScript/MJS regression tests are grouped under `backend/src/__tests__/`.
-- `app/tests/`: frontend unit tests grouped by role and feature.
-- `test/e2e-tests/`: backend HTTP end-to-end tests; `test/playwrighttests/`: browser tests grouped by page.
-- `backend/test/`: Python helper-script tests only.
+- `app/src/` — frontend application source.
+- `app/tests/` — frontend unit and component tests.
+- `app/public/` and `app/index.html` — frontend assets and HTML entry point.
+- `backend/src/` — Lambda entry point, domain modules and TypeScript/MJS regression tests in `__tests__/`.
+- `backend/test/` — Python tests for backend helper scripts.
+- `backend/scripts/` — backend maintenance and operational scripts.
+- `test/e2e-tests/backend/` — local authenticated HTTP API end-to-end tests.
+- `test/playwrighttests/` — browser tests and screenshot baselines.
+- `infra/` — infrastructure source.
+- `docs/` — architecture, operational guidance, decisions and retained historical records.
 
-These are target boundaries. Move files only when their dependencies have been examined.
+## Naming and formatting
 
-## Names
+- React components and component-specific styles use `PascalCase` filenames, such as `StudentCard.tsx` and `StudentCard.css`.
+- Other TypeScript modules, hooks and utilities use `camelCase`, such as `useStudentCalendar.ts`.
+- Tests use `<subject>.test.ts` or `<subject>.test.tsx`; Playwright specs use `.spec.ts`.
+- Name files for their domain or purpose. Keep milestone/version labels in documentation or Git history, not new source filenames.
+- Use the configured Prettier style and ESLint rules. Run `npm run format`, `npm run lint`, and the relevant typecheck/tests before submitting.
+- Do not commit backup copies, editor swap files, generated build output, credentials or local audit output. Use Git history for recovery.
 
-- React components and their component-specific CSS: `PascalCase.tsx`, `PascalCase.css`.
-- Other TS modules, hooks and utilities: `camelCase.ts`, e.g. `useStudentCalendar.ts`.
-- Test files: `<subject>.test.ts` or `<subject>.test.tsx`.
-- Do not put migration milestone labels such as `M8`, `M9`, `M10`, `M91`, or `M95` in project filenames. Name files for their domain or purpose; record milestones in Git history and documentation content.
-- Don't commit `.zip`, `.bak`, `.orig`, `.rej`, editor swap files or generated build outputs.
-- Use Git for rollback; don't create local backup trees in the repo.
+## Change safety
 
-## Small-refactor protocol
+1. Check `git status` and preserve unrelated local changes.
+2. Keep changes focused and inspect the diff, especially for authorization, institution routing, family/learner links, registration imports, deletion, counters and data access.
+3. Run `npm run verify` for frontend changes. For backend changes, run `npm run verify:backend`.
+4. Run `npm run test:backend:e2e` or `npm run test:frontend:playwright` when the change affects those paths. Run Python helper tests after changing Python helpers.
+5. Document any known test gap or limitation. A passing local suite does not prove deployed AWS behavior.
 
-1. Start from a clean Git working tree on `refactor/modular-architecture`.
-2. Run `node scripts/auditArchitecture.mjs > docs/architecture/inventory.md` to capture the current baseline (optional to commit the dated report).
-3. Extract one cohesive component/utility or CSS group at a time; keep a compatibility export where necessary.
-4. Run `npm run verify` and `(cd backend && npm run check && npm run build)` before committing.
-5. Record any deliberate behaviour changes separately from file moves.
-6. Never change permissions, data schema, website-import/revocation or student access control in a housekeeping-only commit.
+## Phase boundary
 
-## Safe order of work
-
-1. Document module boundaries and create the inventory (M2).
-2. Extract leaf presentational components from StudentHome, with regression coverage (M3).
-3. Split RegistrationModule only after reviewing its data flows and permissions (M4).
-4. Split App composition and consolidate styles in small groups (M5).
-5. Modularise backend routing, preserving its handler filename and deployment entry (M6).
+Phase 1 establishes a clean, reviewed, tested code baseline in the existing dev environment. Production environment creation and data movement belong to Phase 2 and must wait for the owner's explicit approval after Phase 1 acceptance. Do not change live data or infrastructure as part of routine code cleanup.

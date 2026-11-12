@@ -9,18 +9,18 @@
 export function finalOnlyGate(parts, method, phase = 'fallback', env = process.env) {
   if (env.SADHANA_ENTITY_TABLE_SET !== 'final') return null;
   if (!Array.isArray(parts) || typeof method !== 'string')
-    return {status: 503, error: 'Final-table cutover: unrecognised request.'};
+    return { status: 503, error: 'Final-table cutover: unrecognised request.' };
   if (phase === 'early') {
     // These routes currently depend on PK/SK identity/profile tables or on
     // legacy subject lookup. A dedicated final-schema adapter is required.
     if (['me', 'photos', 'identities'].includes(parts[0]))
-      return {status: 503, error: 'Final-table cutover: identity/profile route not migrated.'};
+      return { status: 503, error: 'Final-table cutover: identity/profile route not migrated.' };
     return null;
   }
   if (phase !== 'fallback') throw new Error('Unknown final-table gate phase');
   if (parts.length === 1 && parts[0] === 'health' && method === 'GET') return null;
   return {
     status: 503,
-    error: 'Final-table cutover: this endpoint is not migrated; legacy database fallback blocked.'
+    error: 'Final-table cutover: this endpoint is not migrated; legacy database fallback blocked.',
   };
 }

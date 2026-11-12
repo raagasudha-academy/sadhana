@@ -34,11 +34,36 @@ import { getEnrolmentStatus, maskPhone, newId, ukISODate } from './registry';
 import PhoneField from './PhoneField';
 import { lastFourWeeks, reportForStudent } from './practiceMath';
 
-import {clean, familyLabel, readableLocation, studentLabel, Status, Modal, Field, StudentAvatar, NoResults, relationshipLabel, fmtDate} from './features/registration/registrationShared';
-import {RegisterFamily, RegisterIndependent, AddChild} from './features/registration/registrationForms';
-import {EnrolModal, EditName, ConfirmRemove, EditEnrolment} from './features/registration/registrationEnrolment';
-import {FamilyDetail, UpdateFamily, ConvertToFamily} from './features/registration/registrationFamilies';
-import {StudentRecord} from './features/registration/registrationStudents';
+import {
+  clean,
+  familyLabel,
+  readableLocation,
+  studentLabel,
+  Status,
+  Modal,
+  Field,
+  StudentAvatar,
+  NoResults,
+  relationshipLabel,
+  fmtDate,
+} from './features/registration/registrationShared';
+import {
+  RegisterFamily,
+  RegisterIndependent,
+  AddChild,
+} from './features/registration/registrationForms';
+import {
+  EnrolModal,
+  EditName,
+  ConfirmRemove,
+  EditEnrolment,
+} from './features/registration/registrationEnrolment';
+import {
+  FamilyDetail,
+  UpdateFamily,
+  ConvertToFamily,
+} from './features/registration/registrationFamilies';
+import { StudentRecord } from './features/registration/registrationStudents';
 
 export default function RegistrationModule({
   workspace,
@@ -62,7 +87,7 @@ export default function RegistrationModule({
 }: any) {
   const [area, setArea] = useState(() => {
     try {
-      if(initialArea)return initialArea;
+      if (initialArea) return initialArea;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:area`) || 'students';
     } catch {
       return 'students';
@@ -71,7 +96,7 @@ export default function RegistrationModule({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(() => {
     try {
-      if(initialFilter!==undefined)return initialFilter;
+      if (initialFilter !== undefined) return initialFilter;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:filter`) || 'All';
     } catch {
       return 'All';
@@ -79,7 +104,7 @@ export default function RegistrationModule({
   });
   const [view, setView] = useState<'list' | 'table'>(() => {
     try {
-      if(initialView)return initialView;
+      if (initialView) return initialView;
       return sessionStorage.getItem(`sadhana:registration:${workspace}:view`) === 'table'
         ? 'table'
         : 'list';
@@ -139,7 +164,9 @@ export default function RegistrationModule({
     try {
       await reload();
     } catch {
-      setFlash(`${success} The directory could not refresh; reload the page to see the saved record.`);
+      setFlash(
+        `${success} The directory could not refresh; reload the page to see the saved record.`,
+      );
     } finally {
       setWriting(false);
       after?.();
@@ -421,9 +448,18 @@ export default function RegistrationModule({
     if (!m.sourceWebsiteRegistrationId) return false;
     const household = members.filter((person) => person.familyId === m.familyId);
     const family = families.find((f) => f.id === m.familyId);
-    return household.length === 1 && household[0].id === m.id &&
-      !!family && family.sourceWebsiteRegistrationId === m.sourceWebsiteRegistrationId &&
-      String(family.parentName || '').trim().toLowerCase() === String(m.name || '').trim().toLowerCase();
+    return (
+      household.length === 1 &&
+      household[0].id === m.id &&
+      !!family &&
+      family.sourceWebsiteRegistrationId === m.sourceWebsiteRegistrationId &&
+      String(family.parentName || '')
+        .trim()
+        .toLowerCase() ===
+        String(m.name || '')
+          .trim()
+          .toLowerCase()
+    );
   };
   const isLegacyAdultFamily = (f: any) =>
     members.some((m) => m.familyId === f.id && isIndependentAdult(m));
@@ -566,17 +602,21 @@ export default function RegistrationModule({
     );
   const addChild = (values: any) =>
     void persist(async () => {
-      if(values.existingPersonRole==='primary_guardian') {
-        if(!familyFocus || values.familyId!==familyFocus)
+      if (values.existingPersonRole === 'primary_guardian') {
+        if (!familyFocus || values.familyId !== familyFocus)
           throw Error('Choose the correct existing family.');
-        await operationsApi.createOperation('student',workspace,{
-          existingPersonRole:'primary_guardian',familyId:familyFocus,
-          relationship:'parent_guardian'
+        await operationsApi.createOperation('student', workspace, {
+          existingPersonRole: 'primary_guardian',
+          familyId: familyFocus,
+          relationship: 'parent_guardian',
         });
       } else {
-        await operationsApi.createOperation('student',workspace,{
-          name:values.name,email:values.email||'',phone:values.phone||'',
-          familyId:familyFocus,relationship:'child'
+        await operationsApi.createOperation('student', workspace, {
+          name: values.name,
+          email: values.email || '',
+          phone: values.phone || '',
+          familyId: familyFocus,
+          relationship: 'child',
         });
       }
     }, 'Student registration saved. Select a class to enrol the learner.');
@@ -636,7 +676,7 @@ export default function RegistrationModule({
       },
     );
   const [archiveTarget, setArchiveTarget] = useState<any>(null);
-  const [cascadeBusy,setCascadeBusy]=useState(false);
+  const [cascadeBusy, setCascadeBusy] = useState(false);
   const confirmArchive = () => {
     if (!archiveTarget) return;
     const { kind, record, restore } = archiveTarget;
@@ -654,11 +694,28 @@ export default function RegistrationModule({
   const person = members.find((m) => m.id === studentFocus);
   return (
     <div className="reg-module">
-      {operationsApi&&isSuperAdmin&&(person||family)&&<CascadeDeleteControl
-        allowed={isSuperAdmin} api={operationsApi} institution={workspace}
-        target={person?{type:'students',id:person.id,name:person.name,version:person.version}:{type:'families',id:family.id,name:family.parentName,version:family.version}}
-        onDeleted={async()=>{setStudentFocus(null);setFamilyFocus(null);await reload();}}/>
-      }
+      {operationsApi && isSuperAdmin && (person || family) && (
+        <CascadeDeleteControl
+          allowed={isSuperAdmin}
+          api={operationsApi}
+          institution={workspace}
+          target={
+            person
+              ? { type: 'students', id: person.id, name: person.name, version: person.version }
+              : {
+                  type: 'families',
+                  id: family.id,
+                  name: family.parentName,
+                  version: family.version,
+                }
+          }
+          onDeleted={async () => {
+            setStudentFocus(null);
+            setFamilyFocus(null);
+            await reload();
+          }}
+        />
+      )}
       {flash && (
         <div className="reg-success" role="status">
           <CheckCircle2 size={17} />
@@ -1441,8 +1498,10 @@ export default function RegistrationModule({
       {archiveTarget && (
         <Modal
           title={`${archiveTarget.restore ? 'Restore' : 'Remove'} ${archiveTarget.kind}`}
-          subtitle={archiveTarget.record.name||archiveTarget.record.parentName}
-          onClose={() => {if(!cascadeBusy)setArchiveTarget(null);}}
+          subtitle={archiveTarget.record.name || archiveTarget.record.parentName}
+          onClose={() => {
+            if (!cascadeBusy) setArchiveTarget(null);
+          }}
         >
           <div className="reg-form">
             <div className="reg-warning">
@@ -1453,13 +1512,35 @@ export default function RegistrationModule({
                   : 'Archiving preserves identifiers, enrolments and academic history. Students with active enrolments, and families with unarchived members, cannot be archived.'}
               </span>
             </div>
-            {archiveTarget.kind==='student'&&!archiveTarget.restore&&operationsApi&&isSuperAdmin&&<CascadeDeleteControl
-              inline allowed={isSuperAdmin} api={operationsApi} institution={workspace} onBusyChange={setCascadeBusy}
-              target={{type:'students',id:archiveTarget.record.id,name:archiveTarget.record.name,version:archiveTarget.record.version}}
-              onDeleted={async()=>{setArchiveTarget(null);setStudentFocus(null);await reload();}}/>
-            }
+            {archiveTarget.kind === 'student' &&
+              !archiveTarget.restore &&
+              operationsApi &&
+              isSuperAdmin && (
+                <CascadeDeleteControl
+                  inline
+                  allowed={isSuperAdmin}
+                  api={operationsApi}
+                  institution={workspace}
+                  onBusyChange={setCascadeBusy}
+                  target={{
+                    type: 'students',
+                    id: archiveTarget.record.id,
+                    name: archiveTarget.record.name,
+                    version: archiveTarget.record.version,
+                  }}
+                  onDeleted={async () => {
+                    setArchiveTarget(null);
+                    setStudentFocus(null);
+                    await reload();
+                  }}
+                />
+              )}
             <div className="reg-modal-actions">
-              <button className="reg-secondary" disabled={cascadeBusy} onClick={() => setArchiveTarget(null)}>
+              <button
+                className="reg-secondary"
+                disabled={cascadeBusy}
+                onClick={() => setArchiveTarget(null)}
+              >
                 Cancel
               </button>
               <button className="reg-primary" disabled={cascadeBusy} onClick={confirmArchive}>

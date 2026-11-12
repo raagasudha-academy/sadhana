@@ -12,9 +12,19 @@ async function main(): Promise<void> {
   await access(resolve(source));
   const publicDir = resolve(process.cwd(), 'public');
   await mkdir(publicDir, { recursive: true });
-  for (const [filename, size] of [['sadhana-icon.png', 512], ['favicon-32.png', 32], ['apple-touch-icon.png', 180]] as const) {
-    await sharp(resolve(source)).resize(size, size, { fit: 'contain', background: '#00000000' }).png().toFile(join(publicDir, filename));
+  for (const [filename, size] of [
+    ['sadhana-icon.png', 512],
+    ['favicon-32.png', 32],
+    ['apple-touch-icon.png', 180],
+  ] as const) {
+    await sharp(resolve(source))
+      .resize(size, size, { fit: 'contain', background: '#00000000' })
+      .png()
+      .toFile(join(publicDir, filename));
   }
   process.stdout.write('Sadhana icon and favicons updated.\n');
 }
-main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

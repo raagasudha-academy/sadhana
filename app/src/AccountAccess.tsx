@@ -1,84 +1,677 @@
-import {useEffect,useState} from 'react';
-import type {CloudSession} from './CloudAuth';
-import type {InstitutionId} from './types';
+import { useEffect, useState } from 'react';
+import type { CloudSession } from './CloudAuth';
+import type { InstitutionId } from './types';
 import './accountAccess.css';
 import './accountAccessControls.css';
-type RequestRow={studentId:string;subject:string;kind:string;status:string;version:number;familyReviewRequired?:boolean};
-type Student={id:string;name:string;rollNumber?:string;archived?:boolean};
-export default function AccountAccess({cloud,institution}:{cloud:CloudSession;institution:InstitutionId}){
- const [canonicalQueue,setCanonicalQueue]=useState(false);
- const [reconciliationRequired,setReconciliationRequired]=useState(0);
- const [evidenceReference,setEvidenceReference]=useState('');
- const [relationshipReviewed,setRelationshipReviewed]=useState(false);
- const [rows,setRows]=useState<RequestRow[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[filter,setFilter]=useState('pending');
- const [students,setStudents]=useState<Student[]>([]),[studentId,setStudentId]=useState(''),[beneficiary,setBeneficiary]=useState(''),[requestError,setRequestError]=useState(''),[notice,setNotice]=useState('');
- const [srutiCandidates,setSrutiCandidates]=useState<Array<{studentId:string;subject:string}>>([]);
- const [srutiPair,setSrutiPair]=useState('');
- const loadSrutiCandidates=async()=>{if(institution!=='sruti')return;try{const r=await cloud.api.srutiGuardianCandidates();setSrutiCandidates(r.records)}catch(e){setRequestError(e instanceof Error?e.message:'Unable to load verified relationship candidates')}};
- const queueSrutiCandidate=async()=>{const chosen=srutiCandidates.find(x=>`${x.studentId}|${x.subject}`===srutiPair);if(!chosen)return;setBusy(true);setRequestError('');try{await cloud.api.requestSrutiGuardian(chosen.studentId,chosen.subject);setSrutiPair('');setNotice('Pending Sruti request created. Verify the relationship and review it below.');await load();await loadSrutiCandidates()}catch(e){setRequestError(e instanceof Error?e.message:'Unable to queue Sruti access')}finally{setBusy(false)}};
- const mySubject=cloud.staff.subject;
- const [accounts,setAccounts]=useState<Record<string,{name:string;email:string;verified:true}>>({});
- const [review,setReview]=useState<{row:RequestRow;decision:'approved'|'rejected'|'revoked'}|null>(null);
- const studentById=new Map(students.map(s=>[s.id,s]));
- const accountLabel=(subject:string)=>accounts[subject]?.name||'Account identity unverified';
- const load=async()=>{setLoading(true);setError('');try{const result=await cloud.api.listAccessRequests(institution);setRows(result.records);setCanonicalQueue((result as {source?:string}).source==='final');setReconciliationRequired(Number((result as {reconciliationRequired?:number}).reconciliationRequired||0));setAccounts(result.identities||{})}catch(e){setRows([]);setCanonicalQueue(false);setReconciliationRequired(0);setAccounts({});setError(e instanceof Error?e.message:'Unable to load requests')}finally{setLoading(false)}};
- useEffect(()=>{void load();setStudentId('');setRequestError('');setNotice('');let active=true;
-  cloud.api.listOperations('student',institution).then(r=>{if(active)setStudents((r.records||[]).filter((s:Student)=>!s.archived))}).catch(()=>{if(active)setStudents([])});
-  return()=>{active=false};
- },[institution]);
- useEffect(()=>{setSrutiCandidates([]);setSrutiPair('');if(institution==='sruti')void loadSrutiCandidates()},[institution]);
- const submitGuardian=async()=>{
-  if(!studentId||!beneficiary)return;setBusy(true);setRequestError('');setNotice('');
-  try{if(!guardianSubjects.has(beneficiary))throw new Error('No verified guardian relationship is available for this student. Verify and register the family relationship before requesting access.');await cloud.api.requestGuardianLinkForAccount(institution,studentId,beneficiary);setNotice('Guardian request recorded for the selected account. No access is granted until verified and approved.');await load()}
-  catch(e){setRequestError(e instanceof Error?e.message:'Unable to submit guardian request')}
-  finally{setBusy(false)}
- };
- const act=async(row:RequestRow,decision:'approved'|'rejected'|'revoked')=>{
-  if(decision==='approved'&&canonicalQueue&&!relationshipReviewed){setError('Confirm you have independently reviewed this guardian relationship.');return;}
-  if(decision==='approved'&&canonicalQueue&&institution!=='sruti'&&(evidenceReference.trim().length<4||evidenceReference.trim().length>180)){setError('Add a short note describing how you verified the relationship.');return;}
-  if(decision==='approved'&&!accounts[row.subject]?.verified){setError('Parent account identity is unresolved. Approval is blocked until the administrator can independently verify the account and student.');setReview(null);return;}
-  setBusy(true);setError('');try{await cloud.api.decideStudentLink(institution,row.subject,row.studentId,decision,row.version,decision==='approved',canonicalQueue&&decision==='approved'&&institution!=='sruti'?evidenceReference.trim():undefined,canonicalQueue&&decision==='approved'&&institution==='sruti'?'approved-raaga-link':undefined);setRequestError('');setNotice(`Access ${decision} for the selected account and student.`);setReview(null);setEvidenceReference('');setRelationshipReviewed(false);await load()}catch(e){setError(e instanceof Error?e.message:'Could not save decision')}finally{setBusy(false)}
- };
- // Do not offer a student for a second active guardian request. Historical
- // 'Student (self)' approvals must be reviewed separately; they do not prove guardianship.
- const selectableStudents=students.filter(s=>!rows.some(r=>r.studentId===s.id&&r.kind==='guardian'&&(r.status==='approved'||r.status==='pending')));
- // Existing verified guardian approvals are the only reliable relationship evidence
- // available in this API response. Administrator membership is NOT evidence.
- const guardianSubjects=new Set(rows.filter(r=>r.studentId===studentId&&r.kind==='guardian'&&r.status==='approved').map(r=>r.subject));
- const eligibleGuardians=Object.entries(accounts).filter(([subject])=>guardianSubjects.has(subject));
- const myApproved=rows.filter(r=>r.subject===mySubject&&r.status==='approved');
- const selected=rows.filter(r=>filter==='all'||r.status===filter);
- const unavailable=/unknown endpoint|not found|404/i.test(error);
- const accountResolved=(r:RequestRow)=>accounts[r.subject]?.verified===true;
- const reviewAccount=review?(accounts[review.row.subject]||null):null;
- const reviewStudent=review?studentById.get(review.row.studentId):null;
- return <section className="access-console access-page-panel"><header><div><h2>Account Access</h2><p>Manage student and guardian access for {institution==='raaga'?'Raagasudha':'Śruti Vedam'}.</p></div><button type="button" onClick={()=>void load()} disabled={busy||loading}>Refresh</button></header>
- <section className="access-self-link" aria-label="Assign family access"><div><h3>Link a child to a parent / guardian</h3><p>Choose the existing student and the account that will receive access. The administrator processing this request is not linked to the child. Verify the registered family relationship before approving.</p></div><div className="access-self-controls access-guardian-grid"><label htmlFor="access-child">Student (name / roll number)<select id="access-child" value={studentId} onChange={e=>{setStudentId(e.target.value);setBeneficiary('');setRequestError('')}} disabled={busy}><option value="">Choose student…</option>{selectableStudents.map(s=><option value={s.id} key={s.id}>{s.name}{s.rollNumber?` · ${s.rollNumber}`:''}</option>)}</select></label><label htmlFor="access-beneficiary">Parent / guardian account<select id="access-beneficiary" value={beneficiary} onChange={e=>setBeneficiary(e.target.value)} disabled={busy}><option value="">{studentId?(eligibleGuardians.length?'Choose verified guardian…':'No verified guardian on file'):'Select a student first…'}</option>{eligibleGuardians.map(([sub,a])=><option key={sub} value={sub}>{a.name}{a.email?` · ${a.email}`:''}</option>)}</select></label><button className="access-guardian-create" type="button" onClick={()=>void submitGuardian()} disabled={!studentId||!beneficiary||!guardianSubjects.has(beneficiary)||busy||canonicalQueue}>Create pending guardian request</button></div><p className="access-relationship-note">Only existing verified guardian relationships are shown. An administrator is not automatically a parent. To add a new parent-child relationship, first link the registered family record to the correct account through a verified family-access workflow. Historical Student (self) links are not guardian evidence.</p>{canonicalQueue&&<p className="access-relationship-note">New on-behalf account requests require a separately verified canonical onboarding workflow and are not enabled during final cutover.</p>}{requestError&&<p role="alert" className="reg-error">{requestError}</p>}</section>
- {institution==='sruti'&&<section className="access-self-link access-v1274-cross" aria-label="Cross-academy guardian requests"><h3>Existing family relationship · Sruti enrolment</h3><p>Create a pending Sruti request only for an existing approved Raagasudha guardian relationship and a student enrolled in Sruti. This does not grant access. Independently verify the relationship before approval.</p><div className="access-v1274-cross-grid"><label>Verified student and guardian<select value={srutiPair} onChange={e=>setSrutiPair(e.target.value)}><option value="">Choose student and guardian…</option>{srutiCandidates.filter(c=>!rows.some(r=>r.studentId===c.studentId&&r.subject===c.subject&&(r.status==='pending'||r.status==='approved'))).map(c=><option key={`${c.studentId}:${c.subject}`} value={`${c.studentId}|${c.subject}`}>{studentById.get(c.studentId)?.name||'Student'} · {studentById.get(c.studentId)?.rollNumber||'Roll unavailable'} · {accounts[c.subject]?.name||'Verified guardian account'}</option>)}</select></label><button type="button" disabled={busy||!srutiPair} onClick={()=>void queueSrutiCandidate()}>Create pending request</button><button className="access-secondary-button" type="button" disabled={busy} onClick={()=>void loadSrutiCandidates()}>Refresh candidates</button></div><p className="access-relationship-note">A separate administrator review is required. Existing approved links are excluded from this list.</p></section>}
- <div className="access-controls"><label>Show <select value={filter} onChange={e=>setFilter(e.target.value)}><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="revoked">Revoked</option><option value="all">All</option></select></label><span>{loading?'Checking requests…':error?'Requests unavailable':`${selected.length} requests`}</span></div>
- {reconciliationRequired>0&&<p role="alert" className="access-relationship-note">{reconciliationRequired} guardian access record(s) need separate administrator identity reconciliation and are excluded from the approval queue. No access has been granted for these records.</p>}
- {error&&<div role="alert" className="access-error"><strong>{unavailable?'Account Access API is not deployed yet':'Unable to load account requests'}</strong><p>{unavailable?'The frontend is installed, but the running development Lambda does not recognise the Account Access endpoint. Deploy the verified backend before submitting or approving requests.':error}</p></div>}
- {loading?<p role="status">Loading requests…</p>:!error?<div className="access-table-wrap"><table><thead><tr><th>Account holder</th><th>Student</th><th>Request type</th><th>Status</th><th>Action</th></tr></thead><tbody>{selected.map(r=><tr key={`${r.subject}:${r.studentId}`}><td><strong>{accountLabel(r.subject)}</strong>{accounts[r.subject]?.email&&<small style={{display:"block",color:"#718096"}}>{accounts[r.subject].email}</small>}{!accounts[r.subject]?.verified&&<small style={{display:"block",color:"#718096"}}>Account reference: {r.subject.slice(0,8)}…</small>}</td><td><strong>{studentById.get(r.studentId)?.name||"Student record unavailable"}</strong><small style={{display:"block",color:"#718096"}}>{studentById.get(r.studentId)?.rollNumber?`Roll ${studentById.get(r.studentId)?.rollNumber}`:`Record ${r.studentId.slice(0,12)}…`}</small></td><td>{r.kind==='student'?'Student (self)':'Guardian'}</td><td>{r.status}{r.familyReviewRequired&&<small style={{display:'block',color:'#8a5a12'}}>Separate family · verify relationship</small>}</td><td>{r.status==='pending'?<><button className="access-review-button" disabled={busy} onClick={()=>{setNotice('');setEvidenceReference('');setRelationshipReviewed(false);setReview({row:r,decision:'approved'})}}>Review request</button> <button className="access-secondary-button" disabled={busy} onClick={()=>{setEvidenceReference('');setRelationshipReviewed(false);setReview({row:r,decision:'rejected'})}}>Reject</button></>:r.status==='approved'?<button className="access-secondary-button" disabled={busy} onClick={()=>{setEvidenceReference('');setRelationshipReviewed(false);setReview({row:r,decision:'revoked'})}}>Revoke</button>:null}</td></tr>)}{!selected.length&&<tr><td colSpan={5}>No {filter==='all'?'':filter} access requests.</td></tr>}</tbody></table></div>:null}
- {notice&&<p role="status" className="access-success">{notice}</p>}
- {review&&<div className="access-modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target&&!busy)setReview(null)}}>
-  <section role="dialog" aria-modal="true" aria-labelledby="access-review-title" className="access-review-modal access-review-modal-v2">
-   <div className="access-review-heading">
-    <div><span className="access-eyebrow">{institution==='raaga'?'Raagasudha':'Śruti Vedam'} · Guardian access</span><h3 id="access-review-title">{review.decision==='approved'?'Approve guardian access':review.decision==='rejected'?'Reject access request':'Revoke student access'}</h3></div>
-    <button type="button" className="access-modal-close" aria-label="Close review" disabled={busy} onClick={()=>setReview(null)}>×</button>
-   </div>
-   <div className="access-review-details">
-    <div><span>Parent / guardian</span><strong>{accountLabel(review.row.subject)}</strong><small>{reviewAccount?.email||'Account identity unavailable'}</small></div>
-    <div><span>Student</span><strong>{reviewStudent?.name||'Student record unavailable'}</strong><small>{institution==='raaga'?'Raagasudha':'Śruti Vedam'}{reviewStudent?.rollNumber?` · Roll ${reviewStudent.rollNumber}`:''}</small></div>
-   </div>
- {review.decision==='approved'?<>
-    <div className="access-review-evidence" role="note"><strong>Independent verification required</strong><p>{institution==='sruti'?'Sadhana will verify the existing approved Raagasudha guardian link when you approve. The linked source record is recorded automatically as evidence.':review.row.familyReviewRequired?'The student belongs to a separate family record. Verify the relationship independently before approving access to this student.':'Review the registered guardian relationship and recorded evidence before approving. Approval grants access to this student only.'}</p></div>
-    {!accountResolved(review.row)&&<p role="alert" className="access-review-warning">The account identity is not verified. Approval is blocked until the account is reconciled.</p>}
-    {canonicalQueue&&institution!=='sruti'&&<label className="access-verification-reference">How did you verify this relationship?<textarea value={evidenceReference} onChange={e=>setEvidenceReference(e.target.value)} maxLength={180} rows={2} placeholder="For example: checked the registration and confirmed by calling the contact on file"/><small>Record the source or method and date. Avoid sensitive document details.</small></label>}
-    {canonicalQueue&&<label className="access-review-checkbox"><input type="checkbox" checked={relationshipReviewed} onChange={e=>setRelationshipReviewed(e.target.checked)}/><span>I have independently reviewed and confirmed this guardian relationship.</span></label>}
-   </>:<p className="access-review-explainer">This changes only the selected guardian–student access link. It does not delete the student or their registration.</p>}
-   <div className="access-review-actions"><button type="button" disabled={busy} className="access-secondary-button" onClick={()=>setReview(null)}>Cancel</button><button type="button" className="access-review-button" disabled={busy||(review.decision==='approved'&&(!accountResolved(review.row)||!reviewStudent||(canonicalQueue&&(!relationshipReviewed||(institution!=='sruti'&&(evidenceReference.trim().length<4||evidenceReference.trim().length>180))))))} onClick={()=>void act(review.row,review.decision)}>{busy?'Saving…':review.decision==='approved'?'Approve access':review.decision==='rejected'?'Reject request':'Revoke access'}</button></div>
-  </section>
- </div>}
+type RequestRow = {
+  studentId: string;
+  subject: string;
+  kind: string;
+  status: string;
+  version: number;
+  familyReviewRequired?: boolean;
+};
+type Student = { id: string; name: string; rollNumber?: string; archived?: boolean };
+export default function AccountAccess({
+  cloud,
+  institution,
+}: {
+  cloud: CloudSession;
+  institution: InstitutionId;
+}) {
+  const [canonicalQueue, setCanonicalQueue] = useState(false);
+  const [reconciliationRequired, setReconciliationRequired] = useState(0);
+  const [evidenceReference, setEvidenceReference] = useState('');
+  const [relationshipReviewed, setRelationshipReviewed] = useState(false);
+  const [rows, setRows] = useState<RequestRow[]>([]),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
+    [filter, setFilter] = useState('pending');
+  const [students, setStudents] = useState<Student[]>([]),
+    [studentId, setStudentId] = useState(''),
+    [beneficiary, setBeneficiary] = useState(''),
+    [requestError, setRequestError] = useState(''),
+    [notice, setNotice] = useState('');
+  const [srutiCandidates, setSrutiCandidates] = useState<
+    Array<{ studentId: string; subject: string }>
+  >([]);
+  const [srutiPair, setSrutiPair] = useState('');
+  const loadSrutiCandidates = async () => {
+    if (institution !== 'sruti') return;
+    try {
+      const r = await cloud.api.srutiGuardianCandidates();
+      setSrutiCandidates(r.records);
+    } catch (e) {
+      setRequestError(
+        e instanceof Error ? e.message : 'Unable to load verified relationship candidates',
+      );
+    }
+  };
+  const queueSrutiCandidate = async () => {
+    const chosen = srutiCandidates.find((x) => `${x.studentId}|${x.subject}` === srutiPair);
+    if (!chosen) return;
+    setBusy(true);
+    setRequestError('');
+    try {
+      await cloud.api.requestSrutiGuardian(chosen.studentId, chosen.subject);
+      setSrutiPair('');
+      setNotice('Pending Sruti request created. Verify the relationship and review it below.');
+      await load();
+      await loadSrutiCandidates();
+    } catch (e) {
+      setRequestError(e instanceof Error ? e.message : 'Unable to queue Sruti access');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const mySubject = cloud.staff.subject;
+  const [accounts, setAccounts] = useState<
+    Record<string, { name: string; email: string; verified: true }>
+  >({});
+  const [review, setReview] = useState<{
+    row: RequestRow;
+    decision: 'approved' | 'rejected' | 'revoked';
+  } | null>(null);
+  const studentById = new Map(students.map((s) => [s.id, s]));
+  const accountLabel = (subject: string) =>
+    accounts[subject]?.name || 'Account identity unverified';
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await cloud.api.listAccessRequests(institution);
+      setRows(result.records);
+      setCanonicalQueue((result as { source?: string }).source === 'final');
+      setReconciliationRequired(
+        Number((result as { reconciliationRequired?: number }).reconciliationRequired || 0),
+      );
+      setAccounts(result.identities || {});
+    } catch (e) {
+      setRows([]);
+      setCanonicalQueue(false);
+      setReconciliationRequired(0);
+      setAccounts({});
+      setError(e instanceof Error ? e.message : 'Unable to load requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    void load();
+    setStudentId('');
+    setRequestError('');
+    setNotice('');
+    let active = true;
+    cloud.api
+      .listOperations('student', institution)
+      .then((r) => {
+        if (active) setStudents((r.records || []).filter((s: Student) => !s.archived));
+      })
+      .catch(() => {
+        if (active) setStudents([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [institution]);
+  useEffect(() => {
+    setSrutiCandidates([]);
+    setSrutiPair('');
+    if (institution === 'sruti') void loadSrutiCandidates();
+  }, [institution]);
+  const submitGuardian = async () => {
+    if (!studentId || !beneficiary) return;
+    setBusy(true);
+    setRequestError('');
+    setNotice('');
+    try {
+      if (!guardianSubjects.has(beneficiary))
+        throw new Error(
+          'No verified guardian relationship is available for this student. Verify and register the family relationship before requesting access.',
+        );
+      await cloud.api.requestGuardianLinkForAccount(institution, studentId, beneficiary);
+      setNotice(
+        'Guardian request recorded for the selected account. No access is granted until verified and approved.',
+      );
+      await load();
+    } catch (e) {
+      setRequestError(e instanceof Error ? e.message : 'Unable to submit guardian request');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const act = async (row: RequestRow, decision: 'approved' | 'rejected' | 'revoked') => {
+    if (decision === 'approved' && canonicalQueue && !relationshipReviewed) {
+      setError('Confirm you have independently reviewed this guardian relationship.');
+      return;
+    }
+    if (
+      decision === 'approved' &&
+      canonicalQueue &&
+      institution !== 'sruti' &&
+      (evidenceReference.trim().length < 4 || evidenceReference.trim().length > 180)
+    ) {
+      setError('Add a short note describing how you verified the relationship.');
+      return;
+    }
+    if (decision === 'approved' && !accounts[row.subject]?.verified) {
+      setError(
+        'Parent account identity is unresolved. Approval is blocked until the administrator can independently verify the account and student.',
+      );
+      setReview(null);
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      await cloud.api.decideStudentLink(
+        institution,
+        row.subject,
+        row.studentId,
+        decision,
+        row.version,
+        decision === 'approved',
+        canonicalQueue && decision === 'approved' && institution !== 'sruti'
+          ? evidenceReference.trim()
+          : undefined,
+        canonicalQueue && decision === 'approved' && institution === 'sruti'
+          ? 'approved-raaga-link'
+          : undefined,
+      );
+      setRequestError('');
+      setNotice(`Access ${decision} for the selected account and student.`);
+      setReview(null);
+      setEvidenceReference('');
+      setRelationshipReviewed(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save decision');
+    } finally {
+      setBusy(false);
+    }
+  };
+  // Do not offer a student for a second active guardian request. Historical
+  // 'Student (self)' approvals must be reviewed separately; they do not prove guardianship.
+  const selectableStudents = students.filter(
+    (s) =>
+      !rows.some(
+        (r) =>
+          r.studentId === s.id &&
+          r.kind === 'guardian' &&
+          (r.status === 'approved' || r.status === 'pending'),
+      ),
+  );
+  // Existing verified guardian approvals are the only reliable relationship evidence
+  // available in this API response. Administrator membership is NOT evidence.
+  const guardianSubjects = new Set(
+    rows
+      .filter((r) => r.studentId === studentId && r.kind === 'guardian' && r.status === 'approved')
+      .map((r) => r.subject),
+  );
+  const eligibleGuardians = Object.entries(accounts).filter(([subject]) =>
+    guardianSubjects.has(subject),
+  );
+  const myApproved = rows.filter((r) => r.subject === mySubject && r.status === 'approved');
+  const selected = rows.filter((r) => filter === 'all' || r.status === filter);
+  const unavailable = /unknown endpoint|not found|404/i.test(error);
+  const accountResolved = (r: RequestRow) => accounts[r.subject]?.verified === true;
+  const reviewAccount = review ? accounts[review.row.subject] || null : null;
+  const reviewStudent = review ? studentById.get(review.row.studentId) : null;
+  return (
+    <section className="access-console access-page-panel">
+      <header>
+        <div>
+          <h2>Account Access</h2>
+          <p>
+            Manage student and guardian access for{' '}
+            {institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam'}.
+          </p>
+        </div>
+        <button type="button" onClick={() => void load()} disabled={busy || loading}>
+          Refresh
+        </button>
+      </header>
+      <section className="access-self-link" aria-label="Assign family access">
+        <div>
+          <h3>Link a child to a parent / guardian</h3>
+          <p>
+            Choose the existing student and the account that will receive access. The administrator
+            processing this request is not linked to the child. Verify the registered family
+            relationship before approving.
+          </p>
+        </div>
+        <div className="access-self-controls access-guardian-grid">
+          <label htmlFor="access-child">
+            Student (name / roll number)
+            <select
+              id="access-child"
+              value={studentId}
+              onChange={(e) => {
+                setStudentId(e.target.value);
+                setBeneficiary('');
+                setRequestError('');
+              }}
+              disabled={busy}
+            >
+              <option value="">Choose student…</option>
+              {selectableStudents.map((s) => (
+                <option value={s.id} key={s.id}>
+                  {s.name}
+                  {s.rollNumber ? ` · ${s.rollNumber}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="access-beneficiary">
+            Parent / guardian account
+            <select
+              id="access-beneficiary"
+              value={beneficiary}
+              onChange={(e) => setBeneficiary(e.target.value)}
+              disabled={busy}
+            >
+              <option value="">
+                {studentId
+                  ? eligibleGuardians.length
+                    ? 'Choose verified guardian…'
+                    : 'No verified guardian on file'
+                  : 'Select a student first…'}
+              </option>
+              {eligibleGuardians.map(([sub, a]) => (
+                <option key={sub} value={sub}>
+                  {a.name}
+                  {a.email ? ` · ${a.email}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="access-guardian-create"
+            type="button"
+            onClick={() => void submitGuardian()}
+            disabled={
+              !studentId ||
+              !beneficiary ||
+              !guardianSubjects.has(beneficiary) ||
+              busy ||
+              canonicalQueue
+            }
+          >
+            Create pending guardian request
+          </button>
+        </div>
+        <p className="access-relationship-note">
+          Only existing verified guardian relationships are shown. An administrator is not
+          automatically a parent. To add a new parent-child relationship, first link the registered
+          family record to the correct account through a verified family-access workflow. Historical
+          Student (self) links are not guardian evidence.
+        </p>
+        {canonicalQueue && (
+          <p className="access-relationship-note">
+            New on-behalf account requests require a separately verified canonical onboarding
+            workflow and are not enabled during final cutover.
+          </p>
+        )}
+        {requestError && (
+          <p role="alert" className="reg-error">
+            {requestError}
+          </p>
+        )}
+      </section>
+      {institution === 'sruti' && (
+        <section
+          className="access-self-link access-v1274-cross"
+          aria-label="Cross-academy guardian requests"
+        >
+          <h3>Existing family relationship · Sruti enrolment</h3>
+          <p>
+            Create a pending Sruti request only for an existing approved Raagasudha guardian
+            relationship and a student enrolled in Sruti. This does not grant access. Independently
+            verify the relationship before approval.
+          </p>
+          <div className="access-v1274-cross-grid">
+            <label>
+              Verified student and guardian
+              <select value={srutiPair} onChange={(e) => setSrutiPair(e.target.value)}>
+                <option value="">Choose student and guardian…</option>
+                {srutiCandidates
+                  .filter(
+                    (c) =>
+                      !rows.some(
+                        (r) =>
+                          r.studentId === c.studentId &&
+                          r.subject === c.subject &&
+                          (r.status === 'pending' || r.status === 'approved'),
+                      ),
+                  )
+                  .map((c) => (
+                    <option
+                      key={`${c.studentId}:${c.subject}`}
+                      value={`${c.studentId}|${c.subject}`}
+                    >
+                      {studentById.get(c.studentId)?.name || 'Student'} ·{' '}
+                      {studentById.get(c.studentId)?.rollNumber || 'Roll unavailable'} ·{' '}
+                      {accounts[c.subject]?.name || 'Verified guardian account'}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={busy || !srutiPair}
+              onClick={() => void queueSrutiCandidate()}
+            >
+              Create pending request
+            </button>
+            <button
+              className="access-secondary-button"
+              type="button"
+              disabled={busy}
+              onClick={() => void loadSrutiCandidates()}
+            >
+              Refresh candidates
+            </button>
+          </div>
+          <p className="access-relationship-note">
+            A separate administrator review is required. Existing approved links are excluded from
+            this list.
+          </p>
+        </section>
+      )}
+      <div className="access-controls">
+        <label>
+          Show{' '}
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="revoked">Revoked</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+        <span>
+          {loading
+            ? 'Checking requests…'
+            : error
+              ? 'Requests unavailable'
+              : `${selected.length} requests`}
+        </span>
+      </div>
+      {reconciliationRequired > 0 && (
+        <p role="alert" className="access-relationship-note">
+          {reconciliationRequired} guardian access record(s) need separate administrator identity
+          reconciliation and are excluded from the approval queue. No access has been granted for
+          these records.
+        </p>
+      )}
+      {error && (
+        <div role="alert" className="access-error">
+          <strong>
+            {unavailable
+              ? 'Account Access API is not deployed yet'
+              : 'Unable to load account requests'}
+          </strong>
+          <p>
+            {unavailable
+              ? 'The frontend is installed, but the running development Lambda does not recognise the Account Access endpoint. Deploy the verified backend before submitting or approving requests.'
+              : error}
+          </p>
+        </div>
+      )}
+      {loading ? (
+        <p role="status">Loading requests…</p>
+      ) : !error ? (
+        <div className="access-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account holder</th>
+                <th>Student</th>
+                <th>Request type</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selected.map((r) => (
+                <tr key={`${r.subject}:${r.studentId}`}>
+                  <td>
+                    <strong>{accountLabel(r.subject)}</strong>
+                    {accounts[r.subject]?.email && (
+                      <small style={{ display: 'block', color: '#718096' }}>
+                        {accounts[r.subject].email}
+                      </small>
+                    )}
+                    {!accounts[r.subject]?.verified && (
+                      <small style={{ display: 'block', color: '#718096' }}>
+                        Account reference: {r.subject.slice(0, 8)}…
+                      </small>
+                    )}
+                  </td>
+                  <td>
+                    <strong>
+                      {studentById.get(r.studentId)?.name || 'Student record unavailable'}
+                    </strong>
+                    <small style={{ display: 'block', color: '#718096' }}>
+                      {studentById.get(r.studentId)?.rollNumber
+                        ? `Roll ${studentById.get(r.studentId)?.rollNumber}`
+                        : `Record ${r.studentId.slice(0, 12)}…`}
+                    </small>
+                  </td>
+                  <td>{r.kind === 'student' ? 'Student (self)' : 'Guardian'}</td>
+                  <td>
+                    {r.status}
+                    {r.familyReviewRequired && (
+                      <small style={{ display: 'block', color: '#8a5a12' }}>
+                        Separate family · verify relationship
+                      </small>
+                    )}
+                  </td>
+                  <td>
+                    {r.status === 'pending' ? (
+                      <>
+                        <button
+                          className="access-review-button"
+                          disabled={busy}
+                          onClick={() => {
+                            setNotice('');
+                            setEvidenceReference('');
+                            setRelationshipReviewed(false);
+                            setReview({ row: r, decision: 'approved' });
+                          }}
+                        >
+                          Review request
+                        </button>{' '}
+                        <button
+                          className="access-secondary-button"
+                          disabled={busy}
+                          onClick={() => {
+                            setEvidenceReference('');
+                            setRelationshipReviewed(false);
+                            setReview({ row: r, decision: 'rejected' });
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : r.status === 'approved' ? (
+                      <button
+                        className="access-secondary-button"
+                        disabled={busy}
+                        onClick={() => {
+                          setEvidenceReference('');
+                          setRelationshipReviewed(false);
+                          setReview({ row: r, decision: 'revoked' });
+                        }}
+                      >
+                        Revoke
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+              {!selected.length && (
+                <tr>
+                  <td colSpan={5}>No {filter === 'all' ? '' : filter} access requests.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {notice && (
+        <p role="status" className="access-success">
+          {notice}
+        </p>
+      )}
+      {review && (
+        <div
+          className="access-modal-backdrop"
+          onMouseDown={(e) => {
+            if (e.currentTarget === e.target && !busy) setReview(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="access-review-title"
+            className="access-review-modal access-review-modal-v2"
+          >
+            <div className="access-review-heading">
+              <div>
+                <span className="access-eyebrow">
+                  {institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam'} · Guardian access
+                </span>
+                <h3 id="access-review-title">
+                  {review.decision === 'approved'
+                    ? 'Approve guardian access'
+                    : review.decision === 'rejected'
+                      ? 'Reject access request'
+                      : 'Revoke student access'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="access-modal-close"
+                aria-label="Close review"
+                disabled={busy}
+                onClick={() => setReview(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="access-review-details">
+              <div>
+                <span>Parent / guardian</span>
+                <strong>{accountLabel(review.row.subject)}</strong>
+                <small>{reviewAccount?.email || 'Account identity unavailable'}</small>
+              </div>
+              <div>
+                <span>Student</span>
+                <strong>{reviewStudent?.name || 'Student record unavailable'}</strong>
+                <small>
+                  {institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam'}
+                  {reviewStudent?.rollNumber ? ` · Roll ${reviewStudent.rollNumber}` : ''}
+                </small>
+              </div>
+            </div>
+            {review.decision === 'approved' ? (
+              <>
+                <div className="access-review-evidence" role="note">
+                  <strong>Independent verification required</strong>
+                  <p>
+                    {institution === 'sruti'
+                      ? 'Sadhana will verify the existing approved Raagasudha guardian link when you approve. The linked source record is recorded automatically as evidence.'
+                      : review.row.familyReviewRequired
+                        ? 'The student belongs to a separate family record. Verify the relationship independently before approving access to this student.'
+                        : 'Review the registered guardian relationship and recorded evidence before approving. Approval grants access to this student only.'}
+                  </p>
+                </div>
+                {!accountResolved(review.row) && (
+                  <p role="alert" className="access-review-warning">
+                    The account identity is not verified. Approval is blocked until the account is
+                    reconciled.
+                  </p>
+                )}
+                {canonicalQueue && institution !== 'sruti' && (
+                  <label className="access-verification-reference">
+                    How did you verify this relationship?
+                    <textarea
+                      value={evidenceReference}
+                      onChange={(e) => setEvidenceReference(e.target.value)}
+                      maxLength={180}
+                      rows={2}
+                      placeholder="For example: checked the registration and confirmed by calling the contact on file"
+                    />
+                    <small>
+                      Record the source or method and date. Avoid sensitive document details.
+                    </small>
+                  </label>
+                )}
+                {canonicalQueue && (
+                  <label className="access-review-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={relationshipReviewed}
+                      onChange={(e) => setRelationshipReviewed(e.target.checked)}
+                    />
+                    <span>
+                      I have independently reviewed and confirmed this guardian relationship.
+                    </span>
+                  </label>
+                )}
+              </>
+            ) : (
+              <p className="access-review-explainer">
+                This changes only the selected guardian–student access link. It does not delete the
+                student or their registration.
+              </p>
+            )}
+            <div className="access-review-actions">
+              <button
+                type="button"
+                disabled={busy}
+                className="access-secondary-button"
+                onClick={() => setReview(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="access-review-button"
+                disabled={
+                  busy ||
+                  (review.decision === 'approved' &&
+                    (!accountResolved(review.row) ||
+                      !reviewStudent ||
+                      (canonicalQueue &&
+                        (!relationshipReviewed ||
+                          (institution !== 'sruti' &&
+                            (evidenceReference.trim().length < 4 ||
+                              evidenceReference.trim().length > 180))))))
+                }
+                onClick={() => void act(review.row, review.decision)}
+              >
+                {busy
+                  ? 'Saving…'
+                  : review.decision === 'approved'
+                    ? 'Approve access'
+                    : review.decision === 'rejected'
+                      ? 'Reject request'
+                      : 'Revoke access'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
- <p className="access-note">An approved link gives access only to the selected beneficiary account and student. Review historical Student (self) approvals for children; they are not automatically converted. Do not approve links from name matching alone. Approvals are checked by the backend and audited. Super Admin self-approval requires explicit backend authorisation.</p></section>;
+      <p className="access-note">
+        An approved link gives access only to the selected beneficiary account and student. Review
+        historical Student (self) approvals for children; they are not automatically converted. Do
+        not approve links from name matching alone. Approvals are checked by the backend and
+        audited. Super Admin self-approval requires explicit backend authorisation.
+      </p>
+    </section>
+  );
 }

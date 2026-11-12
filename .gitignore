@@ -1,85 +1,45 @@
-node_modules/
-backend/node_modules/
-dist/
-.aws-sam/
-.env
-.env.*
-!.env.example
-samconfig.toml
-*.log
-.DS_Store
-
-# Historical local patch/backups (not source)
-*.bak
-*.backup
-*.before-*
-*.pre-*
-.sadhana-*-backup-*/
-
-# Local environment and credentials
+# Local configuration and credentials
 .env
 .env.*
 !.env.example
 *.pem
 *.key
 .aws/
-.aws-sam/
 
-# Dependencies and build artefacts
+# Dependencies and generated build output
 node_modules/
+backend/node_modules/
 dist/
+backend/dist/
+build/
+.aws-sam/
+.vitest/
 coverage/
 playwright-report/
 test-results/
 
-# Local backups
-.local-patch-backups/
-.sadhana-v*-backup-*/
+# Python environments and caches
+.venv*/
+__pycache__/
+*.pyc
+
+# Local backups and editor files
 *.bak
+*.bak.*
 *.backup
+*.before-*
+*.pre-*
 *.old
 *.orig
 *.rej
-*.before-*
-
-# IDE and system files
-.DS_Store
+*~
+.local-patch-backups/
+.sadhana-*-backup-*/
 .idea/
+.DS_Store
 
-# Local output and logs
+# Logs and local audit outputs
 *.log
 file_structure.txt
-
-# Local inventories and test reports
-file_structure.txt
-playwright-report/
-test-results/
-
-# Sadhana local patch and recovery artifacts
-.sadhana-patch-backups/
-.local-patch-backups/
-*.bak
-*.bak.*
-*.backup
-*.orig
-*.rej
-*~
-
-# Local operational audit outputs
 sadhana-revoke-audit-report.json
-
-# Sadhana developer-only generated and backup files
-.local-patch-backups/
-.sadhana-patch-backups/
-.sadhana-*-backup-*/
-*.bak
-*.bak.*
-*.backup
-*.orig
-*.rej
-*~
-.idea/
-
-# Python generated cache
-__pycache__/
-*.pyc
+samconfig.toml

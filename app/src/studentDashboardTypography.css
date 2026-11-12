@@ -31,5 +31,7 @@
   font-size: 12px;
 }
 @media (max-width: 600px) {
-  .sv1296-embedded-root.student-portal-v119 .sv116-intro h1 { font-size: 22px; }
+  .sv1296-embedded-root.student-portal-v119 .sv116-intro h1 {
+    font-size: 22px;
+  }
 }

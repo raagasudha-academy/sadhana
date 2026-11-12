@@ -1,9 +1,17 @@
-import {useState} from 'react';
-import {ArrowRight, CircleAlert, Info, Search, Trash2} from 'lucide-react';
-import {institutions} from '../../institutions';
-import {getEnrolmentStatus,maskPhone,newId,ukISODate} from '../../registry';
+import { useState } from 'react';
+import { ArrowRight, CircleAlert, Info, Search, Trash2 } from 'lucide-react';
+import { institutions } from '../../institutions';
+import { getEnrolmentStatus, maskPhone, newId, ukISODate } from '../../registry';
 import PhoneField from '../../PhoneField';
-import {clean, familyLabel, studentLabel, Status, Modal, Field, fmtDate} from './registrationShared';
+import {
+  clean,
+  familyLabel,
+  studentLabel,
+  Status,
+  Modal,
+  Field,
+  fmtDate,
+} from './registrationShared';
 
 export function EnrolModal({
   workspace,

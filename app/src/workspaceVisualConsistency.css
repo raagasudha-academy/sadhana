@@ -6,35 +6,51 @@
   --sadhana-tab-track: #eef1f6;
   --sadhana-tab-active: #ffffff;
   --sadhana-tab-ink: #344d72;
-  --sadhana-modal-shadow: 0 22px 64px rgba(18, 35, 60, .2);
+  --sadhana-modal-shadow: 0 22px 64px rgba(18, 35, 60, 0.2);
 }
 
-.app-shell :is(.page-heading h1, .reg-page-header h1, .wr-heading h1,
-  .sv116-intro h1, .sadhana-my-profile > header h1),
+.app-shell
+  :is(
+    .page-heading h1,
+    .reg-page-header h1,
+    .wr-heading h1,
+    .sv116-intro h1,
+    .sadhana-my-profile > header h1
+  ),
 .student-portal-v123 :is(.sv116-intro h1, .sv1277-page-title) {
   color: #29364b !important;
   font-family: inherit !important;
   font-size: clamp(27px, 2.45vw, 35px) !important;
   font-weight: 740 !important;
-  letter-spacing: -.035em !important;
+  letter-spacing: -0.035em !important;
   line-height: 1.18 !important;
 }
 
-.app-shell :is(.page-heading .eyebrow, .reg-kicker, .wr-kicker,
-  .sv116-eyebrow, .sadhana-my-profile .eyebrow),
+.app-shell
+  :is(
+    .page-heading .eyebrow,
+    .reg-kicker,
+    .wr-kicker,
+    .sv116-eyebrow,
+    .sadhana-my-profile .eyebrow
+  ),
 .student-portal-v123 .sv116-eyebrow {
   color: var(--sadhana-accent) !important;
   font-family: inherit !important;
   font-size: 11px !important;
   font-weight: 780 !important;
-  letter-spacing: .16em !important;
+  letter-spacing: 0.16em !important;
   line-height: 1.35 !important;
 }
 
-.app-shell :is(.page-heading > div > p:not(.eyebrow),
-  .reg-page-header > div > p:not(.reg-kicker),
-  .wr-heading > div > p:not(.wr-kicker),
-  .sv116-intro > p, .sadhana-my-profile > header > p),
+.app-shell
+  :is(
+    .page-heading > div > p:not(.eyebrow),
+    .reg-page-header > div > p:not(.reg-kicker),
+    .wr-heading > div > p:not(.wr-kicker),
+    .sv116-intro > p,
+    .sadhana-my-profile > header > p
+  ),
 .student-portal-v123 .sv116-intro > p {
   color: #687990 !important;
   font-family: inherit !important;
@@ -48,7 +64,7 @@
   color: var(--sadhana-accent) !important;
   font-size: 11px;
   font-weight: 780;
-  letter-spacing: .15em;
+  letter-spacing: 0.15em;
   line-height: 1.35;
   text-transform: uppercase;
 }
@@ -65,7 +81,7 @@
   color: var(--sadhana-accent);
   font-size: 11px;
   font-weight: 780;
-  letter-spacing: .16em;
+  letter-spacing: 0.16em;
   line-height: 1.35;
 }
 
@@ -75,7 +91,7 @@
   color: #29364b;
   font-size: clamp(27px, 2.45vw, 35px);
   font-weight: 740;
-  letter-spacing: -.035em;
+  letter-spacing: -0.035em;
   line-height: 1.18;
 }
 
@@ -109,7 +125,7 @@
   font-family: inherit !important;
   font-size: clamp(27px, 2.45vw, 35px) !important;
   font-weight: 740 !important;
-  letter-spacing: -.035em !important;
+  letter-spacing: -0.035em !important;
   line-height: 1.18 !important;
 }
 
@@ -120,7 +136,7 @@
   font-family: inherit !important;
   font-size: 11px !important;
   font-weight: 780 !important;
-  letter-spacing: .16em !important;
+  letter-spacing: 0.16em !important;
   line-height: 1.35 !important;
 }
 
@@ -165,7 +181,6 @@
   width: 100%;
   min-width: 0;
 }
-
 
 .student-portal-v123 .student-portal-learning:has(> .sv1277-page-title + .sv-nav-context) {
   display: grid;
@@ -227,7 +242,7 @@
   color: var(--sadhana-accent);
   font-size: 11px;
   font-weight: 780;
-  letter-spacing: .16em;
+  letter-spacing: 0.16em;
   line-height: 1.35;
   text-transform: uppercase;
 }
@@ -238,11 +253,11 @@
   font: inherit;
   font-size: clamp(27px, 2.45vw, 35px);
   font-weight: 740;
-  letter-spacing: -.035em;
+  letter-spacing: -0.035em;
   line-height: 1.18;
 }
 
-.app-shell .admin-page-tabs[aria-label="People & Access"] {
+.app-shell .admin-page-tabs[aria-label='People & Access'] {
   margin-bottom: 22px;
 }
 
@@ -277,7 +292,9 @@
 
 .app-shell .venue-manage-card.is-selected {
   border-color: #9aaed2;
-  box-shadow: 0 0 0 3px rgba(91, 113, 156, .15), 0 8px 24px rgba(18, 35, 60, .08);
+  box-shadow:
+    0 0 0 3px rgba(91, 113, 156, 0.15),
+    0 8px 24px rgba(18, 35, 60, 0.08);
   scroll-margin-block: 28px;
 }
 
@@ -324,8 +341,18 @@
 }
 
 /* One compact segmented-tab pattern for all workspace section navigation. */
-.app-shell :is(.admin-page-tabs, .syllabus-library-tabs, .tw-tabs, .tablist, .reg-tabs, .ops-tabs,
-  .sadhana-class-tabs, .sv-nav-context, .sv1396c-role-tabs),
+.app-shell
+  :is(
+    .admin-page-tabs,
+    .syllabus-library-tabs,
+    .tw-tabs,
+    .tablist,
+    .reg-tabs,
+    .ops-tabs,
+    .sadhana-class-tabs,
+    .sv-nav-context,
+    .sv1396c-role-tabs
+  ),
 .student-portal-v123 .sv1396c-role-tabs,
 .student-portal-v119 .learner-tabs,
 .student-portal-v123 .sv-nav-context {
@@ -344,8 +371,19 @@
   scrollbar-width: thin;
 }
 
-.app-shell :is(.admin-page-tabs, .syllabus-library-tabs, .tw-tabs, .tablist, .reg-tabs, .ops-tabs,
-  .sadhana-class-tabs, .sv-nav-context, .sv1396c-role-tabs) > button,
+.app-shell
+  :is(
+    .admin-page-tabs,
+    .syllabus-library-tabs,
+    .tw-tabs,
+    .tablist,
+    .reg-tabs,
+    .ops-tabs,
+    .sadhana-class-tabs,
+    .sv-nav-context,
+    .sv1396c-role-tabs
+  )
+  > button,
 .student-portal-v123 .sv1396c-role-tabs > button,
 .student-portal-v119 .learner-tabs > button,
 .student-portal-v123 .sv-nav-context > button {
@@ -366,22 +404,53 @@
   line-height: 1.25 !important;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
 }
 
-.app-shell :is(.admin-page-tabs, .syllabus-library-tabs, .tw-tabs, .tablist, .reg-tabs, .ops-tabs,
-  .sadhana-class-tabs, .sv-nav-context, .sv1396c-role-tabs) > button:is(.active, [aria-selected="true"], [aria-current="page"]),
-.student-portal-v123 .sv1396c-role-tabs > button:is(.active, [aria-selected="true"], [aria-current="page"]),
-.student-portal-v119 .learner-tabs > button:is(.active, [aria-selected="true"], [aria-current="page"]),
-.student-portal-v123 .sv-nav-context > button:is(.active, [aria-selected="true"], [aria-current="page"]) {
+.app-shell
+  :is(
+    .admin-page-tabs,
+    .syllabus-library-tabs,
+    .tw-tabs,
+    .tablist,
+    .reg-tabs,
+    .ops-tabs,
+    .sadhana-class-tabs,
+    .sv-nav-context,
+    .sv1396c-role-tabs
+  )
+  > button:is(.active, [aria-selected='true'], [aria-current='page']),
+.student-portal-v123
+  .sv1396c-role-tabs
+  > button:is(.active, [aria-selected='true'], [aria-current='page']),
+.student-portal-v119
+  .learner-tabs
+  > button:is(.active, [aria-selected='true'], [aria-current='page']),
+.student-portal-v123
+  .sv-nav-context
+  > button:is(.active, [aria-selected='true'], [aria-current='page']) {
   border-color: #d5deeb !important;
   background: var(--sadhana-tab-active) !important;
   color: var(--sadhana-tab-ink) !important;
-  box-shadow: 0 1px 3px rgba(29, 49, 78, .08) !important;
+  box-shadow: 0 1px 3px rgba(29, 49, 78, 0.08) !important;
 }
 
-.app-shell :is(.admin-page-tabs, .syllabus-library-tabs, .tw-tabs, .tablist, .reg-tabs, .ops-tabs,
-  .sadhana-class-tabs, .sv-nav-context, .sv1396c-role-tabs) > button:hover,
+.app-shell
+  :is(
+    .admin-page-tabs,
+    .syllabus-library-tabs,
+    .tw-tabs,
+    .tablist,
+    .reg-tabs,
+    .ops-tabs,
+    .sadhana-class-tabs,
+    .sv-nav-context,
+    .sv1396c-role-tabs
+  )
+  > button:hover,
 .student-portal-v123 .sv1396c-role-tabs > button:hover,
 .student-portal-v119 .learner-tabs > button:hover,
 .student-portal-v123 .sv-nav-context > button:hover {
@@ -389,9 +458,17 @@
   color: #344d72 !important;
 }
 
-.app-shell :is(.reg-primary, .reg-secondary, .reg-danger, .access-review-button,
-  .wr-modal-actions button, .access-review-actions button),
-.student-portal-v123 :is(.svfd-add, .sv1283-actions button, .sv1278-editor button, .sv1278-review button) {
+.app-shell
+  :is(
+    .reg-primary,
+    .reg-secondary,
+    .reg-danger,
+    .access-review-button,
+    .wr-modal-actions button,
+    .access-review-actions button
+  ),
+.student-portal-v123
+  :is(.svfd-add, .sv1283-actions button, .sv1278-editor button, .sv1278-review button) {
   min-height: 40px;
   border-radius: 9px;
   font-family: inherit;
@@ -399,7 +476,10 @@
   font-weight: 650;
   line-height: 1.25;
   box-shadow: none;
-  transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
 }
 
 .app-shell .reg-primary,
@@ -431,7 +511,7 @@
 /* Shared dialog sizing, typography, surfaces and action spacing. */
 .app-shell :is(.reg-shade, .wr-modal-backdrop, .access-modal-backdrop),
 .student-portal-v123 :is(.svfd-modal-backdrop, .sv1283-backdrop) {
-  background: rgba(17, 31, 52, .54);
+  background: rgba(17, 31, 52, 0.54);
   padding: 20px;
 }
 
@@ -452,7 +532,7 @@
   font-family: inherit;
   font-size: 21px;
   font-weight: 720;
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
   line-height: 1.28;
 }
 
@@ -485,8 +565,18 @@
 }
 
 @media (max-width: 700px) {
-  .app-shell :is(.admin-page-tabs, .syllabus-library-tabs, .tw-tabs, .tablist, .reg-tabs, .ops-tabs,
-    .sadhana-class-tabs, .sv-nav-context, .sv1396c-role-tabs),
+  .app-shell
+    :is(
+      .admin-page-tabs,
+      .syllabus-library-tabs,
+      .tw-tabs,
+      .tablist,
+      .reg-tabs,
+      .ops-tabs,
+      .sadhana-class-tabs,
+      .sv-nav-context,
+      .sv1396c-role-tabs
+    ),
   .student-portal-v123 .sv1396c-role-tabs,
   .student-portal-v119 .learner-tabs,
   .student-portal-v123 .sv-nav-context {
@@ -505,7 +595,6 @@
     overflow: auto;
   }
 }
-
 
 /* People & Access tabs share a page canvas; keep Account Access controls
    inside that canvas instead of nesting the whole tab in another page card. */
@@ -540,7 +629,7 @@
   color: #29364b;
   font-size: clamp(27px, 2.45vw, 35px);
   font-weight: 740;
-  letter-spacing: -.035em;
+  letter-spacing: -0.035em;
   line-height: 1.18;
 }
 

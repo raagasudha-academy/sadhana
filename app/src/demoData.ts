@@ -1,9 +1,22 @@
-import type {ClassRecord, StudentSummary, VenueRecord, InstitutionId} from './types';
+import type { ClassRecord, StudentSummary, VenueRecord, InstitutionId } from './types';
 
 // FICTIONAL data for UX exploration only. Do not use as academy records.
-export const institutions: Record<InstitutionId, {name:string;fullName:string;descriptor:string;color:string}> = {
-  raaga: { name: 'Raagasudha', fullName: 'Raagasudha Music Academy', descriptor: 'Music Academy', color: '#BBA57A' },
-  sruti: { name: 'Śruti Vedam', fullName: 'Śruti Vedam', descriptor: 'Vedic Learning', color: '#9875A5' },
+export const institutions: Record<
+  InstitutionId,
+  { name: string; fullName: string; descriptor: string; color: string }
+> = {
+  raaga: {
+    name: 'Raagasudha',
+    fullName: 'Raagasudha Music Academy',
+    descriptor: 'Music Academy',
+    color: '#BBA57A',
+  },
+  sruti: {
+    name: 'Śruti Vedam',
+    fullName: 'Śruti Vedam',
+    descriptor: 'Vedic Learning',
+    color: '#9875A5',
+  },
 };
 export const classData: ClassRecord[] = [
   // { id: 'R-101', institution: 'raaga', name: 'Carnatic Beginners', day: 6, time: '10:00', duration: 60, teacher: 'Music Teacher A', mode: 'In Person', venue: 'Durham teaching venue', studentCount: 12, rate: 76, submission: 88, status: 'Scheduled', startDate: '2026-09-01', endDate: '' },

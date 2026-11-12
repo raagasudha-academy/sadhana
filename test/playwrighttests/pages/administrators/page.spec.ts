@@ -1,4 +1,5 @@
-import {test} from '@playwright/test';
-import {assertRolePage} from '../../fixtures/rolePage';
+import { test } from '@playwright/test';
+import { assertRolePage } from '../../fixtures/rolePage';
 
-test('admin can open Administrators',({page})=>assertRolePage(page,'admin','Administrators'));
+test('admin can open Administrators', ({ page }) =>
+  assertRolePage(page, 'admin', 'Administrators'));

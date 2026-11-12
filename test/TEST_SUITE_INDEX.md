@@ -7,10 +7,10 @@ This index describes the current test locations and what each suite verifies. Th
 Vitest tests are under `app/tests/`, grouped by role and feature. Run them with:
 
 ```sh
-npm test
+npm run test:frontend:unit
 ```
 
-`npm run verify` runs frontend lint, typecheck, Vitest and the Vite production build.
+`npm run verify` runs frontend formatting, lint, typecheck, Vitest and the Vite production build. `npm test` remains an alias for frontend unit tests.
 
 ## Backend API and service regression tests
 
@@ -19,10 +19,10 @@ Backend TypeScript and MJS unit, service and handler tests are colocated under `
 Run both backend suites with:
 
 ```sh
-npm --prefix backend test
+npm run test:backend:unit
 ```
 
-That command runs `test:ts` and then `test:mjs`. Selected Python helper-script tests can be run with:
+That command runs backend `test:ts` and then `test:mjs`. Selected Python helper-script tests can be run with:
 
 ```sh
 python3 -m unittest discover -s backend/test -p 'test_*.py'
@@ -35,7 +35,7 @@ The local authenticated API E2E suite is under `test/e2e-tests/backend/`. It sta
 Run it with:
 
 ```sh
-npm run test:e2e:backend
+npm run test:backend:e2e
 ```
 
 `backend/scripts/coreWritesAwsE2E.ts` is a separate guarded AWS helper; read [`backend/scripts/CORE_WRITES_AWS_E2E.md`](../backend/scripts/CORE_WRITES_AWS_E2E.md) before using it.
@@ -49,7 +49,7 @@ Each role/page navigation spec has a matching screenshot baseline beside it in a
 Run browser tests and compare them with the screenshots using:
 
 ```sh
-npm run test:e2e
+npm run test:frontend:playwright
 ```
 
 Refresh screenshot baselines intentionally with:
@@ -60,4 +60,4 @@ npm run test:e2e:update
 
 ## Coverage status
 
-The route audit has a regression gate: every one of its 158 unique method/path rows must point to an existing test file, all referenced files must resolve, and no row may claim its route execution test is missing. This proves traceability, not complete behavioral coverage. Backend typecheck and TypeScript/MJS regression suites pass; the local HTTP API E2E suite has 5 scenarios. Continue closing per-route gaps for permissions, academy isolation, guardian revocation, validation, writes/audits and DELETE behavior. Deployed AWS behavior remains separately verified.
+The current baseline has 103 passing frontend unit/component tests, 514 passing backend TypeScript/MJS tests, 5 local HTTP API E2E scenarios, 60 passing Playwright tests, and 69 passing Python helper tests. Frontend unit coverage is 53.35% statements, 51.91% branches, 41.57% functions and 54.00% lines. Backend coverage is not yet measured by the current runner. Coverage is not yet strong enough to call the production gate satisfied; continue adding focused tests for untested API/client and profile/upload paths, plus backend route behavior. The route audit has a regression gate: every one of its 158 unique method/path rows must point to an existing test file, all referenced files must resolve, and no row may claim its route execution test is missing. This proves traceability, not complete behavioral coverage. Deployed AWS behavior remains separately verified.

@@ -1,9 +1,28 @@
-import {useEffect,useState} from 'react';
-import {ArrowLeft, GraduationCap, Plus, ShieldCheck, X, Pencil, Archive, RotateCcw} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  ArrowLeft,
+  GraduationCap,
+  Plus,
+  ShieldCheck,
+  X,
+  Pencil,
+  Archive,
+  RotateCcw,
+} from 'lucide-react';
 import { DirectoryDataMenu, StudentCardBadges } from '../../DirectoryComponents';
-import {getEnrolmentStatus,maskPhone,newId,ukISODate} from '../../registry';
+import { getEnrolmentStatus, maskPhone, newId, ukISODate } from '../../registry';
 import PhoneField from '../../PhoneField';
-import {clean, familyLabel, readableLocation, studentLabel, Modal, Field, StudentAvatar, NoResults, relationshipLabel} from './registrationShared';
+import {
+  clean,
+  familyLabel,
+  readableLocation,
+  studentLabel,
+  Modal,
+  Field,
+  StudentAvatar,
+  NoResults,
+  relationshipLabel,
+} from './registrationShared';
 
 export function FamilyDetail({
   family,
@@ -23,15 +42,31 @@ export function FamilyDetail({
   onRestoreStudent,
   onRemoveEnrol,
 }: any) {
-  const [contactDetails,setContactDetails]=useState<any>(null);
-  const [contactError,setContactError]=useState('');
-  useEffect(()=>{
-    let current=true;setContactDetails(null);setContactError('');
-    if(!operationsApi?.getFamilyContact)return()=>{current=false;};
-    operationsApi.getFamilyContact(workspace,family.id).then((value:any)=>{if(current)setContactDetails(value);})
-      .catch(()=>{if(current)setContactError('Parent contact details are unavailable. Refresh the family directory and try again.');});
-    return()=>{current=false;};
-  },[operationsApi,workspace,family.id]);
+  const [contactDetails, setContactDetails] = useState<any>(null);
+  const [contactError, setContactError] = useState('');
+  useEffect(() => {
+    let current = true;
+    setContactDetails(null);
+    setContactError('');
+    if (!operationsApi?.getFamilyContact)
+      return () => {
+        current = false;
+      };
+    operationsApi
+      .getFamilyContact(workspace, family.id)
+      .then((value: any) => {
+        if (current) setContactDetails(value);
+      })
+      .catch(() => {
+        if (current)
+          setContactError(
+            'Parent contact details are unavailable. Refresh the family directory and try again.',
+          );
+      });
+    return () => {
+      current = false;
+    };
+  }, [operationsApi, workspace, family.id]);
   const children = members.filter((m) => m.familyId === family.id);
   return (
     <>
@@ -60,21 +95,29 @@ export function FamilyDetail({
           </div>
           <div className="reg-info-row">
             <span>Location</span>
-            <strong>{readableLocation(contactDetails?.location||family.location) || '—'}</strong>
+            <strong>{readableLocation(contactDetails?.location || family.location) || '—'}</strong>
           </div>
           <div className="reg-info-row">
             <span>Email</span>
-            <strong>{contactDetails?.email||family.email||'—'}</strong>
+            <strong>{contactDetails?.email || family.email || '—'}</strong>
           </div>
           <div className="reg-info-row">
             <span>WhatsApp</span>
-            <strong>{maskPhone(contactDetails?.phone||family.phone)}</strong>
+            <strong>{maskPhone(contactDetails?.phone || family.phone)}</strong>
           </div>
-          {Object.values(contactDetails?.address||{}).some(Boolean)&&<div className="reg-info-row">
-            <span>Address</span>
-            <strong>{Object.values(contactDetails.address).filter(Boolean).map(String).join(', ')}</strong>
-          </div>}
-          {contactError&&<p role="status" className="reg-footnote">{contactError}</p>}
+          {Object.values(contactDetails?.address || {}).some(Boolean) && (
+            <div className="reg-info-row">
+              <span>Address</span>
+              <strong>
+                {Object.values(contactDetails.address).filter(Boolean).map(String).join(', ')}
+              </strong>
+            </div>
+          )}
+          {contactError && (
+            <p role="status" className="reg-footnote">
+              {contactError}
+            </p>
+          )}
           <div className="reg-actions reg-family-action-row">
             <button className="reg-secondary" onClick={onUpdate}>
               <Pencil size={15} /> Edit family details
@@ -394,4 +437,3 @@ export function ConvertToFamily({ student, onClose, onSave }: any) {
     </Modal>
   );
 }
-

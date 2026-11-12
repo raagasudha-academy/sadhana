@@ -34,7 +34,7 @@ export interface ClassRecord {
   name: string;
   teacher: string;
   teacherUserId?: string;
-  day: number;  // Sunday=0 ... Saturday=6 in Europe/London
+  day: number; // Sunday=0 ... Saturday=6 in Europe/London
   time: string; // UK local HH:mm
   duration: number;
   mode: DeliveryMode;

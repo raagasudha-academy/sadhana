@@ -1,4 +1,4 @@
-export const parentUsernameFor = registrationId => {
+export const parentUsernameFor = (registrationId) => {
   if (
     typeof registrationId !== 'string' ||
     !registrationId.startsWith('web_') ||
@@ -10,8 +10,7 @@ export const parentUsernameFor = registrationId => {
   return `parent-${registrationId.slice(4, 36)}`;
 };
 
-export const parentEmailRouteKey = username =>
-  `EMAIL_ROUTE#${username}`;
+export const parentEmailRouteKey = (username) => `EMAIL_ROUTE#${username}`;
 
 export function parentEmailRouteRecord(reg, guardian, timestamp) {
   if (!['raaga', 'sruti'].includes(reg.institutionId)) {
@@ -32,6 +31,6 @@ export function parentEmailRouteRecord(reg, guardian, timestamp) {
     familyId: reg.familyId,
     recipientEmail: email,
     status: 'pending',
-    createdAt: timestamp
+    createdAt: timestamp,
   };
 }

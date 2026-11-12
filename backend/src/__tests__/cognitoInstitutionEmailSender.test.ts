@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {makeInstitutionEmailSender} from '../cognitoInstitutionEmailSender.ts';
+import { makeInstitutionEmailSender } from '../cognitoInstitutionEmailSender.ts';
 
 const pool = 'us-east-1_nyQjIQasG';
 const loginUrl = 'https://raagasudha-academy.github.io/sadhana/';
@@ -11,13 +11,10 @@ const codeEvents = [
   'CustomEmailSender_ForgotPassword',
   'CustomEmailSender_UpdateUserAttribute',
   'CustomEmailSender_VerifyUserAttribute',
-  'CustomEmailSender_Authentication'
+  'CustomEmailSender_Authentication',
 ];
 
-function event(
-  triggerSource: string,
-  username = 'existing-user'
-) {
+function event(triggerSource: string, username = 'existing-user') {
   return {
     triggerSource,
     userPoolId: pool,
@@ -27,9 +24,9 @@ function event(
       code: 'encrypted-test-code',
       userAttributes: {
         email: 'parent@example.com',
-        name: 'Test Parent'
-      }
-    }
+        name: 'Test Parent',
+      },
+    },
   };
 }
 
@@ -49,25 +46,26 @@ function setup(institution: 'raaga' | 'sruti' = 'sruti') {
       decryptCalls++;
       return 'TEST-SECRET-123';
     },
-    send: async message => {
+    send: async (message) => {
       sent.push(message);
-    }
+    },
   });
 
   return {
     handler,
     sent,
-    get decryptCalls() {return decryptCalls;},
-    get resolveCalls() {return resolveCalls;}
+    get decryptCalls() {
+      return decryptCalls;
+    },
+    get resolveCalls() {
+      return resolveCalls;
+    },
   };
 }
 
 test('Sruti parent invitation uses Sruti sender', async () => {
   const s = setup('sruti');
-  await s.handler(event(
-    'CustomEmailSender_AdminCreateUser',
-    'parent-123456789abcdef'
-  ));
+  await s.handler(event('CustomEmailSender_AdminCreateUser', 'parent-123456789abcdef'));
   assert.match(s.sent[0].from, /noreply@sruti\.co\.uk/);
   assert.match(s.sent[0].html, /TEST-SECRET-123/);
   assert.equal(s.resolveCalls, 1);
@@ -75,14 +73,8 @@ test('Sruti parent invitation uses Sruti sender', async () => {
 
 test('Raagasudha invitation uses Raagasudha sender', async () => {
   const s = setup('raaga');
-  await s.handler(event(
-    'CustomEmailSender_AdminCreateUser',
-    'parent-123456789abcdef'
-  ));
-  assert.match(
-    s.sent[0].from,
-    /noreply@raagasudhamusic\.co\.uk/
-  );
+  await s.handler(event('CustomEmailSender_AdminCreateUser', 'parent-123456789abcdef'));
+  assert.match(s.sent[0].from, /noreply@raagasudhamusic\.co\.uk/);
 });
 
 for (const trigger of codeEvents) {
@@ -99,19 +91,14 @@ for (const trigger of codeEvents) {
 
 test('Existing parent password reset needs no route', async () => {
   const s = setup();
-  await s.handler(event(
-    'CustomEmailSender_ForgotPassword',
-    'parent-existing-account'
-  ));
+  await s.handler(event('CustomEmailSender_ForgotPassword', 'parent-existing-account'));
   assert.equal(s.resolveCalls, 0);
   assert.equal(s.sent.length, 1);
 });
 
 test('Account takeover warning does not decrypt', async () => {
   const s = setup();
-  await s.handler(event(
-    'CustomEmailSender_AccountTakeOverNotification'
-  ));
+  await s.handler(event('CustomEmailSender_AccountTakeOverNotification'));
   assert.equal(s.decryptCalls, 0);
   assert.equal(s.sent.length, 1);
   assert.match(s.sent[0].subject, /Security notice/);
@@ -119,10 +106,12 @@ test('Account takeover warning does not decrypt', async () => {
 
 test('Wrong user pool is rejected', async () => {
   const s = setup();
-  await assert.rejects(s.handler({
-    ...event('CustomEmailSender_ForgotPassword'),
-    userPoolId: 'another-pool'
-  }));
+  await assert.rejects(
+    s.handler({
+      ...event('CustomEmailSender_ForgotPassword'),
+      userPoolId: 'another-pool',
+    }),
+  );
   assert.equal(s.sent.length, 0);
 });
 
@@ -156,13 +145,12 @@ test('Unverified parent route prevents sending', async () => {
     },
     send: async () => {
       sent = true;
-    }
+    },
   });
 
-  await assert.rejects(handler(event(
-    'CustomEmailSender_AdminCreateUser',
-    'parent-123456789abcdef'
-  )));
+  await assert.rejects(
+    handler(event('CustomEmailSender_AdminCreateUser', 'parent-123456789abcdef')),
+  );
 
   assert.equal(decrypted, false);
   assert.equal(sent, false);

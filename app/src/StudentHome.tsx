@@ -24,12 +24,24 @@ import './shellPolish.css';
 import './academyDirectory.css';
 import './studentDashboardTypography.css';
 import './workspaceVisualConsistency.css';
-import {useStudentPortalController} from './features/learning/useStudentPortalController';
-import {StudentPortalView} from './features/learning/StudentPortalView';
-import type {StudentPortalProps} from './features/learning/useStudentPortalController';
-export type LearnerChoice={id:string;name:string;rollNumber:string;kind:string};
-export type LearnerPage='overview'|'classes'|'calendar'|'homework'|'practice'|'resources'|'attendance'|'teachers'|'venues'|'profile'|'privacy'|'messages';
-export default function StudentHome(props:StudentPortalProps){
- const context=useStudentPortalController(props);
- return <StudentPortalView context={context}/>;
+import { useStudentPortalController } from './features/learning/useStudentPortalController';
+import { StudentPortalView } from './features/learning/StudentPortalView';
+import type { StudentPortalProps } from './features/learning/useStudentPortalController';
+export type LearnerChoice = { id: string; name: string; rollNumber: string; kind: string };
+export type LearnerPage =
+  | 'overview'
+  | 'classes'
+  | 'calendar'
+  | 'homework'
+  | 'practice'
+  | 'resources'
+  | 'attendance'
+  | 'teachers'
+  | 'venues'
+  | 'profile'
+  | 'privacy'
+  | 'messages';
+export default function StudentHome(props: StudentPortalProps) {
+  const context = useStudentPortalController(props);
+  return <StudentPortalView context={context} />;
 }

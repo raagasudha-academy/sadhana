@@ -1,17 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  GetCommand,
-  TransactWriteCommand
-} from '@aws-sdk/lib-dynamodb';
+import { GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import {
   AdminCreateUserCommand,
   AdminGetUserCommand,
-  ListUsersCommand
+  ListUsersCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import {makeCanonicalRaagaInvitationReader} from '../finalRaagaInvitations.ts';
-import {makeCanonicalSrutiInvitationReader} from '../finalSrutiInvitations.ts';
-import {canonicalRaagaContactGuardId} from '../finalRaagaInvitationFlow.mjs';
+import { makeCanonicalRaagaInvitationReader } from '../finalRaagaInvitations.ts';
+import { makeCanonicalSrutiInvitationReader } from '../finalSrutiInvitations.ts';
+import { canonicalRaagaContactGuardId } from '../finalRaagaInvitationFlow.mjs';
 
 const sub = '12345678-1234-1234-1234-123456789abc';
 const registrationId = `web_${'a'.repeat(64)}`;
@@ -27,11 +24,9 @@ for (const institution of ['raaga', 'sruti'] as const) {
       'SADHANA_ENTITY_FINAL_ACK',
       'SADHANA_DATA_MODE',
       `${flag}_INVITATIONS`,
-      `${flag}_RESENDS`
+      `${flag}_RESENDS`,
     ];
-    const previous = Object.fromEntries(
-      keys.map(key => [key, process.env[key]])
-    );
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
     Object.assign(process.env, {
       SADHANA_ENTITY_STAGE: 'dev',
@@ -39,7 +34,7 @@ for (const institution of ['raaga', 'sruti'] as const) {
       SADHANA_ENTITY_FINAL_ACK: 'enabled',
       SADHANA_DATA_MODE: 'final',
       [`${flag}_INVITATIONS`]: 'enabled',
-      [`${flag}_RESENDS`]: 'enabled'
+      [`${flag}_RESENDS`]: 'enabled',
     });
 
     try {
@@ -51,7 +46,7 @@ for (const institution of ['raaga', 'sruti'] as const) {
         personTypes: ['guardian'],
         institutionIds: [institution],
         email,
-        firstName: 'Test'
+        firstName: 'Test',
       };
 
       const registration = {
@@ -60,7 +55,7 @@ for (const institution of ['raaga', 'sruti'] as const) {
         source: 'website',
         importStatus: 'imported',
         familyId: 'family-test',
-        provisioningStatus: 'NOT_INVITED'
+        provisioningStatus: 'NOT_INVITED',
       };
 
       const db = {
@@ -68,14 +63,14 @@ for (const institution of ['raaga', 'sruti'] as const) {
           if (command instanceof GetCommand) {
             assert.equal(
               command.input.Key.counterId,
-              canonicalRaagaContactGuardId(email, institution)
+              canonicalRaagaContactGuardId(email, institution),
             );
             return {
               Item: {
                 personId: guardian.personId,
                 familyId: guardian.familyId,
-                institutionId: institution
-              }
+                institutionId: institution,
+              },
             };
           }
           if (command instanceof TransactWriteCommand) {
@@ -83,20 +78,20 @@ for (const institution of ['raaga', 'sruti'] as const) {
             return {};
           }
           return {};
-        }
+        },
       };
 
       const cognito = {
         async send(command: any) {
           if (command instanceof ListUsersCommand) {
-            return {Users: []};
+            return { Users: [] };
           }
           if (command instanceof AdminCreateUserCommand) {
             return {
               User: {
                 Username: username,
-                Attributes: [{Name: 'sub', Value: sub}]
-              }
+                Attributes: [{ Name: 'sub', Value: sub }],
+              },
             };
           }
           if (command instanceof AdminGetUserCommand) {
@@ -104,24 +99,25 @@ for (const institution of ['raaga', 'sruti'] as const) {
               Enabled: true,
               UserStatus: 'FORCE_CHANGE_PASSWORD',
               UserAttributes: [
-                {Name: 'email', Value: email},
-                {Name: 'sub', Value: sub}
-              ]
+                { Name: 'email', Value: email },
+                { Name: 'sub', Value: sub },
+              ],
             };
           }
           throw new Error(`Unexpected command: ${command.constructor.name}`);
-        }
+        },
       };
 
-      const service = institution === 'raaga'
-        ? makeCanonicalRaagaInvitationReader(db, cognito, 'test-pool')
-        : makeCanonicalSrutiInvitationReader(db, cognito, 'test-pool');
+      const service =
+        institution === 'raaga'
+          ? makeCanonicalRaagaInvitationReader(db, cognito, 'test-pool')
+          : makeCanonicalSrutiInvitationReader(db, cognito, 'test-pool');
 
       await service.invite(registration, guardian, 'admin-test');
 
       const initial = transactions[0];
       const route = initial.find(
-        action => action.Put?.Item?.sequenceType === 'PARENT_EMAIL_ROUTE'
+        (action) => action.Put?.Item?.sequenceType === 'PARENT_EMAIL_ROUTE',
       )?.Put;
 
       assert.ok(route, 'Initial invitation must create email route');
@@ -131,32 +127,26 @@ for (const institution of ['raaga', 'sruti'] as const) {
       assert.equal(route.Item.recipientEmail, email);
       assert.equal(route.Item.status, 'pending');
       assert.match(route.ConditionExpression, /attribute_not_exists/);
-      assert.ok(initial.some(action =>
-        action.Update?.TableName === 'sadhana-dev-registrations'
-      ));
-      assert.ok(initial.some(action =>
-        action.Put?.TableName === 'sadhana-dev-audit-records'
-      ));
+      assert.ok(initial.some((action) => action.Update?.TableName === 'sadhana-dev-registrations'));
+      assert.ok(initial.some((action) => action.Put?.TableName === 'sadhana-dev-audit-records'));
 
       const invited = {
         ...registration,
         provisioningStatus: 'INVITATION_SENT',
         parentAccountUsername: username,
         parentAccountEmail: email,
-        parentAccountSub: sub
+        parentAccountSub: sub,
       };
 
       await service.resend(invited, guardian, 'admin-test');
 
-      const resend = transactions.find(actions =>
-        actions.some(action =>
-          action.Update?.TableName === 'sadhana-dev-counters'
-        )
+      const resend = transactions.find((actions) =>
+        actions.some((action) => action.Update?.TableName === 'sadhana-dev-counters'),
       );
 
       assert.ok(resend, 'Resend must reserve email route');
-      const update = resend.find(action =>
-        action.Update?.TableName === 'sadhana-dev-counters'
+      const update = resend.find(
+        (action) => action.Update?.TableName === 'sadhana-dev-counters',
       ).Update;
 
       assert.equal(update.Key.counterId, `EMAIL_ROUTE#${username}`);
@@ -165,9 +155,7 @@ for (const institution of ['raaga', 'sruti'] as const) {
       assert.match(update.ConditionExpression, /attribute_not_exists/);
       assert.match(update.ConditionExpression, /recipientEmail=:email/);
       assert.match(update.ConditionExpression, /#status=:pending/);
-      assert.ok(resend.some(action =>
-        action.Put?.TableName === 'sadhana-dev-audit-records'
-      ));
+      assert.ok(resend.some((action) => action.Put?.TableName === 'sadhana-dev-audit-records'));
     } finally {
       for (const key of keys) {
         if (previous[key] === undefined) delete process.env[key];

@@ -1,56 +1,515 @@
-import { useState } from "react";
-import { Activity, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, ClipboardCheck, Info, Music2, Search, UsersRound } from "lucide-react";
-import { institutions } from "../institutions";
-import { getEnrolmentStatus } from "../registry";
-import { reportForStudent, aggregate, weeksWindow } from "../practiceMath";
-import type { InstitutionId, ClassRecord } from "../types";
-import { dayLabel, ukToday, addDays, mondayOf, displayTime, pct, Pill, PageHeader, Metric, BarTrend, EmptyState, Score } from "./appShared";
-import { sadhanaMasterDeleteStyles } from "./AppManagedEvents";
+import { useState } from 'react';
+import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  ClipboardCheck,
+  Info,
+  Music2,
+  Search,
+  UsersRound,
+} from 'lucide-react';
+import { institutions } from '../institutions';
+import { getEnrolmentStatus } from '../registry';
+import { reportForStudent, aggregate, weeksWindow } from '../practiceMath';
+import type { InstitutionId, ClassRecord } from '../types';
+import {
+  dayLabel,
+  ukToday,
+  addDays,
+  mondayOf,
+  displayTime,
+  pct,
+  Pill,
+  PageHeader,
+  Metric,
+  BarTrend,
+  EmptyState,
+  Score,
+} from './appShared';
+import { sadhanaMasterDeleteStyles } from './AppManagedEvents';
 
-export function Dashboard({ workspace, isTeacher, onOpenStudent, onChangePage, onSelectInstitution, allClasses, members, enrolments, practiceLogs }: any) {
+export function Dashboard({
+  workspace,
+  isTeacher,
+  onOpenStudent,
+  onChangePage,
+  onSelectInstitution,
+  allClasses,
+  members,
+  enrolments,
+  practiceLogs,
+}: any) {
   const isCombined = workspace === 'combined';
-  const [periodWeeks,setPeriodWeeks]=useState<4|8|12>(4);
-  const classes = allClasses.filter(c => !c.archived && (isCombined || c.institution === workspace));
-  const classIds=new Set(classes.map(c=>c.id));
-  const today=ukToday().toISOString().slice(0,10);
-  const activePairs=[...new Map<string,{institution:InstitutionId;id:string;classId:string}>(enrolments.filter(e=>classIds.has(e.classId)&&getEnrolmentStatus(e)==='Active').filter(e=>!members.find(m=>m.id===e.studentId)?.archived).map(e=>[`${e.institution}:${e.studentId}`,{institution:e.institution,id:e.studentId,classId:e.classId}] as [string,{institution:InstitutionId;id:string;classId:string}])).values()];
-  const period=weeksWindow(periodWeeks);
-  const reportRows=(from,to,pairs=activePairs)=>pairs.map(pair=>reportForStudent(pair.id,pair.institution,from,to,enrolments,allClasses,practiceLogs));
-  const total=aggregate(reportRows(period.from,period.to));
-  const currentStudents=activePairs.map((entry,i)=>{const m=members.find(x=>x.id===entry.id);const r=reportForStudent(entry.id,entry.institution,period.from,period.to,enrolments,allClasses,practiceLogs);return {...entry,name:m?.name||entry.id,initials:(m?.name||'ST').split(' ').map(x=>x[0]).slice(0,2).join(''),status:'Active',practice:r.practiceRate,submission:r.submissionRate,minutes:r.minutes,missingDays:r.missing,notes:[],contact:''};});
-  const attention=currentStudents.filter(s => (s.practice!==null&&s.practice<50)||s.missingDays>=2);
-  const chart=Array.from({length:periodWeeks},(_,i)=>{const start=addDays(mondayOf(ukToday()),(i-periodWeeks+1)*7),end=addDays(start,6);const sub=aggregate(reportRows(start.toISOString().slice(0,10),end.toISOString().slice(0,10)));return {w:`Week ${i+1}`,p:sub.practiceRate??0,s:sub.submissionRate??0};});
-  const classStats=(c:ClassRecord)=>{const ids=[...new Set<string>(enrolments.filter(e=>e.classId===c.id&&getEnrolmentStatus(e)==='Active').map(e=>e.studentId))];return {students:ids.length,...aggregate(ids.map(id=>reportForStudent(id,c.institution,period.from,period.to,enrolments,allClasses,practiceLogs)))};};
-  return <>
-    <style>{sadhanaMasterDeleteStyles}</style>
-    <PageHeader kicker={isTeacher ? 'MY TEACHING SPACE' : 'PERFORMANCE OVERVIEW'} title={isTeacher ? 'Your teaching, at a glance' : isCombined ? 'Both academies, one overview' : `${institutions[workspace].name} overview`} description={isTeacher ? 'Your assigned classes, student progress and upcoming sessions.' : isCombined ? 'A shared overview for administrators across both academies. Select an academy to manage its records.' : `Practice, participation and class performance across the last ${periodWeeks} weeks.`} right={<label className="date-chip" aria-label="Reporting period"><CalendarDays size={15}/><select value={periodWeeks} onChange={e=>setPeriodWeeks(Number(e.target.value) as 4|8|12)} aria-label="Reporting period"><option value={4}>Last 4 weeks</option><option value={8}>Last 8 weeks</option><option value={12}>Last 12 weeks</option></select><ChevronDown size={14}/></label>}/>
-    <div className="stat-grid">
-      <Metric periodWeeks={periodWeeks} icon={UsersRound} label={isTeacher ? 'My active students' : 'Active students'} value={new Set(currentStudents.map(s=>s.id)).size} delta="No enrolments imported" />
-      <Metric periodWeeks={periodWeeks} icon={Activity} label="Practice rate" value={pct(total.practiceRate)} delta="Submitted expected days" />
-      <Metric periodWeeks={periodWeeks} icon={ClipboardCheck} label="Submission rate" value={pct(total.submissionRate)} delta="Expected practice days" />
-      <Metric periodWeeks={periodWeeks} icon={CalendarDays} label={isTeacher ? 'My classes' : 'Active classes'} value={classes.length} delta="Regular timetables" />
-    </div>
-    <div className="dashboard-two">
-      <section className="surface chart-surface"><div className="surface-heading"><div><h2>Practice performance</h2><p>Weekly trends · awaiting practice records</p></div><div className="legend"><span><i className="dot practice-dot"/> Practice</span><span><i className="dot submission-dot"/> Submissions</span></div></div>{activePairs.length?<BarTrend data={chart}/>:<EmptyState title="No practice information yet" detail="Practice trends will appear after enrolments and logs are connected."/>}</section>
-      <section className="surface upcoming-surface"><div className="surface-heading"><div><h2>Upcoming classes</h2><p>Regular weekly sessions</p></div>{isCombined ? <span className="quiet">Select an academy to open its timetable</span> : <button className="text-button" onClick={() => onChangePage(isTeacher ? 'My Classes' : 'Classes & Timetable')}>View timetable <ArrowRight size={14}/></button>}</div>
-        <div className="upcoming-list">{classes.slice(0, 4).map(c => <div className="upcoming-row" key={c.id}><div className="day-tile"><strong>{dayLabel[c.day].slice(0,3)}</strong><span>{displayTime(c.time).replace(' ', '\n')}</span></div><div className="row-main"><strong>{c.name}</strong><small>{c.mode === 'Online' ? 'Online' : c.venue}</small></div><Pill tone={c.mode === 'Online' ? 'violet' : 'green'}>{c.mode}</Pill></div>)}{!classes.length&&<EmptyState title="No class records yet" detail="Import classes before activity can be shown here."/>}</div>
+  const [periodWeeks, setPeriodWeeks] = useState<4 | 8 | 12>(4);
+  const classes = allClasses.filter(
+    (c) => !c.archived && (isCombined || c.institution === workspace),
+  );
+  const classIds = new Set(classes.map((c) => c.id));
+  const today = ukToday().toISOString().slice(0, 10);
+  const activePairs = [
+    ...new Map<string, { institution: InstitutionId; id: string; classId: string }>(
+      enrolments
+        .filter((e) => classIds.has(e.classId) && getEnrolmentStatus(e) === 'Active')
+        .filter((e) => !members.find((m) => m.id === e.studentId)?.archived)
+        .map(
+          (e) =>
+            [
+              `${e.institution}:${e.studentId}`,
+              { institution: e.institution, id: e.studentId, classId: e.classId },
+            ] as [string, { institution: InstitutionId; id: string; classId: string }],
+        ),
+    ).values(),
+  ];
+  const period = weeksWindow(periodWeeks);
+  const reportRows = (from, to, pairs = activePairs) =>
+    pairs.map((pair) =>
+      reportForStudent(pair.id, pair.institution, from, to, enrolments, allClasses, practiceLogs),
+    );
+  const total = aggregate(reportRows(period.from, period.to));
+  const currentStudents = activePairs.map((entry, i) => {
+    const m = members.find((x) => x.id === entry.id);
+    const r = reportForStudent(
+      entry.id,
+      entry.institution,
+      period.from,
+      period.to,
+      enrolments,
+      allClasses,
+      practiceLogs,
+    );
+    return {
+      ...entry,
+      name: m?.name || entry.id,
+      initials: (m?.name || 'ST')
+        .split(' ')
+        .map((x) => x[0])
+        .slice(0, 2)
+        .join(''),
+      status: 'Active',
+      practice: r.practiceRate,
+      submission: r.submissionRate,
+      minutes: r.minutes,
+      missingDays: r.missing,
+      notes: [],
+      contact: '',
+    };
+  });
+  const attention = currentStudents.filter(
+    (s) => (s.practice !== null && s.practice < 50) || s.missingDays >= 2,
+  );
+  const chart = Array.from({ length: periodWeeks }, (_, i) => {
+    const start = addDays(mondayOf(ukToday()), (i - periodWeeks + 1) * 7),
+      end = addDays(start, 6);
+    const sub = aggregate(
+      reportRows(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)),
+    );
+    return { w: `Week ${i + 1}`, p: sub.practiceRate ?? 0, s: sub.submissionRate ?? 0 };
+  });
+  const classStats = (c: ClassRecord) => {
+    const ids = [
+      ...new Set<string>(
+        enrolments
+          .filter((e) => e.classId === c.id && getEnrolmentStatus(e) === 'Active')
+          .map((e) => e.studentId),
+      ),
+    ];
+    return {
+      students: ids.length,
+      ...aggregate(
+        ids.map((id) =>
+          reportForStudent(
+            id,
+            c.institution,
+            period.from,
+            period.to,
+            enrolments,
+            allClasses,
+            practiceLogs,
+          ),
+        ),
+      ),
+    };
+  };
+  return (
+    <>
+      <style>{sadhanaMasterDeleteStyles}</style>
+      <PageHeader
+        kicker={isTeacher ? 'MY TEACHING SPACE' : 'PERFORMANCE OVERVIEW'}
+        title={
+          isTeacher
+            ? 'Your teaching, at a glance'
+            : isCombined
+              ? 'Both academies, one overview'
+              : `${institutions[workspace].name} overview`
+        }
+        description={
+          isTeacher
+            ? 'Your assigned classes, student progress and upcoming sessions.'
+            : isCombined
+              ? 'A shared overview for administrators across both academies. Select an academy to manage its records.'
+              : `Practice, participation and class performance across the last ${periodWeeks} weeks.`
+        }
+        right={
+          <label className="date-chip" aria-label="Reporting period">
+            <CalendarDays size={15} />
+            <select
+              value={periodWeeks}
+              onChange={(e) => setPeriodWeeks(Number(e.target.value) as 4 | 8 | 12)}
+              aria-label="Reporting period"
+            >
+              <option value={4}>Last 4 weeks</option>
+              <option value={8}>Last 8 weeks</option>
+              <option value={12}>Last 12 weeks</option>
+            </select>
+            <ChevronDown size={14} />
+          </label>
+        }
+      />
+      <div className="stat-grid">
+        <Metric
+          periodWeeks={periodWeeks}
+          icon={UsersRound}
+          label={isTeacher ? 'My active students' : 'Active students'}
+          value={new Set(currentStudents.map((s) => s.id)).size}
+          delta="No enrolments imported"
+        />
+        <Metric
+          periodWeeks={periodWeeks}
+          icon={Activity}
+          label="Practice rate"
+          value={pct(total.practiceRate)}
+          delta="Submitted expected days"
+        />
+        <Metric
+          periodWeeks={periodWeeks}
+          icon={ClipboardCheck}
+          label="Submission rate"
+          value={pct(total.submissionRate)}
+          delta="Expected practice days"
+        />
+        <Metric
+          periodWeeks={periodWeeks}
+          icon={CalendarDays}
+          label={isTeacher ? 'My classes' : 'Active classes'}
+          value={classes.length}
+          delta="Regular timetables"
+        />
+      </div>
+      <div className="dashboard-two">
+        <section className="surface chart-surface">
+          <div className="surface-heading">
+            <div>
+              <h2>Practice performance</h2>
+              <p>Weekly trends · awaiting practice records</p>
+            </div>
+            <div className="legend">
+              <span>
+                <i className="dot practice-dot" /> Practice
+              </span>
+              <span>
+                <i className="dot submission-dot" /> Submissions
+              </span>
+            </div>
+          </div>
+          {activePairs.length ? (
+            <BarTrend data={chart} />
+          ) : (
+            <EmptyState
+              title="No practice information yet"
+              detail="Practice trends will appear after enrolments and logs are connected."
+            />
+          )}
+        </section>
+        <section className="surface upcoming-surface">
+          <div className="surface-heading">
+            <div>
+              <h2>Upcoming classes</h2>
+              <p>Regular weekly sessions</p>
+            </div>
+            {isCombined ? (
+              <span className="quiet">Select an academy to open its timetable</span>
+            ) : (
+              <button
+                className="text-button"
+                onClick={() => onChangePage(isTeacher ? 'My Classes' : 'Classes & Timetable')}
+              >
+                View timetable <ArrowRight size={14} />
+              </button>
+            )}
+          </div>
+          <div className="upcoming-list">
+            {classes.slice(0, 4).map((c) => (
+              <div className="upcoming-row" key={c.id}>
+                <div className="day-tile">
+                  <strong>{dayLabel[c.day].slice(0, 3)}</strong>
+                  <span>{displayTime(c.time).replace(' ', '\n')}</span>
+                </div>
+                <div className="row-main">
+                  <strong>{c.name}</strong>
+                  <small>{c.mode === 'Online' ? 'Online' : c.venue}</small>
+                </div>
+                <Pill tone={c.mode === 'Online' ? 'violet' : 'green'}>{c.mode}</Pill>
+              </div>
+            ))}
+            {!classes.length && (
+              <EmptyState
+                title="No class records yet"
+                detail="Import classes before activity can be shown here."
+              />
+            )}
+          </div>
+        </section>
+      </div>
+      {isCombined ? (
+        <div className="institution-cards">
+          {Object.entries(institutions).map(([key, inst]) => (
+            <section className="surface institution-summary" key={key}>
+              <div className="institution-label">
+                <span className={`institution-symbol ${key}`}>
+                  {key === 'raaga' ? <Music2 size={19} /> : <BookOpen size={19} />}
+                </span>
+                <div>
+                  <h2>{inst.name}</h2>
+                  <p>{inst.descriptor}</p>
+                </div>
+              </div>
+              <div className="institution-numbers">
+                <div>
+                  <strong>
+                    {allClasses.filter((c) => c.institution === key && !c.archived).length}
+                  </strong>
+                  <span>Classes</span>
+                </div>
+                <div>
+                  <strong>
+                    {
+                      new Set(currentStudents.filter((s) => s.institution === key).map((s) => s.id))
+                        .size
+                    }
+                  </strong>
+                  <span>Active students</span>
+                </div>
+                <div>
+                  <strong>{attention.filter((s) => s.institution === key).length}</strong>
+                  <span>Need attention</span>
+                </div>
+              </div>
+              <div className="institution-actions">
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => onSelectInstitution(key)}
+                >
+                  Manage {inst.name} <ArrowRight size={14} />
+                </button>
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <section className="surface comparison-surface">
+          <div className="surface-heading">
+            <div>
+              <h2>Class performance comparison</h2>
+              <p>Practice rates across assigned classes</p>
+            </div>
+            <Pill>Last {periodWeeks} weeks</Pill>
+          </div>
+          <div className="comparison-list">
+            {classes.map((c) => (
+              <div key={c.id} className="comparison-row">
+                <div className="comparison-name">
+                  <strong>{c.name}</strong>
+                  <span>{classStats(c).students} students</span>
+                </div>
+                <div className="progress">
+                  <span style={{ width: `${classStats(c).practiceRate ?? 0}%` }} />
+                </div>
+                <span className="comparison-rate">{pct(classStats(c).practiceRate)}</span>
+              </div>
+            ))}
+            {!classes.length && (
+              <EmptyState
+                title="No class comparisons available"
+                detail="Class records have not been imported."
+              />
+            )}
+          </div>
+        </section>
+      )}
+      <section className="surface attention-surface">
+        <div className="surface-heading">
+          <div>
+            <h2>Students needing attention</h2>
+            <p>Low practice or missing submissions</p>
+          </div>
+          <Pill tone={attention.length ? 'amber' : 'green'}>{attention.length} flagged</Pill>
+        </div>
+        <div className="attention-rows">
+          {attention.length ? (
+            attention.map((s) => (
+              <button
+                className="attention-row"
+                key={`${s.id}-${s.institution}`}
+                onClick={() => onOpenStudent(s)}
+              >
+                <span className="avatar avatar-small">{s.initials}</span>
+                <span className="row-main">
+                  <strong>{s.name}</strong>
+                  <small>
+                    {allClasses.find((c) => c.id === s.classId)?.name} ·{' '}
+                    {institutions[s.institution].name}
+                  </small>
+                </span>
+                <span className="attention-reason">
+                  {s.practice !== null && s.practice < 50
+                    ? 'Low practice'
+                    : `${s.missingDays} missing submissions`}
+                </span>
+                <Score value={s.practice} />
+                <ArrowRight size={16} />
+              </button>
+            ))
+          ) : (
+            <EmptyState
+              title="No students currently flagged"
+              detail="No students are enrolled yet."
+            />
+          )}
+        </div>
       </section>
-    </div>
-    {isCombined ? <div className="institution-cards">{Object.entries(institutions).map(([key, inst]) => <section className="surface institution-summary" key={key}><div className="institution-label"><span className={`institution-symbol ${key}`} >{key === 'raaga' ? <Music2 size={19}/> : <BookOpen size={19}/>}</span><div><h2>{inst.name}</h2><p>{inst.descriptor}</p></div></div><div className="institution-numbers"><div><strong>{allClasses.filter(c => c.institution === key && !c.archived).length}</strong><span>Classes</span></div><div><strong>{new Set(currentStudents.filter(s=>s.institution===key).map(s=>s.id)).size}</strong><span>Active students</span></div><div><strong>{attention.filter(s=>s.institution===key).length}</strong><span>Need attention</span></div></div><div className="institution-actions"><button className="text-button" type="button" onClick={()=>onSelectInstitution(key)}>Manage {inst.name} <ArrowRight size={14}/></button></div></section>)}</div> : <section className="surface comparison-surface"><div className="surface-heading"><div><h2>Class performance comparison</h2><p>Practice rates across assigned classes</p></div><Pill>Last {periodWeeks} weeks</Pill></div><div className="comparison-list">{classes.map(c => <div key={c.id} className="comparison-row"><div className="comparison-name"><strong>{c.name}</strong><span>{classStats(c).students} students</span></div><div className="progress"><span style={{ width: `${classStats(c).practiceRate??0}%` }}/></div><span className="comparison-rate">{pct(classStats(c).practiceRate)}</span></div>)}{!classes.length&&<EmptyState title="No class comparisons available" detail="Class records have not been imported."/>}</div></section>}
-    <section className="surface attention-surface"><div className="surface-heading"><div><h2>Students needing attention</h2><p>Low practice or missing submissions</p></div><Pill tone={attention.length ? 'amber' : 'green'}>{attention.length} flagged</Pill></div><div className="attention-rows">{attention.length ? attention.map(s => <button className="attention-row" key={`${s.id}-${s.institution}`} onClick={() => onOpenStudent(s)}><span className="avatar avatar-small">{s.initials}</span><span className="row-main"><strong>{s.name}</strong><small>{allClasses.find(c => c.id === s.classId)?.name} · {institutions[s.institution].name}</small></span><span className="attention-reason">{s.practice!==null&&s.practice<50 ? 'Low practice' : `${s.missingDays} missing submissions`}</span><Score value={s.practice}/><ArrowRight size={16}/></button>) : <EmptyState title="No students currently flagged" detail="No students are enrolled yet."/>}</div></section>
-    <p className="under-content-note"><Info size={14}/> Family, student, class and practice data have not been imported. The academy calendar is connected to AWS. Student and practice records are not imported.</p>
-  </>;
+      <p className="under-content-note">
+        <Info size={14} /> Family, student, class and practice data have not been imported. The
+        academy calendar is connected to AWS. Student and practice records are not imported.
+      </p>
+    </>
+  );
 }
 
-export function Students({ workspace, isTeacher, filter, setFilter, search, setSearch, onOpenStudent, allClasses }: any) {
+export function Students({
+  workspace,
+  isTeacher,
+  filter,
+  setFilter,
+  search,
+  setSearch,
+  onOpenStudent,
+  allClasses,
+}: any) {
   const students: any[] = []; // Teacher assignments and student directory are not yet connected.
-  const visible = students.filter(s => filter === 'All' ? s.status !== 'Archived' : s.status === filter).filter(s => `${s.name} ${s.id} ${allClasses.find(c => c.id === s.classId)?.name}`.toLowerCase().includes(search.toLowerCase()));
+  const visible = students
+    .filter((s) => (filter === 'All' ? s.status !== 'Archived' : s.status === filter))
+    .filter((s) =>
+      `${s.name} ${s.id} ${allClasses.find((c) => c.id === s.classId)?.name}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    );
   const tabs = isTeacher ? ['Active', 'Upcoming'] : ['All', 'Active', 'Upcoming', 'Archived'];
-  return <>
-  <PageHeader kicker={isTeacher ? 'MY STUDENTS' : 'STUDENT MANAGEMENT'} title={isTeacher ? 'Students in your class' : 'Families & Students'} description={isTeacher ? 'View students assigned to your classes.' : 'Browse learners and linked family records.'} right={<Pill tone="green">Awaiting import</Pill>}/>
-    <section className="surface directory-surface"><div className="directory-toolbar"><div className="tablist" role="tablist">{tabs.map(t => <button key={t} role="tab" aria-selected={t === filter} className={`tab ${t===filter?'active':''}`} onClick={() => setFilter(t)}>{t}</button>)}</div><div className="search-field"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search students..." aria-label="Search students"/></div></div>
-      <div className="table-scroll"><table className="data-table"><thead><tr><th>Student</th><th>Class</th><th>Status</th><th>Practice</th><th>Submissions</th><th aria-label="Details"/></tr></thead><tbody>{visible.map(s => <tr key={`${s.institution}-${s.id}`}><td><button className="student-link" onClick={()=>onOpenStudent(s)}><span className="avatar avatar-small">{s.initials}</span><span><strong>{s.name}</strong><small>{s.id}</small></span></button></td><td>{allClasses.find(c => c.id === s.classId)?.name}</td><td><Pill tone={s.status === 'Active'?'green':s.status === 'Upcoming'?'violet':'neutral'}>{s.status}</Pill></td><td><Score value={s.practice}/></td><td><Score value={s.submission}/></td><td><button className="icon-only" aria-label={`Open ${s.name}`} onClick={()=>onOpenStudent(s)}><ArrowUpRight size={16}/></button></td></tr>)}</tbody></table>{!visible.length && <EmptyState/>}</div>
-      <div className="table-footer">Showing {visible.length} of {students.length} student records <span>Archived enrolments are administrator-only</span></div></section>
-  </>;
+  return (
+    <>
+      <PageHeader
+        kicker={isTeacher ? 'MY STUDENTS' : 'STUDENT MANAGEMENT'}
+        title={isTeacher ? 'Students in your class' : 'Families & Students'}
+        description={
+          isTeacher
+            ? 'View students assigned to your classes.'
+            : 'Browse learners and linked family records.'
+        }
+        right={<Pill tone="green">Awaiting import</Pill>}
+      />
+      <section className="surface directory-surface">
+        <div className="directory-toolbar">
+          <div className="tablist" role="tablist">
+            {tabs.map((t) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={t === filter}
+                className={`tab ${t === filter ? 'active' : ''}`}
+                onClick={() => setFilter(t)}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <div className="search-field">
+            <Search size={17} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search students..."
+              aria-label="Search students"
+            />
+          </div>
+        </div>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Class</th>
+                <th>Status</th>
+                <th>Practice</th>
+                <th>Submissions</th>
+                <th aria-label="Details" />
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((s) => (
+                <tr key={`${s.institution}-${s.id}`}>
+                  <td>
+                    <button className="student-link" onClick={() => onOpenStudent(s)}>
+                      <span className="avatar avatar-small">{s.initials}</span>
+                      <span>
+                        <strong>{s.name}</strong>
+                        <small>{s.id}</small>
+                      </span>
+                    </button>
+                  </td>
+                  <td>{allClasses.find((c) => c.id === s.classId)?.name}</td>
+                  <td>
+                    <Pill
+                      tone={
+                        s.status === 'Active'
+                          ? 'green'
+                          : s.status === 'Upcoming'
+                            ? 'violet'
+                            : 'neutral'
+                      }
+                    >
+                      {s.status}
+                    </Pill>
+                  </td>
+                  <td>
+                    <Score value={s.practice} />
+                  </td>
+                  <td>
+                    <Score value={s.submission} />
+                  </td>
+                  <td>
+                    <button
+                      className="icon-only"
+                      aria-label={`Open ${s.name}`}
+                      onClick={() => onOpenStudent(s)}
+                    >
+                      <ArrowUpRight size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!visible.length && <EmptyState />}
+        </div>
+        <div className="table-footer">
+          Showing {visible.length} of {students.length} student records{' '}
+          <span>Archived enrolments are administrator-only</span>
+        </div>
+      </section>
+    </>
+  );
 }
-

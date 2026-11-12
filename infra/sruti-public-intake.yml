@@ -20,7 +20,7 @@ Resources:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
-            Principal: {Service: lambda.amazonaws.com}
+            Principal: { Service: lambda.amazonaws.com }
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
@@ -41,7 +41,7 @@ Resources:
       Role: !GetAtt IntakeRole.Arn
       MemorySize: 256
       Timeout: 10
-      Code: {S3Bucket: !Ref CodeBucket, S3Key: !Ref CodeKey}
+      Code: { S3Bucket: !Ref CodeBucket, S3Key: !Ref CodeKey }
       Environment:
         Variables:
           M91_SRUTI_PUBLIC_INTAKE: !Ref IntakeEnabled
@@ -56,7 +56,7 @@ Resources:
     Properties:
       Name: sadhana-m91-sruti-public-intake
       Description: 'Public registration intake only - no admin or read endpoints'
-      EndpointConfiguration: {Types: [REGIONAL]}
+      EndpointConfiguration: { Types: [REGIONAL] }
       DisableExecuteApiEndpoint: false
       BinaryMediaTypes: []
   RegistrationResource:
@@ -120,7 +120,7 @@ Resources:
     Properties:
       Name: sadhana-m91-sruti-intake-waf
       Scope: REGIONAL
-      DefaultAction: {Allow: {}}
+      DefaultAction: { Allow: {} }
       VisibilityConfig:
         CloudWatchMetricsEnabled: true
         MetricName: SrutiIntakeWebACL
@@ -128,7 +128,7 @@ Resources:
       Rules:
         - Name: PerIpRateLimit
           Priority: 0
-          Action: {Block: {}}
+          Action: { Block: {} }
           Statement:
             RateBasedStatement:
               AggregateKeyType: IP
@@ -139,7 +139,7 @@ Resources:
             SampledRequestsEnabled: false
         - Name: ManagedCommonThreats
           Priority: 1
-          OverrideAction: {None: {}}
+          OverrideAction: { None: {} }
           Statement:
             ManagedRuleGroupStatement:
               VendorName: AWS

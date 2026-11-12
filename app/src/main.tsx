@@ -7,5 +7,5 @@ import './authPolish.css';
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <CloudAuth />
-  </React.StrictMode>
+  </React.StrictMode>,
 );

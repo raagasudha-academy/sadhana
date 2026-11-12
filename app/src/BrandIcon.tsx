@@ -7,7 +7,16 @@ import { Flower2 } from 'lucide-react';
  */
 export default function BrandIcon() {
   const [missing, setMissing] = useState(false);
-  return missing
-    ? <Flower2 size={25} strokeWidth={1.9} aria-hidden="true" />
-    : <img className="sadhana-brand-image" src="/sadhana-icon.png" alt="" width={30} height={30} onError={() => setMissing(true)} />;
+  return missing ? (
+    <Flower2 size={25} strokeWidth={1.9} aria-hidden="true" />
+  ) : (
+    <img
+      className="sadhana-brand-image"
+      src="/sadhana-icon.png"
+      alt=""
+      width={30}
+      height={30}
+      onError={() => setMissing(true)}
+    />
+  );
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {resolveInstitutionSender} from '../institutionEmailSenders.ts';
+import { resolveInstitutionSender } from '../institutionEmailSenders.ts';
 
 test('Raagasudha sender is correct', () => {
   const sender = resolveInstitutionSender('raaga');

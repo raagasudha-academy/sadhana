@@ -1,8 +1,13 @@
 /** Approved website intake -> atomic Sadhana family/students import. */
 import { randomUUID, createHash } from 'node:crypto';
-import {queueParentAccess} from './parentAccessProvisioning.ts';
-import {provisionParentAccount} from './parentAccountProvisioning.ts';
-import { GetCommand, QueryCommand, UpdateCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { queueParentAccess } from './parentAccessProvisioning.ts';
+import { provisionParentAccount } from './parentAccountProvisioning.ts';
+import {
+  GetCommand,
+  QueryCommand,
+  UpdateCommand,
+  TransactWriteCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { makeRoutedClient } from './tableRouter.ts';
 import {
   fetchWebsiteRegistration,
@@ -30,7 +35,8 @@ const obj = (v: unknown): Record<string, any> =>
 
 // Auto-map Raagasudha registration roles and readable locations (v3).
 function websiteLocation(value: unknown): string {
-  const raw = typeof value === 'string' ? value.trim().replace(/^LOC-/i, '').replace(/_/g, ' ') : '';
+  const raw =
+    typeof value === 'string' ? value.trim().replace(/^LOC-/i, '').replace(/_/g, ' ') : '';
   if (!raw) return '';
   return raw === raw.toUpperCase()
     ? raw.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
@@ -43,15 +49,27 @@ function websiteStudentRole(
   primaryContactId: string,
 ): { relationship: 'parent_guardian' | 'adult_student' | 'child'; adultConfirmed: boolean } {
   const roles: string[] = Array.isArray(person.roles)
-    ? person.roles.map((role: unknown) => String(role).toLowerCase().replace(/[\s-]+/g, '_'))
+    ? person.roles.map((role: unknown) =>
+        String(role)
+          .toLowerCase()
+          .replace(/[\s-]+/g, '_'),
+      )
     : [];
-  const type = String(student.studentType || '').toLowerCase().replace(/[\s-]+/g, '_');
-  const parent = roles.some((role) => ['parent', 'guardian', 'parent_guardian'].includes(role)) ||
+  const type = String(student.studentType || '')
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  const parent =
+    roles.some((role) => ['parent', 'guardian', 'parent_guardian'].includes(role)) ||
     ['parent_student', 'parent_guardian'].includes(type);
-  const adult = parent || roles.some((role) => ['adult', 'adult_student', 'self_student'].includes(role)) ||
+  const adult =
+    parent ||
+    roles.some((role) => ['adult', 'adult_student', 'self_student'].includes(role)) ||
     ['adult', 'adult_self', 'adult_student', 'independent', 'self'].includes(type) ||
     student.personId === primaryContactId;
-  return { relationship: parent ? 'parent_guardian' : adult ? 'adult_student' : 'child', adultConfirmed: adult };
+  return {
+    relationship: parent ? 'parent_guardian' : adult ? 'adult_student' : 'child',
+    adultConfirmed: adult,
+  };
 }
 
 async function allocate(kind: 'FAMILY' | 'STUDENT') {
@@ -85,8 +103,22 @@ async function syncWebsite(registrationId: string, record: any) {
       familyId: record.familyId,
       studentIds: record.studentIds,
     });
-    try { await queueParentAccess(registrationId); } catch (e) { console.error('Parent access enqueue deferred', {registrationId,errorType:e instanceof Error?e.name:'Unknown'}); }
-    try { await provisionParentAccount(registrationId); } catch (e) { console.error('Parent account provisioning deferred',{registrationId,errorType:e instanceof Error?e.name:'Unknown'}); }
+    try {
+      await queueParentAccess(registrationId);
+    } catch (e) {
+      console.error('Parent access enqueue deferred', {
+        registrationId,
+        errorType: e instanceof Error ? e.name : 'Unknown',
+      });
+    }
+    try {
+      await provisionParentAccount(registrationId);
+    } catch (e) {
+      console.error('Parent account provisioning deferred', {
+        registrationId,
+        errorType: e instanceof Error ? e.name : 'Unknown',
+      });
+    }
     return { ...result(record), websiteSynced: true };
   } catch (e) {
     // The committed Sadhana transaction is never rolled back after a website sync failure.
@@ -113,11 +145,22 @@ function result(record: any) {
     studentRollNumbers: record.studentRollNumbers,
   };
 }
-export async function importApprovedWebsiteRegistration(registrationId: string, actorSub: string, decision: {linkFamilyId?: string; preview?: boolean; identityCorrection?: {personId:string; originalName:string; correctedName:string}} = {}) {
+export async function importApprovedWebsiteRegistration(
+  registrationId: string,
+  actorSub: string,
+  decision: {
+    linkFamilyId?: string;
+    preview?: boolean;
+    identityCorrection?: { personId: string; originalName: string; correctedName: string };
+  } = {},
+) {
   if (!/^RS-[A-Za-z0-9_-]{1,110}$/.test(registrationId))
     throw fail(400, 'Invalid website registration ID.');
   const prior = await existing(registrationId);
-  if (prior) return decision.preview === true ? {...result(prior), websiteSynced: true} : syncWebsite(registrationId, prior);
+  if (prior)
+    return decision.preview === true
+      ? { ...result(prior), websiteSynced: true }
+      : syncWebsite(registrationId, prior);
   const registration = obj(unwrap(await fetchWebsiteRegistration(registrationId)));
   if (registration.registrationId !== registrationId)
     throw fail(409, 'Website registration ID mismatch.');
@@ -160,7 +203,11 @@ export async function importApprovedWebsiteRegistration(registrationId: string, 
       throw fail(422, 'Each student must have a name and date of birth.');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(str(p.dateOfBirth)))
       throw fail(422, 'Student date of birth is invalid.');
-    const { relationship, adultConfirmed: isAdult } = websiteStudentRole(p, s, String(registration.primaryContactPersonId || ''));
+    const { relationship, adultConfirmed: isAdult } = websiteStudentRole(
+      p,
+      s,
+      String(registration.primaryContactPersonId || ''),
+    );
     // This is an administrative student record, NOT a verified portal identity.
     const memberEmail = isAdult
       ? str(p.email).toLowerCase()
@@ -201,34 +248,62 @@ export async function importApprovedWebsiteRegistration(registrationId: string, 
       photo: s.photo ? { websiteRegistrationId: registrationId, personId: s.personId } : undefined,
       contactPreferences: obj(s.contactPreferences),
       // Preserve the address selected in the website intake form, including guardian inheritance.
-      contactAddress: obj(s.contactPreferences).addressSource === 'guardian'
-        ? obj(guardian.address)
-        : obj(p.address),
-      guardianSourcePersonId: relationship === 'child'
-        ? str(obj(s.contactPreferences).guardianPersonId || registration.primaryContactPersonId, 120)
-        : undefined,
+      contactAddress:
+        obj(s.contactPreferences).addressSource === 'guardian'
+          ? obj(guardian.address)
+          : obj(p.address),
+      guardianSourcePersonId:
+        relationship === 'child'
+          ? str(
+              obj(s.contactPreferences).guardianPersonId || registration.primaryContactPersonId,
+              120,
+            )
+          : undefined,
     };
   });
   // A confirmed correction is scoped to one source person ID; never rewrite the website submission.
   // Accept only when the source contains a same-name-and-DOB collision, and retain its audit details.
-  let identityCorrectionAudit: {personId:string; originalName:string; correctedName:string; dateOfBirth:string}|undefined;
+  let identityCorrectionAudit:
+    | { personId: string; originalName: string; correctedName: string; dateOfBirth: string }
+    | undefined;
   if (decision.identityCorrection) {
     const correction = decision.identityCorrection;
-    if (!correction || typeof correction !== 'object' ||
-        typeof correction.personId !== 'string' || typeof correction.originalName !== 'string' ||
-        typeof correction.correctedName !== 'string') throw fail(400, 'Invalid identity correction.');
-    const target = parsed.find(p => p.sourcePersonId === correction.personId);
+    if (
+      !correction ||
+      typeof correction !== 'object' ||
+      typeof correction.personId !== 'string' ||
+      typeof correction.originalName !== 'string' ||
+      typeof correction.correctedName !== 'string'
+    )
+      throw fail(400, 'Invalid identity correction.');
+    const target = parsed.find((p) => p.sourcePersonId === correction.personId);
     const proposed = correction.correctedName.trim().replace(/\s+/g, ' ');
-    if (!target || target.name !== correction.originalName || !/^[\p{L}][\p{L} .'-]{1,89}$/u.test(proposed) ||
-        proposed.toLocaleLowerCase('en-GB') === target.name.toLocaleLowerCase('en-GB'))
+    if (
+      !target ||
+      target.name !== correction.originalName ||
+      !/^[\p{L}][\p{L} .'-]{1,89}$/u.test(proposed) ||
+      proposed.toLocaleLowerCase('en-GB') === target.name.toLocaleLowerCase('en-GB')
+    )
       throw fail(409, 'Correction no longer matches the website record; refresh and review.');
-    const duplicateInSource = parsed.some(p => p.sourcePersonId !== target.sourcePersonId &&
-      p.dateOfBirth === target.dateOfBirth && p.name.trim().toLocaleLowerCase('en-GB') === target.name.trim().toLocaleLowerCase('en-GB'));
-    if (!duplicateInSource) throw fail(409, 'Name correction is permitted only for a repeated name and date of birth.');
-    identityCorrectionAudit = {personId: target.sourcePersonId, originalName:target.name, correctedName:proposed, dateOfBirth:target.dateOfBirth};
+    const duplicateInSource = parsed.some(
+      (p) =>
+        p.sourcePersonId !== target.sourcePersonId &&
+        p.dateOfBirth === target.dateOfBirth &&
+        p.name.trim().toLocaleLowerCase('en-GB') === target.name.trim().toLocaleLowerCase('en-GB'),
+    );
+    if (!duplicateInSource)
+      throw fail(409, 'Name correction is permitted only for a repeated name and date of birth.');
+    identityCorrectionAudit = {
+      personId: target.sourcePersonId,
+      originalName: target.name,
+      correctedName: proposed,
+      dateOfBirth: target.dateOfBirth,
+    };
     target.name = proposed;
   }
-  const nameDob = parsed.map((p) => `${p.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-GB')}|${p.dateOfBirth}`);
+  const nameDob = parsed.map(
+    (p) => `${p.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-GB')}|${p.dateOfBirth}`,
+  );
   if (new Set(nameDob).size !== nameDob.length)
     throw fail(409, 'Duplicate student name and date of birth detected; resolve before import.');
   for (const p of parsed) {
@@ -242,22 +317,40 @@ export async function importApprovedWebsiteRegistration(registrationId: string, 
   const existingStudents: any[] = [];
   let nextKey: Record<string, any> | undefined;
   do {
-    const page = await db.send(new QueryCommand({
-      TableName: table(), KeyConditionExpression: 'PK = :pk',
-      ExpressionAttributeValues: { ':pk': 'OPS#GLOBAL#STUDENT' },
-      ConsistentRead: true, Limit: 100, ExclusiveStartKey: nextKey,
-    }));
+    const page = await db.send(
+      new QueryCommand({
+        TableName: table(),
+        KeyConditionExpression: 'PK = :pk',
+        ExpressionAttributeValues: { ':pk': 'OPS#GLOBAL#STUDENT' },
+        ConsistentRead: true,
+        Limit: 100,
+        ExclusiveStartKey: nextKey,
+      }),
+    );
     existingStudents.push(...(page.Items || []));
     nextKey = page.LastEvaluatedKey;
     if (existingStudents.length > 10000)
-      throw fail(409, 'Duplicate check exceeded safe directory limit; administrator review required.');
+      throw fail(
+        409,
+        'Duplicate check exceeded safe directory limit; administrator review required.',
+      );
   } while (nextKey);
   for (const student of parsed) {
     const identity = normalizedIdentity(student.name, student.dateOfBirth);
-    if (existingStudents.some((existingStudent) =>
-      existingStudent.dateOfBirth &&
-      normalizedIdentity(String(existingStudent.name || ''), String(existingStudent.dateOfBirth)) === identity)) {
-      throw fail(409, `Possible existing student: ${student.name} (${student.dateOfBirth}). Review and link the existing person before activation; no new record was created.`);
+    if (
+      existingStudents.some(
+        (existingStudent) =>
+          existingStudent.dateOfBirth &&
+          normalizedIdentity(
+            String(existingStudent.name || ''),
+            String(existingStudent.dateOfBirth),
+          ) === identity,
+      )
+    ) {
+      throw fail(
+        409,
+        `Possible existing student: ${student.name} (${student.dateOfBirth}). Review and link the existing person before activation; no new record was created.`,
+      );
     }
   }
   // An independent adult has no real family identity. Keep the technical family
@@ -275,32 +368,64 @@ export async function importApprovedWebsiteRegistration(registrationId: string, 
   const possibleFamilies: any[] = [];
   let familyCursor: Record<string, any> | undefined;
   do {
-    const page = await db.send(new QueryCommand({
-      TableName: table(), KeyConditionExpression: 'PK = :pk',
-      ExpressionAttributeValues: { ':pk': 'OPS#GLOBAL#FAMILY' },
-      ConsistentRead: true, Limit: 100, ExclusiveStartKey: familyCursor,
-    }));
-    possibleFamilies.push(...(page.Items || []).filter((f: any) =>
-      f.institution === 'raaga' && !f.archived && f.phone === phone));
+    const page = await db.send(
+      new QueryCommand({
+        TableName: table(),
+        KeyConditionExpression: 'PK = :pk',
+        ExpressionAttributeValues: { ':pk': 'OPS#GLOBAL#FAMILY' },
+        ConsistentRead: true,
+        Limit: 100,
+        ExclusiveStartKey: familyCursor,
+      }),
+    );
+    possibleFamilies.push(
+      ...(page.Items || []).filter(
+        (f: any) => f.institution === 'raaga' && !f.archived && f.phone === phone,
+      ),
+    );
     familyCursor = page.LastEvaluatedKey;
-    if (possibleFamilies.length > 20) throw fail(409, 'Too many family matches; manual review required.');
+    if (possibleFamilies.length > 20)
+      throw fail(409, 'Too many family matches; manual review required.');
   } while (familyCursor);
-  if (possibleFamilies.length > 1) throw fail(409, 'Several families share this contact number. Resolve the relationship manually before activation.');
+  if (possibleFamilies.length > 1)
+    throw fail(
+      409,
+      'Several families share this contact number. Resolve the relationship manually before activation.',
+    );
   const matchedFamily = possibleFamilies[0];
   if (decision.preview === true) {
-    return { requiresFamilyConfirmation: Boolean(matchedFamily),
-      candidate: matchedFamily ? {familyId: matchedFamily.id, familyNumber: matchedFamily.familyNumber,
-        parentName: matchedFamily.parentName, phone: matchedFamily.phone} : null,
-      registrationId, studentNames: parsed.map((p) => p.name) };
+    return {
+      requiresFamilyConfirmation: Boolean(matchedFamily),
+      candidate: matchedFamily
+        ? {
+            familyId: matchedFamily.id,
+            familyNumber: matchedFamily.familyNumber,
+            parentName: matchedFamily.parentName,
+            phone: matchedFamily.phone,
+          }
+        : null,
+      registrationId,
+      studentNames: parsed.map((p) => p.name),
+    };
   }
   if (matchedFamily && decision.linkFamilyId !== matchedFamily.id)
-    throw fail(409, 'Existing family found for this phone. Preview and confirm the family relationship before activation.');
+    throw fail(
+      409,
+      'Existing family found for this phone. Preview and confirm the family relationship before activation.',
+    );
   if (!matchedFamily && decision.linkFamilyId)
     throw fail(409, 'Selected family is no longer a unique match. Refresh and review.');
-  if (matchedFamily && (!matchedFamily.id || !matchedFamily.familyNumber || !Number.isSafeInteger(matchedFamily.version)))
+  if (
+    matchedFamily &&
+    (!matchedFamily.id ||
+      !matchedFamily.familyNumber ||
+      !Number.isSafeInteger(matchedFamily.version))
+  )
     throw fail(409, 'Matched family is incomplete; manual review required.');
   const useExistingFamily = Boolean(matchedFamily);
-  const familyNumber = useExistingFamily ? String(matchedFamily.familyNumber) : await allocate('FAMILY');
+  const familyNumber = useExistingFamily
+    ? String(matchedFamily.familyNumber)
+    : await allocate('FAMILY');
   const studentNumbers: string[] = [];
   for (const _ of parsed) studentNumbers.push(await allocate('STUDENT'));
   const familyId = useExistingFamily ? matchedFamily.id : `FAMILY-${randomUUID()}`;
@@ -372,12 +497,33 @@ export async function importApprovedWebsiteRegistration(registrationId: string, 
     await db.send(
       new TransactWriteCommand({
         TransactItems: [
-          ...(useExistingFamily ? [{ ConditionCheck: {
-            TableName: table(), Key: key('FAMILY', familyId),
-            ConditionExpression: '#v = :v AND phone = :phone AND institution = :inst AND (attribute_not_exists(archived) OR archived = :false)',
-            ExpressionAttributeNames: { '#v': 'version' },
-            ExpressionAttributeValues: { ':v': matchedFamily.version, ':phone': phone, ':inst': 'raaga', ':false': false },
-          }}] : [{ Put: { TableName: table(), Item: fam, ConditionExpression: 'attribute_not_exists(PK)' }}]),
+          ...(useExistingFamily
+            ? [
+                {
+                  ConditionCheck: {
+                    TableName: table(),
+                    Key: key('FAMILY', familyId),
+                    ConditionExpression:
+                      '#v = :v AND phone = :phone AND institution = :inst AND (attribute_not_exists(archived) OR archived = :false)',
+                    ExpressionAttributeNames: { '#v': 'version' },
+                    ExpressionAttributeValues: {
+                      ':v': matchedFamily.version,
+                      ':phone': phone,
+                      ':inst': 'raaga',
+                      ':false': false,
+                    },
+                  },
+                },
+              ]
+            : [
+                {
+                  Put: {
+                    TableName: table(),
+                    Item: fam,
+                    ConditionExpression: 'attribute_not_exists(PK)',
+                  },
+                },
+              ]),
           ...[...studentRows, marker, audit, ...identityKeys].map((Item) => ({
             Put: { TableName: table(), Item, ConditionExpression: 'attribute_not_exists(PK)' },
           })),

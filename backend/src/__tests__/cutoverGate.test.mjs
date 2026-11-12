@@ -1,3 +1,48 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {execFileSync} from 'node:child_process';import {mkdtempSync,writeFileSync,readFileSync} from 'node:fs';import {tmpdir} from 'node:os';import {join} from 'node:path';
-test('cutover gate never accepts incomplete workflow evidence',()=>{const dir=mkdtempSync(join(tmpdir(),'sadhana-gate-'));const input=join(dir,'in.json'),out=join(dir,'out.json');writeFileSync(input,JSON.stringify({preflight:{readOnly:true,decision:{infrastructurePreflightPassed:true}},workflows:{isolatedM9Deployment:{passed:true,evidence:'deployment reviewed'}}}));const script=new URL('../../scripts/cutoverGate.mjs',import.meta.url).pathname;const result=JSON.parse(execFileSync(process.execPath,[script,'--evidence',input,'--report',out],{encoding:'utf8'}));assert.equal(result.evidenceComplete,false);assert.equal(result.productionCutoverPerformed,false);const detail=JSON.parse(readFileSync(out));assert.equal(detail.results.length,10);assert.equal(detail.results.filter(r=>r.passed).length,1)});
-test('cutover gate rejects truthy strings and missing evidence',()=>{const dir=mkdtempSync(join(tmpdir(),'sadhana-gate-'));const input=join(dir,'in.json'),out=join(dir,'out.json');writeFileSync(input,JSON.stringify({preflight:{readOnly:true,decision:{infrastructurePreflightPassed:true}},workflows:{isolatedM9Deployment:{passed:'true',evidence:'deployment reviewed'}}}));const script=new URL('../../scripts/cutoverGate.mjs',import.meta.url).pathname;const result=JSON.parse(execFileSync(process.execPath,[script,'--evidence',input,'--report',out],{encoding:'utf8'}));assert.equal(result.passed,0)});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+test('cutover gate never accepts incomplete workflow evidence', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sadhana-gate-'));
+  const input = join(dir, 'in.json'),
+    out = join(dir, 'out.json');
+  writeFileSync(
+    input,
+    JSON.stringify({
+      preflight: { readOnly: true, decision: { infrastructurePreflightPassed: true } },
+      workflows: { isolatedM9Deployment: { passed: true, evidence: 'deployment reviewed' } },
+    }),
+  );
+  const script = new URL('../../scripts/cutoverGate.mjs', import.meta.url).pathname;
+  const result = JSON.parse(
+    execFileSync(process.execPath, [script, '--evidence', input, '--report', out], {
+      encoding: 'utf8',
+    }),
+  );
+  assert.equal(result.evidenceComplete, false);
+  assert.equal(result.productionCutoverPerformed, false);
+  const detail = JSON.parse(readFileSync(out));
+  assert.equal(detail.results.length, 10);
+  assert.equal(detail.results.filter((r) => r.passed).length, 1);
+});
+test('cutover gate rejects truthy strings and missing evidence', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sadhana-gate-'));
+  const input = join(dir, 'in.json'),
+    out = join(dir, 'out.json');
+  writeFileSync(
+    input,
+    JSON.stringify({
+      preflight: { readOnly: true, decision: { infrastructurePreflightPassed: true } },
+      workflows: { isolatedM9Deployment: { passed: 'true', evidence: 'deployment reviewed' } },
+    }),
+  );
+  const script = new URL('../../scripts/cutoverGate.mjs', import.meta.url).pathname;
+  const result = JSON.parse(
+    execFileSync(process.execPath, [script, '--evidence', input, '--report', out], {
+      encoding: 'utf8',
+    }),
+  );
+  assert.equal(result.passed, 0);
+});

@@ -10,5 +10,9 @@ export default defineConfig({
       '**/playwrighttests/**',
       '**/playwright-report/**',
       '**/test-results/**',
-    ], environment: 'jsdom', include: ['app/tests/**/*.{test,spec}.{ts,tsx,mjs}'], clearMocks: true },
+    ],
+    environment: 'jsdom',
+    include: ['app/tests/**/*.{test,spec}.{ts,tsx,mjs}'],
+    clearMocks: true,
+  },
 });

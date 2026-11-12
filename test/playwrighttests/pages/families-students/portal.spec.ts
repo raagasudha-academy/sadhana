@@ -1,23 +1,30 @@
-import {expect,test} from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 // Defense in depth: all requests must stay on the dedicated local Vite test server.
-test.beforeEach(async({page})=>{
-  await page.route('**/*',route=>{
-    const url=new URL(route.request().url());
-    if(url.hostname==='127.0.0.1'&&url.port==='4179'&&['http:','ws:'].includes(url.protocol))return route.continue();
+test.beforeEach(async ({ page }) => {
+  await page.route('**/*', (route) => {
+    const url = new URL(route.request().url());
+    if (
+      url.hostname === '127.0.0.1' &&
+      url.port === '4179' &&
+      ['http:', 'ws:'].includes(url.protocol)
+    )
+      return route.continue();
     throw new Error(`E2E blocked unexpected network access: ${url.origin}`);
   });
   await page.goto('/e2e-fixtures/portal.html');
 });
 
-test('real portal renders synthetic students in registration directory',async({page})=>{
+test('real portal renders synthetic students in registration directory', async ({ page }) => {
   await expect(page.getByText('Test Meera').first()).toBeVisible();
   await expect(page.getByText('Test Arjun').first()).toBeVisible();
 });
 
-test('real portal renders filter and directory navigation controls',async({page})=>{
+test('real portal renders filter and directory navigation controls', async ({ page }) => {
   await expect(page.getByText('Test Meera').first()).toBeVisible();
-  const tabs=page.locator('.reg-tabs');
-  await expect(tabs.getByRole('button',{name:'Family & Relationships',exact:true})).toBeVisible();
-  await expect(tabs.getByRole('button',{name:'Students',exact:true})).toBeVisible();
+  const tabs = page.locator('.reg-tabs');
+  await expect(
+    tabs.getByRole('button', { name: 'Family & Relationships', exact: true }),
+  ).toBeVisible();
+  await expect(tabs.getByRole('button', { name: 'Students', exact: true })).toBeVisible();
 });

@@ -26,14 +26,16 @@ export function scheduleAttentionIssues(
   if (missing(record.name)) issues.push('Class name is missing');
   if (missing(record.programme)) issues.push('Programme is missing');
   if (missing(record.teacher)) issues.push('Teacher is not assigned');
-  else if (record.recordType === 'class' && missing(record.teacherId)) issues.push('Teacher is not linked to the Teacher Registry');
+  else if (record.recordType === 'class' && missing(record.teacherId))
+    issues.push('Teacher is not linked to the Teacher Registry');
   if (missing(record.mode)) issues.push('Delivery mode is missing');
   const mode = (record.mode || '').trim().toLowerCase();
   const inPerson = /in[ -]?person|onsite|on-site/.test(mode);
   if (inPerson) {
     if (missing(record.location) && missing(record.venueId)) issues.push('Venue is missing');
     else if (missing(record.venueId)) issues.push('Venue is not linked to the Venue Directory');
-    else if (knownVenueIds && !knownVenueIds.has(record.venueId!)) issues.push('Linked venue is not in the Venue Directory');
+    else if (knownVenueIds && !knownVenueIds.has(record.venueId!))
+      issues.push('Linked venue is not in the Venue Directory');
   } else if (mode && mode !== 'online' && missing(record.location)) {
     issues.push('Location is missing');
   }

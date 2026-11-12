@@ -7,13 +7,17 @@ describe('enrolment status regression', () => {
     expect(getEnrolmentStatus({ ...base, archived: true } as never, '2026-10-22')).toBe('Archived');
   });
   it('shows future starts as Upcoming', () => {
-    expect(getEnrolmentStatus({ ...base, startDate: '2026-12-01' } as never, '2026-10-22')).toBe('Upcoming');
+    expect(getEnrolmentStatus({ ...base, startDate: '2026-12-01' } as never, '2026-10-22')).toBe(
+      'Upcoming',
+    );
   });
   it('shows active enrolments as Active', () => {
     expect(getEnrolmentStatus(base as never, '2026-10-22')).toBe('Active');
   });
   it('shows ended enrolments as Archived', () => {
-    expect(getEnrolmentStatus({ ...base, endDate: '2026-08-31' } as never, '2026-10-22')).toBe('Archived');
+    expect(getEnrolmentStatus({ ...base, endDate: '2026-08-31' } as never, '2026-10-22')).toBe(
+      'Archived',
+    );
   });
 });
 

@@ -10,10 +10,7 @@ export const learnerPageMap: Record<string, LearnerPage> = {
   Messages: 'messages',
   'My profile': 'profile',
 };
-export const learnerSectionMap: Record<
-  LearnerPage,
-  string
-> = {
+export const learnerSectionMap: Record<LearnerPage, string> = {
   overview: 'Dashboard',
   classes: 'My classes',
   calendar: 'My classes',

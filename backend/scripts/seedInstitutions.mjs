@@ -5,20 +5,21 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dyn
 import { FRESH_INSTITUTIONS } from './freshStartCore.mjs';
 
 export function institutionSeedItems() {
-  return FRESH_INSTITUTIONS.map(item => structuredClone(item));
+  return FRESH_INSTITUTIONS.map((item) => structuredClone(item));
 }
 
 function parseArgs(args) {
   const execute = args.includes('--execute');
   const dryRun = args.includes('--dry-run');
-  if (args.some(arg => !['--execute', '--dry-run'].includes(arg)) || execute === dryRun) {
+  if (args.some((arg) => !['--execute', '--dry-run'].includes(arg)) || execute === dryRun) {
     throw Error('Usage: node scripts/seedInstitutions.mjs --dry-run | --execute');
   }
   return { execute };
 }
 
 export async function seed({ execute, client, tableName = 'sadhana-dev-m9-institutions' }) {
-  if (!/^sadhana-dev-m9-institutions$/.test(tableName)) throw Error('Only fresh dev institutions table is allowed');
+  if (!/^sadhana-dev-m9-institutions$/.test(tableName))
+    throw Error('Only fresh dev institutions table is allowed');
   const items = institutionSeedItems();
   if (!execute) return { writeEnabled: false, table: tableName, records: items, writes: 0 };
   const db = client;
@@ -28,21 +29,34 @@ export async function seed({ execute, client, tableName = 'sadhana-dev-m9-instit
   const result = [];
   for (const item of items) {
     try {
-      await doc.send(new PutCommand({
-        TableName: tableName,
-        Item: { ...item, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), version: 1 },
-        ConditionExpression: 'attribute_not_exists(#pk)',
-        ExpressionAttributeNames: { '#pk': 'institutionId' }
-      }));
+      await doc.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: {
+            ...item,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            version: 1,
+          },
+          ConditionExpression: 'attribute_not_exists(#pk)',
+          ExpressionAttributeNames: { '#pk': 'institutionId' },
+        }),
+      );
       result.push({ institutionId: item.institutionId, result: 'created' });
     } catch (e) {
       if (e?.name !== 'ConditionalCheckFailedException') throw e;
-      const got = await doc.send(new GetCommand({
-        TableName: tableName, Key: { institutionId: item.institutionId }, ConsistentRead: true
-      }));
+      const got = await doc.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: { institutionId: item.institutionId },
+          ConsistentRead: true,
+        }),
+      );
       const existing = got.Item ?? null;
       if (!existing || existing.name !== item.name || existing.status !== 'active') {
-        throw Error(`Existing institution ${item.institutionId} does not match expected seed; manual review required`);
+        throw Error(
+          `Existing institution ${item.institutionId} does not match expected seed; manual review required`,
+        );
       }
       result.push({ institutionId: item.institutionId, result: 'already-exists' });
     }

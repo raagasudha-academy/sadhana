@@ -25,9 +25,15 @@
   overflow-wrap: anywhere !important;
   justify-content: center !important;
 }
-.sadhana-session-editor .reg-modal-actions > .reg-secondary { order: 1 !important; }
-.sadhana-session-editor .reg-modal-actions > .reg-primary { order: 2 !important; }
-.sadhana-session-editor .reg-modal-actions > .reg-danger { order: 3 !important; }
+.sadhana-session-editor .reg-modal-actions > .reg-secondary {
+  order: 1 !important;
+}
+.sadhana-session-editor .reg-modal-actions > .reg-primary {
+  order: 2 !important;
+}
+.sadhana-session-editor .reg-modal-actions > .reg-danger {
+  order: 3 !important;
+}
 .sadhana-session-editor .reg-modal-actions:not(:has(.reg-danger)) {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }

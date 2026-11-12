@@ -1,9 +1,26 @@
-import {useState} from 'react';
-import {ArrowLeft, GraduationCap, Plus, UsersRound, Trash2, Pencil, RotateCcw, CalendarDays} from 'lucide-react';
-import {institutions} from '../../institutions';
-import {getEnrolmentStatus,maskPhone,newId,ukISODate} from '../../registry';
-import {lastFourWeeks,reportForStudent} from '../../practiceMath';
-import {familyLabel, readableLocation, studentLabel, Status, NoResults, relationshipLabel, fmtDate} from './registrationShared';
+import { useState } from 'react';
+import {
+  ArrowLeft,
+  GraduationCap,
+  Plus,
+  UsersRound,
+  Trash2,
+  Pencil,
+  RotateCcw,
+  CalendarDays,
+} from 'lucide-react';
+import { institutions } from '../../institutions';
+import { getEnrolmentStatus, maskPhone, newId, ukISODate } from '../../registry';
+import { lastFourWeeks, reportForStudent } from '../../practiceMath';
+import {
+  familyLabel,
+  readableLocation,
+  studentLabel,
+  Status,
+  NoResults,
+  relationshipLabel,
+  fmtDate,
+} from './registrationShared';
 
 export function StudentRecord({
   person,
@@ -91,7 +108,11 @@ export function StudentRecord({
               </div>
               <div className="reg-info-row">
                 <span>Classification</span>
-                <strong>{person.adultConfirmed && person.relationship !== 'parent_guardian' ? 'Independent Adult Student' : relationshipLabel(person)}</strong>
+                <strong>
+                  {person.adultConfirmed && person.relationship !== 'parent_guardian'
+                    ? 'Independent Adult Student'
+                    : relationshipLabel(person)}
+                </strong>
               </div>
               <div className="reg-info-row">
                 <span>Family ID</span>
@@ -99,7 +120,11 @@ export function StudentRecord({
               </div>
               <div className="reg-info-row">
                 <span>Parent / guardian</span>
-                <strong>{person.adultConfirmed && (!family || family.parentName === person.name) ? 'Not applicable' : family?.parentName || 'Independent Student'}</strong>
+                <strong>
+                  {person.adultConfirmed && (!family || family.parentName === person.name)
+                    ? 'Not applicable'
+                    : family?.parentName || 'Independent Student'}
+                </strong>
               </div>
               <div className="reg-info-row">
                 <span>Location</span>
@@ -123,14 +148,75 @@ export function StudentRecord({
                       : 'Not recorded'}
                 </strong>
               </div>
-              {person.dateOfBirth && <div className="reg-info-row"><span>Date of birth</span><strong>{fmtDate(person.dateOfBirth)}</strong></div>}
-              {person.contactAddress && <div className="reg-info-row"><span>Postal address</span><strong>{Object.values(person.contactAddress).filter(Boolean).join(', ') || '—'}</strong></div>}
-              {person.preferredClassId && <div className="reg-info-row"><span>Requested class</span><strong>{person.preferredClassId}</strong></div>}
-              {person.proposedStartDate && <div className="reg-info-row"><span>Proposed start date</span><strong>{fmtDate(person.proposedStartDate)}</strong></div>}
-              {person.sourceWebsiteRegistrationId && <div className="reg-info-row"><span>Website registration</span><strong>{person.sourceWebsiteRegistrationId}</strong></div>}
-              {person.sourceWebsiteRegistrationId && <div className="reg-info-row"><span>Import status</span><strong>Imported</strong></div>}
-              {person.contactPreferences && <div className="reg-info-row"><span>Contact preferences</span><strong>{`Email: ${person.contactPreferences.emailSource || '—'}; Phone: ${person.contactPreferences.phoneSource || '—'}; Address: ${person.contactPreferences.addressSource || '—'}`}</strong></div>}
-              {person.foodAllergies && <div className="reg-info-row"><span>Food allergies / medical instructions</span><strong>{[person.foodAllergies.status === 'none' ? 'No known food allergies' : person.foodAllergies.status === 'unknown' ? 'Unknown' : person.foodAllergies.status === 'yes' ? 'Reported allergies' : String(person.foodAllergies.status || '—'), ...(person.foodAllergies.allergens || []), person.foodAllergies.otherAllergens, person.foodAllergies.reactionDetails, person.foodAllergies.emergencyInstructions, person.foodAllergies.carriesEmergencyMedication ? 'Carries emergency medication' : ''].filter(Boolean).join(' · ')}</strong></div>}
+              {person.dateOfBirth && (
+                <div className="reg-info-row">
+                  <span>Date of birth</span>
+                  <strong>{fmtDate(person.dateOfBirth)}</strong>
+                </div>
+              )}
+              {person.contactAddress && (
+                <div className="reg-info-row">
+                  <span>Postal address</span>
+                  <strong>
+                    {Object.values(person.contactAddress).filter(Boolean).join(', ') || '—'}
+                  </strong>
+                </div>
+              )}
+              {person.preferredClassId && (
+                <div className="reg-info-row">
+                  <span>Requested class</span>
+                  <strong>{person.preferredClassId}</strong>
+                </div>
+              )}
+              {person.proposedStartDate && (
+                <div className="reg-info-row">
+                  <span>Proposed start date</span>
+                  <strong>{fmtDate(person.proposedStartDate)}</strong>
+                </div>
+              )}
+              {person.sourceWebsiteRegistrationId && (
+                <div className="reg-info-row">
+                  <span>Website registration</span>
+                  <strong>{person.sourceWebsiteRegistrationId}</strong>
+                </div>
+              )}
+              {person.sourceWebsiteRegistrationId && (
+                <div className="reg-info-row">
+                  <span>Import status</span>
+                  <strong>Imported</strong>
+                </div>
+              )}
+              {person.contactPreferences && (
+                <div className="reg-info-row">
+                  <span>Contact preferences</span>
+                  <strong>{`Email: ${person.contactPreferences.emailSource || '—'}; Phone: ${person.contactPreferences.phoneSource || '—'}; Address: ${person.contactPreferences.addressSource || '—'}`}</strong>
+                </div>
+              )}
+              {person.foodAllergies && (
+                <div className="reg-info-row">
+                  <span>Food allergies / medical instructions</span>
+                  <strong>
+                    {[
+                      person.foodAllergies.status === 'none'
+                        ? 'No known food allergies'
+                        : person.foodAllergies.status === 'unknown'
+                          ? 'Unknown'
+                          : person.foodAllergies.status === 'yes'
+                            ? 'Reported allergies'
+                            : String(person.foodAllergies.status || '—'),
+                      ...(person.foodAllergies.allergens || []),
+                      person.foodAllergies.otherAllergens,
+                      person.foodAllergies.reactionDetails,
+                      person.foodAllergies.emergencyInstructions,
+                      person.foodAllergies.carriesEmergencyMedication
+                        ? 'Carries emergency medication'
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </strong>
+                </div>
+              )}
               <div className="reg-info-row">
                 <span>Current classes</span>
                 <strong>{new Set(activeEnrolments.map((e) => e.classId)).size}</strong>
@@ -280,4 +366,3 @@ export function StudentRecord({
     </>
   );
 }
-
