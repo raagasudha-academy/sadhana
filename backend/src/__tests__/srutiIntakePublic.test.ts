@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PutCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { makeM91SrutiIntakeHandler } from '../srutiIntakePublic.ts';
 
 const origin = 'https://sruti.co.uk';
@@ -74,7 +74,7 @@ test('public Sruti intake enforces origin and supports allowed preflight without
 });
 
 test('disabled intake, invalid submission and honeypot never persist data', async () =>
-  withEnv({ M91_SRUTI_PUBLIC_INTAKE: 'enabled' }, async () => {
+  withEnv({ M91_SRUTI_PUBLIC_INTAKE: 'enabled', SADHANA_ENTITY_STAGE: 'prod' }, async () => {
     const commands: any[] = [];
     const handler = makeM91SrutiIntakeHandler({
       send: async (c: any) => {
@@ -106,8 +106,8 @@ test('valid registration conditionally writes one M9 record and returns a small 
   withEnv(
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
-      M91_SRUTI_REGISTRATIONS_TABLE: undefined,
-      M91_SRUTI_REGISTRATIONS_MIRROR_TABLE: undefined,
+      SADHANA_ENTITY_STAGE: 'prod',
+      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'sruti-student-registrations',
     },
     async () => {
       const commands: any[] = [];
@@ -124,52 +124,30 @@ test('valid registration conditionally writes one M9 record and returns a small 
       assert.match(body.registrationId, /^SR-2026-[A-F0-9]{6}$/);
       assert.equal(commands.length, 1);
       assert.ok(commands[0] instanceof PutCommand);
-      assert.equal(commands[0].input.TableName, 'sadhana-dev-m9-registrations');
+      assert.equal(commands[0].input.TableName, 'sruti-student-registrations');
       assert.equal(commands[0].input.ConditionExpression, 'attribute_not_exists(registrationId)');
       assert.equal(commands[0].input.Item.institutionId, 'sruti');
       assert.equal(commands[0].input.Item.reviewStatus, 'pending');
     },
   ));
 
-test('mirror mode uses one atomic transaction and retries an ID collision', async () =>
+test('dev intake remains disabled even if its enable flag is set', async () =>
   withEnv(
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
-      M91_SRUTI_REGISTRATIONS_TABLE: undefined,
-      M91_SRUTI_REGISTRATIONS_MIRROR_TABLE: 'sadhana-dev-registrations',
+      SADHANA_ENTITY_STAGE: 'dev',
+      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'sruti-dev-student-registrations',
     },
     async () => {
-      const commands: any[] = [];
-      const handler = makeM91SrutiIntakeHandler({
-        send: async (c: any) => {
-          commands.push(c);
-          if (commands.length === 1)
-            throw Object.assign(new Error('collision'), {
-              name: 'ConditionalCheckFailedException',
-            });
-          return {};
-        },
-      } as any);
-      const result = await handler(event('POST', JSON.stringify(valid)));
-      assert.equal(result.statusCode, 202);
-      assert.equal(commands.length, 2);
-      for (const command of commands) {
-        assert.ok(command instanceof TransactWriteCommand);
-        assert.deepEqual(
-          command.input.TransactItems.map((x: any) => x.Put.TableName),
-          ['sadhana-dev-m9-registrations', 'sadhana-dev-registrations'],
-        );
-        assert.ok(
-          command.input.TransactItems.every(
-            (x: any) => x.Put.ConditionExpression === 'attribute_not_exists(registrationId)',
-          ),
-        );
-      }
+      let calls = 0;
+      const handler = makeM91SrutiIntakeHandler({ send: async () => (calls++, {}) } as any);
+      assert.equal((await handler(event('POST', JSON.stringify(valid)))).statusCode, 503);
+      assert.equal(calls, 0);
     },
   ));
 
 test('public intake rejects unsupported methods and oversized bodies before storage', async () =>
-  withEnv({ M91_SRUTI_PUBLIC_INTAKE: 'enabled' }, async () => {
+  withEnv({ M91_SRUTI_PUBLIC_INTAKE: 'enabled', SADHANA_ENTITY_STAGE: 'prod' }, async () => {
     let calls = 0;
     const handler = makeM91SrutiIntakeHandler({
       send: async () => {
@@ -186,8 +164,8 @@ test('repeated collisions and storage errors fail closed without logging registr
   withEnv(
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
-      M91_SRUTI_REGISTRATIONS_TABLE: undefined,
-      M91_SRUTI_REGISTRATIONS_MIRROR_TABLE: undefined,
+      SADHANA_ENTITY_STAGE: 'prod',
+      SRUTI_SOURCE_REGISTRATIONS_TABLE: 'sruti-student-registrations',
     },
     async () => {
       const original = console.error;

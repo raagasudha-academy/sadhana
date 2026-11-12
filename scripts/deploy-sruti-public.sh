@@ -9,19 +9,26 @@ BACKEND="$ROOT/backend"
 TEMPLATE="$ROOT/infra/sruti-public-intake.yml"
 REGION=us-east-1
 ACCOUNT=627821644317
-STACK=sadhana-m91-sruti-public-intake
-TABLE=sadhana-dev-m9-registrations
+STAGE="${SADHANA_STAGE:-dev}"
+case "$STAGE" in dev|staging|prod) ;; *) echo 'SADHANA_STAGE must be dev, staging, or prod' >&2; exit 2;; esac
+STACK="sadhana-${STAGE}-sruti-public-intake"
+TABLE="sruti-${STAGE}-student-registrations"
+[[ "$STAGE" == prod ]] && TABLE=sruti-student-registrations
+if [[ "$MODE" == --enable && "$STAGE" != prod ]]; then
+  echo 'Live public registration intake can only be enabled for prod; dev accepts sanitized test records through controlled seeding.' >&2
+  exit 2
+fi
 command -v aws >/dev/null || { echo 'AWS CLI required' >&2; exit 1; }
 command -v node >/dev/null || { echo 'Node.js required' >&2; exit 1; }
 ACTUAL="$(aws sts get-caller-identity --query Account --output text --region "$REGION")"
 [[ "$ACTUAL" == "$ACCOUNT" ]] || { echo "Wrong AWS account: $ACTUAL" >&2; exit 1; }
-aws dynamodb describe-table --table-name "$TABLE" --region "$REGION" --query 'Table.TableStatus' --output text | grep -qx ACTIVE || { echo 'M9 table not ACTIVE' >&2; exit 1; }
-[[ -f "$BACKEND/src/srutiIntakePublic.ts" ]] || { echo 'Missing M9.1 public handler; apply previous Sruti integration patch first' >&2; exit 1; }
+aws dynamodb describe-table --table-name "$TABLE" --region "$REGION" --query 'Table.TableStatus' --output text | grep -qx ACTIVE || { echo 'Stage Sruti source table not ACTIVE' >&2; exit 1; }
+[[ -f "$BACKEND/src/srutiIntakePublic.ts" ]] || { echo 'Missing Sruti public intake handler' >&2; exit 1; }
 [[ -f "$TEMPLATE" ]] || { echo 'Missing infra template' >&2; exit 1; }
 if [[ "$MODE" == --dry-run ]]; then
-  echo "DRY RUN: account=$ACTUAL region=$REGION stack=$STACK table=$TABLE"
+  echo "DRY RUN: account=$ACTUAL region=$REGION stage=$STAGE stack=$STACK source-table=$TABLE"
   echo 'Resources: isolated Lambda, API Gateway REST, restricted PutItem role, throttling, WAF common+IP rules, 14-day logs.'
-  echo 'Public intake stays disabled on --apply; --enable separately enables registration writes.'
+  echo 'Public intake stays disabled on --apply; --enable is prod-only.'
   echo 'WAF + REST API incur AWS charges. No live website settings or protected Lambda changed.'
   exit 0
 fi
@@ -37,7 +44,7 @@ WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 cp /tmp/sadhana-sruti-intake-index.mjs "$WORK/index.mjs"
 (cd "$WORK" && zip -q intake.zip index.mjs)
 KEY="sruti-intake/$(shasum -a 256 "$WORK/intake.zip" | awk '{print $1}').zip"
-BUCKET="sadhana-m91-intake-deploy-${ACCOUNT}-${REGION}"
+BUCKET="sadhana-${STAGE}-intake-deploy-${ACCOUNT}-${REGION}"
 if ! aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
   aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" >/dev/null
   aws s3api put-public-access-block --bucket "$BUCKET" --region "$REGION" --public-access-block-configuration 'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'
@@ -46,7 +53,7 @@ fi
 aws s3 cp "$WORK/intake.zip" "s3://$BUCKET/$KEY" --region "$REGION" --only-show-errors
 aws cloudformation deploy --region "$REGION" --stack-name "$STACK" --template-file "$TEMPLATE" \
   --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset \
-  --parameter-overrides "CodeBucket=$BUCKET" "CodeKey=$KEY" "IntakeEnabled=$ENABLED" "RegistrationsTable=$TABLE"
+  --parameter-overrides "Stage=$STAGE" "CodeBucket=$BUCKET" "CodeKey=$KEY" "IntakeEnabled=$ENABLED" "SourceTableName=$TABLE"
 echo 'Intake endpoint (test stage only):'
 aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`PublicIntakeUrl`].OutputValue|[0]' --output text
 printf 'IntakeEnabled=%s\n' "$ENABLED"

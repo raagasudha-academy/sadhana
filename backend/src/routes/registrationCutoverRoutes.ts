@@ -1,4 +1,4 @@
-import { entityTable } from '../entityTables.mjs';
+import { srutiSourceTable } from '../srutiRegistrationSource.mjs';
 /** Sruti-only M9 intake directory and separately gated review decisions.
  * Student import, photo upload, provisioning and revocation remain separate.
  */
@@ -28,12 +28,12 @@ const client = () =>
     new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }),
   ));
 // Lazy resolution prevents a missing final-table acknowledgement from failing Lambda cold start.
-const table = () => entityTable('registrations');
+const sourceTable = () => srutiSourceTable();
 const defaultReader: RegistrationReader = {
   async list(inst, limit) {
     const page = await client().send(
       new QueryCommand({
-        TableName: table(),
+        TableName: sourceTable(),
         IndexName: 'InstitutionRegistrationsIndex',
         KeyConditionExpression: 'institutionId = :inst',
         ExpressionAttributeValues: { ':inst': inst },
@@ -44,7 +44,7 @@ const defaultReader: RegistrationReader = {
   },
   async get(id) {
     const item = await client().send(
-      new GetCommand({ TableName: table(), Key: { registrationId: id }, ConsistentRead: true }),
+      new GetCommand({ TableName: sourceTable(), Key: { registrationId: id }, ConsistentRead: true }),
     );
     return (item.Item as M9RegistrationRow) ?? null;
   },
@@ -95,7 +95,7 @@ const defaultSrutiReview: DomainRoute = async ({ event, parts, claims }) => {
   try {
     await client().send(
       new UpdateCommand({
-        TableName: table(),
+        TableName: sourceTable(),
         Key: { registrationId: id },
         UpdateExpression:
           'SET reviewStatus=:next,#status=:next,updatedAt=:now,reviewedBy=:reviewer,version=:nextVersion',
@@ -137,7 +137,8 @@ export function makeM10RegistrationCutoverRoutes(
 ): DomainRoute {
   return async ({ parts, method, query, claims, event, groups, inst }) => {
     if (parts[0] !== 'website-registrations') return undefined;
-    // Sruti is already writing to the M9 intake table. Route it explicitly,
+    // Sruti's private intake source is stage-isolated from Sadhana's imported
+    // registration markers. Route it explicitly,
     // regardless of the global M10 cutover flag. Raagasudha remains on its
     // existing website-registration gateway until its separate migration.
     if (query.institution !== 'sruti') {
@@ -215,7 +216,7 @@ export function makeM10RegistrationCutoverRoutes(
       return json(200, {
         records: items.map(publicRow),
         more: page.more,
-        source: 'm9-internal-directory',
+        source: 'sruti-stage-source',
       });
     }
     if (parts.length === 2) {
@@ -234,7 +235,7 @@ export function makeM10RegistrationCutoverRoutes(
           submission: record.submission,
         },
         reviewAvailable: process.env.M91_SRUTI_REVIEW_WRITES === 'enabled',
-        source: 'm9-internal-directory',
+        source: 'sruti-stage-source',
       });
     }
     return denied();

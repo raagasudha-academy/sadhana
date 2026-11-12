@@ -25,6 +25,7 @@ import {
 } from './websiteImportCore.mjs';
 import { prepareLegacyImportBridge } from './legacyImportBridge.mjs';
 import { toApprovedM9Registration } from './srutiIntakeCore.mjs';
+import { srutiSourceTable } from './srutiRegistrationSource.mjs';
 import { canonicalRaagaRegistration } from './raagaImportSource.mjs';
 import { assertRaagaWebsiteSyncPolicy } from './raagaWebsiteSyncPolicy.mjs';
 const db = DynamoDBDocumentClient.from(
@@ -80,6 +81,26 @@ const finalRaaga = () =>
   process.env.SADHANA_ENTITY_TABLE_SET === 'final' &&
   process.env.SADHANA_ENTITY_FINAL_ACK === 'enabled' &&
   process.env.SADHANA_DATA_MODE !== 'split';
+const acknowledgeSrutiSourceImport = async (registrationId: string, now: string) => {
+  await db.send(
+    new UpdateCommand({
+      TableName: srutiSourceTable(),
+      Key: { registrationId },
+      UpdateExpression: 'SET importStatus=:imported,updatedAt=:now',
+      ConditionExpression:
+        'institutionId=:inst AND #source=:source AND reviewStatus=:approved AND (importStatus=:pending OR importStatus=:imported)',
+      ExpressionAttributeNames: { '#source': 'source' },
+      ExpressionAttributeValues: {
+        ':inst': 'sruti',
+        ':source': 'sruti-website',
+        ':approved': 'approved',
+        ':pending': 'pending',
+        ':imported': 'imported',
+        ':now': now,
+      },
+    }),
+  );
+};
 async function getCounter(inst: InstitutionId, name: 'FAMILY_NUMBER' | 'STUDENT_ROLL') {
   const item = (
     await db.send(
@@ -171,6 +192,7 @@ export async function m95ImportApprovedWebsiteRegistration(
   if (already) {
     if (already.institutionId !== inst || already.externalRegistrationId !== registrationId)
       throw fail(409, 'Registration identity collision.');
+    if (inst === 'sruti') await acknowledgeSrutiSourceImport(registrationId, new Date().toISOString());
     return {
       alreadyImported: true,
       registrationId: id,
@@ -192,7 +214,7 @@ export async function m95ImportApprovedWebsiteRegistration(
           (
             await db.send(
               new GetCommand({
-                TableName: tables.registrations,
+                TableName: srutiSourceTable(),
                 Key: { registrationId },
                 ConsistentRead: true,
               }),
@@ -282,25 +304,6 @@ export async function m95ImportApprovedWebsiteRegistration(
       now,
     ),
   ];
-  if (inst === 'sruti')
-    tx.push({
-      Update: {
-        TableName: tables.registrations,
-        Key: { registrationId },
-        UpdateExpression: 'SET importStatus=:imported,updatedAt=:now',
-        ConditionExpression:
-          'institutionId=:inst AND #source=:source AND reviewStatus=:approved AND importStatus=:pending',
-        ExpressionAttributeNames: { '#source': 'source' },
-        ExpressionAttributeValues: {
-          ':inst': 'sruti',
-          ':source': 'sruti-website',
-          ':approved': 'approved',
-          ':pending': 'pending',
-          ':imported': 'imported',
-          ':now': now,
-        },
-      },
-    });
   for (const { table, item } of plan.items) {
     const pk = keys[table as keyof typeof keys];
     tx.push({
@@ -345,6 +348,9 @@ export async function m95ImportApprovedWebsiteRegistration(
     }
     throw e;
   }
+  // The Sadhana import transaction commits first. This independent source
+  // receipt is idempotent, so a retry can repair a lost acknowledgement.
+  if (inst === 'sruti') await acknowledgeSrutiSourceImport(registrationId, now);
   return {
     imported: true,
     alreadyImported: false,

@@ -1,6 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Sadhana M9.1 Sruti public registration intake: standalone API, rate limits, WAF and restricted DynamoDB writes'
+Description: 'Stage-isolated Sruti public registration intake: standalone API, rate limits, WAF and restricted DynamoDB writes'
 Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
   CodeBucket:
     Type: String
   CodeKey:
@@ -9,9 +13,9 @@ Parameters:
     Type: String
     Default: disabled
     AllowedValues: [disabled, enabled]
-  RegistrationsTable:
+  SourceTableName:
     Type: String
-    Default: sadhana-dev-m9-registrations
+    Default: sruti-dev-student-registrations
 Resources:
   IntakeRole:
     Type: AWS::IAM::Role
@@ -31,7 +35,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: [dynamodb:PutItem]
-                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RegistrationsTable}'
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SourceTableName}'
   IntakeFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -45,6 +49,8 @@ Resources:
       Environment:
         Variables:
           M91_SRUTI_PUBLIC_INTAKE: !Ref IntakeEnabled
+          SADHANA_ENTITY_STAGE: !Ref Stage
+          SRUTI_SOURCE_REGISTRATIONS_TABLE: !Ref SourceTableName
           AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
   IntakeLogs:
     Type: AWS::Logs::LogGroup
@@ -54,7 +60,7 @@ Resources:
   IntakeApi:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: sadhana-m91-sruti-public-intake
+      Name: !Sub 'sadhana-${Stage}-sruti-public-intake'
       Description: 'Public registration intake only - no admin or read endpoints'
       EndpointConfiguration: { Types: [REGIONAL] }
       DisableExecuteApiEndpoint: false
@@ -92,13 +98,13 @@ Resources:
     DependsOn: [RegistrationPost, RegistrationOptions]
     Properties:
       RestApiId: !Ref IntakeApi
-      Description: M91-sruti-intake-v1
+      Description: !Sub '${Stage}-sruti-intake-v1'
   ApiStage:
     Type: AWS::ApiGateway::Stage
     Properties:
       DeploymentId: !Ref ApiDeployment
       RestApiId: !Ref IntakeApi
-      StageName: intake-test
+      StageName: !Ref Stage
       TracingEnabled: true
       MethodSettings:
         - ResourcePath: '/*'
@@ -118,7 +124,7 @@ Resources:
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
-      Name: sadhana-m91-sruti-intake-waf
+      Name: !Sub 'sadhana-${Stage}-sruti-intake-waf'
       Scope: REGIONAL
       DefaultAction: { Allow: {} }
       VisibilityConfig:
@@ -156,7 +162,7 @@ Resources:
       WebACLArn: !GetAtt WebACL.Arn
 Outputs:
   PublicIntakeUrl:
-    Description: Test-only public registration POST URL (do not put on Sruti live site until approved)
+    Description: Stage-specific public registration POST URL (keep intake disabled until reviewed)
     Value: !Sub 'https://${IntakeApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiStage}/register'
   IntakeFunctionName:
     Value: !Ref IntakeFunction

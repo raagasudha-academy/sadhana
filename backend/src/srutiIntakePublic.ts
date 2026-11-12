@@ -1,6 +1,6 @@
 /** Deploy as a DISTINCT, throttled public Lambda/API, never on the JWT-only Sadhana API. */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { validateSrutiSubmission, newSrutiIntakeRecord } from './srutiIntakeCore.mjs';
 import { srutiWriterTables } from './srutiMirrorPolicy.mjs';
 const db = DynamoDBDocumentClient.from(
@@ -33,7 +33,10 @@ export function makeM91SrutiIntakeHandler(dbClient: { send: (command: any) => Pr
         body: '',
       };
     if (method !== 'POST') return response(405, { error: 'Method not allowed.' }, origin);
-    if (process.env.M91_SRUTI_PUBLIC_INTAKE !== 'enabled')
+    if (
+      process.env.SADHANA_ENTITY_STAGE !== 'prod' ||
+      process.env.M91_SRUTI_PUBLIC_INTAKE !== 'enabled'
+    )
       return response(503, { error: 'Registrations are not enabled.' }, origin);
     try {
       if (typeof event.body !== 'string' || event.body.length > 25000)
@@ -46,34 +49,17 @@ export function makeM91SrutiIntakeHandler(dbClient: { send: (command: any) => Pr
       // Six random hexadecimal digits match Raagasudha's concise receipt style.
       // Every candidate is reserved by a conditional database write; retry on a
       // real ID collision rather than overwrite a previous family's registration.
-      // Optional atomic mirror keeps the legacy admin view and the final table
-      // consistent during transition. Disabled by default; never writes just one
-      // of the two tables when the mirror setting is active.
       const writer = srutiWriterTables(process.env);
       for (let attempt = 0; attempt < 8; attempt++) {
         const record = newSrutiIntakeRecord(payload);
         try {
-          if (writer.mirror) {
-            await dbClient.send(
-              new TransactWriteCommand({
-                TransactItems: [writer.primary, writer.mirror].map((TableName) => ({
-                  Put: {
-                    TableName,
-                    Item: record,
-                    ConditionExpression: 'attribute_not_exists(registrationId)',
-                  },
-                })),
-              }),
-            );
-          } else {
-            await dbClient.send(
-              new PutCommand({
-                TableName: writer.primary,
-                Item: record,
-                ConditionExpression: 'attribute_not_exists(registrationId)',
-              }),
-            );
-          }
+          await dbClient.send(
+            new PutCommand({
+              TableName: writer.primary,
+              Item: record,
+              ConditionExpression: 'attribute_not_exists(registrationId)',
+            }),
+          );
           return response(202, { received: true, registrationId: record.registrationId }, origin);
         } catch (error: any) {
           if (error?.name === 'ConditionalCheckFailedException') continue;

@@ -35,6 +35,7 @@ Parameters:
 
 Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
+  IsProd: !Equals [!Ref Stage, prod]
 
 Resources:
   SadhanaHomeworkMedia:
@@ -110,6 +111,34 @@ Resources:
             - { AttributeName: GSI2SK, KeyType: RANGE }
           Projection: { ProjectionType: ALL }
 
+  SrutiRegistrationSource:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !If
+        - IsProd
+        - sruti-student-registrations
+        - !Sub 'sruti-${Stage}-student-registrations'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [UsePitr, true, false]
+      SSESpecification:
+        SSEEnabled: true
+      DeletionProtectionEnabled: true
+      AttributeDefinitions:
+        - { AttributeName: registrationId, AttributeType: S }
+        - { AttributeName: institutionId, AttributeType: S }
+        - { AttributeName: submittedAt, AttributeType: S }
+      KeySchema:
+        - { AttributeName: registrationId, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: InstitutionRegistrationsIndex
+          KeySchema:
+            - { AttributeName: institutionId, KeyType: HASH }
+            - { AttributeName: submittedAt, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+
   SadhanaProfilePhotos:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -169,12 +198,14 @@ Resources:
       Environment:
         Variables:
           SADHANA_TABLE_NAME: !Ref SadhanaTable
+          SADHANA_ENTITY_STAGE: !Ref Stage
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
           SADHANA_ENTITY_TABLE_SET: final
           SADHANA_ENTITY_FINAL_ACK: enabled
           SADHANA_DATA_MODE: final
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
+          SRUTI_SOURCE_REGISTRATIONS_TABLE: !Ref SrutiRegistrationSource
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:
         - Version: '2012-10-17'
@@ -190,6 +221,15 @@ Resources:
               Resource:
                 - !GetAtt SadhanaTable.Arn
                 - !Sub '${SadhanaTable.Arn}/index/*'
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+                - dynamodb:TransactWriteItems
+              Resource:
+                - !GetAtt SrutiRegistrationSource.Arn
+                - !Sub '${SrutiRegistrationSource.Arn}/index/*'
             - Effect: Allow
               Action:
                 - cognito-idp:ListUsersInGroup

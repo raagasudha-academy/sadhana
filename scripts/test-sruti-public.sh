@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 REGION=us-east-1
-STACK=sadhana-m91-sruti-public-intake
+STAGE="${SADHANA_STAGE:-dev}"
+case "$STAGE" in dev|staging|prod) ;; *) echo 'SADHANA_STAGE must be dev, staging, or prod' >&2; exit 2;; esac
+STACK="sadhana-${STAGE}-sruti-public-intake"
 URL="$(aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`PublicIntakeUrl`].OutputValue|[0]' --output text)"
 [[ "$URL" == https://* ]] || { echo 'Could not load endpoint' >&2; exit 1; }
 echo "Checking $URL (synthetic invalid request only; no personal data sent)"
