@@ -199,6 +199,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
     status: string;
     updatedAt: string | null;
   } | null>(null);
+  const [parentAccessChecked, setParentAccessChecked] = useState(false);
   const [accessBusy, setAccessBusy] = useState(false);
   const [accessError, setAccessError] = useState('');
   const [accessNotice, setAccessNotice] = useState('');
@@ -257,32 +258,55 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
       alive = false;
     };
   }, [selected, cloud.api]);
-  // Parent-access state exists only after the canonical Sadhana import marker
-  // has been committed. Avoid requesting it during ordinary registration review.
+  // The website intake's import marker can be stale when its post-import sync
+  // failed. Check Sadhana's canonical marker for approved registrations so the
+  // admin can still link an existing verified parent account.
   useEffect(() => {
     let active = true;
     setParentAccess(null);
+    setParentAccessChecked(false);
     setAccessError('');
-    if (!selected || detail?.sadhanaImport?.status !== 'imported') return;
+    if (!selected || detail?.reviewStatus !== 'approved') return;
     cloud.api
       .getParentAccessStatus(selected)
       .then((x) => {
-        if (active) setParentAccess(x);
+        if (active) {
+          setParentAccess(x);
+          setParentAccessChecked(true);
+        }
       })
-      .catch(() => {
-        if (active) setAccessError('Access status unavailable; registration remains unaffected.');
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : '';
+        // A missing canonical marker means the registration has not been
+        // imported. Other errors may indicate a deployment/configuration issue.
+        if (message.includes('Canonical registration marker not found')) {
+          setParentAccessChecked(true);
+          return;
+        }
+        setAccessError('Canonical import status could not be checked. Refresh before activating.');
       });
     return () => {
       active = false;
     };
-  }, [selected, detail?.sadhanaImport?.status, cloud.api]);
+  }, [selected, detail?.reviewStatus, cloud.api]);
+  const isImported =
+    detail?.sadhanaImport?.status === 'imported' || parentAccess?.imported === true;
   const refreshParentAccess = async (id: string) => {
     setAccessBusy(true);
     setAccessError('');
     try {
       setParentAccess(await cloud.api.getParentAccessStatus(id));
+      setParentAccessChecked(true);
     } catch (e) {
-      setAccessError(e instanceof Error ? e.message : 'Unable to refresh access status.');
+      const message = e instanceof Error ? e.message : '';
+      if (message.includes('Canonical registration marker not found')) {
+        setParentAccess(null);
+        setParentAccessChecked(true);
+      } else {
+        setParentAccessChecked(false);
+        setAccessError(e instanceof Error ? e.message : 'Unable to refresh access status.');
+      }
     } finally {
       setAccessBusy(false);
     }
@@ -401,6 +425,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
       });
       const fresh = await cloud.api.getWebsiteRegistration(detail.registrationId);
       setDetail(extractRegistration(fresh));
+      await refreshParentAccess(detail.registrationId);
       await load();
     } catch (e) {
       setReviewError(e instanceof Error ? e.message : 'Import failed.');
@@ -557,10 +582,12 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                 </div>
                 <div>
                   <small>Import status</small>
-                  <strong>{detail.sadhanaImport?.status || 'Not imported'}</strong>
+                  <strong>
+                    {isImported ? 'Imported' : detail.sadhanaImport?.status || 'Not imported'}
+                  </strong>
                 </div>
               </div>
-              {detail.sadhanaImport?.status === 'imported' && (
+              {isImported && (
                 <section className="wr-v112-parent-access-panel" aria-label="Parent portal access">
                   <div>
                     <strong>Parent portal access</strong>
@@ -568,7 +595,9 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                   </div>
                   <div className="wr-v112-access-status" role="status">
                     {!parentAccess
-                      ? 'Checking…'
+                      ? parentAccessChecked
+                        ? 'Not linked'
+                        : 'Checking…'
                       : (
                           {
                             NOT_INVITED: 'Not invited',
@@ -672,6 +701,21 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                 <details className="wr-v118-main-actions">
                   <summary>Registration actions</summary>
                   <div className="wr-v118-main-actions-body">
+                    {detail.reviewStatus === 'approved' && !isImported && !parentAccessChecked && (
+                      <div className="wr-v112-error" role="status" style={{ width: '100%' }}>
+                        <p>{accessError || 'Checking Sadhana for an existing import…'}</p>
+                        {accessError && (
+                          <button
+                            className="reg-secondary"
+                            type="button"
+                            disabled={accessBusy}
+                            onClick={() => void refreshParentAccess(detail.registrationId)}
+                          >
+                            {accessBusy ? 'Checking…' : 'Check again'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {detail.reviewStatus !== 'approved' && detail.reviewStatus !== 'discarded' && (
                       <button
                         className="reg-primary"
@@ -692,60 +736,58 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                         Discard
                       </button>
                     )}
-                    {detail.reviewStatus === 'approved' &&
-                      detail.sadhanaImport?.status !== 'imported' &&
-                      duplicateSourcePerson && (
-                        <div className="wr-allergy" style={{ width: '100%' }}>
-                          <strong>
-                            Repeated student name and DOB — administrator correction required
-                          </strong>
-                          <p>
-                            The website submission contains two student entries with the same name
-                            and DOB. Confirm the second student's correct name against the original
-                            form or guardian before activation. The website record will not be
-                            edited by this action.
-                          </p>
-                          <p>
-                            Second source person ID: <code>{duplicateSourcePerson.personId}</code>
-                          </p>
-                          <label>
-                            Verified second student's name{' '}
-                            <input
-                              aria-label="Verified second student's name"
-                              value={correctedName}
-                              onChange={(e) => {
-                                setCorrectedName(e.target.value);
-                                setCorrectionConfirmed(false);
-                              }}
-                              placeholder="Enter verified full name"
-                            />
-                          </label>
-                          <label style={{ display: 'block', marginTop: 8 }}>
-                            <input
-                              type="checkbox"
-                              checked={correctionConfirmed}
-                              onChange={(e) => setCorrectionConfirmed(e.target.checked)}
-                            />{' '}
-                            I have verified the second student's identity and name with the family.
-                          </label>
-                        </div>
-                      )}
-                    {detail.reviewStatus === 'approved' &&
-                      detail.sadhanaImport?.status !== 'imported' && (
-                        <button
-                          className="reg-primary"
-                          type="button"
-                          disabled={
-                            importBusy ||
-                            (Boolean(duplicateSourcePerson) &&
-                              (!correctionConfirmed || !correctedName.trim()))
-                          }
-                          onClick={() => void previewImport()}
-                        >
-                          {importBusy ? 'Activating…' : 'Activate in Sadhana'}
-                        </button>
-                      )}
-                    {detail.sadhanaImport?.status === 'imported' && (
+                    {detail.reviewStatus === 'approved' && !isImported && duplicateSourcePerson && (
+                      <div className="wr-allergy" style={{ width: '100%' }}>
+                        <strong>
+                          Repeated student name and DOB — administrator correction required
+                        </strong>
+                        <p>
+                          The website submission contains two student entries with the same name and
+                          DOB. Confirm the second student's correct name against the original form
+                          or guardian before activation. The website record will not be edited by
+                          this action.
+                        </p>
+                        <p>
+                          Second source person ID: <code>{duplicateSourcePerson.personId}</code>
+                        </p>
+                        <label>
+                          Verified second student's name{' '}
+                          <input
+                            aria-label="Verified second student's name"
+                            value={correctedName}
+                            onChange={(e) => {
+                              setCorrectedName(e.target.value);
+                              setCorrectionConfirmed(false);
+                            }}
+                            placeholder="Enter verified full name"
+                          />
+                        </label>
+                        <label style={{ display: 'block', marginTop: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={correctionConfirmed}
+                            onChange={(e) => setCorrectionConfirmed(e.target.checked)}
+                          />{' '}
+                          I have verified the second student's identity and name with the family.
+                        </label>
+                      </div>
+                    )}
+                    {detail.reviewStatus === 'approved' && !isImported && (
+                      <button
+                        className="reg-primary"
+                        type="button"
+                        disabled={
+                          importBusy ||
+                          !parentAccessChecked ||
+                          (Boolean(duplicateSourcePerson) &&
+                            (!correctionConfirmed || !correctedName.trim()))
+                        }
+                        onClick={() => void previewImport()}
+                      >
+                        {importBusy ? 'Activating…' : 'Activate in Sadhana'}
+                      </button>
+                    )}
+                    {isImported && (
                       <div className="wr-revoke-entry">
                         <ShieldCheck size={18} />
                         <div>
