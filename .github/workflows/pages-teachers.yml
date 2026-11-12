@@ -1,7 +1,7 @@
 name: Sadhana Teachers — GitHub Pages
 on:
   push:
-    branches: [feature/sadhana-v1-student-portal]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,13 +44,7 @@ jobs:
           VITE_SADHANA_COGNITO_DOMAIN: ${{ vars.VITE_SADHANA_COGNITO_DOMAIN }}
           VITE_SADHANA_API_URL: ${{ vars.VITE_SADHANA_API_URL }}
         run: |
-          REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          OWNER_NAME="${GITHUB_REPOSITORY%%/*}"
-          if [ "${REPO_NAME,,}" = "${OWNER_NAME,,}.github.io" ]; then
-            export VITE_BASE_PATH='/'
-          else
-            export VITE_BASE_PATH="/$REPO_NAME/"
-          fi
+          export VITE_BASE_PATH='/'
           npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
