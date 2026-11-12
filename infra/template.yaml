@@ -171,6 +171,9 @@ Resources:
           SADHANA_TABLE_NAME: !Ref SadhanaTable
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
+          SADHANA_ENTITY_TABLE_SET: final
+          SADHANA_ENTITY_FINAL_ACK: enabled
+          SADHANA_DATA_MODE: final
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:
