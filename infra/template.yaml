@@ -19,9 +19,10 @@ Parameters:
   CognitoAppClientId:
     Type: String
     Description: Existing Sadhana staff Cognito app client ID
-  AllowedPortalOrigin:
-    Type: String
-    Description: Exact browser origin (use http://localhost:5173 for dev; production must use HTTPS)
+  AllowedPortalOrigins:
+    Type: CommaDelimitedList
+    Default: http://localhost:5173
+    Description: Exact comma-separated browser origins; no paths or wildcard origins. Include HTTPS origins used by this stage.
   MiddlesbroughCredentialParameter:
     Type: String
     Default: /sadhana/dev/google/middlesbrough-service-account
@@ -58,8 +59,7 @@ Resources:
         Status: Enabled
       CorsConfiguration:
         CorsRules:
-          - AllowedOrigins:
-              - !Ref AllowedPortalOrigin
+          - AllowedOrigins: !Ref AllowedPortalOrigins
             AllowedMethods:
               - GET
               - HEAD
@@ -134,7 +134,7 @@ Resources:
     Properties:
       StageName: !Ref Stage
       CorsConfiguration:
-        AllowOrigins: [!Ref AllowedPortalOrigin]
+        AllowOrigins: !Ref AllowedPortalOrigins
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PATCH, OPTIONS]
         MaxAge: 600

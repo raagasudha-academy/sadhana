@@ -4,7 +4,7 @@
 
 1. Use a development AWS account/environment with an identity permitted to deploy SAM/CloudFormation. Keep production separate.
 2. Create a dedicated **Cognito User Pool** for Sadhana staff. Disable self-registration, enable MFA, create a public app client, and assign invitation-only users to groups `raagasudha-admin`, `sruti-admin` as appropriate. Check your pool and client settings for OAuth authorization-code + PKCE for the later frontend integration. We haven't implemented login yet.
-3. Confirm the portal's exact HTTPS origin. The API template restricts CORS to it. Do not use a public wildcard CORS origin.
+3. Confirm the portal's exact HTTPS origins. The API and homework-media bucket allow only this explicit list. For dev, use `http://localhost:5173` plus the active dev portal origin (currently `https://sadhana.sruti.co.uk`). For production, supply only the production HTTPS origins, such as `https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk`. Do not use a public wildcard CORS origin.
 4. Install the AWS CLI and SAM CLI locally; authenticate with an AWS profile or IAM Identity Center **without pasting access keys into chat or the frontend**.
 5. This is a TypeScript project. Install dependencies in both packages, typecheck, then validate and rebuild from the project root:
 
@@ -19,7 +19,7 @@
    sam build --template-file infra/template.yaml --region us-east-1
    ```
 
-6. Do **not** deploy until the build is reviewed. Later, during a separately approved guided deployment, select your **dev** environment and supply `CognitoUserPoolId`, `CognitoAppClientId`, and `AllowedPortalOrigin`. Deploy only after reviewing CloudFormation resource changes. The development default for point-in-time recovery is **off** to minimise idle costs; turn it on for production after reviewing backup/restore and costs. DynamoDB deletion protection and CloudFormation `Retain` are enabled. For the development portal origin use `http://localhost:5173` (no trailing slash); replace with the exact HTTPS origin before production.
+6. Do **not** deploy until the build is reviewed. Later, during a separately approved guided deployment, select your **dev** environment and supply `CognitoUserPoolId`, `CognitoAppClientId`, and `AllowedPortalOrigins` as a comma-separated list of exact origins. Deploy only after reviewing CloudFormation resource changes. The development default for point-in-time recovery is **off** to minimise idle costs; turn it on for production after reviewing backup/restore and costs. DynamoDB deletion protection and CloudFormation `Retain` are enabled. Origins must contain only scheme and host (no trailing slash or path).
 7. Record the API URL and table name from CloudFormation outputs. A direct unauthenticated request to `/api/me` must be rejected. An invited, authorised administrator should be able to call `/api/me` using an access token.
 8. Test fictional records first. Verify that an Sruti-only administrator cannot read Raagasudha records, and that duplicate practice entries/cross-institution edits are blocked.
 9. Once authentication and permissions are working, connect `src/api/sadhanaClient.ts` to the actual logged-in access token, replace demo identity selection with secure user identity, and swap demo state for backend read/write. **That integration is intentionally not activated in this delivery.**
