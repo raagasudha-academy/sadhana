@@ -35,6 +35,7 @@ Parameters:
 
 Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
+  CreateAggregateTable: !Not [!Equals [!Ref Stage, prod]]
 
 Mappings:
   StageTables:
@@ -87,6 +88,7 @@ Resources:
 
   SadhanaTable:
     Type: AWS::DynamoDB::Table
+    Condition: CreateAggregateTable
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -177,7 +179,10 @@ Resources:
       MemorySize: 256
       Environment:
         Variables:
-          SADHANA_TABLE_NAME: !Ref SadhanaTable
+          SADHANA_TABLE_NAME: !If
+            - CreateAggregateTable
+            - !Ref SadhanaTable
+            - !Sub 'sadhana-${Stage}-main'
           SADHANA_ENTITY_STAGE: !Ref Stage
           SRUTI_SOURCE_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiSource]
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
@@ -199,8 +204,14 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:TransactWriteItems
               Resource:
-                - !GetAtt SadhanaTable.Arn
-                - !Sub '${SadhanaTable.Arn}/index/*'
+                - !If
+                  - CreateAggregateTable
+                  - !GetAtt SadhanaTable.Arn
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-main'
+                - !If
+                  - CreateAggregateTable
+                  - !Sub '${SadhanaTable.Arn}/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-main/index/*'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-*'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-${Stage}-*/index/*'
             - Effect: Allow
@@ -262,4 +273,4 @@ Outputs:
     Description: Cognito-protected API base URL; NOT PUBLIC DATA ACCESS
     Value: !Sub https://${SadhanaApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/api
   TableName:
-    Value: !Ref SadhanaTable
+    Value: !If [CreateAggregateTable, !Ref SadhanaTable, !Sub 'sadhana-${Stage}-main']

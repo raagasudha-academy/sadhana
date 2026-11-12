@@ -1,0 +1,77 @@
+name: Sadhana production portal release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Type the production release option to continue
+        required: true
+        type: choice
+        options:
+          - Do not deploy
+          - Deploy production portal
+        default: Do not deploy
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: sadhana-production-portal
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: inputs.release == 'Deploy production portal'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check production configuration
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PORTAL_BUCKET: ${{ vars.PROD_PORTAL_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.PROD_CLOUDFRONT_DISTRIBUTION_ID }}
+          COGNITO_ISSUER: ${{ vars.VITE_SADHANA_COGNITO_ISSUER }}
+          COGNITO_CLIENT_ID: ${{ vars.VITE_SADHANA_COGNITO_CLIENT_ID }}
+          COGNITO_DOMAIN: ${{ vars.VITE_SADHANA_COGNITO_DOMAIN }}
+          API_URL: ${{ vars.VITE_SADHANA_API_URL }}
+        run: |
+          for value in "$AWS_ROLE_ARN" "$AWS_REGION" "$PORTAL_BUCKET" "$DISTRIBUTION_ID" "$COGNITO_ISSUER" "$COGNITO_CLIENT_ID" "$COGNITO_DOMAIN" "$API_URL"; do
+            if [ -z "$value" ]; then
+              echo 'Missing production portal GitHub environment variable'
+              exit 1
+            fi
+          done
+          case "$API_URL" in
+            https://*) ;;
+            *) echo 'Production API URL must use HTTPS'; exit 1 ;;
+          esac
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Verify project
+        run: npm run lint && npm run typecheck && npm run test:frontend:unit && npm --prefix backend run check
+      - name: Build production portal
+        env:
+          VITE_BASE_PATH: /
+          VITE_SADHANA_COGNITO_ISSUER: ${{ vars.VITE_SADHANA_COGNITO_ISSUER }}
+          VITE_SADHANA_COGNITO_CLIENT_ID: ${{ vars.VITE_SADHANA_COGNITO_CLIENT_ID }}
+          VITE_SADHANA_COGNITO_DOMAIN: ${{ vars.VITE_SADHANA_COGNITO_DOMAIN }}
+          VITE_SADHANA_API_URL: ${{ vars.VITE_SADHANA_API_URL }}
+        run: npm run build
+      - name: Upload portal build
+        env:
+          PORTAL_BUCKET: ${{ vars.PROD_PORTAL_BUCKET }}
+        run: aws s3 sync dist/ "s3://${PORTAL_BUCKET}" --delete --no-progress
+      - name: Refresh CloudFront
+        env:
+          DISTRIBUTION_ID: ${{ vars.PROD_CLOUDFRONT_DISTRIBUTION_ID }}
+        run: aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths '/*'

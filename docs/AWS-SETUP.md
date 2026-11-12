@@ -4,7 +4,7 @@
 
 1. Use a development AWS account/environment with an identity permitted to deploy SAM/CloudFormation. Keep production separate.
 2. Create a dedicated **Cognito User Pool** for Sadhana staff. Disable self-registration, enable MFA, create a public app client, and assign invitation-only users to groups `raagasudha-admin`, `sruti-admin` as appropriate. Check your pool and client settings for OAuth authorization-code + PKCE for the later frontend integration. We haven't implemented login yet.
-3. Confirm the portal's exact HTTPS origins. The API and homework-media bucket allow only this explicit list. For dev, use `http://localhost:5173` plus the active dev portal origin (currently `https://sadhana.sruti.co.uk`). For production, supply only the production HTTPS origins, such as `https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk`. Do not use a public wildcard CORS origin.
+3. Confirm the portal's exact HTTPS origins. The API and homework-media bucket allow only this explicit list. Dev will use `http://localhost:5173` and `https://sadhana-dev.sruti.co.uk`; production will use `https://sadhana.sruti.co.uk` and `https://sadhana.raagasudhamusic.co.uk`. During the staged domain cutover, leave the existing Pages custom domain and dev CORS/callback configuration active until the replacement host is ready. Do not use a public wildcard CORS origin.
 4. Install the AWS CLI and SAM CLI locally; authenticate with an AWS profile or IAM Identity Center **without pasting access keys into chat or the frontend**.
 5. This is a TypeScript project. Install dependencies in both packages, typecheck, then validate and rebuild from the project root:
 
