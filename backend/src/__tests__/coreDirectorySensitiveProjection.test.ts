@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeM10CoreDirectoryReader } from '../coreDirectory.ts';
+import { projectM10Directory } from '../coreDirectoryProjection.mjs';
 import { makeM10CoreDirectoryAuthoritativeRoutes } from '../routes/coreDirectoryAuthoritativeRoutes.ts';
 
 const admin = { sub: 'admin-sub', 'cognito:groups': ['raagasudha-admin'] };
@@ -72,6 +73,7 @@ test('admin student list returns only the supported compatibility fields', async
         archived: false,
         version: 3,
         registrationType: 'family',
+        relationship: 'child',
         adultConfirmed: false,
         rollNumber: 'RS-001',
       },
@@ -81,6 +83,28 @@ test('admin student list returns only the supported compatibility fields', async
     assert.equal(JSON.stringify(body).includes('2012-01-01'), false);
     assert.equal(calls.length, 1);
   }));
+
+test('admin student projection identifies a guardian who is also enrolled as a student', () => {
+  const { records } = projectM10Directory(
+    'students',
+    [
+      {
+        personId: 'PERSON-PARENT',
+        personTypes: ['guardian', 'student'],
+        institutionIds: ['raaga'],
+        familyId: 'FAMILY-1',
+        firstName: 'Parent',
+        lastName: 'Example',
+        status: 'active',
+      },
+    ],
+    'raaga',
+  );
+  const [student] = records;
+
+  assert.equal(student.relationship, 'parent_guardian');
+  assert.equal(student.adultConfirmed, true);
+});
 
 test('admin family list joins scoped contact but omits its private identity attributes', async () =>
   withFlags(async () => {

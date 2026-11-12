@@ -39,6 +39,10 @@ export function projectM10Directory(entity, items, inst, people = []) {
       if (!requiredText(item.personId) || !requiredText(item.familyId) || !requiredText(name(item)))
         throw Error('M10_INCOMPLETE_STUDENT');
       const location = item.location || item.studentProfile?.preferredLocationId || '';
+      // A guardian who is also enrolled as a learner shares one canonical
+      // person record. Preserve that relationship in the legacy-facing view;
+      // otherwise the UI incorrectly labels the parent as a child.
+      const isParentStudent = item.personTypes.includes('guardian');
       result.push({
         id: item.personId,
         name: name(item),
@@ -50,7 +54,8 @@ export function projectM10Directory(entity, items, inst, people = []) {
         archived: item.status === 'archived',
         version: item.version ?? 1,
         registrationType: 'family',
-        adultConfirmed: false,
+        relationship: isParentStudent ? 'parent_guardian' : 'child',
+        adultConfirmed: isParentStudent,
         rollNumber: item.studentProfile?.rollNumbers?.[inst] || '',
       });
     } else if (entity === 'families') {

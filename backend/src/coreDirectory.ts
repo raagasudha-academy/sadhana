@@ -96,6 +96,17 @@ export function makeM10CoreDirectoryReader(client: M10Client) {
           mediaConsent: profile.mediaConsent || {},
         },
         familyContact: {
+          parentName: String(
+            primary
+              ? [primary.firstName, primary.middleName, primary.lastName]
+                  .filter((part) => typeof part === 'string' && part.length)
+                  .join(' ')
+                  .trim() ||
+                  primary.displayName ||
+                  ''
+              : '',
+          ),
+          parentPersonId: String(primary?.personId || ''),
           email: String(familyRecord?.email || primary?.email || ''),
           phone: String(familyRecord?.phone || primary?.phone || ''),
           address: familyRecord?.address || primary?.address || {},

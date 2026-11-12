@@ -106,6 +106,36 @@ const displayStructuredDetails = (value: any) => {
     .join('; ');
 };
 
+const displayContactPreferences = (value: any, guardianName: string, guardianId: string) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const sourceLabels: Record<string, string> = {
+    guardian: 'Parent / guardian',
+    student: 'Student',
+  };
+  return Object.entries(value)
+    .filter(([, detail]) => detail !== '' && detail !== null && detail !== undefined)
+    .map(([key, detail]) => {
+      const label = key
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/^./, (letter) => letter.toUpperCase());
+      if (key === 'guardianPersonId') {
+        const matchedName = detail === guardianId ? guardianName : '';
+        return `Parent / guardian: ${matchedName || '—'}`;
+      }
+      const readable =
+        typeof detail === 'string'
+          ? sourceLabels[detail] || detail
+          : Array.isArray(detail)
+            ? detail.join(', ')
+            : typeof detail === 'object'
+              ? JSON.stringify(detail)
+              : String(detail);
+      return readable ? `${label}: ${readable}` : '';
+    })
+    .filter(Boolean)
+    .join('; ');
+};
+
 const displayAllergyDetails = (value: any) => {
   if (!value || typeof value !== 'object') return '';
   return [
@@ -166,8 +196,10 @@ const expandedStudentFields = (student: any, family: any, classes: string[], det
     'Consent recorded at': mediaConsent?.recordedAt || profile.mediaConsent?.recordedAt || '',
     'Preferred class': profile.preferredClassId || student.preferredClassId || '',
     'Proposed start date': profile.proposedStartDate || student.proposedStartDate || '',
-    'Contact preferences': displayStructuredDetails(
+    'Contact preferences': displayContactPreferences(
       profile.contactPreferences || student.contactPreferences,
+      family?.parentName || familyContact.parentName || '',
+      familyContact.parentPersonId || '',
     ),
     'Other registration details': displayStructuredDetails(
       profile.srutiLearning || student.srutiLearning,
@@ -1214,10 +1246,15 @@ export default function RegistrationModule({
               </>
             )}
             {view === 'table' ? (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="reg-table-scroll" style={{ overflowX: 'auto' }}>
                 <table
-                  className={`reg-directory-table${showAllFields ? ' is-expanded' : ''}`}
-                  style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}
+                  className={`reg-directory-table${area !== 'families' ? ' has-pinned-student-columns' : ''}${showAllFields ? ' is-expanded' : ''}`}
+                  style={{
+                    width: '100%',
+                    borderCollapse: area === 'families' ? 'collapse' : 'separate',
+                    borderSpacing: 0,
+                    textAlign: 'left',
+                  }}
                 >
                   <thead>
                     <tr>

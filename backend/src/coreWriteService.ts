@@ -835,6 +835,65 @@ export function makeM10CoreWriteService(db: CoreDb) {
         throw httpError(403, 'Institution mismatch.');
       if (entity !== 'enrolments' && current.institutionIds.length !== 1)
         throw httpError(409, 'Shared identities require dedicated reconciliation.');
+      if (entity === 'students' && !current.legacyPayload) {
+        if (!Array.isArray(current.personTypes) || !current.personTypes.includes('student'))
+          throw httpError(409, 'This person is not enrolled as a student.');
+        const canonicalRelationship = current.personTypes.includes('guardian')
+          ? 'parent_guardian'
+          : 'child';
+        if (requestedRelationship !== undefined && requestedRelationship !== canonicalRelationship)
+          throw httpError(409, 'Changing a family relationship requires separate review.');
+
+        const next = { ...current };
+        if (changes.name !== undefined) {
+          if (typeof changes.name !== 'string' || !changes.name.trim() || changes.name.length > 100)
+            throw httpError(400, 'Enter a valid student name.');
+          Object.assign(next, names(changes.name.trim()));
+        }
+        if (changes.email !== undefined) {
+          if (
+            typeof changes.email !== 'string' ||
+            changes.email.length > 180 ||
+            (changes.email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(changes.email))
+          )
+            throw httpError(400, 'Enter a valid email address.');
+          next.email = changes.email.trim().toLowerCase();
+        }
+        if (changes.phone !== undefined) {
+          if (
+            typeof changes.phone !== 'string' ||
+            changes.phone.length > 32 ||
+            (changes.phone !== '' && !/^\+[1-9]\d{7,14}$/.test(changes.phone))
+          )
+            throw httpError(400, 'Enter a valid international phone number.');
+          next.phone = changes.phone;
+        }
+        if (changes.location !== undefined) {
+          if (typeof changes.location !== 'string' || changes.location.length > 120)
+            throw httpError(400, 'Enter a valid location.');
+          next.location = changes.location.trim();
+        }
+
+        const now = new Date().toISOString();
+        next.version = expectedVersion + 1;
+        next.updatedAt = now;
+        await tx([
+          replace(
+            'people',
+            { personId: id },
+            next,
+            '#v=:v AND contains(#i,:inst) AND #s=:active',
+            { '#v': 'version', '#i': 'institutionIds', '#s': 'status' },
+            { ':v': expectedVersion, ':inst': inst, ':active': 'active' },
+          ),
+          put(
+            'audit',
+            audit(inst, claims.sub!, 'ACADEMY_STUDENTS_UPDATED', 'student', id, now),
+            'auditId',
+          ),
+        ]);
+        return next;
+      }
       const old =
         legacy(current) ??
         (entity === 'enrolments'

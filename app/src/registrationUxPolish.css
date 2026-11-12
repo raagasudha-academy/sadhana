@@ -252,6 +252,40 @@
   outline: 2px solid #728dc7;
   outline-offset: -2px;
 }
+.reg-module .reg-directory-table.has-pinned-student-columns th:nth-child(1),
+.reg-module .reg-directory-table.has-pinned-student-columns td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: 112px;
+  min-width: 112px;
+  max-width: 112px;
+  background: #fff;
+}
+.reg-module .reg-directory-table.has-pinned-student-columns th:nth-child(2),
+.reg-module .reg-directory-table.has-pinned-student-columns td:nth-child(2) {
+  position: sticky;
+  left: 112px;
+  box-sizing: border-box;
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  background: #fff;
+  box-shadow: 5px 0 8px -8px rgb(29 45 71 / 45%);
+}
+.reg-module .reg-directory-table.has-pinned-student-columns thead th:nth-child(1),
+.reg-module .reg-directory-table.has-pinned-student-columns thead th:nth-child(2) {
+  z-index: 2;
+  background: #fbfcfe;
+}
+.reg-module .reg-directory-table.has-pinned-student-columns tbody td:nth-child(1),
+.reg-module .reg-directory-table.has-pinned-student-columns tbody td:nth-child(2) {
+  z-index: 1;
+}
+.reg-module .reg-directory-table.has-pinned-student-columns tbody tr:hover td:nth-child(1),
+.reg-module .reg-directory-table.has-pinned-student-columns tbody tr:hover td:nth-child(2) {
+  background: #f8faff;
+}
 @media (max-width: 600px) {
   .reg-module .reg-family-contact-fields {
     gap: 14px;
