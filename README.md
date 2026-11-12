@@ -41,23 +41,30 @@ Install dependencies with `npm ci` at the repository root and `npm ci` in `backe
 | `npm run test:backend:unit`                 | Backend TypeScript and MJS unit/regression tests                           |
 | `npm run test:backend:e2e`                  | Local authenticated HTTP API E2E tests                                     |
 | `npm run test:frontend:playwright`          | Browser tests using Playwright                                             |
+| `npm run test:python`                       | Python helper tests                                                        |
 | `npm run test:e2e:all`                      | Both API and browser E2E suites                                            |
-| `npm run test:all`                          | Frontend/backend unit tests plus both E2E suites                           |
+| `npm run test:all` / `npm run test:dev`     | Frontend/backend unit tests, both E2E suites, and Python helper tests      |
+| `npm run test:prod`                         | Full local suite plus production cutover readiness gates                   |
 | `npm run verify` / `npm run verify:backend` | Frontend format/lint/typecheck/tests/build / backend typecheck/tests/build |
 
 `npm test` remains a short alias for frontend unit tests. Use `npm run test:frontend:playwright` for browser tests. Python helper tests use the command in the test suite map.
 
-The Python helper tests also need `boto3` installed. Run `python -m unittest discover -s backend/test -p 'test_*.py'` from a Python environment with `boto3` available; the repository's `.venv-aws-test` already includes it.
+The Python helper tests also need `boto3` installed. `npm run test:all` invokes them through `npm run test:python`.
 
 ## Deploy
 
-| Command                          | Deployment                                                                                                                                                                                                      |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run deploy:backend`         | Guarded code-only Lambda update after account/target checks, backend tests/build, rollback bundle, and typed confirmation. It does not change infrastructure, IAM, environment variables or database resources. |
-| `npm run deploy:backend:dry-run` | Runs backend checks/build and verifies the AWS target, but makes no AWS changes.                                                                                                                                |
-| `npm run deploy:frontend`        | Dispatches the GitHub Pages workflow after checking the frontend changes are committed and the remote branch matches local HEAD. GitHub Actions verifies and publishes the site.                                |
+| Command                                                      | Deployment                                                                                                                                                                                                      |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run deploy:backend`                                     | Guarded code-only Lambda update after account/target checks, backend tests/build, rollback bundle, and typed confirmation. It does not change infrastructure, IAM, environment variables or database resources. |
+| `npm run deploy:backend:dry-run`                             | Runs backend checks/build and verifies the AWS target, but makes no AWS changes.                                                                                                                                |
+| `npm run deploy:frontend`                                    | Dispatches the GitHub Pages workflow after checking the frontend changes are committed and the remote branch matches local HEAD. GitHub Actions verifies and publishes the site.                                |
+| `npm run deploy:dev:backend` / `npm run deploy:dev:frontend` | Explicit aliases for the existing dev backend and GitHub Pages deploy commands.                                                                                                                                 |
 
 Neither command deploys CloudFormation or changes IAM/database resources. Do not run either command until you have reviewed the source changes being deployed.
+
+## Production release approval
+
+Run `Sadhana production portal release` from the `main` branch in GitHub Actions. It runs the full checks, tests, build, and production cutover readiness gates first. The deploy job then waits on the GitHub `production` environment before it can access AWS. In repository Settings → Environments → `production`, add your GitHub account as a required reviewer; the workflow file alone does not turn on that review rule.
 
 ## Production documentation gate
 

@@ -7,8 +7,10 @@ const stages = new Set(['dev', 'staging', 'prod']);
 export function srutiSourceTable(env = process.env) {
   const stage = env.SADHANA_ENTITY_STAGE ?? 'dev';
   if (!stages.has(stage)) throw new Error('Unsupported Sruti source stage');
-  const expected = stage === 'prod' ? 'sruti-student-registrations' : `sruti-${stage}-student-registrations`;
+  const expected =
+    stage === 'prod' ? 'sruti-student-registrations' : `sruti-${stage}-student-registrations`;
   const configured = env.SRUTI_SOURCE_REGISTRATIONS_TABLE;
-  if (configured && configured !== expected) throw new Error('Sruti source table does not match stage');
+  if (configured && configured !== expected)
+    throw new Error('Sruti source table does not match stage');
   return expected;
 }

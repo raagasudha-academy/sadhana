@@ -192,7 +192,8 @@ export async function m95ImportApprovedWebsiteRegistration(
   if (already) {
     if (already.institutionId !== inst || already.externalRegistrationId !== registrationId)
       throw fail(409, 'Registration identity collision.');
-    if (inst === 'sruti') await acknowledgeSrutiSourceImport(registrationId, new Date().toISOString());
+    if (inst === 'sruti')
+      await acknowledgeSrutiSourceImport(registrationId, new Date().toISOString());
     return {
       alreadyImported: true,
       registrationId: id,

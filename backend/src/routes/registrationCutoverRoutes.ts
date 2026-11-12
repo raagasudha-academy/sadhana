@@ -44,7 +44,11 @@ const defaultReader: RegistrationReader = {
   },
   async get(id) {
     const item = await client().send(
-      new GetCommand({ TableName: sourceTable(), Key: { registrationId: id }, ConsistentRead: true }),
+      new GetCommand({
+        TableName: sourceTable(),
+        Key: { registrationId: id },
+        ConsistentRead: true,
+      }),
     );
     return (item.Item as M9RegistrationRow) ?? null;
   },

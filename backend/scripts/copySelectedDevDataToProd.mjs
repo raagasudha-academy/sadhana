@@ -5,13 +5,12 @@
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { DynamoDBClient, DescribeContinuousBackupsCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import {
-  DynamoDBDocumentClient,
-  GetCommand,
-  PutCommand,
-  ScanCommand,
-} from '@aws-sdk/lib-dynamodb';
+  DynamoDBClient,
+  DescribeContinuousBackupsCommand,
+  DescribeTableCommand,
+} from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const REGION = 'us-east-1';
 const ACCOUNT = '627821644317';
@@ -48,10 +47,17 @@ const stable = (value) =>
     : value instanceof Set
       ? [...value].map(stable).sort()
       : value && typeof value === 'object'
-        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, stable(value[key])]),
+          )
         : value;
 const json = (value) => JSON.stringify(stable(value));
-const sha = (value) => createHash('sha256').update(typeof value === 'string' ? value : json(value)).digest('hex');
+const sha = (value) =>
+  createHash('sha256')
+    .update(typeof value === 'string' ? value : json(value))
+    .digest('hex');
 const fail = (message) => {
   throw new Error(`STOP: ${message}`);
 };
@@ -72,8 +78,10 @@ function parseArgs(argv) {
     return index < 0 ? '' : argv[index + 1] || '';
   };
   for (const arg of argv)
-    if (!['--plan', '--apply', '--confirm', '--expected-fingerprint'].includes(arg) &&
-        !argv[argv.indexOf(arg) - 1]?.startsWith('--'))
+    if (
+      !['--plan', '--apply', '--confirm', '--expected-fingerprint'].includes(arg) &&
+      !argv[argv.indexOf(arg) - 1]?.startsWith('--')
+    )
       fail(`Unexpected argument ${arg}.`);
   const confirm = value('--confirm');
   const fingerprint = value('--expected-fingerprint');
@@ -88,7 +96,12 @@ async function scan(table, options = {}) {
   let cursor;
   do {
     const page = await client.send(
-      new ScanCommand({ TableName: table, ConsistentRead: true, ExclusiveStartKey: cursor, ...options }),
+      new ScanCommand({
+        TableName: table,
+        ConsistentRead: true,
+        ExclusiveStartKey: cursor,
+        ...options,
+      }),
     );
     rows.push(...(page.Items || []));
     cursor = page.LastEvaluatedKey;
@@ -117,18 +130,44 @@ const sourceTeacherName = (row, id) => {
     return row.legacyPayload?.teacher || row.teacher || '';
   return '';
 };
-const normalizedName = (value) => String(value || '').trim().replace(/\s+/g, ' ').normalize('NFKC');
+const normalizedName = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .normalize('NFKC');
 
 function minimalTeacher(source, id = source.personId, fallback = {}) {
-  const displayName = normalizedName(source.displayName || source.legacyPayload?.displayName || fallback.displayName);
+  const displayName = normalizedName(
+    source.displayName || source.legacyPayload?.displayName || fallback.displayName,
+  );
   if (!displayName) fail('A referenced teacher has no source display name.');
-  const institutions = [...new Set((source.institutionIds || source.legacyPayload?.institutions || fallback.institutions || [])
-    .filter((value) => value === 'raaga' || value === 'sruti'))];
-  const subjects = [...new Set((source.staffProfile?.subjects || source.legacyPayload?.subjects || [])
-    .filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))];
-  const aliases = [...new Set((source.staffProfile?.aliases || source.legacyPayload?.aliases || [])
-    .filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))];
-  const status = source.status || (source.legacyPayload?.active === false ? 'inactive' : fallback.status || 'active');
+  const institutions = [
+    ...new Set(
+      (
+        source.institutionIds ||
+        source.legacyPayload?.institutions ||
+        fallback.institutions ||
+        []
+      ).filter((value) => value === 'raaga' || value === 'sruti'),
+    ),
+  ];
+  const subjects = [
+    ...new Set(
+      (source.staffProfile?.subjects || source.legacyPayload?.subjects || [])
+        .filter((value) => typeof value === 'string' && value.trim())
+        .map((value) => value.trim()),
+    ),
+  ];
+  const aliases = [
+    ...new Set(
+      (source.staffProfile?.aliases || source.legacyPayload?.aliases || [])
+        .filter((value) => typeof value === 'string' && value.trim())
+        .map((value) => value.trim()),
+    ),
+  ];
+  const status =
+    source.status ||
+    (source.legacyPayload?.active === false ? 'inactive' : fallback.status || 'active');
   const createdAt = source.createdAt || source.legacyPayload?.createdAt || fallback.createdAt;
   const updatedAt = source.updatedAt || source.legacyPayload?.updatedAt || fallback.updatedAt;
   const version = Number.isSafeInteger(source.version) ? source.version : 1;
@@ -160,13 +199,17 @@ function minimalTeacher(source, id = source.personId, fallback = {}) {
 }
 
 function selectedRows(source) {
-  const classes = source.classes.filter((row) => row.institutionId === 'raaga' || row.institutionId === 'sruti');
+  const classes = source.classes.filter(
+    (row) => row.institutionId === 'raaga' || row.institutionId === 'sruti',
+  );
   const sessions = source.sessions.filter((row) => INSTITUTIONS.has(row.institutionId));
   const venues = source.venues;
-  const events = source.events.filter((row) => row.institutionId === 'shared' || row.sharedEvent === true);
+  const events = source.events.filter(
+    (row) => row.institutionId === 'shared' || row.sharedEvent === true,
+  );
   const allowedReferences = new Set([...classes, ...sessions, ...events].flatMap(refsIn));
-  const teacherSource = source.people.filter((row) =>
-    row.personTypes?.includes('teacher') && allowedReferences.has(row.personId),
+  const teacherSource = source.people.filter(
+    (row) => row.personTypes?.includes('teacher') && allowedReferences.has(row.personId),
   );
   const teachers = new Map(teacherSource.map((row) => [row.personId, minimalTeacher(row)]));
   const missing = [...allowedReferences].filter((id) => !teachers.has(id));
@@ -176,18 +219,30 @@ function selectedRows(source) {
       .map((row) => sourceTeacherName(row, id))
       .map(normalizedName)
       .filter(Boolean);
-    const distinct = [...new Map(matches.map((name) => [name.toLocaleLowerCase('en-GB'), name])).values()];
+    const distinct = [
+      ...new Map(matches.map((name) => [name.toLocaleLowerCase('en-GB'), name])).values(),
+    ];
     if (distinct.length !== 1) {
       unresolved.push(id);
       continue;
     }
-    const institutions = [...new Set([...classes, ...sessions, ...events]
-      .filter((row) => refsIn(row).includes(id))
-      .map((row) => row.institutionId)
-      .filter((value) => value === 'raaga' || value === 'sruti'))];
-    teachers.set(id, minimalTeacher({}, id, { displayName: distinct[0], institutions, status: 'active' }));
+    const institutions = [
+      ...new Set(
+        [...classes, ...sessions, ...events]
+          .filter((row) => refsIn(row).includes(id))
+          .map((row) => row.institutionId)
+          .filter((value) => value === 'raaga' || value === 'sruti'),
+      ),
+    ];
+    teachers.set(
+      id,
+      minimalTeacher({}, id, { displayName: distinct[0], institutions, status: 'active' }),
+    );
   }
-  if (unresolved.length) fail(`${unresolved.length} selected teacher references cannot be resolved to one consistent name.`);
+  if (unresolved.length)
+    fail(
+      `${unresolved.length} selected teacher references cannot be resolved to one consistent name.`,
+    );
 
   const output = {
     classes: classes.map((row) => ({
@@ -265,8 +320,7 @@ function selectedRows(source) {
   };
   for (const [domain, rows] of Object.entries(output))
     for (const row of rows)
-      for (const [key, value] of Object.entries(row))
-        if (value === undefined) delete row[key];
+      for (const [key, value] of Object.entries(row)) if (value === undefined) delete row[key];
 
   const classIds = new Set(output.classes.map((row) => row.classId));
   const venueIds = new Set(output.venues.map((row) => row.venueId));
@@ -283,13 +337,18 @@ function selectedRows(source) {
     if ((row.teacherPersonIds || []).some((id) => !teacherIds.has(id))) broken.teachers++;
   }
   for (const row of output.events) if (row.venueId && !venueIds.has(row.venueId)) broken.venues++;
-  if (Object.values(broken).some(Boolean)) fail(`Selected records have broken class/venue/teacher references (${JSON.stringify(broken)}).`);
+  if (Object.values(broken).some(Boolean))
+    fail(
+      `Selected records have broken class/venue/teacher references (${JSON.stringify(broken)}).`,
+    );
   const loginFields = new Set(['cognitoSub', 'cognitoUserId', 'actorCognitoSub', 'userPoolId']);
   const containsLoginField = (value) =>
     Array.isArray(value)
       ? value.some(containsLoginField)
       : value && typeof value === 'object'
-        ? Object.entries(value).some(([key, child]) => loginFields.has(key) || containsLoginField(child))
+        ? Object.entries(value).some(
+            ([key, child]) => loginFields.has(key) || containsLoginField(child),
+          )
         : false;
   if (Object.values(output).flat().some(containsLoginField))
     fail('A selected production item still contains a development login field.');
@@ -301,7 +360,8 @@ async function describe(tableName) {
   const backup = await client.send(new DescribeContinuousBackupsCommand({ TableName: tableName }));
   return {
     table,
-    pitr: backup.ContinuousBackupsDescription?.PointInTimeRecoveryDescription?.PointInTimeRecoveryStatus,
+    pitr: backup.ContinuousBackupsDescription?.PointInTimeRecoveryDescription
+      ?.PointInTimeRecoveryStatus,
   };
 }
 const keyName = (entity) => TABLES[entity].key;
@@ -309,7 +369,14 @@ function schemaShape(table) {
   return {
     keys: (table.KeySchema || []).map((item) => `${item.KeyType}:${item.AttributeName}`).sort(),
     indexes: (table.GlobalSecondaryIndexes || [])
-      .map((index) => `${index.IndexName}:${index.KeySchema.map((item) => `${item.KeyType}:${item.AttributeName}`).sort().join(',')}`)
+      .map(
+        (index) =>
+          `${index.IndexName}:${index.KeySchema.map(
+            (item) => `${item.KeyType}:${item.AttributeName}`,
+          )
+            .sort()
+            .join(',')}`,
+      )
       .sort(),
   };
 }
@@ -355,9 +422,12 @@ async function buildPlan() {
   });
   const selected = selectedRows(source);
   const records = Object.entries(selected.output)
-    .flatMap(([entity, rows]) => rows.map((item) => ({ table: entity, key: item[keyName(entity)], item })))
+    .flatMap(([entity, rows]) =>
+      rows.map((item) => ({ table: entity, key: item[keyName(entity)], item })),
+    )
     .sort((a, b) => `${a.table}\0${a.key}`.localeCompare(`${b.table}\0${b.key}`));
-  if (records.some((row) => typeof row.key !== 'string' || !row.key)) fail('Selected item is missing its destination key.');
+  if (records.some((row) => typeof row.key !== 'string' || !row.key))
+    fail('Selected item is missing its destination key.');
   const fingerprint = sha(records.map((row) => [row.table, row.key, sha(row.item)]));
   return {
     identity: { Account: account },
@@ -368,7 +438,9 @@ async function buildPlan() {
       account,
       source: 'canonical sadhana-dev tables',
       destination: 'sadhana-prod tables',
-      recordCounts: Object.fromEntries(Object.entries(selected.output).map(([table, rows]) => [table, rows.length])),
+      recordCounts: Object.fromEntries(
+        Object.entries(selected.output).map(([table, rows]) => [table, rows.length]),
+      ),
       teacherProfilesCopiedWithoutDevLoginLinks: selected.output.people.length,
       devLoginLinksCopied: 0,
       referenceOnlyTeacherProfilesAdded: selected.fallbackTeacherProfiles,
@@ -390,7 +462,10 @@ async function targetPlan(plan) {
       fail(`${entity} source is not protected by PITR and deletion protection.`);
     if (targetInfo.pitr !== 'ENABLED' || targetInfo.table.DeletionProtectionEnabled !== true)
       fail(`${entity} prod target is not protected by PITR and deletion protection.`);
-    if (JSON.stringify(schemaShape(sourceInfo.table)) !== JSON.stringify(schemaShape(targetInfo.table)))
+    if (
+      JSON.stringify(schemaShape(sourceInfo.table)) !==
+      JSON.stringify(schemaShape(targetInfo.table))
+    )
       fail(`${entity} source and prod target schemas differ.`);
     const existing = await scan(TABLES[entity].target);
     const key = TABLES[entity].key;
@@ -404,13 +479,21 @@ async function targetPlan(plan) {
   }
   for (const tableName of ALL_PROD_ENTITY_TABLES) {
     const { table, pitr } = await describe(tableName);
-    if (table.TableStatus !== 'ACTIVE' || table.DeletionProtectionEnabled !== true || pitr !== 'ENABLED')
+    if (
+      table.TableStatus !== 'ACTIVE' ||
+      table.DeletionProtectionEnabled !== true ||
+      pitr !== 'ENABLED'
+    )
       fail(`${tableName} is not ACTIVE with deletion protection and PITR.`);
     if ((await scan(tableName)).length !== 0)
       fail(`${tableName} contains data outside the approved copy scope; no records were written.`);
   }
   const srutiSource = await describe('sruti-student-registrations');
-  if (srutiSource.table.TableStatus !== 'ACTIVE' || srutiSource.table.DeletionProtectionEnabled !== true || srutiSource.pitr !== 'ENABLED')
+  if (
+    srutiSource.table.TableStatus !== 'ACTIVE' ||
+    srutiSource.table.DeletionProtectionEnabled !== true ||
+    srutiSource.pitr !== 'ENABLED'
+  )
     fail('Prod Sruti source table is not ACTIVE with deletion protection and PITR.');
   if ((await scan('sruti-student-registrations')).length !== 0)
     fail('Prod Sruti source table is not empty; no records were written.');
@@ -433,15 +516,23 @@ async function applyPlan(plan, targets) {
         );
       } catch (error) {
         if (error?.name !== 'ConditionalCheckFailedException') throw error;
-        const current = (await client.send(new GetCommand({ TableName: target, Key: { [key]: item[key] }, ConsistentRead: true }))).Item;
-        if (!current || json(current) !== json(item)) fail(`${entity} ${sha(item[key]).slice(0, 12)} collided with a different prod item.`);
+        const current = (
+          await client.send(
+            new GetCommand({ TableName: target, Key: { [key]: item[key] }, ConsistentRead: true }),
+          )
+        ).Item;
+        if (!current || json(current) !== json(item))
+          fail(`${entity} ${sha(item[key]).slice(0, 12)} collided with a different prod item.`);
       }
     }
   }
   for (const entity of Object.keys(TABLES)) {
     const expected = new Map(plan.selected[entity].map((item) => [item[TABLES[entity].key], item]));
     const actual = await scan(TABLES[entity].target);
-    if (actual.length !== expected.size || actual.some((row) => json(row) !== json(expected.get(row[TABLES[entity].key]))))
+    if (
+      actual.length !== expected.size ||
+      actual.some((row) => json(row) !== json(expected.get(row[TABLES[entity].key])))
+    )
       fail(`${entity} prod verification failed.`);
   }
 }
@@ -453,11 +544,21 @@ try {
     console.log(JSON.stringify(plan.summary, null, 2));
     process.exitCode = 0;
   } else {
-    if (plan.summary.fingerprint !== args.expectedFingerprint) fail('Source data differs from the reviewed fingerprint; run --plan again.');
+    if (plan.summary.fingerprint !== args.expectedFingerprint)
+      fail('Source data differs from the reviewed fingerprint; run --plan again.');
     const targets = await targetPlan(plan);
-    console.log(JSON.stringify({ ...plan.summary, readOnly: false, targetPreflight: 'passed' }, null, 2));
+    console.log(
+      JSON.stringify({ ...plan.summary, readOnly: false, targetPreflight: 'passed' }, null, 2),
+    );
     await applyPlan(plan, targets);
-    console.log(JSON.stringify({ result: 'COPY_PASS', recordsWrittenOrAlreadyPresent: plan.records.length, noDeletes: true, devUntouched: true }));
+    console.log(
+      JSON.stringify({
+        result: 'COPY_PASS',
+        recordsWrittenOrAlreadyPresent: plan.records.length,
+        noDeletes: true,
+        devUntouched: true,
+      }),
+    );
   }
 } catch (error) {
   console.error(`SELECTED PROD DATA COPY STOP: ${error.message}`);

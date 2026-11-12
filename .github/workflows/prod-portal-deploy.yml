@@ -2,31 +2,64 @@ name: Sadhana production portal release
 
 on:
   workflow_dispatch:
-    inputs:
-      release:
-        description: Type the production release option to continue
-        required: true
-        type: choice
-        options:
-          - Do not deploy
-          - Deploy production portal
-        default: Do not deploy
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: sadhana-production-portal
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    if: inputs.release == 'Deploy production portal'
-    runs-on: ubuntu-latest
-    environment: production
+  verify:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - name: Require main branch release
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo 'Production releases must be dispatched from main.'
+            exit 1
+          fi
+      - name: Run frontend checks, unit tests, and build
+        run: npm run verify
+      - name: Install Chromium for frontend E2E
+        run: npx playwright install chromium
+      - name: Run frontend browser tests
+        run: npm run test:frontend:playwright
+      - name: Run backend checks, unit tests, and build
+        run: npm run verify:backend
+      - name: Run backend HTTP E2E tests
+        run: npm run test:backend:e2e
+      - name: Run Python helper tests
+        run: |
+          python -m pip install boto3
+          npm run test:python
+      - name: Check production cutover readiness
+        run: npm run check:prod:readiness
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -57,8 +90,6 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
-      - name: Verify project
-        run: npm run lint && npm run typecheck && npm run test:frontend:unit && npm --prefix backend run check
       - name: Build production portal
         env:
           VITE_BASE_PATH: /

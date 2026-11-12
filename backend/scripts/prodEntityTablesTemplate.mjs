@@ -33,9 +33,7 @@ export function makeProductionEntityTablesTemplate() {
     }));
     const attributes = new Set([
       schema.partitionKey,
-      ...schema.indexes.flatMap((index) =>
-        [index.partitionKey, index.sortKey].filter(Boolean),
-      ),
+      ...schema.indexes.flatMap((index) => [index.partitionKey, index.sortKey].filter(Boolean)),
     ]);
     Resources[logicalId(TableName)] = {
       Type: 'AWS::DynamoDB::Table',

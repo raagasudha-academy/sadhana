@@ -201,7 +201,10 @@ test('execute atomically imports membership with verified relationships from the
     ),
   );
   assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-registrations').length, 1);
-  assert.equal(tx.filter((w) => w.Update?.TableName === 'sruti-dev-student-registrations').length, 1);
+  assert.equal(
+    tx.filter((w) => w.Update?.TableName === 'sruti-dev-student-registrations').length,
+    1,
+  );
   assert.equal(tx.filter((w) => w.Put?.TableName === 'sadhana-dev-audit-records').length, 1);
   assert.ok(tx.every((w) => w.Put?.ConditionExpression || w.Update?.ConditionExpression));
 });
