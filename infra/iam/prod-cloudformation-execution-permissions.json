@@ -102,8 +102,6 @@
         "iam:ListRolePolicies",
         "iam:PutRolePolicy",
         "iam:PutRolePermissionsBoundary",
-        "iam:TagRole",
-        "iam:UntagRole",
         "iam:UpdateAssumeRolePolicy"
       ],
       "Resource": [
@@ -116,6 +114,38 @@
             "arn:aws:iam::627821644317:policy/SadhanaProdLambdaBoundary",
             "arn:aws:iam::627821644317:policy/SrutiProdIntakeBoundary"
           ]
+        }
+      }
+    },
+    {
+      "Sid": "TagOnlyProductionLambdaRolesWithSadhanaTags",
+      "Effect": "Allow",
+      "Action": ["iam:TagRole"],
+      "Resource": [
+        "arn:aws:iam::627821644317:role/prod-sadhana-*",
+        "arn:aws:iam::627821644317:role/prod-sruti-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "Sadhana",
+          "aws:RequestTag/Environment": "prod"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": ["Project", "Environment"]
+        }
+      }
+    },
+    {
+      "Sid": "UntagOnlyProductionLambdaRoleProjectTags",
+      "Effect": "Allow",
+      "Action": ["iam:UntagRole"],
+      "Resource": [
+        "arn:aws:iam::627821644317:role/prod-sadhana-*",
+        "arn:aws:iam::627821644317:role/prod-sruti-*"
+      ],
+      "Condition": {
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": ["Project", "Environment"]
         }
       }
     },
@@ -196,13 +226,19 @@
       "Sid": "CreateTaggedProductionSrutiWebAcl",
       "Effect": "Allow",
       "Action": ["wafv2:CreateWebACL"],
-      "Resource": "*",
+      "Resource": "arn:aws:wafv2:us-east-1:627821644317:regional/webacl/prod-sadhana-sruti-intake-waf/*",
       "Condition": {
         "StringEquals": {
           "aws:RequestTag/Project": "Sadhana",
           "aws:RequestTag/Environment": "prod"
         }
       }
+    },
+    {
+      "Sid": "UseOnlyRegionalManagedRuleSetsForProductionSrutiAcl",
+      "Effect": "Allow",
+      "Action": ["wafv2:CreateWebACL"],
+      "Resource": "arn:aws:wafv2:us-east-1:627821644317:regional/managedruleset/*/*"
     },
     {
       "Sid": "ManageProductionSrutiWebAcl",
