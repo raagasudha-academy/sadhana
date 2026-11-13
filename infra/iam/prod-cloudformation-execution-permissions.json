@@ -265,11 +265,10 @@
       "Resource": "arn:aws:apigateway:us-east-1::/apis/*/stages",
       "Condition": {
         "StringEquals": {
-          "aws:RequestTag/Project": "Sadhana",
-          "aws:RequestTag/Environment": "prod"
+          "aws:RequestTag/httpapi:createdBy": "SAM"
         },
         "ForAllValues:StringEquals": {
-          "aws:TagKeys": ["Project", "Environment"]
+          "aws:TagKeys": ["httpapi:createdBy"]
         }
       }
     },
