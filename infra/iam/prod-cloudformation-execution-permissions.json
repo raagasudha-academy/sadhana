@@ -212,8 +212,7 @@
         "arn:aws:apigateway:us-east-1::/apis",
         "arn:aws:apigateway:us-east-1::/apis/*",
         "arn:aws:apigateway:us-east-1::/restapis",
-        "arn:aws:apigateway:us-east-1::/restapis/*",
-        "arn:aws:apigateway:us-east-1::/tags/*"
+        "arn:aws:apigateway:us-east-1::/restapis/*"
       ]
     },
     {
