@@ -159,9 +159,6 @@ Resources:
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PATCH, OPTIONS]
         MaxAge: 600
-      Tags:
-        Project: Sadhana
-        Environment: !Ref Stage
       Auth:
         DefaultAuthorizer: CognitoStaff
         Authorizers:
