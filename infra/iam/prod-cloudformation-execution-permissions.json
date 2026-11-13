@@ -256,7 +256,7 @@
       "Sid": "ReadProductionSrutiWebAclAssociation",
       "Effect": "Allow",
       "Action": ["wafv2:GetWebACLForResource"],
-      "Resource": "arn:aws:wafv2:us-east-1:627821644317:regional/webacl/prod-sadhana-sruti-intake-waf/*"
+      "Resource": "arn:aws:wafv2:us-east-1:627821644317:regional/webacl/*/*"
     }
   ]
 }
