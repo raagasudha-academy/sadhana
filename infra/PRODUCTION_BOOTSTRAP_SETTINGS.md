@@ -21,6 +21,11 @@ reading the current production Cognito pool and Sruti table metadata, and packag
 the production deployment bucket. Do not attach `AdministratorAccess` or grant this GitHub role
 access to development resources or DynamoDB item contents.
 
+`cloudformation:DescribeStacks` is granted separately for the entity-tables stack because the
+bootstrap's initial stack lookup does not include a `cloudformation:RoleArn` request condition.
+The write and change-set actions remain conditioned on the dedicated CloudFormation execution
+role.
+
 Create the CloudFormation role `prod-sadhana-cloudformation-execution` with trust from
 `infra/iam/prod-cloudformation-execution-trust.json` and permissions from
 `infra/iam/prod-cloudformation-execution-permissions.json`. Create the two execution-role
