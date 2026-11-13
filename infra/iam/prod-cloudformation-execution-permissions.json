@@ -176,13 +176,7 @@
         "arn:aws:iam::627821644317:role/prod-sruti-*"
       ],
       "Condition": {
-        "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" },
-        "ArnEquals": {
-          "iam:PermissionsBoundary": [
-            "arn:aws:iam::627821644317:policy/SadhanaProdLambdaBoundary",
-            "arn:aws:iam::627821644317:policy/SrutiProdIntakeBoundary"
-          ]
-        }
+        "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
       }
     },
     {
