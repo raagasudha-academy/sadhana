@@ -50,6 +50,22 @@ keeps the deployed legacy route intact while replacement tables are created and 
 7. Verify both production domains, API CORS, login, registration review/import, and media
    access. Retire old resources only through a separately reviewed cleanup step.
 
+The manual GitHub workflow `.github/workflows/prod-backend-bootstrap.yml` provisions only
+the new `prod-sadhana-*` tables, the `prod-sadhana-app` API stack, and a disabled production
+Sruti intake stack. It runs the full test suite, then waits for approval on the GitHub
+`production` environment before applying AWS changes. It leaves existing `sadhana-prod-*`
+tables, the current dev stack, and the active Sruti intake untouched. It does not copy data
+or publish the portal; those remain separate release steps after the new backend is verified.
+
+The workflow uses a dedicated GitHub OIDC role and a separate CloudFormation execution role.
+See [PRODUCTION_BOOTSTRAP_SETTINGS.md](./PRODUCTION_BOOTSTRAP_SETTINGS.md) for the reviewed
+trust policies, scoped permissions, boundaries, and the three required GitHub environment
+variables. Do not reuse the separate Sruti-bot deployment role or CDK's administrator
+CloudFormation role. The production SSM SecureString
+`/sadhana/prod/google/middlesbrough-service-account` must be added before that integration is
+used. The existing production Cognito pool and client are read from the current
+`sadhana-prod-cognito` stack to preserve user identities.
+
 The table template generator can prepare a local template without making AWS calls:
 
 ```sh

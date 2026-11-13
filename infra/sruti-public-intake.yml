@@ -16,10 +16,21 @@ Parameters:
   SourceTableName:
     Type: String
     Default: dev-sruti-student-registrations
+Conditions:
+  UseProdLambdaBoundary: !Equals [!Ref Stage, prod]
 Resources:
   IntakeRole:
     Type: AWS::IAM::Role
     Properties:
+      PermissionsBoundary: !If
+        - UseProdLambdaBoundary
+        - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/SrutiProdIntakeBoundary'
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -46,6 +57,11 @@ Resources:
       Role: !GetAtt IntakeRole.Arn
       MemorySize: 256
       Timeout: 10
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
       Code: { S3Bucket: !Ref CodeBucket, S3Key: !Ref CodeKey }
       Environment:
         Variables:
@@ -63,6 +79,11 @@ Resources:
     Properties:
       Name: !Sub '${Stage}-sadhana-sruti-public-intake'
       Description: 'Public registration intake only - no admin or read endpoints'
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
       EndpointConfiguration: { Types: [REGIONAL] }
       DisableExecuteApiEndpoint: false
       BinaryMediaTypes: []
@@ -127,6 +148,11 @@ Resources:
     Properties:
       Name: !Sub '${Stage}-sadhana-sruti-intake-waf'
       Scope: REGIONAL
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
       DefaultAction: { Allow: {} }
       VisibilityConfig:
         CloudWatchMetricsEnabled: true

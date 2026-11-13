@@ -7,6 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { normalizeCodeWhitespace } from './sourceText.mjs';
 import { finalOnlyGate } from '../src/finalBoundary.mjs';
 import { finalReadRoute } from '../src/finalReadRoutes.mjs';
 import { finalFamilyAccessRoute } from '../src/finalFamilyAccess.mjs';
@@ -17,7 +18,7 @@ import { finalCoreIdentityRoute } from '../src/finalCoreIdentity.mjs';
 import { assessCutover } from './productionCutoverGate.mjs';
 
 const backend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const source = readFileSync(resolve(backend, 'src/lambda.ts'), 'utf8');
+const source = normalizeCodeWhitespace(readFileSync(resolve(backend, 'src/lambda.ts'), 'utf8'));
 const env = {
   SADHANA_ENTITY_TABLE_SET: 'final',
   SADHANA_DATA_MODE: 'final',
@@ -41,8 +42,8 @@ const check = async (name, fn) => {
   }
 };
 const requireOrder = (earlier, later) => {
-  const a = source.indexOf(earlier),
-    b = source.indexOf(later);
+  const a = source.indexOf(normalizeCodeWhitespace(earlier)),
+    b = source.indexOf(normalizeCodeWhitespace(later));
   assert.ok(a >= 0 && b >= 0 && a < b, `Expected ${earlier} before ${later}`);
 };
 
@@ -283,18 +284,21 @@ const report = {
     ready: staticGate.fullM9DatabaseCutoverReady,
     blockers: staticGate.blockers,
     interpretation:
-      'Source-reference findings, not evidence that the final dispatcher can reach those handlers',
+      'Existing dev M9 migration findings; dev resources are retained and these do not block an isolated production bootstrap',
   },
   offlineBehaviouralRouteGate: offlinePassed ? 'PASS' : 'FAIL',
-  productionFinalModeApproved: false,
   productionBlockers: [
-    'No authenticated live final-mode canary established for every required role and route',
-    'Required final feature-flag values and effective access on all 18 tables/indexes not fully verified',
-    'Main API and independent Sruti intake write freeze not established',
-    '10 historical audit records still need freeze-protected catch-up',
-    'Sruti final-only writer switch is not yet active',
-    'Legacy table inactivity and rollback recoverability not demonstrated',
+    'Live production backend and intake stacks, exact CORS origins, and table permissions are not verified by this offline gate',
+    'Selected classes, calendar sessions, venues, shared events, and minimal teacher profiles are not verified in prod by this offline gate',
+    'Authenticated production canaries for required staff and learner roles are not verified by this offline gate',
+    'Production Sruti intake routing to prod-sruti-student-registrations is not verified by this offline gate',
+    'Production backups and rollback recovery are not verified by this offline gate',
+  ],
+  preservedDevMigrationNotes: [
+    'Existing sadhana-dev-m9-* resources are retained; this migration does not delete them',
+    'Live dev routing and legacy cleanup evidence must be assessed separately from production bootstrap',
   ],
 };
+report.productionFinalModeApproved = offlinePassed && report.productionBlockers.length === 0;
 console.log(JSON.stringify(report, null, 2));
-if (!offlinePassed) process.exitCode = 2;
+if (!report.productionFinalModeApproved) process.exitCode = 2;

@@ -21,12 +21,10 @@ Parameters:
     Description: Existing Sadhana staff Cognito app client ID
   AllowedPortalOrigins:
     Type: CommaDelimitedList
-    Default: http://localhost:5173
-    Description: Exact comma-separated browser origins; no paths or wildcard origins. Include HTTPS origins used by this stage.
+    Description: Required exact comma-separated browser origins for this stage; no paths or wildcard origins. Dev may include localhost. Production must include both production portal origins.
   MiddlesbroughCredentialParameter:
     Type: String
-    Default: /sadhana/dev/google/middlesbrough-service-account
-    Description: Existing SSM SecureString holding dedicated Google service account JSON (never passed in template)
+    Description: Required stage-specific SSM SecureString name holding the dedicated Google service account JSON (never passed in template)
   EnablePointInTimeRecovery:
     Type: String
     Default: 'false'
@@ -36,6 +34,7 @@ Parameters:
 Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
   CreateAggregateTable: !Not [!Equals [!Ref Stage, prod]]
+  UseProdLambdaBoundary: !Equals [!Ref Stage, prod]
 
 Mappings:
   StageTables:
@@ -65,6 +64,11 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
       VersioningConfiguration:
         Status: Enabled
       CorsConfiguration:
@@ -139,17 +143,25 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
 
   SadhanaApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      ApiName: !Sub '${Stage}-sadhana-api'
+      Name: !Sub '${Stage}-sadhana-api'
       StageName: !Ref Stage
       CorsConfiguration:
         AllowOrigins: !Ref AllowedPortalOrigins
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PATCH, OPTIONS]
         MaxAge: 600
+      Tags:
+        Project: Sadhana
+        Environment: !Ref Stage
       Auth:
         DefaultAuthorizer: CognitoStaff
         Authorizers:
@@ -179,6 +191,14 @@ Resources:
       CodeUri: ../backend/
       Timeout: 30
       MemorySize: 256
+      PermissionsBoundary: !If
+        - UseProdLambdaBoundary
+        - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/SadhanaProdLambdaBoundary'
+        - !Ref AWS::NoValue
+      PropagateTags: true
+      Tags:
+        Project: Sadhana
+        Environment: !Ref Stage
       Environment:
         Variables:
           SADHANA_TABLE_NAME: !If
@@ -204,7 +224,7 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:DeleteItem
                 - dynamodb:Query
-                - dynamodb:TransactWriteItems
+                - dynamodb:ConditionCheckItem
               Resource:
                 - !If
                   - CreateAggregateTable
@@ -221,7 +241,7 @@ Resources:
                 - dynamodb:GetItem
                 - dynamodb:Query
                 - dynamodb:UpdateItem
-                - dynamodb:TransactWriteItems
+                - dynamodb:ConditionCheckItem
               Resource:
                 - !Sub
                   - 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SourceTable}'

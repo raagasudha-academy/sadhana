@@ -50,7 +50,11 @@ if ! aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
   aws s3api put-bucket-encryption --bucket "$BUCKET" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 fi
 aws s3 cp "$WORK/intake.zip" "s3://$BUCKET/$KEY" --region "$REGION" --only-show-errors
-aws cloudformation deploy --region "$REGION" --stack-name "$STACK" --template-file "$TEMPLATE" \
+CFN_ROLE_ARGS=()
+if [[ -n "${SADHANA_CLOUDFORMATION_ROLE_ARN:-}" ]]; then
+  CFN_ROLE_ARGS+=(--role-arn "$SADHANA_CLOUDFORMATION_ROLE_ARN")
+fi
+aws cloudformation deploy --region "$REGION" "${CFN_ROLE_ARGS[@]}" --stack-name "$STACK" --template-file "$TEMPLATE" \
   --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset \
   --parameter-overrides "Stage=$STAGE" "CodeBucket=$BUCKET" "CodeKey=$KEY" "IntakeEnabled=$ENABLED" "SourceTableName=$TABLE"
 echo 'Intake endpoint (test stage only):'

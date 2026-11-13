@@ -1,0 +1,74 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteApplicationLogs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:us-east-1:627821644317:log-group:/aws/lambda/prod-sadhana-api:*"
+    },
+    {
+      "Sid": "AccessProductionSadhanaTables",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:ConditionCheckItem"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sadhana-*",
+        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sadhana-*/index/*"
+      ]
+    },
+    {
+      "Sid": "ReviewSrutiRegistrations",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:UpdateItem",
+        "dynamodb:ConditionCheckItem"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-student-registrations",
+        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-student-registrations/index/*"
+      ]
+    },
+    {
+      "Sid": "ManageExistingProductionStaffPool",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:ListUsersInGroup",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminListGroupsForUser",
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminRemoveUserFromGroup",
+        "cognito-idp:AdminUpdateUserAttributes",
+        "cognito-idp:ListUsers"
+      ],
+      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_Egro1CA39"
+    },
+    {
+      "Sid": "ManageProfilePhotoObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::prod-sadhana-profile-photos-627821644317-us-east-1/profiles/*"
+    },
+    {
+      "Sid": "ListProfilePhotoBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::prod-sadhana-profile-photos-627821644317-us-east-1"
+    },
+    {
+      "Sid": "ReadProductionCalendarCredential",
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter"],
+      "Resource": "arn:aws:ssm:us-east-1:627821644317:parameter/sadhana/prod/google/middlesbrough-service-account"
+    }
+  ]
+}

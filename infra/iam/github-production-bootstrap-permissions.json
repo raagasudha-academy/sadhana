@@ -1,0 +1,105 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IdentifyDeploymentAccount",
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManageOnlySadhanaProductionStacksWithExecutionRole",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet",
+        "cloudformation:CreateStack",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:DescribeStacks",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:GetTemplate",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:ListStackResources",
+        "cloudformation:TagResource",
+        "cloudformation:UntagResource",
+        "cloudformation:UpdateStack",
+        "cloudformation:ValidateTemplate"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-entity-tables/*",
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-app/*",
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution"
+        }
+      }
+    },
+    {
+      "Sid": "AllowTheSAMTransform",
+      "Effect": "Allow",
+      "Action": ["cloudformation:CreateChangeSet"],
+      "Resource": "arn:aws:cloudformation:us-east-1:aws:transform/Serverless-2016-10-31"
+    },
+    {
+      "Sid": "ReadExistingCognitoStackOutputs",
+      "Effect": "Allow",
+      "Action": ["cloudformation:DescribeStacks"],
+      "Resource": "arn:aws:cloudformation:us-east-1:627821644317:stack/sadhana-prod-cognito/*"
+    },
+    {
+      "Sid": "PassOnlyTheSadhanaCloudFormationRole",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": "arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution",
+      "Condition": {
+        "StringEquals": { "iam:PassedToService": "cloudformation.amazonaws.com" }
+      }
+    },
+    {
+      "Sid": "VerifyBootstrapExecutionRoleAndBoundaries",
+      "Effect": "Allow",
+      "Action": ["iam:GetPolicy", "iam:GetRole"],
+      "Resource": [
+        "arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution",
+        "arn:aws:iam::627821644317:policy/SadhanaProdLambdaBoundary",
+        "arn:aws:iam::627821644317:policy/SrutiProdIntakeBoundary"
+      ]
+    },
+    {
+      "Sid": "ReadExistingProductionCognitoPool",
+      "Effect": "Allow",
+      "Action": ["cognito-idp:DescribeUserPool"],
+      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_Egro1CA39"
+    },
+    {
+      "Sid": "CheckProductionSrutiSourceTable",
+      "Effect": "Allow",
+      "Action": ["dynamodb:DescribeTable"],
+      "Resource": "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-student-registrations"
+    },
+    {
+      "Sid": "PrepareOnlyProductionDeploymentBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucketLocation",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:ListBucket",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketPublicAccessBlock"
+      ],
+      "Resource": "arn:aws:s3:::prod-sadhana-intake-deploy-627821644317-us-east-1"
+    },
+    {
+      "Sid": "UploadProductionDeploymentArtifacts",
+      "Effect": "Allow",
+      "Action": ["s3:AbortMultipartUpload", "s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::prod-sadhana-intake-deploy-627821644317-us-east-1/*"
+    }
+  ]
+}

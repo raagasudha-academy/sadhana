@@ -1,0 +1,186 @@
+name: Sadhana production backend bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sadhana-production-backend
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - name: Require main branch release
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo 'Production resources can only be bootstrapped from main.'
+            exit 1
+          fi
+      - name: Run frontend checks, unit tests, and build
+        run: npm run verify
+      - name: Install Chromium for frontend E2E
+        run: npx playwright install chromium
+      - name: Run frontend browser tests
+        run: npm run test:frontend:playwright
+      - name: Run backend checks and build
+        run: npm run verify:backend
+      - name: Run backend unit tests
+        run: npm run test:backend:unit
+      - name: Run backend HTTP E2E tests
+        run: npm run test:backend:e2e
+      - name: Run Python helper tests
+        run: |
+          python -m pip install boto3
+          npm run test:python
+      - name: Validate production templates and naming
+        run: |
+          node --input-type=module <<'NODE'
+          import { makeProductionEntityTablesTemplate } from './backend/scripts/prodEntityTablesTemplate.mjs';
+          const template = makeProductionEntityTablesTemplate('prod');
+          const names = Object.values(template.Resources).map((resource) => resource.Properties.TableName);
+          if (names.length !== 19) throw new Error(`Expected 19 production tables, found ${names.length}.`);
+          if (names.some((name) => !name.startsWith('prod-sadhana-') && !name.startsWith('prod-sruti-'))) {
+            throw new Error(`Unexpected non-production-prefixed table name: ${names.find((name) => !name.startsWith('prod-sadhana-') && !name.startsWith('prod-sruti-'))}`);
+          }
+          console.log(`Validated ${names.length} production-prefixed tables.`);
+          NODE
+
+  bootstrap:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      CLOUDFORMATION_EXECUTION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
+      MIDDLE_CREDENTIAL_PARAMETER: /sadhana/prod/google/middlesbrough-service-account
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - name: Check production inputs
+        run: |
+          for value in "$AWS_REGION" "$AWS_ROLE_ARN" "$CLOUDFORMATION_EXECUTION_ROLE_ARN"; do
+            if [ -z "$value" ]; then
+              echo 'Missing production environment variable or secret.'
+              exit 1
+            fi
+          done
+          if [ "$AWS_REGION" != us-east-1 ]; then
+            echo 'This production bootstrap is configured for us-east-1.'
+            exit 1
+          fi
+          if [ "$CLOUDFORMATION_EXECUTION_ROLE_ARN" != 'arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution' ]; then
+            echo 'Unexpected CloudFormation execution role ARN.'
+            exit 1
+          fi
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Verify AWS account
+        run: |
+          account="$(aws sts get-caller-identity --query Account --output text)"
+          if [ "$account" != 627821644317 ]; then
+            echo "Refusing production bootstrap in AWS account $account."
+            exit 1
+          fi
+      - name: Verify CloudFormation execution role and Lambda boundaries
+        run: |
+          trust="$(aws iam get-role --role-name prod-sadhana-cloudformation-execution --query 'Role.AssumeRolePolicyDocument.Statement[0].Principal.Service' --output text)"
+          if [ "$trust" != cloudformation.amazonaws.com ]; then
+            echo 'Unexpected CloudFormation execution role trust policy.'
+            exit 1
+          fi
+          aws iam get-policy --policy-arn arn:aws:iam::627821644317:policy/SadhanaProdLambdaBoundary >/dev/null
+          aws iam get-policy --policy-arn arn:aws:iam::627821644317:policy/SrutiProdIntakeBoundary >/dev/null
+      - name: Resolve the existing production Cognito client
+        run: |
+          pool_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue|[0]' --output text)"
+          client_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`AppClientId`].OutputValue|[0]' --output text)"
+          pool_name="$(aws cognito-idp describe-user-pool --user-pool-id "$pool_id" --region "$AWS_REGION" --query 'UserPool.Name' --output text)"
+          if [ "$pool_name" != sadhana-prod-staff ] || [ -z "$client_id" ] || [ "$client_id" = None ]; then
+            echo 'The existing production Cognito pool/client could not be verified.'
+            exit 1
+          fi
+          echo "COGNITO_USER_POOL_ID=$pool_id" >> "$GITHUB_ENV"
+          echo "COGNITO_APP_CLIENT_ID=$client_id" >> "$GITHUB_ENV"
+      - name: Record production Google credential readiness
+        run: |
+          echo 'Production Middlesbrough credential presence is not checked by this workflow; keep that integration unused until the SecureString is configured.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Create stage-prefixed production tables
+        run: |
+          node backend/scripts/prodEntityTablesTemplate.mjs --stage prod --output "$RUNNER_TEMP/prod-sadhana-tables.json"
+          aws cloudformation deploy \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --stack-name prod-sadhana-entity-tables \
+            --template-file "$RUNNER_TEMP/prod-sadhana-tables.json" \
+            --no-fail-on-empty-changeset \
+            --tags Application=Sadhana Environment=prod
+      - name: Deploy disabled production Sruti intake
+        env:
+          SADHANA_STAGE: prod
+          SADHANA_CLOUDFORMATION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
+        run: bash scripts/deploy-sruti-public.sh --apply
+      - uses: aws-actions/setup-sam@v3
+        with:
+          use-installer: true
+      - name: Build production Sadhana API
+        run: sam build --template-file infra/template.yaml
+      - name: Deploy production Sadhana API
+        run: |
+          sam deploy \
+            --template-file .aws-sam/build/template.yaml \
+            --stack-name prod-sadhana-app \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --s3-bucket "prod-sadhana-intake-deploy-627821644317-${AWS_REGION}" \
+            --s3-prefix sadhana-api \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "Stage=prod" \
+              "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
+              "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
+              "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
+              "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
+              "EnablePointInTimeRecovery=true"
+      - name: Record production API endpoint
+        run: |
+          api_url="$(aws cloudformation describe-stacks --stack-name prod-sadhana-app --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue|[0]' --output text)"
+          {
+            echo '### Production backend bootstrap'
+            echo
+            echo "- Sadhana API: $api_url"
+            echo '- The old sadhana-prod-* stacks and dev resources were left untouched.'
+            echo '- The new Sruti intake stack is deployed disabled; the live Sruti endpoint was not switched.'
+            echo '- Selected dev data has not been copied by this bootstrap.'
+            echo '- Production super-admin account controls remain disabled until a production Cognito user is provisioned and explicitly configured.'
+          } >> "$GITHUB_STEP_SUMMARY"
