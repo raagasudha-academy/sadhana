@@ -120,6 +120,24 @@
       "Effect": "Allow",
       "Action": ["s3:AbortMultipartUpload", "s3:GetObject", "s3:PutObject"],
       "Resource": "arn:aws:s3:::prod-sadhana-intake-deploy-627821644317-us-east-1/*"
+    },
+    {
+      "Sid": "ListProductionPortalAssets",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+      "Resource": "arn:aws:s3:::sadhana-prod-portal-627821644317"
+    },
+    {
+      "Sid": "PublishProductionPortalAssets",
+      "Effect": "Allow",
+      "Action": ["s3:AbortMultipartUpload", "s3:DeleteObject", "s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::sadhana-prod-portal-627821644317/*"
+    },
+    {
+      "Sid": "InvalidateOnlyProductionPortalDistribution",
+      "Effect": "Allow",
+      "Action": ["cloudfront:CreateInvalidation"],
+      "Resource": "arn:aws:cloudfront::627821644317:distribution/E2OIK9ZX4I8KC8"
     }
   ]
 }

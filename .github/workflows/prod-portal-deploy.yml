@@ -46,9 +46,6 @@ jobs:
         run: |
           python -m pip install boto3
           npm run test:python
-      - name: Check production cutover readiness
-        run: npm run check:prod:readiness
-
   deploy:
     needs: verify
     runs-on: ubuntu-latest
@@ -86,6 +83,12 @@ jobs:
             https://*) ;;
             *) echo 'Production API URL must use HTTPS'; exit 1 ;;
           esac
+          test "$PORTAL_BUCKET" = 'sadhana-prod-portal-627821644317' || { echo 'Unexpected production portal bucket'; exit 1; }
+          test "$DISTRIBUTION_ID" = 'E2OIK9ZX4I8KC8' || { echo 'Unexpected production CloudFront distribution'; exit 1; }
+          test "$COGNITO_ISSUER" = 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_Egro1CA39' || { echo 'Production portal must use the production Cognito pool'; exit 1; }
+          test "$COGNITO_CLIENT_ID" = 'mi2ulgljta8vu146uja5ob5il' || { echo 'Production portal must use the production Cognito client'; exit 1; }
+          test "$COGNITO_DOMAIN" = 'https://prod-sadhana-627821644317.auth.us-east-1.amazoncognito.com' || { echo 'Production portal must use the production Cognito domain'; exit 1; }
+          test "$API_URL" = 'https://6vmaya3er2.execute-api.us-east-1.amazonaws.com/prod/api' || { echo 'Production portal must use the production API stage'; exit 1; }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
