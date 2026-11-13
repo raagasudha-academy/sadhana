@@ -151,6 +151,10 @@ jobs:
       - uses: aws-actions/setup-sam@v3
         with:
           use-installer: true
+      - name: Install the locked esbuild version for SAM
+        run: |
+          ESBUILD_VERSION="$(node -p "require('./backend/package-lock.json').packages['node_modules/esbuild'].version")"
+          npm install --global "esbuild@${ESBUILD_VERSION}"
       - name: Build production Sadhana API
         run: sam build --template-file infra/template.yaml
       - name: Deploy production Sadhana API
