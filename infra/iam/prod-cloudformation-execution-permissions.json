@@ -274,7 +274,7 @@
     {
       "Sid": "TagOnlySamHttpApiStageCollections",
       "Effect": "Allow",
-      "Action": ["apigateway:TagResource"],
+      "Action": ["apigateway:PUT"],
       "Resource": "arn:aws:apigateway:us-east-1::/apis/*/stages",
       "Condition": {
         "StringEquals": {
