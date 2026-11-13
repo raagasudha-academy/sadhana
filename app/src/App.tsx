@@ -375,7 +375,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
             'Venues',
             'My Profile',
           ]
-        : [...adminSidebarPages, 'Fees', 'My Profile']
+        : [...adminSidebarPages, ...(currentWorkspace === 'raaga' ? ['Fees'] : []), 'My Profile']
   ).filter(
     (item) =>
       item !== 'Website Registrations' ||
@@ -529,6 +529,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
       }
     }
     setWorkspace(w);
+    if (w !== 'raaga' && page === 'Fees') setPage('Dashboard');
 
     setStudent(null);
     setClassProfile(null);
