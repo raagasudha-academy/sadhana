@@ -13,8 +13,10 @@ already has the GitHub OIDC provider
 
 Use `infra/github-production-bootstrap-trust.json` as the GitHub role trust policy and attach
 `infra/iam/github-production-bootstrap-permissions.json`. The subject is restricted to
-`raagasudha-academy/sadhana` jobs that declare the `production` environment. Its permissions are
-limited to the three new production stacks, passing only the dedicated CloudFormation role,
+`raagasudha-academy/sadhana` jobs that declare the `production` environment. It accepts both
+the classic name-based subject and GitHub's immutable organization/repository ID subject, each
+restricted to that same environment. Its permissions are limited to the three new production
+stacks, passing only the dedicated CloudFormation role,
 reading the current production Cognito pool and Sruti table metadata, and packaging artifacts in
 the production deployment bucket. Do not attach `AdministratorAccess` or grant this GitHub role
 access to development resources or DynamoDB item contents.
