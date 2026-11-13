@@ -23,8 +23,11 @@ access to development resources or DynamoDB item contents.
 
 `cloudformation:DescribeStacks` is granted separately for the entity-tables stack because the
 bootstrap's initial stack lookup does not include a `cloudformation:RoleArn` request condition.
-The write and change-set actions remain conditioned on the dedicated CloudFormation execution
-role.
+Change-set inspection and execution actions are also granted separately, scoped to the three
+named production stacks, because those API requests do not carry the role parameter. Stack
+creation, updates, and change-set creation remain conditioned on the dedicated CloudFormation
+execution role. Change-set execution can only be reached after the GitHub `production` environment
+review succeeds.
 
 Create the CloudFormation role `prod-sadhana-cloudformation-execution` with trust from
 `infra/iam/prod-cloudformation-execution-trust.json` and permissions from
