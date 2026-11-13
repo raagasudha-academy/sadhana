@@ -272,6 +272,20 @@
       }
     },
     {
+      "Sid": "TagOnlySamHttpApiStageCollections",
+      "Effect": "Allow",
+      "Action": ["apigateway:TagResource"],
+      "Resource": "arn:aws:apigateway:us-east-1::/apis/*/stages",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/httpapi:createdBy": "SAM"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": ["httpapi:createdBy"]
+        }
+      }
+    },
+    {
       "Sid": "ReadProductionSrutiWebAclAssociation",
       "Effect": "Allow",
       "Action": ["wafv2:GetWebACLForResource"],
