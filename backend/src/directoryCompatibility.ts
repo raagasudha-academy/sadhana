@@ -1,7 +1,7 @@
 import { entityTable } from './entityTables.mjs';
 /** Read-only M9 teacher/venue compatibility, independent of the legacy router. */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { signedProfilePhoto } from './profilePhotos.ts';
 import { suggestedTeacherIds } from './teacherNameMatch.ts';
 import { legacyRecord, canonicalRecords } from './compatibility.ts';
@@ -228,6 +228,27 @@ export function makeM95DirectoryReader(
     } while (cursor);
     return rows;
   };
+  const peopleForSubject = async (sub: string): Promise<CompatibleItem[]> => {
+    const rows: CompatibleItem[] = [];
+    let cursor: Record<string, unknown> | undefined;
+    do {
+      const page = await client.send(
+        new QueryCommand({
+          TableName: entityTable('people'),
+          IndexName: 'CognitoIdentityIndex',
+          KeyConditionExpression: '#cognitoSub = :sub',
+          ExpressionAttributeNames: { '#cognitoSub': 'cognitoSub' },
+          ExpressionAttributeValues: { ':sub': sub },
+          ExclusiveStartKey: cursor,
+          Limit: 100,
+        }),
+      );
+      rows.push(...(page.Items ?? []));
+      cursor = page.LastEvaluatedKey;
+      if (rows.length > MAX_ROWS.people) throw Error('M95_DIRECTORY_LIMIT_EXCEEDED_people');
+    } while (cursor);
+    return rows;
+  };
   return {
     async teachers(inst: InstitutionId, claims: Claims) {
       demandViewInstitution(claims, inst);
@@ -235,7 +256,7 @@ export function makeM95DirectoryReader(
     },
     async teacherMe(inst: InstitutionId, claims: Claims) {
       demandViewInstitution(claims, inst);
-      return presentM9TeacherIdentity(inst, claims, await scan('people'));
+      return presentM9TeacherIdentity(inst, claims, await peopleForSubject(claims.sub));
     },
     async teacherLinks(inst: InstitutionId, claims: Claims) {
       demandViewInstitution(claims, inst);
