@@ -259,10 +259,10 @@
       "Resource": "arn:aws:apigateway:us-east-1::/restapis/*/stages/prod"
     },
     {
-      "Sid": "TagOnlyProductionHttpApiStages",
+      "Sid": "TagOnlySamHttpApiMarker",
       "Effect": "Allow",
       "Action": ["apigateway:PUT"],
-      "Resource": "arn:aws:apigateway:us-east-1::/apis/*/stages",
+      "Resource": "arn:aws:apigateway:us-east-1::/tags/*",
       "Condition": {
         "StringEquals": {
           "aws:RequestTag/httpapi:createdBy": "SAM"
