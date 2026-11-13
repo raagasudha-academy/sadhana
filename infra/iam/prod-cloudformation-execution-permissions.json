@@ -274,14 +274,16 @@
     {
       "Sid": "TagOnlySamHttpApiStageCollections",
       "Effect": "Allow",
-      "Action": ["apigateway:PUT"],
+      "Action": ["apigateway:PATCH", "apigateway:POST", "apigateway:PUT"],
       "Resource": "arn:aws:apigateway:us-east-1::/apis/*/stages",
       "Condition": {
         "StringEquals": {
+          "aws:RequestTag/Application": "Sadhana",
+          "aws:RequestTag/Environment": "prod",
           "aws:RequestTag/httpapi:createdBy": "SAM"
         },
         "ForAllValues:StringEquals": {
-          "aws:TagKeys": ["httpapi:createdBy"]
+          "aws:TagKeys": ["Application", "Environment", "httpapi:createdBy"]
         }
       }
     },
