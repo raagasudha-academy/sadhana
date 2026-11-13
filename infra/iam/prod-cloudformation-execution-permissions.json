@@ -263,6 +263,12 @@
       "Effect": "Allow",
       "Action": ["wafv2:GetWebACLForResource"],
       "Resource": "arn:aws:wafv2:us-east-1:627821644317:regional/webacl/*/*"
+    },
+    {
+      "Sid": "AllowOnlyTheSAMTransformForProductionChangesets",
+      "Effect": "Allow",
+      "Action": ["cloudformation:CreateChangeSet"],
+      "Resource": "arn:aws:cloudformation:us-east-1:aws:transform/Serverless-2016-10-31"
     }
   ]
 }
