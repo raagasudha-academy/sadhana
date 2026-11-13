@@ -274,16 +274,30 @@
     {
       "Sid": "TagOnlySamHttpApiStageCollections",
       "Effect": "Allow",
-      "Action": ["apigateway:PATCH", "apigateway:POST", "apigateway:PUT"],
+      "Action": [
+        "apigateway:PATCH",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:TagResource"
+      ],
       "Resource": "arn:aws:apigateway:us-east-1::/apis/*/stages",
       "Condition": {
         "StringEquals": {
-          "aws:RequestTag/Application": "Sadhana",
-          "aws:RequestTag/Environment": "prod",
-          "aws:RequestTag/httpapi:createdBy": "SAM"
+          "aws:RequestTag/aws:cloudformation:stack-name": "prod-sadhana-app",
+          "aws:RequestTag/aws:cloudformation:logical-id": "SadhanaApiStage",
+          "aws:RequestTag/httpapi:createdBy": "SAM",
+          "aws:RequestedRegion": "us-east-1"
+        },
+        "StringLike": {
+          "aws:RequestTag/aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-app/*"
         },
         "ForAllValues:StringEquals": {
-          "aws:TagKeys": ["Application", "Environment", "httpapi:createdBy"]
+          "aws:TagKeys": [
+            "aws:cloudformation:stack-name",
+            "aws:cloudformation:stack-id",
+            "aws:cloudformation:logical-id",
+            "httpapi:createdBy"
+          ]
         }
       }
     },
