@@ -253,6 +253,12 @@
       ]
     },
     {
+      "Sid": "AssociateWebAclOnlyWithProductionApiStages",
+      "Effect": "Allow",
+      "Action": ["apigateway:SetWebACL"],
+      "Resource": "arn:aws:apigateway:us-east-1::/restapis/*/stages/prod"
+    },
+    {
       "Sid": "ReadProductionSrutiWebAclAssociation",
       "Effect": "Allow",
       "Action": ["wafv2:GetWebACLForResource"],
