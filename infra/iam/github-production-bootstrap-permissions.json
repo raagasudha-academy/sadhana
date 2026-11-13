@@ -49,10 +49,14 @@
       ]
     },
     {
-      "Sid": "ReadProductionEntityTablesStack",
+      "Sid": "ReadProductionBootstrapStacks",
       "Effect": "Allow",
       "Action": ["cloudformation:DescribeStacks"],
-      "Resource": "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-entity-tables/*"
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-entity-tables/*",
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-app/*",
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*"
+      ]
     },
     {
       "Sid": "AllowTheSAMTransform",

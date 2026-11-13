@@ -21,8 +21,8 @@ reading the current production Cognito pool and Sruti table metadata, and packag
 the production deployment bucket. Do not attach `AdministratorAccess` or grant this GitHub role
 access to development resources or DynamoDB item contents.
 
-`cloudformation:DescribeStacks` is granted separately for the entity-tables stack because the
-bootstrap's initial stack lookup does not include a `cloudformation:RoleArn` request condition.
+`cloudformation:DescribeStacks` is granted separately for the three production stacks because
+the bootstrap's stack lookups do not include a `cloudformation:RoleArn` request condition.
 Change-set inspection and execution actions are also granted separately, scoped to the three
 named production stacks, because those API requests do not carry the role parameter. Stack
 creation, updates, and change-set creation remain conditioned on the dedicated CloudFormation
