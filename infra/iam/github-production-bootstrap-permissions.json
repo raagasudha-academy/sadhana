@@ -102,6 +102,12 @@
       "Resource": "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-student-registrations"
     },
     {
+      "Sid": "CheckProductionRaagasudhaSourceTable",
+      "Effect": "Allow",
+      "Action": ["dynamodb:DescribeTable"],
+      "Resource": "arn:aws:dynamodb:us-east-1:627821644317:table/prod-raagasudha-student-registrations"
+    },
+    {
       "Sid": "PrepareOnlyProductionDeploymentBucket",
       "Effect": "Allow",
       "Action": [
