@@ -13,6 +13,16 @@
         "cognito-idp:UpdateUserPoolClient"
       ],
       "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_Egro1CA39"
+    },
+    {
+      "Sid": "InspectAndDetachOnlyProductionCognitoInvitationRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:DetachRolePolicy",
+        "iam:GetRole",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": "arn:aws:iam::627821644317:role/prod-sadhana-cognito-invitation-role"
     }
   ]
 }
