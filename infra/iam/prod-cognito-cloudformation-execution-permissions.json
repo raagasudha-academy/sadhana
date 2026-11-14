@@ -17,11 +17,7 @@
     {
       "Sid": "InspectAndDetachOnlyProductionCognitoInvitationRole",
       "Effect": "Allow",
-      "Action": [
-        "iam:DetachRolePolicy",
-        "iam:GetRole",
-        "iam:ListAttachedRolePolicies"
-      ],
+      "Action": ["iam:DetachRolePolicy", "iam:GetRole", "iam:ListAttachedRolePolicies"],
       "Resource": "arn:aws:iam::627821644317:role/prod-sadhana-cognito-invitation-role"
     }
   ]
