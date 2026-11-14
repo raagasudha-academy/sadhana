@@ -54,9 +54,9 @@ jobs:
           import { makeProductionEntityTablesTemplate } from './backend/scripts/prodEntityTablesTemplate.mjs';
           const template = makeProductionEntityTablesTemplate('prod');
           const names = Object.values(template.Resources).map((resource) => resource.Properties.TableName);
-          if (names.length !== 19) throw new Error(`Expected 19 production tables, found ${names.length}.`);
-          if (names.some((name) => !name.startsWith('prod-sadhana-') && !name.startsWith('prod-sruti-'))) {
-            throw new Error(`Unexpected non-production-prefixed table name: ${names.find((name) => !name.startsWith('prod-sadhana-') && !name.startsWith('prod-sruti-'))}`);
+          if (names.length !== 20) throw new Error(`Expected 20 production tables, found ${names.length}.`);
+          if (names.some((name) => !['prod-sadhana-', 'prod-sruti-', 'prod-raagasudha-'].some((prefix) => name.startsWith(prefix)))) {
+            throw new Error(`Unexpected non-production-prefixed table name: ${names.find((name) => !['prod-sadhana-', 'prod-sruti-', 'prod-raagasudha-'].some((prefix) => name.startsWith(prefix)))}`);
           }
           console.log(`Validated ${names.length} production-prefixed tables.`);
           NODE

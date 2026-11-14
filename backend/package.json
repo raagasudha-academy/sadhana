@@ -17,7 +17,8 @@
     "build": "esbuild src/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/lambda.mjs --external:@aws-sdk/* --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
     "import:calendar": "tsx scripts/importOneTimeSchedule.ts",
     "link:venues": "tsx scripts/linkThreeVenues.ts",
-    "verify:venues": "tsx scripts/verifyVenueLinks.ts"
+    "verify:venues": "tsx scripts/verifyVenueLinks.ts",
+    "migrate:table-prefix": "node scripts/migrateEntityTablesToStagePrefix.mjs"
   },
   "dependencies": {
     "@aws-crypto/client-node": "^5.0.2",

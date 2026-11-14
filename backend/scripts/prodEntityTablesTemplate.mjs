@@ -96,10 +96,29 @@ export function makeProductionEntityTablesTemplate(stage = 'prod') {
       ],
     },
   };
-  if (Object.keys(Resources).length !== 19) throw Error('Expected 19 stage tables.');
+  Resources.RaagasudhaRegistrationSource = {
+    Type: 'AWS::DynamoDB::Table',
+    DeletionPolicy: 'Retain',
+    UpdateReplacePolicy: 'Retain',
+    Properties: {
+      TableName: `${stage}-raagasudha-student-registrations`,
+      BillingMode: 'PAY_PER_REQUEST',
+      AttributeDefinitions: [{ AttributeName: 'registrationId', AttributeType: 'S' }],
+      KeySchema: [{ AttributeName: 'registrationId', KeyType: 'HASH' }],
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
+      SSESpecification: { SSEEnabled: true },
+      DeletionProtectionEnabled: true,
+      Tags: [
+        { Key: 'Project', Value: 'Sadhana' },
+        { Key: 'Environment', Value: stage },
+        { Key: 'DataPolicy', Value: 'RaagasudhaPrivateIntake' },
+      ],
+    },
+  };
+  if (Object.keys(Resources).length !== 20) throw Error('Expected 20 stage tables.');
   return {
     AWSTemplateFormatVersion: '2010-09-09',
-    Description: `Sadhana ${stage} entity tables and private Sruti source; retained, encrypted, PITR enabled; no data migration.`,
+    Description: `Sadhana ${stage} entity tables and private academy intake sources; retained, encrypted, PITR enabled; no data migration.`,
     Resources,
   };
 }
@@ -120,5 +139,5 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const template = makeProductionEntityTablesTemplate(stage);
   writeFileSync(output, JSON.stringify(template, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
   chmodSync(output, 0o600);
-  console.log(JSON.stringify({ template: output, stage, tables: 19, awsWrites: 0 }));
+  console.log(JSON.stringify({ template: output, stage, tables: 20, awsWrites: 0 }));
 }
