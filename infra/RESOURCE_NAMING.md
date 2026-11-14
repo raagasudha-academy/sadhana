@@ -97,9 +97,10 @@ confirmed.
 Run `npm --prefix backend run migrate:table-prefix -- --stage dev --plan` first. Apply only
 after reviewing its source fingerprints and target counts, using the printed fingerprint and
 `--confirm MIGRATE_DEV_ENTITY_TABLES`. Repeat for production with `--stage prod` and
-`--confirm MIGRATE_PROD_ENTITY_TABLES`. The copy includes only canonical entity tables plus
-the approved stage-specific intake sources; it never copies live Raaga registrations into
-development and never deletes a source table.
+`--confirm MIGRATE_PROD_ENTITY_TABLES`. The migration copies canonical entity tables. Production
+also migrates the existing Sruti and Raagasudha intake sources into their stage-first source
+tables. Development intake tables start empty so raw website submissions are never copied into
+dev. The migration never deletes a source table.
 
 Changing a DynamoDB `TableName` in CloudFormation requires replacement; the replacement
 tables must be created and populated before application routing switches. See the

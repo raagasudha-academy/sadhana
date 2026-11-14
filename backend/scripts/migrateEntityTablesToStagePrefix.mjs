@@ -28,13 +28,17 @@ const tableNames = (stage, entity) => {
   };
 };
 const intakeTables = (stage) => [
-  {
-    name: 'sruti-intake',
-    source: 'sruti-student-registrations',
-    target: `${stage}-sruti-student-registrations`,
-    key: 'registrationId',
-    allowTargetIndexSuperset: true,
-  },
+  ...(stage === 'prod'
+    ? [
+        {
+          name: 'sruti-intake',
+          source: 'sruti-student-registrations',
+          target: 'prod-sruti-student-registrations',
+          key: 'registrationId',
+          allowTargetIndexSuperset: true,
+        },
+      ]
+    : []),
   ...(stage === 'prod'
     ? [
         {
@@ -75,7 +79,7 @@ function parseArgs(argv) {
   };
   if (argv.includes('--help')) {
     console.log(
-      'Plan: AWS_PROFILE=raagasudha AWS_REGION=us-east-1 node backend/scripts/migrateEntityTablesToStagePrefix.mjs --stage dev --plan\nApply: ... --stage dev --apply --confirm MIGRATE_DEV_ENTITY_TABLES --expected-fingerprint <sha256>',
+      'Plan: AWS_REGION=us-east-1 node backend/scripts/migrateEntityTablesToStagePrefix.mjs --stage dev --plan\nApply: ... --stage dev --apply --confirm MIGRATE_DEV_ENTITY_TABLES --expected-fingerprint <sha256>',
     );
     process.exit(0);
   }
@@ -142,8 +146,7 @@ function schemaShape(table) {
 }
 
 async function buildPlan(stage) {
-  if (process.env.AWS_REGION !== REGION || !process.env.AWS_PROFILE)
-    fail('Set AWS_PROFILE and AWS_REGION=us-east-1 explicitly.');
+  if (process.env.AWS_REGION !== REGION) fail('Set AWS_REGION=us-east-1 explicitly.');
   const account = execFileSync(
     'aws',
     ['sts', 'get-caller-identity', '--query', 'Account', '--output', 'text', '--region', REGION],
@@ -227,6 +230,10 @@ async function buildPlan(stage) {
         ]),
       ),
       fingerprint,
+      devIntakePolicy:
+        stage === 'dev'
+          ? 'No legacy website registration data is copied into dev; the new dev intake table remains test/sanitized only.'
+          : undefined,
       noDeletes: true,
       noOverwrites: true,
     },

@@ -29,6 +29,7 @@
     "test:e2e:update": "playwright test --update-snapshots",
     "deploy:backend": "bash scripts/deploy-sadhana-safe.sh",
     "deploy:backend:dry-run": "bash scripts/deploy-sadhana-safe.sh --dry-run",
+    "deploy:dev:tables": "bash scripts/deploy-dev-entity-tables.sh",
     "deploy:frontend": "bash scripts/deploy-pages.sh",
     "deploy:dev:backend": "npm run deploy:backend",
     "deploy:dev:backend:dry-run": "npm run deploy:backend:dry-run",
