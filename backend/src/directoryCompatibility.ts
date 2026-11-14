@@ -156,7 +156,7 @@ export async function presentFinalTeacherLinks(
   }));
   for (const item of sessions) {
     if (item.institutionId !== inst || item.recordType !== 'series-change') continue;
-    const rule = item.legacyPayload;
+    const rule = item.calendarRecord ?? item.legacyPayload;
     if (
       !rule ||
       typeof rule.classId !== 'string' ||

@@ -10,7 +10,13 @@ import {
   DescribeContinuousBackupsCommand,
   DescribeTableCommand,
 } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  ScanCommand,
+  UpdateCommand,
+} from '@aws-sdk/lib-dynamodb';
 
 const REGION = 'us-east-1';
 const ACCOUNT = '627821644317';
@@ -136,6 +142,67 @@ const normalizedName = (value) =>
     .replace(/\s+/g, ' ')
     .normalize('NFKC');
 
+// Keep only calendar fields required by the existing API contract. This projection
+// deliberately excludes DynamoDB keys, Cognito subjects, email, and import metadata.
+const CALENDAR_FIELDS = [
+  'id',
+  'recordType',
+  'institution',
+  'name',
+  'programme',
+  'teacher',
+  'teacherId',
+  'mode',
+  'location',
+  'date',
+  'endDate',
+  'startTime',
+  'endTime',
+  'timezone',
+  'status',
+  'classId',
+  'sessionOverrideFields',
+  'affectsClasses',
+  'managedEvent',
+  'sharedEvent',
+  'effectiveFrom',
+  'effectiveUntil',
+  'changes',
+  'eventKind',
+  'version',
+  'createdAt',
+  'updatedAt',
+];
+function calendarProjection(row) {
+  const source = row.legacyPayload;
+  if (!source || typeof source !== 'object' || Array.isArray(source))
+    fail(`Selected ${row.recordType || 'calendar'} row has no source calendar fields.`);
+  const record = Object.fromEntries(
+    CALENDAR_FIELDS.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]),
+  );
+  if (
+    (record.recordType ?? row.recordType) !== 'series-change' &&
+    (typeof record.id !== 'string' || !record.id)
+  )
+    fail(
+      `Selected ${row.sessionId || row.classId || row.eventId || 'calendar'} projection (${record.recordType || row.recordType || 'unknown type'}) is missing its public ID.`,
+    );
+  return record;
+}
+function venueProjection(row) {
+  const source = row.legacyPayload;
+  if (!source || typeof source !== 'object' || Array.isArray(source))
+    fail('Selected venue row has no source directory fields.');
+  const record = Object.fromEntries(
+    ['id', 'name', 'address', 'postcode', 'location', 'archived', 'version']
+      .filter((key) => source[key] !== undefined)
+      .map((key) => [key, source[key]]),
+  );
+  if (typeof record.id !== 'string' || !record.id || typeof record.name !== 'string')
+    fail('Selected venue projection is missing its public ID or name.');
+  return record;
+}
+
 function minimalTeacher(source, id = source.personId, fallback = {}) {
   const displayName = normalizedName(
     source.displayName || source.legacyPayload?.displayName || fallback.displayName,
@@ -258,6 +325,7 @@ function selectedRows(source) {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       version: row.version,
+      calendarRecord: calendarProjection(row),
     })),
     sessions: sessions.map((row) => ({
       sessionId: row.sessionId,
@@ -285,6 +353,7 @@ function selectedRows(source) {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       version: row.version,
+      calendarRecord: calendarProjection(row),
     })),
     venues: venues.map((row) => ({
       venueId: row.venueId,
@@ -296,6 +365,7 @@ function selectedRows(source) {
       status: row.status,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      calendarRecord: venueProjection(row),
     })),
     events: events.map((row) => ({
       eventId: row.eventId,
@@ -315,6 +385,7 @@ function selectedRows(source) {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       version: row.version,
+      calendarRecord: calendarProjection(row),
     })),
     people: [...teachers.values()],
   };
@@ -380,6 +451,10 @@ function schemaShape(table) {
       .sort(),
   };
 }
+const withoutCalendarRecord = (row) => {
+  const { calendarRecord, ...rest } = row;
+  return rest;
+};
 
 async function buildPlan() {
   if (!process.env.AWS_PROFILE || process.env.AWS_REGION !== REGION)
@@ -470,12 +545,21 @@ async function targetPlan(plan) {
     const existing = await scan(TABLES[entity].target);
     const key = TABLES[entity].key;
     const selectedByKey = new Map(plan.selected[entity].map((item) => [item[key], item]));
+    const needsProjection = new Set();
     for (const row of existing) {
       const expected = selectedByKey.get(row[key]);
-      if (expected && json(row) !== json(expected))
-        fail(`${entity} prod target has a conflicting selected key; no records were written.`);
+      if (!expected || json(row) === json(expected)) continue;
+      if (
+        expected.calendarRecord &&
+        row.calendarRecord === undefined &&
+        json(withoutCalendarRecord(row)) === json(withoutCalendarRecord(expected))
+      ) {
+        needsProjection.add(row[key]);
+        continue;
+      }
+      fail(`${entity} prod target has a conflicting selected key; no records were written.`);
     }
-    targets[entity] = { existing: new Set(existing.map((row) => row[key])) };
+    targets[entity] = { existing: new Set(existing.map((row) => row[key])), needsProjection };
   }
   for (const tableName of ALL_PROD_ENTITY_TABLES) {
     const { table, pitr } = await describe(tableName);
@@ -497,9 +581,24 @@ async function targetPlan(plan) {
 }
 
 async function applyPlan(plan, targets) {
+  let projectionsAdded = 0;
   for (const entity of Object.keys(TABLES)) {
     const { target, key } = TABLES[entity];
     for (const item of plan.selected[entity]) {
+      if (targets[entity].needsProjection.has(item[key])) {
+        await client.send(
+          new UpdateCommand({
+            TableName: target,
+            Key: { [key]: item[key] },
+            UpdateExpression: 'SET #calendarRecord = :calendarRecord',
+            ConditionExpression: 'attribute_not_exists(#calendarRecord)',
+            ExpressionAttributeNames: { '#calendarRecord': 'calendarRecord' },
+            ExpressionAttributeValues: { ':calendarRecord': item.calendarRecord },
+          }),
+        );
+        projectionsAdded++;
+        continue;
+      }
       if (targets[entity].existing.has(item[key])) continue;
       try {
         await client.send(
@@ -529,6 +628,7 @@ async function applyPlan(plan, targets) {
     for (const [key, row] of expected)
       if (json(actualByKey.get(key)) !== json(row)) fail(`${entity} prod verification failed.`);
   }
+  return projectionsAdded;
 }
 
 try {
@@ -542,13 +642,26 @@ try {
       fail('Source data differs from the reviewed fingerprint; run --plan again.');
     const targets = await targetPlan(plan);
     console.log(
-      JSON.stringify({ ...plan.summary, readOnly: false, targetPreflight: 'passed' }, null, 2),
+      JSON.stringify(
+        {
+          ...plan.summary,
+          readOnly: false,
+          targetPreflight: 'passed',
+          selectedRowsNeedingCalendarProjection: Object.values(targets).reduce(
+            (sum, target) => sum + target.needsProjection.size,
+            0,
+          ),
+        },
+        null,
+        2,
+      ),
     );
-    await applyPlan(plan, targets);
+    const projectionsAdded = await applyPlan(plan, targets);
     console.log(
       JSON.stringify({
         result: 'COPY_PASS',
         recordsWrittenOrAlreadyPresent: plan.records.length,
+        calendarProjectionsAdded: projectionsAdded,
         noDeletes: true,
         devUntouched: true,
       }),
