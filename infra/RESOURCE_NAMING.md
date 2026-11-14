@@ -18,7 +18,7 @@ Use the environment first for stage-scoped resources: `dev-<application>-<resour
 | Sruti public intake API and Lambda | `dev-sadhana-sruti-public-intake` / `dev-sruti-public-intake` | `prod-sadhana-sruti-public-intake` / `prod-sruti-public-intake` |
 | Sruti intake deployment bucket     | `dev-sadhana-intake-deploy-<account>-<region>`                | `prod-sadhana-intake-deploy-<account>-<region>`                 |
 | Portal asset bucket                | n/a                                                           | `prod-sadhana-portal-<account>`                                 |
-| Staff Cognito pool                 | n/a                                                           | `prod-sadhana-staff`                                            |
+| Staff Cognito pool                 | `dev-sadhana-user-pool`                                       | `prod-sadhana-user-pool`                                        |
 
 Use these CloudFormation stack names for newly created stacks: `dev-sadhana-app`,
 `prod-sadhana-app`, `dev-sadhana-entity-tables`, `prod-sadhana-entity-tables`,
@@ -50,10 +50,11 @@ keeps the deployed legacy route intact while replacement tables are created and 
 7. Verify both production domains, API CORS, login, registration review/import, and media
    access. Retire old resources only through a separately reviewed cleanup step.
 
-The manual GitHub workflow `.github/workflows/prod-backend-bootstrap.yml` provisions only
-the new `prod-sadhana-*` tables, the `prod-sadhana-app` API stack, and a disabled production
-Sruti intake stack. It runs the full test suite, then waits for approval on the GitHub
-`production` environment before applying AWS changes. It leaves existing `sadhana-prod-*`
+The manual GitHub workflow `.github/workflows/prod-backend-bootstrap.yml` provisions the new
+`prod-sadhana-*` tables, the `prod-sadhana-app` API stack, a disabled production Sruti intake
+stack, and the existing production Cognito pool settings and invitation Lambda. It runs the
+full test suite, then waits for approval on the GitHub `production` environment before applying
+AWS changes. It leaves existing `sadhana-prod-*`
 tables, the current dev stack, and the active Sruti intake untouched. It does not copy data
 or publish the portal; those remain separate release steps after the new backend is verified.
 

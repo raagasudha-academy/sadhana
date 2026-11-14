@@ -5,7 +5,12 @@
       "Sid": "WriteApplicationLogs",
       "Effect": "Allow",
       "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-      "Resource": "arn:aws:logs:us-east-1:627821644317:log-group:/aws/lambda/prod-sadhana-api:*"
+      "Resource": [
+        "arn:aws:logs:us-east-1:627821644317:log-group:/aws/lambda/prod-sadhana-api",
+        "arn:aws:logs:us-east-1:627821644317:log-group:/aws/lambda/prod-sadhana-api:*",
+        "arn:aws:logs:us-east-1:627821644317:log-group:/aws/lambda/prod-sadhana-cognito-invitation",
+        "arn:aws:logs:us-east-1:627821644317:log-group:/aws/lambda/prod-sadhana-cognito-invitation:*"
+      ]
     },
     {
       "Sid": "AccessProductionSadhanaTables",

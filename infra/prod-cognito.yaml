@@ -10,6 +10,10 @@ Parameters:
     Type: CommaDelimitedList
     Default: sadhana.sruti.co.uk,sadhana.raagasudhamusic.co.uk
     Description: Production frontend hostnames used for OAuth callbacks and logout.
+  InvitationLambdaS3Key:
+    Type: String
+    Default: cognito-invitation/current.zip
+    Description: S3 object key for the production Cognito invitation Lambda package.
 
 Resources:
   SadhanaProdUserPool:
@@ -17,18 +21,29 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      UserPoolName: prod-sadhana-staff
+      UserPoolName: prod-sadhana-user-pool
       DeletionProtection: ACTIVE
       UsernameAttributes: [email]
-      AutoVerifiedAttributes: [email]
+      AutoVerifiedAttributes: [email, phone_number]
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        SourceArn: arn:aws:ses:us-east-1:627821644317:identity/sruti.co.uk
+        From: 'Śruti Vedam <noreply@sruti.co.uk>'
+        ReplyToEmailAddress: raagasudhaacademy.support@gmail.com
+        ConfigurationSet: sadhana-email-tracking
+      SmsConfiguration:
+        SnsCallerArn: arn:aws:iam::627821644317:role/service-role/CognitoIdpSNSServiceRole
+        ExternalId: 853ec55a-3e55-40e8-a31e-eeea0601339e
+        SnsRegion: us-east-1
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Name: verified_email
             Priority: 1
+          - Name: verified_phone_number
+            Priority: 2
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: true
-      MfaConfiguration: 'ON'
-      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      MfaConfiguration: 'OFF'
       Policies:
         PasswordPolicy:
           MinimumLength: 12
@@ -44,9 +59,61 @@ Resources:
           Required: true
       UserAttributeUpdateSettings:
         AttributesRequireVerificationBeforeUpdate: [email]
+      LambdaConfig:
+        CustomMessage: !GetAtt SadhanaProdInvitationFunction.Arn
       UserPoolTags:
         Application: Sadhana
         Environment: prod
+
+  SadhanaProdInvitationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: prod-sadhana-cognito-invitation-role
+      PermissionsBoundary: arn:aws:iam::627821644317:policy/SadhanaProdLambdaBoundary
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: prod
+
+  SadhanaProdInvitationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: prod-sadhana-cognito-invitation
+      Description: Builds Cognito invitation messages for the production Sadhana portal.
+      Runtime: nodejs24.x
+      Handler: index.handler
+      Role: !GetAtt SadhanaProdInvitationRole.Arn
+      Timeout: 10
+      MemorySize: 128
+      Code:
+        S3Bucket: prod-sadhana-intake-deploy-627821644317-us-east-1
+        S3Key: !Ref InvitationLambdaS3Key
+      Environment:
+        Variables:
+          SADHANA_PARENT_LOGIN_URL: https://sadhana.sruti.co.uk/
+      Tags:
+        - Key: Application
+          Value: Sadhana
+        - Key: Environment
+          Value: prod
+
+  SadhanaProdInvitationInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt SadhanaProdInvitationFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${SadhanaProdUserPool}'
 
   SadhanaProdAppClient:
     Type: AWS::Cognito::UserPoolClient

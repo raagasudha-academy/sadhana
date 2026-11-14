@@ -119,12 +119,38 @@ jobs:
           fi
           aws iam get-policy --policy-arn arn:aws:iam::627821644317:policy/SadhanaProdLambdaBoundary >/dev/null
           aws iam get-policy --policy-arn arn:aws:iam::627821644317:policy/SrutiProdIntakeBoundary >/dev/null
+      - name: Package the production Cognito invitation function
+        run: |
+          package_dir="$RUNNER_TEMP/prod-cognito-invitation"
+          mkdir -p "$package_dir"
+          ./backend/node_modules/.bin/esbuild backend/src/cognitoInvitationMessage.ts \
+            --bundle --platform=node --target=node24 --format=esm \
+            --outfile="$package_dir/index.mjs"
+          (cd "$package_dir" && zip -q invitation.zip index.mjs)
+          key="cognito-invitation/${GITHUB_SHA}.zip"
+          aws s3 cp "$package_dir/invitation.zip" \
+            "s3://prod-sadhana-intake-deploy-627821644317-${AWS_REGION}/$key"
+          echo "COGNITO_INVITATION_LAMBDA_S3_KEY=$key" >> "$GITHUB_ENV"
+      - name: Deploy production Cognito email and invitation settings
+        run: |
+          aws cloudformation deploy \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --stack-name sadhana-prod-cognito \
+            --template-file infra/prod-cognito.yaml \
+            --s3-bucket "prod-sadhana-intake-deploy-627821644317-${AWS_REGION}" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "CognitoDomainPrefix=sadhana-prod-627821644317" \
+              "PortalDomains=sadhana.sruti.co.uk,sadhana.raagasudhamusic.co.uk" \
+              "InvitationLambdaS3Key=$COGNITO_INVITATION_LAMBDA_S3_KEY"
       - name: Resolve the existing production Cognito client
         run: |
           pool_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue|[0]' --output text)"
           client_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`AppClientId`].OutputValue|[0]' --output text)"
           pool_name="$(aws cognito-idp describe-user-pool --user-pool-id "$pool_id" --region "$AWS_REGION" --query 'UserPool.Name' --output text)"
-          if [ "$pool_name" != sadhana-prod-staff ] || [ -z "$client_id" ] || [ "$client_id" = None ]; then
+          if [ "$pool_name" != prod-sadhana-user-pool ] || [ -z "$client_id" ] || [ "$client_id" = None ]; then
             echo 'The existing production Cognito pool/client could not be verified.'
             exit 1
           fi

@@ -16,12 +16,14 @@ Use `infra/github-production-bootstrap-trust.json` as the GitHub role trust poli
 `raagasudha-academy/sadhana` jobs that declare the `production` environment. It accepts both
 the classic name-based subject and GitHub's immutable organization/repository ID subject, each
 restricted to that same environment. Its permissions are limited to the three new production
-stacks, passing only the dedicated CloudFormation role,
-reading the current production Cognito pool and Sruti table metadata, and packaging artifacts in
-the production deployment bucket. Do not attach `AdministratorAccess` or grant this GitHub role
-access to development resources or DynamoDB item contents.
+stacks, passing only the dedicated CloudFormation role, reading the current production Cognito
+pool and Sruti table metadata, and packaging artifacts in the production deployment bucket. The
+additional policy in `infra/iam/github-production-cognito-deployment-permissions.json` grants
+deployment access only to the existing `sadhana-prod-cognito` stack. Do not attach
+`AdministratorAccess` or grant this GitHub role access to development resources or DynamoDB item
+contents.
 
-`cloudformation:DescribeStacks` is granted separately for the three production stacks because
+`cloudformation:DescribeStacks` is granted separately for the production stacks because
 the bootstrap's stack lookups do not include a `cloudformation:RoleArn` request condition.
 Change-set inspection and execution actions are also granted separately, scoped to the three
 named production stacks, because those API requests do not carry the role parameter. Stack
@@ -35,8 +37,9 @@ Create the CloudFormation role `prod-sadhana-cloudformation-execution` with trus
 permissions boundaries from `infra/iam/sadhana-prod-lambda-boundary.json` and
 `infra/iam/sruti-prod-intake-boundary.json` first. The app and intake templates apply the
 boundaries only for `Stage=prod`; the deployment policy requires those exact boundaries for all
-Lambda roles it creates or passes. Review CloudFormation change sets before approving the
-environment job.
+Lambda roles it creates or passes. The `ProductionCognitoUpdates` inline policy in
+`infra/iam/prod-cognito-cloudformation-execution-permissions.json` grants updates to the existing
+production user pool only. Review CloudFormation change sets before approving the environment job.
 
 ## GitHub environment
 
@@ -65,9 +68,10 @@ above before dispatching the workflow.
 
 After this branch is merged or pushed to `main`, run **Sadhana production backend bootstrap**
 from **Actions → Run workflow**. The workflow runs the frontend, backend, Python, and production
-table-name checks before the protected `bootstrap` job can request approval. That job creates
-the prefixed production tables, Sadhana API resources, and a disabled Sruti intake stack. It
-does not copy selected development data, publish the portal, or switch the live Sruti intake.
+table-name checks before the protected `bootstrap` job can request approval. That job updates
+the existing production Cognito pool and its custom invitation Lambda, creates the prefixed
+production tables and Sadhana API resources, and deploys a disabled Sruti intake stack. It does
+not copy selected development data, publish the portal, or switch the live Sruti intake.
 
 The portal release remains blocked until production data, authenticated canaries, intake
 routing, and rollback checks are verified.
