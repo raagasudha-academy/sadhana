@@ -13,6 +13,7 @@ export type CompatibleItem = {
   institutionId?: string;
   institutionIds?: string[];
   recordType?: string;
+  calendarRecord?: Record<string, any>;
   legacyPayload?: Record<string, any>;
 };
 export type CompatClient = { send: (command: any) => Promise<any> };
@@ -24,16 +25,15 @@ const limits: Record<CompatibleEntity, number> = {
   people: 1000,
 };
 export function legacyRecord(item: CompatibleItem): Record<string, any> {
-  if (
-    !item ||
-    !item.legacyPayload ||
-    typeof item.legacyPayload !== 'object' ||
-    Array.isArray(item.legacyPayload)
-  )
+  const payload = item?.calendarRecord ?? item?.legacyPayload;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload))
     throw Error('M9_COMPAT_MISSING_LEGACY_PAYLOAD');
-  const { PK, SK, GSI1PK, GSI1SK, GSI2PK, GSI2SK, entityType, ...fields } = item.legacyPayload;
+  const { PK, SK, GSI1PK, GSI1SK, GSI2PK, GSI2SK, entityType, ...fields } = payload;
   if (typeof fields.id !== 'string' || !fields.id) throw Error('M9_COMPAT_MISSING_LEGACY_ID');
   return fields;
+}
+function calendarRecord(item: CompatibleItem): Record<string, any> | undefined {
+  return item.calendarRecord ?? item.legacyPayload;
 }
 export function assembleSchedule(
   inst: ScheduleInstitution,
@@ -45,7 +45,7 @@ export function assembleSchedule(
   const regular = [
     ...classes,
     ...sessions,
-    ...events.filter((item) => item.legacyPayload?.recordType === 'special-event'),
+    ...events.filter((item) => calendarRecord(item)?.recordType === 'special-event'),
   ]
     .filter((item) => item.institutionId === inst && item.recordType !== 'series-change')
     .map((item) => legacyRecord(item) as ScheduleRecord);
@@ -60,7 +60,7 @@ export function assembleSchedule(
   const rules = sessions
     .filter((x) => x.institutionId === inst && x.recordType === 'series-change')
     .map((x) => {
-      const raw = x.legacyPayload;
+      const raw = calendarRecord(x);
       if (
         !raw ||
         typeof raw.classId !== 'string' ||

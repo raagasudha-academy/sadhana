@@ -83,6 +83,22 @@ test('venue directory includes a venue when an academy class uses it and strips 
   assert.equal(out.records[0].name, 'North Centre');
   assert.ok(!('GSI1PK' in out.records[0]));
 });
+test('production venues use the safe calendar projection without legacy payload', () => {
+  const canonicalVenue = {
+    venueId: 'VENUE-1',
+    name: 'North Centre',
+    calendarRecord: {
+      id: 'VENUE-1',
+      name: 'North Centre',
+      location: 'North',
+      address: '1 High Street',
+      postcode: 'NE1',
+      archived: false,
+    },
+  };
+  const out = presentM9Venues('raaga', viewer, [canonicalVenue], [raagaVenueClass]);
+  assert.deepEqual(out.records, [canonicalVenue.calendarRecord]);
+});
 test('venue directory hides academy-only venues and keeps venues shared by class usage', () => {
   assert.equal(presentM9Venues('sruti', outsider, [venue], [raagaVenueClass]).records.length, 0);
   assert.equal(

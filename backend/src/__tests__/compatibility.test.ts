@@ -210,6 +210,52 @@ test('transferred M9 events are included by their legacyPayload recordType', () 
   assert.equal(result.records[0].id, 'E-REAL');
 });
 
+test('production calendar projection reads allowlisted canonical records without legacy payload', () => {
+  const cls = {
+    classId: 'CLASS-PROD-1',
+    institutionId: 'raaga',
+    calendarRecord: {
+      id: 'CLASS-PROD-1',
+      recordType: 'class',
+      institution: 'raaga',
+      name: 'Prod vocal class',
+      programme: 'Carnatic Vocal',
+      teacher: 'Teacher One',
+      mode: 'in-person',
+      location: 'Newcastle',
+      startTime: '10:00',
+      endTime: '11:00',
+      timezone: 'Europe/London',
+      status: 'confirmed',
+      version: 1,
+    },
+  };
+  const session = {
+    sessionId: 'SESSION-PROD-1',
+    recordType: 'class-session',
+    institutionId: 'raaga',
+    calendarRecord: {
+      ...base('SESSION-PROD-1', 'class-session').legacyPayload,
+      classId: 'CLASS-PROD-1',
+    },
+  };
+  const rule = {
+    sessionId: 'RULE-PROD-1',
+    recordType: 'series-change',
+    institutionId: 'raaga',
+    calendarRecord: {
+      classId: 'CLASS-PROD-1',
+      effectiveFrom: '2026-11-01',
+      changes: { startTime: '09:30' },
+    },
+  };
+  const output = assembleSchedule('raaga', [cls], [session, rule]);
+  assert.equal(output.records.length, 2);
+  assert.equal(output.records[0].name, 'Prod vocal class');
+  assert.equal(output.records[1].classId, 'CLASS-PROD-1');
+  for (const record of output.records) assert.equal('calendarRecord' in record, false);
+});
+
 test('M9 reader reconstructs transferred event with no top-level recordType', async () => {
   const item = {
     institutionId: 'raaga',
