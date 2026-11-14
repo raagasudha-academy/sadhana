@@ -30,21 +30,33 @@ Parameters:
     Default: 'false'
     AllowedValues: ['true', 'false']
     Description: Set true for production after reviewing backup/restore requirements and additional cost
+  SrutiIngressReady:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable only after verifying the stage-specific Sruti intake writer and destination table
+  SrutiRegistrationReads:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable the authenticated Sruti registration list/detail API after the intake target is verified
 
 Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
   CreateAggregateTable: !Not [!Equals [!Ref Stage, prod]]
   UseProdLambdaBoundary: !Equals [!Ref Stage, prod]
-  UseLegacyDevTeacherIdentityIndex: !Equals [!Ref Stage, dev]
 
 Mappings:
   StageTables:
     dev:
       SrutiSource: dev-sruti-student-registrations
+      SrutiRegistration: dev-sruti-student-registrations
     staging:
       SrutiSource: staging-sruti-student-registrations
+      SrutiRegistration: staging-sruti-student-registrations
     prod:
       SrutiSource: prod-sruti-student-registrations
+      SrutiRegistration: prod-sruti-student-registrations
 
 Resources:
   SadhanaHomeworkMedia:
@@ -205,15 +217,15 @@ Resources:
             - !Sub '${Stage}-sadhana-main'
           SADHANA_ENTITY_STAGE: !Ref Stage
           SRUTI_SOURCE_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiSource]
+          SRUTI_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiRegistration]
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
-          SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !If
-            - UseLegacyDevTeacherIdentityIndex
-            - sadhana-dev-people
-            - !Sub '${Stage}-sadhana-people'
+          SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
           SADHANA_ENTITY_TABLE_SET: final
           SADHANA_ENTITY_FINAL_ACK: enabled
           SADHANA_DATA_MODE: final
+          SADHANA_FINAL_SRUTI_INGRESS_READY: !Ref SrutiIngressReady
+          SADHANA_FINAL_SRUTI_REGISTRATION_READS: !Ref SrutiRegistrationReads
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:
@@ -226,6 +238,7 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:DeleteItem
                 - dynamodb:Query
+                - dynamodb:Scan
                 - dynamodb:ConditionCheckItem
               Resource:
                 - !If
@@ -238,12 +251,6 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-main/index/*'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-*'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-*/index/*'
-            - !If
-              - UseLegacyDevTeacherIdentityIndex
-              - Effect: Allow
-                Action: [dynamodb:Query]
-                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-dev-people/index/CognitoIdentityIndex'
-              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - dynamodb:GetItem

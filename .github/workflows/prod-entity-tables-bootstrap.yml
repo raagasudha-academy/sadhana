@@ -1,0 +1,119 @@
+name: Sadhana production entity tables
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sadhana-production-tables
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - name: Require main branch release
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo 'Production resources can only be bootstrapped from main.'
+            exit 1
+          fi
+      - run: npm run verify
+      - name: Install Chromium for frontend E2E
+        run: npx playwright install chromium
+      - run: npm run test:frontend:playwright
+      - run: npm run verify:backend
+      - run: npm run test:backend:unit
+      - run: npm run test:backend:e2e
+      - name: Run Python helper tests
+        run: |
+          python -m pip install boto3
+          npm run test:python
+      - name: Validate production table names
+        run: |
+          node --input-type=module <<'NODE'
+          import { makeProductionEntityTablesTemplate } from './backend/scripts/prodEntityTablesTemplate.mjs';
+          const template = makeProductionEntityTablesTemplate('prod');
+          const names = Object.values(template.Resources).map((resource) => resource.Properties.TableName);
+          if (names.length !== 20) throw new Error(`Expected 20 production tables, found ${names.length}.`);
+          if (names.some((name) => !['prod-sadhana-', 'prod-sruti-', 'prod-raagasudha-'].some((prefix) => name.startsWith(prefix)))) {
+            throw new Error('A production table is missing its environment-first prefix.');
+          }
+          console.log(`Validated ${names.length} production-prefixed tables.`);
+          NODE
+
+  provision:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      CLOUDFORMATION_EXECUTION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check production inputs
+        run: |
+          for value in "$AWS_REGION" "$AWS_ROLE_ARN" "$CLOUDFORMATION_EXECUTION_ROLE_ARN"; do
+            if [ -z "$value" ]; then
+              echo 'Missing production environment variable or secret.'
+              exit 1
+            fi
+          done
+          if [ "$AWS_REGION" != us-east-1 ] || [ "$CLOUDFORMATION_EXECUTION_ROLE_ARN" != 'arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution' ]; then
+            echo 'Unexpected AWS region or CloudFormation execution role.'
+            exit 1
+          fi
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Verify AWS account and CloudFormation role
+        run: |
+          account="$(aws sts get-caller-identity --query Account --output text)"
+          test "$account" = 627821644317 || { echo "Unexpected AWS account: $account"; exit 1; }
+          trust="$(aws iam get-role --role-name prod-sadhana-cloudformation-execution --query 'Role.AssumeRolePolicyDocument.Statement[0].Principal.Service' --output text)"
+          test "$trust" = cloudformation.amazonaws.com || { echo 'Unexpected CloudFormation role trust policy.'; exit 1; }
+      - name: Create or update production tables
+        run: |
+          node backend/scripts/prodEntityTablesTemplate.mjs --stage prod --output "$RUNNER_TEMP/prod-sadhana-tables.json"
+          aws cloudformation deploy \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --stack-name prod-sadhana-entity-tables \
+            --template-file "$RUNNER_TEMP/prod-sadhana-tables.json" \
+            --no-fail-on-empty-changeset \
+            --tags Application=Sadhana Environment=prod
+      - name: Confirm production registration tables
+        run: |
+          for table in prod-sruti-student-registrations prod-raagasudha-student-registrations; do
+            aws dynamodb wait table-exists --region "$AWS_REGION" --table-name "$table"
+            aws dynamodb describe-table --region "$AWS_REGION" --table-name "$table" --query 'Table.TableStatus' --output text | grep -qx ACTIVE
+          done
+          echo '### Table-only deployment complete' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Both stage-specific public intake source tables are ACTIVE.' >> "$GITHUB_STEP_SUMMARY"
+          echo '- No API, Lambda, Cognito, website, or existing table data was changed.' >> "$GITHUB_STEP_SUMMARY"

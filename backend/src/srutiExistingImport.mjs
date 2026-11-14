@@ -6,7 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { entityTable } from './entityTables.mjs';
-import { srutiSourceTable } from './srutiRegistrationSource.mjs';
+import { srutiRegistrationTable } from './srutiRegistrationSource.mjs';
 import { permanentRoll } from './academyRoll.mjs';
 import { validateSrutiSubmission } from './srutiIntakeCore.mjs';
 import { guardianLinkId, markerId } from './websiteImportCore.mjs';
@@ -81,7 +81,13 @@ export async function srutiExistingIdentityImport(
     body.evidenceReference.length > 180
   )
     fail(400, 'Administrator-confirmed canonical identity IDs and evidence are required.');
-  const src = await get(db, 'registrations', 'registrationId', registrationId, srutiSourceTable());
+  const src = await get(
+    db,
+    'registrations',
+    'registrationId',
+    registrationId,
+    srutiRegistrationTable(),
+  );
   if (
     !src ||
     src.institutionId !== 'sruti' ||
@@ -332,7 +338,7 @@ export async function srutiExistingIdentityImport(
   tx.push(newPut('registrations', 'registrationId', reg));
   tx.push({
     Update: {
-      TableName: srutiSourceTable(),
+      TableName: srutiRegistrationTable(),
       Key: { registrationId },
       UpdateExpression:
         'SET importStatus=:imported, updatedAt=:now, #v=:next, familyId=:family, studentIds=:students',

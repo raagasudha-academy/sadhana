@@ -25,7 +25,7 @@ import {
 } from './websiteImportCore.mjs';
 import { prepareLegacyImportBridge } from './legacyImportBridge.mjs';
 import { toApprovedM9Registration } from './srutiIntakeCore.mjs';
-import { srutiSourceTable } from './srutiRegistrationSource.mjs';
+import { srutiRegistrationTable } from './srutiRegistrationSource.mjs';
 import { canonicalRaagaRegistration } from './raagaImportSource.mjs';
 import { assertRaagaWebsiteSyncPolicy } from './raagaWebsiteSyncPolicy.mjs';
 const db = DynamoDBDocumentClient.from(
@@ -84,7 +84,7 @@ const finalRaaga = () =>
 const acknowledgeSrutiSourceImport = async (registrationId: string, now: string) => {
   await db.send(
     new UpdateCommand({
-      TableName: srutiSourceTable(),
+      TableName: srutiRegistrationTable(),
       Key: { registrationId },
       UpdateExpression: 'SET importStatus=:imported,updatedAt=:now',
       ConditionExpression:
@@ -215,7 +215,7 @@ export async function m95ImportApprovedWebsiteRegistration(
           (
             await db.send(
               new GetCommand({
-                TableName: srutiSourceTable(),
+                TableName: srutiRegistrationTable(),
                 Key: { registrationId },
                 ConsistentRead: true,
               }),

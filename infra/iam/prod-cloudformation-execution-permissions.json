@@ -16,7 +16,8 @@
       ],
       "Resource": [
         "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sadhana-*",
-        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-*"
+        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-*",
+        "arn:aws:dynamodb:us-east-1:627821644317:table/prod-raagasudha-student-registrations"
       ]
     },
     {

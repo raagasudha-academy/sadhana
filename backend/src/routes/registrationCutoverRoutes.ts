@@ -1,4 +1,4 @@
-import { srutiSourceTable } from '../srutiRegistrationSource.mjs';
+import { srutiRegistrationTable } from '../srutiRegistrationSource.mjs';
 /** Sruti-only M9 intake directory and separately gated review decisions.
  * Student import, photo upload, provisioning and revocation remain separate.
  */
@@ -28,7 +28,7 @@ const client = () =>
     new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }),
   ));
 // Lazy resolution prevents a missing final-table acknowledgement from failing Lambda cold start.
-const sourceTable = () => srutiSourceTable();
+const sourceTable = () => srutiRegistrationTable();
 const defaultReader: RegistrationReader = {
   async list(inst, limit) {
     const page = await client().send(

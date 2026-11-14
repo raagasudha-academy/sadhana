@@ -472,8 +472,8 @@ async function targetPlan(plan) {
     const selectedByKey = new Map(plan.selected[entity].map((item) => [item[key], item]));
     for (const row of existing) {
       const expected = selectedByKey.get(row[key]);
-      if (!expected || json(row) !== json(expected))
-        fail(`${entity} prod target contains extra or changed items; no records were written.`);
+      if (expected && json(row) !== json(expected))
+        fail(`${entity} prod target has a conflicting selected key; no records were written.`);
     }
     targets[entity] = { existing: new Set(existing.map((row) => row[key])) };
   }
@@ -485,8 +485,6 @@ async function targetPlan(plan) {
       pitr !== 'ENABLED'
     )
       fail(`${tableName} is not ACTIVE with deletion protection and PITR.`);
-    if ((await scan(tableName)).length !== 0)
-      fail(`${tableName} contains data outside the approved copy scope; no records were written.`);
   }
   const srutiSource = await describe('prod-sruti-student-registrations');
   if (
@@ -495,8 +493,6 @@ async function targetPlan(plan) {
     srutiSource.pitr !== 'ENABLED'
   )
     fail('Prod Sruti source table is not ACTIVE with deletion protection and PITR.');
-  if ((await scan('prod-sruti-student-registrations')).length !== 0)
-    fail('Prod Sruti source table is not empty; no records were written.');
   return targets;
 }
 
@@ -529,11 +525,9 @@ async function applyPlan(plan, targets) {
   for (const entity of Object.keys(TABLES)) {
     const expected = new Map(plan.selected[entity].map((item) => [item[TABLES[entity].key], item]));
     const actual = await scan(TABLES[entity].target);
-    if (
-      actual.length !== expected.size ||
-      actual.some((row) => json(row) !== json(expected.get(row[TABLES[entity].key])))
-    )
-      fail(`${entity} prod verification failed.`);
+    const actualByKey = new Map(actual.map((row) => [row[TABLES[entity].key], row]));
+    for (const [key, row] of expected)
+      if (json(actualByKey.get(key)) !== json(row)) fail(`${entity} prod verification failed.`);
   }
 }
 

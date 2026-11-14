@@ -38,8 +38,11 @@ change routing for other entities.
 ## Migration order
 
 1. Create the environment-first tables in new stacks; retain the existing stacks and tables.
-2. Back up and copy development data into the `dev-sadhana-*` tables, then verify table
-   schemas, item counts, and sampled records. Keep the old tables available for rollback.
+2. Copy canonical entity data additively from `sadhana-dev-*` to `dev-sadhana-*` and from
+   `sadhana-prod-*` to `prod-sadhana-*` with `npm --prefix backend run migrate:table-prefix --
+--stage <dev|prod> --plan`, then apply only the reviewed fingerprint. This checks the key
+   and index schemas, rejects conflicting records, and never overwrites or deletes source data.
+   Keep the old tables available for rollback.
 3. Copy only the previously selected classes, calendar sessions, venues, shared events, and
    minimal teacher profiles from development into production. Do not copy registrations or
    family/login data as part of this seed.
@@ -70,12 +73,34 @@ CloudFormation role. The production SSM SecureString
 used. The existing production Cognito pool and client are read from the current
 `sadhana-prod-cognito` stack to preserve user identities.
 
-The table template generator can prepare a local template without making AWS calls:
+The table template generator prepares 20 retained resources (18 Sadhana entity tables and
+the two academy intake sources) without making AWS calls:
 
 ```sh
 node backend/scripts/prodEntityTablesTemplate.mjs --stage dev --output /tmp/dev-sadhana-tables.json
 node backend/scripts/prodEntityTablesTemplate.mjs --stage prod --output /tmp/prod-sadhana-tables.json
 ```
+
+Create the development entity-table stack after inspecting its change set:
+
+```sh
+aws cloudformation deploy --region us-east-1 --stack-name dev-sadhana-entity-tables \
+  --template-file /tmp/dev-sadhana-tables.json --tags Application=Sadhana Environment=dev
+```
+
+The existing `sadhana-dev-*` and `sadhana-prod-*` tables are data sources during migration.
+Populate and verify the environment-first targets before changing any live writer or retiring
+the old tables. DynamoDB has no in-place table rename; this is a create, copy, verify, and
+route-switch operation. Keep the old tables available for rollback until the route switch is
+confirmed.
+
+Run `npm --prefix backend run migrate:table-prefix -- --stage dev --plan` first. Apply only
+after reviewing its source fingerprints and target counts, using the printed fingerprint and
+`--confirm MIGRATE_DEV_ENTITY_TABLES`. Repeat for production with `--stage prod` and
+`--confirm MIGRATE_PROD_ENTITY_TABLES`. The migration copies canonical entity tables. Production
+also migrates the existing Sruti and Raagasudha intake sources into their stage-first source
+tables. Development intake tables start empty so raw website submissions are never copied into
+dev. The migration never deletes a source table.
 
 Changing a DynamoDB `TableName` in CloudFormation requires replacement; the replacement
 tables must be created and populated before application routing switches. See the
