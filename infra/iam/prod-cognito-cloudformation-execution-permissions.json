@@ -24,10 +24,7 @@
       "Sid": "PassOnlyCognitoSmsDeliveryRoleToCognito",
       "Effect": "Allow",
       "Action": ["iam:PassRole"],
-      "Resource": "arn:aws:iam::627821644317:role/service-role/CognitoIdpSNSServiceRole",
-      "Condition": {
-        "StringEquals": { "iam:PassedToService": "cognito-idp.amazonaws.com" }
-      }
+      "Resource": "arn:aws:iam::627821644317:role/service-role/CognitoIdpSNSServiceRole"
     }
   ]
 }
