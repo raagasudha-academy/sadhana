@@ -96,6 +96,21 @@ test('admin reads require dedicated flag, ACK, and non-split mode', async () => 
     assert.deepEqual(calls, []);
   }
 });
+test('SAM enables administrator and guardian queue reads only in production', () => {
+  const template = readFileSync(new URL('../../../infra/template.yaml', import.meta.url), 'utf8');
+  assert.match(
+    template,
+    /SADHANA_FINAL_ADMIN_READS:\s*!If\s*\[UseProdLambdaBoundary,\s*enabled,\s*!Ref AWS::NoValue\]/,
+  );
+  assert.match(
+    template,
+    /SADHANA_FINAL_GUARDIAN_QUEUE_READS:\s*!If\s*\[UseProdLambdaBoundary,\s*enabled,\s*!Ref AWS::NoValue\]/,
+  );
+  assert.doesNotMatch(
+    template,
+    /SADHANA_FINAL_(?:ADMIN_(?:INVITES|ACCESS_CHANGES|PROFILE_WRITES)|GUARDIAN_(?:REQUESTS|DECISIONS)):/,
+  );
+});
 test('read denies unauthorised staff, missing JWT and invalid academy', async () => {
   clear();
   await assert.rejects(() => route('administrators', 'GET', 'raaga', staff), { status: 403 });

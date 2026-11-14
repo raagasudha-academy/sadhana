@@ -49,18 +49,23 @@ export const VIEWER_GROUPS: Readonly<Record<InstitutionId, string>> = Object.fre
   sruti: 'sruti-viewer',
 });
 export const SUPER_ADMIN_GROUP = 'sadhana-super-admin';
+export const PROD_SUPER_ADMIN_GROUP = 'prod-super-admin';
+export const SUPER_ADMIN_GROUPS: readonly string[] = Object.freeze([
+  SUPER_ADMIN_GROUP,
+  PROD_SUPER_ADMIN_GROUP,
+]);
 export const isSuperAdmin = (claims: Claims) =>
-  groupsFromClaims(claims).includes(SUPER_ADMIN_GROUP);
+  groupsFromClaims(claims).some((group) => SUPER_ADMIN_GROUPS.includes(group));
 /** Administrator membership is the *only* authority for writes. */
 export function permittedInstitutions(claims: Claims): InstitutionId[] {
   const groups = groupsFromClaims(claims);
-  if (groups.includes(SUPER_ADMIN_GROUP)) return [...INSTITUTIONS];
+  if (groups.some((group) => SUPER_ADMIN_GROUPS.includes(group))) return [...INSTITUTIONS];
   return INSTITUTIONS.filter((inst) => groups.includes(ADMIN_GROUPS[inst]));
 }
 /** Read-only staff have academy-scoped calendar, class and venue access. */
 export function viewableInstitutions(claims: Claims): InstitutionId[] {
   const groups = groupsFromClaims(claims);
-  if (groups.includes(SUPER_ADMIN_GROUP)) return [...INSTITUTIONS];
+  if (groups.some((group) => SUPER_ADMIN_GROUPS.includes(group))) return [...INSTITUTIONS];
   return INSTITUTIONS.filter(
     (inst) => groups.includes(ADMIN_GROUPS[inst]) || groups.includes(VIEWER_GROUPS[inst]),
   );

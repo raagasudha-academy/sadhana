@@ -226,6 +226,9 @@ Resources:
           SADHANA_DATA_MODE: final
           SADHANA_FINAL_SRUTI_INGRESS_READY: !Ref SrutiIngressReady
           SADHANA_FINAL_SRUTI_REGISTRATION_READS: !Ref SrutiRegistrationReads
+          SADHANA_FINAL_ADMIN_READS: !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
+          SADHANA_FINAL_GUARDIAN_QUEUE_READS:
+            !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:

@@ -9,7 +9,7 @@ import {
   AdminRemoveUserFromGroupCommand,
   AdminUpdateUserAttributesCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { demandInstitution, httpError, SUPER_ADMIN_GROUP } from './model.ts';
+import { demandInstitution, httpError, SUPER_ADMIN_GROUPS } from './model.ts';
 import { adminPhotoUrl } from './profilePhotos.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import {
@@ -179,7 +179,7 @@ export async function changeAdministratorAccess(raw: Record<string, unknown>, cl
   const targetSub = attr(target.UserAttributes, 'sub');
   const group = adminGroup[institution];
   const memberships = await groupNames(username);
-  if (targetSub === superSub() || memberships.includes(SUPER_ADMIN_GROUP))
+  if (targetSub === superSub() || memberships.some((group) => SUPER_ADMIN_GROUPS.includes(group)))
     throw httpError(403, 'Cannot change the protected super-admin account.');
   const already = memberships.includes(group);
   if (already === grant) return { username, institution, granted: grant, unchanged: true };
