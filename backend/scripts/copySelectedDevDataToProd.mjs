@@ -152,6 +152,7 @@ const CALENDAR_FIELDS = [
   'programme',
   'teacher',
   'teacherId',
+  'venueId',
   'mode',
   'location',
   'date',
@@ -545,16 +546,52 @@ async function targetPlan(plan) {
     const existing = await scan(TABLES[entity].target);
     const key = TABLES[entity].key;
     const selectedByKey = new Map(plan.selected[entity].map((item) => [item[key], item]));
-    const needsProjection = new Set();
+    const needsProjection = new Map();
     for (const row of existing) {
       const expected = selectedByKey.get(row[key]);
       if (!expected || json(row) === json(expected)) continue;
+      const actualProjection = row.calendarRecord;
+      const expectedProjection = expected.calendarRecord;
+      const canAddProjectionFields =
+        expectedProjection &&
+        (actualProjection === undefined ||
+          (actualProjection &&
+            typeof actualProjection === 'object' &&
+            !Array.isArray(actualProjection) &&
+            Object.entries(actualProjection).every(
+              ([field, value]) =>
+                Object.hasOwn(expectedProjection, field) &&
+                json(expectedProjection[field]) === json(value),
+            ))) &&
+        json(withoutCalendarRecord(row)) === json(withoutCalendarRecord(expected));
+      if (canAddProjectionFields) {
+        const missingFields = Object.keys(expectedProjection).filter(
+          (field) => !Object.hasOwn(actualProjection || {}, field),
+        );
+        if (missingFields.length) {
+          needsProjection.set(row[key], {
+            wholeRecord: actualProjection === undefined,
+            fields: missingFields,
+          });
+          continue;
+        }
+      }
       if (
-        expected.calendarRecord &&
-        row.calendarRecord === undefined &&
-        json(withoutCalendarRecord(row)) === json(withoutCalendarRecord(expected))
+        expectedProjection &&
+        actualProjection &&
+        json(actualProjection) === json(expectedProjection)
       ) {
-        needsProjection.add(row[key]);
+        const { calendarRecord, ...actualBase } = row;
+        const { calendarRecord: expectedCalendarRecord, ...expectedBase } = expected;
+        if (json(actualBase) === json(expectedBase)) continue;
+      }
+      if (expectedProjection && row.calendarRecord === undefined) {
+        // A target may predate the calendar projection, but every other field
+        // must still match exactly before its projection can be added.
+        if (json(withoutCalendarRecord(row)) !== json(withoutCalendarRecord(expected)))
+          fail(`${entity} prod target has a conflicting selected key; no records were written.`);
+      }
+      if (needsProjection.has(row[key])) {
         continue;
       }
       fail(`${entity} prod target has a conflicting selected key; no records were written.`);
@@ -585,15 +622,40 @@ async function applyPlan(plan, targets) {
   for (const entity of Object.keys(TABLES)) {
     const { target, key } = TABLES[entity];
     for (const item of plan.selected[entity]) {
-      if (targets[entity].needsProjection.has(item[key])) {
+      const projectionUpdate = targets[entity].needsProjection.get(item[key]);
+      if (projectionUpdate) {
+        const names = { '#calendarRecord': 'calendarRecord' };
+        const values = {};
+        const assignments = [];
+        const conditions = [];
+        projectionUpdate.fields.forEach((field, index) => {
+          const name = `#field${index}`;
+          const value = `:value${index}`;
+          names[name] = field;
+          values[value] = item.calendarRecord[field];
+          if (projectionUpdate.wholeRecord) {
+            assignments.push(`${name} = ${value}`);
+          } else {
+            assignments.push(`#calendarRecord.${name} = ${value}`);
+            conditions.push(`attribute_not_exists(#calendarRecord.${name})`);
+          }
+        });
         await client.send(
           new UpdateCommand({
             TableName: target,
             Key: { [key]: item[key] },
-            UpdateExpression: 'SET #calendarRecord = :calendarRecord',
-            ConditionExpression: 'attribute_not_exists(#calendarRecord)',
-            ExpressionAttributeNames: { '#calendarRecord': 'calendarRecord' },
-            ExpressionAttributeValues: { ':calendarRecord': item.calendarRecord },
+            UpdateExpression: projectionUpdate.wholeRecord
+              ? `SET #calendarRecord = :calendarRecord`
+              : `SET ${assignments.join(', ')}`,
+            ConditionExpression: projectionUpdate.wholeRecord
+              ? 'attribute_not_exists(#calendarRecord)'
+              : conditions.join(' AND '),
+            ExpressionAttributeNames: projectionUpdate.wholeRecord
+              ? { '#calendarRecord': 'calendarRecord' }
+              : names,
+            ExpressionAttributeValues: projectionUpdate.wholeRecord
+              ? { ':calendarRecord': item.calendarRecord }
+              : values,
           }),
         );
         projectionsAdded++;
