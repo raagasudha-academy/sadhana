@@ -12,6 +12,8 @@ import { filterVenuesForInstitution } from './venueVisibility.ts';
 
 export type DirectoryEntity = 'people' | 'venues' | 'classes';
 const MAX_ROWS: Record<DirectoryEntity, number> = { people: 1000, venues: 500, classes: 1500 };
+const teacherIdentityTable = () =>
+  process.env.SADHANA_FINAL_TEACHER_LOOKUP_TABLE?.trim() || entityTable('people');
 const teacherSub = (row: Record<string, any>) =>
   typeof row.cognitoSub === 'string' ? row.cognitoSub : '';
 
@@ -234,7 +236,10 @@ export function makeM95DirectoryReader(
     do {
       const page = await client.send(
         new QueryCommand({
-          TableName: entityTable('people'),
+          // /me needs only the signed-in teacher's identity. Dev temporarily
+          // keeps this one indexed lookup on the existing table until the
+          // canonical entity-table migration is complete.
+          TableName: teacherIdentityTable(),
           IndexName: 'CognitoIdentityIndex',
           KeyConditionExpression: '#cognitoSub = :sub',
           ExpressionAttributeNames: { '#cognitoSub': 'cognitoSub' },

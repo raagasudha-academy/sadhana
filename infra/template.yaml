@@ -35,6 +35,7 @@ Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
   CreateAggregateTable: !Not [!Equals [!Ref Stage, prod]]
   UseProdLambdaBoundary: !Equals [!Ref Stage, prod]
+  UseLegacyDevTeacherIdentityIndex: !Equals [!Ref Stage, dev]
 
 Mappings:
   StageTables:
@@ -206,6 +207,10 @@ Resources:
           SRUTI_SOURCE_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiSource]
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
+          SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !If
+            - UseLegacyDevTeacherIdentityIndex
+            - sadhana-dev-people
+            - !Sub '${Stage}-sadhana-people'
           SADHANA_ENTITY_TABLE_SET: final
           SADHANA_ENTITY_FINAL_ACK: enabled
           SADHANA_DATA_MODE: final
@@ -233,6 +238,12 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-main/index/*'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-*'
                 - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Stage}-sadhana-*/index/*'
+            - !If
+              - UseLegacyDevTeacherIdentityIndex
+              - Effect: Allow
+                Action: [dynamodb:Query]
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/sadhana-dev-people/index/CognitoIdentityIndex'
+              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - dynamodb:GetItem

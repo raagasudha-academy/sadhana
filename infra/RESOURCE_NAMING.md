@@ -31,6 +31,9 @@ while updating its display name, so staff identities and app-client configuratio
 The existing M9 tables and their guarded migration tools remain on their current names until
 the separate M9 cutover passes. The new canonical router uses environment-first names. This
 keeps the deployed legacy route intact while replacement tables are created and verified.
+Until that migration is complete in dev, the authenticated `/api/me` teacher-link check uses
+only the `CognitoIdentityIndex` on `sadhana-dev-people`; it does not scan the people table or
+change routing for other entities.
 
 ## Migration order
 
