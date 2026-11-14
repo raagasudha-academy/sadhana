@@ -22,11 +22,13 @@ test('roles are taken from verified authorizer claims, not UI persona', () => {
   assert.equal(demandInstitution(srutiOnly, 'sruti'), 'sruti');
 });
 test('the Cognito super-admin group grants global academy admin scope', () => {
-  const superAdmin = { sub: 'new-super-admin', 'cognito:groups': ['sadhana-super-admin'] };
-  assert.deepEqual(permittedInstitutions(superAdmin), ['raaga', 'sruti']);
-  assert.deepEqual(viewableInstitutions(superAdmin), ['raaga', 'sruti']);
-  assert.equal(demandInstitution(superAdmin, 'raaga'), 'raaga');
-  assert.equal(demandInstitution(superAdmin, 'sruti'), 'sruti');
+  for (const group of ['sadhana-super-admin', 'prod-super-admin']) {
+    const superAdmin = { sub: 'new-super-admin', 'cognito:groups': [group] };
+    assert.deepEqual(permittedInstitutions(superAdmin), ['raaga', 'sruti']);
+    assert.deepEqual(viewableInstitutions(superAdmin), ['raaga', 'sruti']);
+    assert.equal(demandInstitution(superAdmin, 'raaga'), 'raaga');
+    assert.equal(demandInstitution(superAdmin, 'sruti'), 'sruti');
+  }
 });
 test('invalid dates and malformed ranges are refused', () => {
   assert.equal(isoDate('2026-02-30'), false);
