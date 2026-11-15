@@ -98,7 +98,7 @@
     {
       "Sid": "CheckProductionSrutiSourceTable",
       "Effect": "Allow",
-      "Action": ["dynamodb:DescribeTable"],
+      "Action": ["dynamodb:DescribeTable", "dynamodb:GetItem"],
       "Resource": "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sruti-student-registrations"
     },
     {
