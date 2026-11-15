@@ -13,5 +13,17 @@ test('invitation is HTML escaped and login is HTTPS only', () => {
   assert.match(value.html, /&lt;script&gt;/);
   assert.match(value.text, /https:\/\//);
 
+  for (const loginUrl of [
+    'https://sadhana.sruti.co.uk/',
+    'https://sadhana.raagasudhamusic.co.uk/',
+    'https://sadhana-dev.sruti.co.uk/',
+  ]) {
+    assert.ok(parentInvitationTemplate('Parent', 'code', loginUrl).text.includes(loginUrl));
+  }
+
   assert.throws(() => parentInvitationTemplate('A', 'pw', 'http://example.org'));
+  assert.throws(() => parentInvitationTemplate('A', 'pw', 'https://sadhana.sruti.co.uk.evil/'));
+  assert.throws(() =>
+    parentInvitationTemplate('A', 'pw', 'https://sadhana.sruti.co.uk/?next=evil'),
+  );
 });

@@ -11,13 +11,20 @@ export function parentInvitationTemplate(
   email?: string,
 ) {
   const url = new URL(loginUrl);
+  const approvedPortalPath =
+    (url.hostname === 'raagasudha-academy.github.io' &&
+      ['/sadhana/', '/sadhana'].includes(url.pathname)) ||
+    (['sadhana.sruti.co.uk', 'sadhana.raagasudhamusic.co.uk', 'sadhana-dev.sruti.co.uk'].includes(
+      url.hostname,
+    ) &&
+      url.pathname === '/');
   if (
     url.protocol !== 'https:' ||
     url.username ||
     url.password ||
+    url.search ||
     url.hash ||
-    url.hostname !== 'raagasudha-academy.github.io' ||
-    !['/sadhana/', '/sadhana'].includes(url.pathname)
+    !approvedPortalPath
   )
     throw Error('Approved Sadhana HTTPS login URL required');
   const safeName = escapeHTML(name.slice(0, 100));
