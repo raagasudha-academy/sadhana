@@ -209,6 +209,7 @@ jobs:
               "EnablePointInTimeRecovery=true" \
               "SrutiIngressReady=enabled" \
               "SrutiRegistrationReads=enabled" \
+              "SrutiReviewWrites=enabled" \
               "RaagaIntakeReads=enabled" \
               "RaagaParentStatusReads=enabled" \
               "RaagaImportPreview=enabled"
@@ -217,5 +218,5 @@ jobs:
             echo
             echo '- The public intake endpoint was verified against the protected prod registration table.'
             echo "- A pending synthetic registration was verified: $TEST_REGISTRATION_ID."
-            echo '- Sruti ingress, Raagasudha/Sruti registration reads, Raagasudha parent-status reads, and read-only Raagasudha import previews are enabled; import execution and review writes remain separately gated.'
+            echo '- Sruti ingress, registration reads and scoped approve/reject actions, Raagasudha intake and parent-status reads, and read-only Raagasudha import previews are enabled; import execution and parent invitations remain separately gated.'
           } >> "$GITHUB_STEP_SUMMARY"
