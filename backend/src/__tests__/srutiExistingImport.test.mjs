@@ -32,7 +32,12 @@ const submission = {
     allergies: '',
     medicalNotes: '',
   })),
-  consents: { registration: true, photography: false },
+  consents: {
+    registration: true,
+    contactMethods: { phone: true, email: false },
+    photographyChoice: 'declined',
+    photography: false,
+  },
 };
 const reg = {
   registrationId: ref,

@@ -38,6 +38,7 @@ describe('teacher practice audio review', () => {
         onReload={async () => {}}
       />,
     );
+    fireEvent.click(screen.getByRole('button', { name: 'All time' }));
     fireEvent.click(screen.getByRole('button', { name: 'Review' }));
     const player = await screen.findByLabelText('Practice audio for Student One on 2026-11-08');
     expect(player.tagName).toBe('AUDIO');

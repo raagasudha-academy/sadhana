@@ -1,0 +1,218 @@
+name: Production Sruti intake release
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Select one protected release phase
+        type: choice
+        required: true
+        options:
+          - enable-intake
+          - activate-sadhana-reads
+      test_registration_id:
+        description: Required for activate-sadhana-reads; ID from a verified synthetic prod submission
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sadhana-production-backend
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - name: Require main branch release
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo 'Production resources can only be released from main.'
+            exit 1
+          fi
+      - name: Run frontend checks, unit tests, and build
+        run: npm run verify
+      - name: Install Chromium for frontend E2E
+        run: npx playwright install chromium
+      - name: Run frontend browser tests
+        run: npm run test:frontend:playwright
+      - name: Run backend checks and build
+        run: npm run verify:backend
+      - name: Run backend unit tests
+        run: npm run test:backend:unit
+      - name: Run backend HTTP E2E tests
+        run: npm run test:backend:e2e
+      - name: Run Python helper tests
+        run: |
+          python -m pip install boto3
+          npm run test:python
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      CLOUDFORMATION_EXECUTION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
+      MIDDLE_CREDENTIAL_PARAMETER: /sadhana/prod/google/middlesbrough-service-account
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --prefix backend
+      - name: Check production inputs
+        run: |
+          for value in "$AWS_REGION" "$AWS_ROLE_ARN" "$CLOUDFORMATION_EXECUTION_ROLE_ARN"; do
+            if [ -z "$value" ]; then
+              echo 'Missing production environment variable or secret.'
+              exit 1
+            fi
+          done
+          if [ "$AWS_REGION" != us-east-1 ] || [ "$CLOUDFORMATION_EXECUTION_ROLE_ARN" != 'arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution' ]; then
+            echo 'Unexpected production region or CloudFormation execution role.'
+            exit 1
+          fi
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Verify AWS account
+        run: |
+          account="$(aws sts get-caller-identity --query Account --output text)"
+          if [ "$account" != 627821644317 ]; then
+            echo "Refusing production release in AWS account $account."
+            exit 1
+          fi
+      - name: Verify deployed Sruti site points to production intake
+        if: inputs.phase == 'activate-sadhana-reads'
+        run: |
+          page="$(curl --fail --silent --show-error --location https://sruti.co.uk/register)"
+          asset="$(printf '%s' "$page" | grep -oE 'src="[^"]+\.js"' | head -n 1 | cut -d '"' -f 2)"
+          if [ -z "$asset" ]; then
+            echo 'Could not find the deployed Sruti site JavaScript bundle.'
+            exit 1
+          fi
+          if ! curl --fail --silent --show-error --location "https://sruti.co.uk$asset" | grep --fixed-strings --quiet 'https://vfj8wl1dv5.execute-api.us-east-1.amazonaws.com/prod/register'; then
+            echo 'The deployed Sruti site does not use the verified production intake endpoint.'
+            exit 1
+          fi
+      - name: Verify production intake stack and target before enabling Sadhana reads
+        if: inputs.phase == 'activate-sadhana-reads'
+        env:
+          TEST_REGISTRATION_ID: ${{ inputs.test_registration_id }}
+        run: |
+          if [[ ! "$TEST_REGISTRATION_ID" =~ ^SR-[A-Za-z0-9-]{1,110}$ ]]; then
+            echo 'Provide the SR-* reference returned by the synthetic production smoke submission.'
+            exit 1
+          fi
+          intake_stack="$(aws cloudformation describe-stacks --region "$AWS_REGION" --stack-name prod-sadhana-sruti-public-intake --query 'Stacks[0].{Status:StackStatus,Parameters:Parameters}' --output json)"
+          INTAKE_STACK_JSON="$intake_stack" python - <<'PY'
+          import json, os, sys
+          stack = json.loads(os.environ['INTAKE_STACK_JSON'])
+          params = {item['ParameterKey']: item['ParameterValue'] for item in stack.get('Parameters', [])}
+          expected = {
+              'SourceTableName': 'prod-sruti-student-registrations',
+              'IntakeEnabled': 'enabled',
+              'Stage': 'prod',
+          }
+          if stack.get('Status') != 'UPDATE_COMPLETE' or any(params.get(k) != v for k, v in expected.items()):
+              sys.exit('The live public Sruti intake stack is not enabled against the expected prod table.')
+          PY
+          item="$(aws dynamodb get-item --region "$AWS_REGION" --table-name prod-sruti-student-registrations --consistent-read --key "{\"registrationId\":{\"S\":\"$TEST_REGISTRATION_ID\"}}" --projection-expression 'registrationId,institutionId,#source,reviewStatus,importStatus' --expression-attribute-names '{"#source":"source"}' --output json)"
+          ITEM_JSON="$item" TEST_REGISTRATION_ID="$TEST_REGISTRATION_ID" python - <<'PY'
+          import json, os, sys
+          item = json.loads(os.environ['ITEM_JSON']).get('Item', {})
+          get = lambda name: item.get(name, {}).get('S')
+          expected = {
+              'registrationId': os.environ['TEST_REGISTRATION_ID'],
+              'institutionId': 'sruti',
+              'source': 'sruti-website',
+              'reviewStatus': 'pending',
+              'importStatus': 'pending',
+          }
+          actual = {key: get(key) for key in expected}
+          if actual != expected:
+              sys.exit('The supplied ID is not a pending Sruti website intake record in the prod source table.')
+          print('Verified the synthetic prod intake record without reading contact details.')
+          PY
+      - name: Verify production source-table safeguards
+        if: inputs.phase == 'enable-intake'
+        run: |
+          table="$(aws dynamodb describe-table --region "$AWS_REGION" --table-name prod-sruti-student-registrations --query 'Table.{Status:TableStatus,DeletionProtection:DeletionProtectionEnabled}' --output json)"
+          TABLE_JSON="$table" python - <<'PY'
+          import json, os, sys
+          actual = json.loads(os.environ['TABLE_JSON'])
+          if actual != {'Status': 'ACTIVE', 'DeletionProtection': True}:
+              sys.exit(f'Production Sruti source table is not active and deletion-protected: {actual}')
+          PY
+      - name: Enable production public intake
+        if: inputs.phase == 'enable-intake'
+        env:
+          SADHANA_STAGE: prod
+          SADHANA_CLOUDFORMATION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
+        run: bash scripts/deploy-sruti-public.sh --enable
+      - uses: aws-actions/setup-sam@v3
+        if: inputs.phase == 'activate-sadhana-reads'
+        with:
+          use-installer: true
+      - name: Install the locked esbuild version for SAM
+        if: inputs.phase == 'activate-sadhana-reads'
+        run: |
+          ESBUILD_VERSION="$(node -p "require('./backend/package-lock.json').packages['node_modules/esbuild'].version")"
+          npm install --global "esbuild@${ESBUILD_VERSION}"
+      - name: Build production Sadhana API
+        if: inputs.phase == 'activate-sadhana-reads'
+        run: sam build --template-file infra/template.yaml
+      - name: Enable verified Sruti registration reads
+        if: inputs.phase == 'activate-sadhana-reads'
+        env:
+          TEST_REGISTRATION_ID: ${{ inputs.test_registration_id }}
+        run: |
+          sam deploy \
+            --template-file .aws-sam/build/template.yaml \
+            --stack-name prod-sadhana-app \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --s3-bucket "prod-sadhana-intake-deploy-627821644317-${AWS_REGION}" \
+            --s3-prefix sadhana-api \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "Stage=prod" \
+              "CognitoUserPoolId=us-east-1_Egro1CA39" \
+              "CognitoAppClientId=mi2ulgljta8vu146uja5ob5il" \
+              "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
+              "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
+              "EnablePointInTimeRecovery=true" \
+              "SrutiIngressReady=enabled" \
+              "SrutiRegistrationReads=enabled"
+          {
+            echo '### Production Sruti intake release'
+            echo
+            echo '- The public intake endpoint was verified against the protected prod registration table.'
+            echo "- A pending synthetic registration was verified: $TEST_REGISTRATION_ID."
+            echo '- Sruti registration reads and ingress readiness are enabled; import and review writes remain separately gated.'
+          } >> "$GITHUB_STEP_SUMMARY"
