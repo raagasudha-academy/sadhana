@@ -397,7 +397,7 @@ test('AWS adapter requires atomic reservation, conditional receipt, and no PK/SK
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('../finalRaagaInvitations.ts', import.meta.url), 'utf8');
   assert.match(source, /TransactWriteCommand/);
-  assert.match(source, /identityConditions\(guardian,\s*reg\)/);
+  assert.match(source, /identityConditions\(guardian,\s*reg,\s*contactGuardId\)/);
   assert.match(source, /parentAccountEmail=:email/);
   assert.match(source, /attribute_not_exists\(invitationOperationId\)/);
   assert.match(source, /parentInvitationAttemptAt < :threshold/);
