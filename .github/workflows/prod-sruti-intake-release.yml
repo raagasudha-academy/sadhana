@@ -189,16 +189,16 @@ jobs:
           SADHANA_CLOUDFORMATION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
         run: bash scripts/deploy-sruti-public.sh --enable
       - uses: aws-actions/setup-sam@v3
-        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations' || inputs.phase == 'enable-raaga-review-writes'
+        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations' || inputs.phase == 'enable-raaga-review-writes' || inputs.phase == 'enable-raaga-import-execution'
         with:
           use-installer: true
       - name: Install the locked esbuild version for SAM
-        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations' || inputs.phase == 'enable-raaga-review-writes'
+        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations' || inputs.phase == 'enable-raaga-review-writes' || inputs.phase == 'enable-raaga-import-execution'
         run: |
           ESBUILD_VERSION="$(node -p "require('./backend/package-lock.json').packages['node_modules/esbuild'].version")"
           npm install --global "esbuild@${ESBUILD_VERSION}"
       - name: Build production Sadhana API
-        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations' || inputs.phase == 'enable-raaga-review-writes'
+        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations' || inputs.phase == 'enable-raaga-review-writes' || inputs.phase == 'enable-raaga-import-execution'
         run: sam build --template-file infra/template.yaml
       - name: Enable verified Sruti registration reads
         if: inputs.phase == 'activate-sadhana-reads'

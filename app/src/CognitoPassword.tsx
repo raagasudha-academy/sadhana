@@ -164,10 +164,6 @@ export default function CognitoPassword({
   const handleLogin = async () => {
     const user = username.trim().toLowerCase();
     if (!user || !password) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)) {
-      setError('Enter your registered email address.');
-      return;
-    }
     setBusy(true);
     setError('');
     try {
@@ -176,7 +172,9 @@ export default function CognitoPassword({
         ClientId: clientId,
         AuthParameters: { USERNAME: user, PASSWORD: password, PREFERRED_CHALLENGE: 'PASSWORD' },
       });
-      accepted(r, user);
+      const canonicalUsername =
+        r.ChallengeParameters?.USER_ID_FOR_SRP || r.ChallengeParameters?.USERNAME || user;
+      accepted(r, canonicalUsername);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -280,11 +278,11 @@ export default function CognitoPassword({
       >
         {!challenge && (
           <label className="password-field">
-            Email address
+            Email address or username
             <input
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
+              type="text"
+              autoComplete="username"
+              placeholder="Email or username"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
