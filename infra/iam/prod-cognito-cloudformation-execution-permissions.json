@@ -2,111 +2,6 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "CreateAndMaintainOnlyTaggedProductionV2UserPool",
-      "Effect": "Allow",
-      "Action": ["cognito-idp:CreateUserPool"],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/Application": "Sadhana",
-          "aws:RequestTag/Environment": "prod",
-          "aws:RequestTag/Generation": "v2"
-        },
-        "ForAllValues:StringEquals": {
-          "aws:TagKeys": [
-            "Application",
-            "Environment",
-            "Generation",
-            "aws:cloudformation:stack-id",
-            "aws:cloudformation:stack-name",
-            "aws:cloudformation:logical-id"
-          ]
-        }
-      }
-    },
-    {
-      "Sid": "TagOnlyProductionV2UserPools",
-      "Effect": "Allow",
-      "Action": ["cognito-idp:TagResource"],
-      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/Application": "Sadhana",
-          "aws:RequestTag/Environment": "prod",
-          "aws:RequestTag/Generation": "v2"
-        },
-        "ForAllValues:StringEquals": {
-          "aws:TagKeys": [
-            "Application",
-            "Environment",
-            "Generation",
-            "aws:cloudformation:stack-id",
-            "aws:cloudformation:stack-name",
-            "aws:cloudformation:logical-id"
-          ]
-        }
-      }
-    },
-    {
-      "Sid": "InspectAndUntagOnlyProductionV2UserPools",
-      "Effect": "Allow",
-      "Action": ["cognito-idp:ListTagsForResource", "cognito-idp:UntagResource"],
-      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/*",
-      "Condition": {
-        "StringEquals": { "aws:ResourceTag/Generation": "v2" },
-        "ForAllValues:StringEquals": { "aws:TagKeys": ["Application", "Environment", "Generation"] }
-      }
-    },
-    {
-      "Sid": "ManageOnlyProductionV2UserPoolConfiguration",
-      "Effect": "Allow",
-      "Action": [
-        "cognito-idp:CreateUserPoolClient",
-        "cognito-idp:CreateUserPoolDomain",
-        "cognito-idp:CreateGroup",
-        "cognito-idp:UpdateUserPool",
-        "cognito-idp:DescribeUserPool",
-        "cognito-idp:DescribeUserPoolClient",
-        "cognito-idp:GetGroup",
-        "cognito-idp:UpdateGroup",
-        "cognito-idp:DeleteGroup",
-        "cognito-idp:DeleteUserPoolClient",
-        "cognito-idp:DeleteUserPoolDomain",
-        "cognito-idp:DeleteUserPool"
-      ],
-      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/*",
-      "Condition": {
-        "StringEquals": { "aws:ResourceTag/Generation": "v2" }
-      }
-    },
-    {
-      "Sid": "DescribeCognitoDomainStatus",
-      "Effect": "Allow",
-      "Action": ["cognito-idp:DescribeUserPoolDomain"],
-      "Resource": "*"
-    },
-    {
-      "Sid": "InvokeExistingInvitationLambdaOnlyFromV2Pool",
-      "Effect": "Allow",
-      "Action": ["lambda:AddPermission", "lambda:RemovePermission"],
-      "Resource": "arn:aws:lambda:us-east-1:627821644317:function:prod-sadhana-cognito-invitation",
-      "Condition": {
-        "StringEquals": { "lambda:Principal": "cognito-idp.amazonaws.com" },
-        "ArnLike": {
-          "lambda:SourceArn": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/*"
-        }
-      }
-    },
-    {
-      "Sid": "PassOnlyCognitoSmsDeliveryRoleToCognito",
-      "Effect": "Allow",
-      "Action": ["iam:PassRole"],
-      "Resource": "arn:aws:iam::627821644317:role/service-role/CognitoIdpSNSServiceRole",
-      "Condition": {
-        "StringEquals": { "iam:PassedToService": "cognito-idp.amazonaws.com" }
-      }
-    },
-    {
       "Sid": "UpdateOnlyProductionSadhanaCognitoPool",
       "Effect": "Allow",
       "Action": [
@@ -124,6 +19,12 @@
       "Effect": "Allow",
       "Action": ["iam:DetachRolePolicy", "iam:GetRole", "iam:ListAttachedRolePolicies"],
       "Resource": "arn:aws:iam::627821644317:role/prod-sadhana-cognito-invitation-role"
+    },
+    {
+      "Sid": "PassOnlyCognitoSmsDeliveryRoleToCognito",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": "arn:aws:iam::627821644317:role/service-role/CognitoIdpSNSServiceRole"
     }
   ]
 }

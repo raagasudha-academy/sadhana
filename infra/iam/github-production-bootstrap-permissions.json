@@ -19,8 +19,7 @@
       "Resource": [
         "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-entity-tables/*",
         "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-app/*",
-        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*",
-        "arn:aws:cloudformation:us-east-1:627821644317:stack/sadhana-prod-cognito-v2/*"
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*"
       ],
       "Condition": {
         "ArnEquals": {
@@ -46,8 +45,7 @@
       "Resource": [
         "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-entity-tables/*",
         "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-app/*",
-        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*",
-        "arn:aws:cloudformation:us-east-1:627821644317:stack/sadhana-prod-cognito-v2/*"
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*"
       ]
     },
     {
@@ -57,8 +55,7 @@
       "Resource": [
         "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-entity-tables/*",
         "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-app/*",
-        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*",
-        "arn:aws:cloudformation:us-east-1:627821644317:stack/sadhana-prod-cognito-v2/*"
+        "arn:aws:cloudformation:us-east-1:627821644317:stack/prod-sadhana-sruti-public-intake/*"
       ]
     },
     {
@@ -97,25 +94,6 @@
       "Effect": "Allow",
       "Action": ["cognito-idp:DescribeUserPool"],
       "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_Egro1CA39"
-    },
-    {
-      "Sid": "ReadOnlyProductionV2CognitoPool",
-      "Effect": "Allow",
-      "Action": [
-        "cognito-idp:DescribeUserPool",
-        "cognito-idp:DescribeUserPoolClient",
-        "cognito-idp:ListGroups"
-      ],
-      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/*",
-      "Condition": {
-        "StringEquals": { "aws:ResourceTag/Generation": "v2" }
-      }
-    },
-    {
-      "Sid": "ReadProductionV2CognitoDomainStatus",
-      "Effect": "Allow",
-      "Action": ["cognito-idp:DescribeUserPoolDomain"],
-      "Resource": "*"
     },
     {
       "Sid": "CheckProductionSrutiSourceTable",
