@@ -203,7 +203,9 @@ jobs:
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true" \
-              "RaagaParentResends=enabled"
+              "RaagaParentResends=enabled" \
+              "RaagaImportWrites=enabled" \
+              "RaagaIdentityReconciled=enabled"
       - name: Record production API endpoint
         run: |
           api_url="$(aws cloudformation describe-stacks --stack-name prod-sadhana-app --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue|[0]' --output text)"

@@ -90,6 +90,16 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable read-only previews of approved Raagasudha registrations without permitting import execution
+  RaagaImportWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable exact-reference confirmed imports of approved Raagasudha registrations
+  RaagaIdentityReconciled:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Acknowledge completion of the Raagasudha historical identity reconciliation
 
 Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
@@ -302,6 +312,8 @@ Resources:
           SADHANA_FINAL_RAAGA_PARENT_RESENDS: !Ref RaagaParentResends
           SADHANA_FINAL_RAAGA_PARENT_LINK_WRITES: !Ref RaagaParentLinkWrites
           SADHANA_FINAL_RAAGA_IMPORT_PREVIEW: !Ref RaagaImportPreview
+          SADHANA_FINAL_RAAGA_IMPORT_WRITES: !Ref RaagaImportWrites
+          SADHANA_FINAL_RAAGA_IDENTITY_RECONCILED: !Ref RaagaIdentityReconciled
           SADHANA_FINAL_ADMIN_READS: !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
           SADHANA_FINAL_GUARDIAN_QUEUE_READS:
             !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]

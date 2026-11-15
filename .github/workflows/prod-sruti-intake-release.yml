@@ -12,6 +12,7 @@ on:
           - activate-sadhana-reads
           - enable-raaga-parent-action-reads
           - enable-raaga-parent-invitations
+          - enable-raaga-import-execution
           - enable-raaga-review-writes
       test_registration_id:
         description: Required for activate-sadhana-reads; ID from a verified synthetic prod submission
@@ -325,4 +326,43 @@ jobs:
             echo
             echo '- Admin approval and discard actions are enabled for Raagasudha website registrations.'
             echo '- Parent resend, existing-account linking, and final import execution remain separately gated.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Enable Raagasudha final import execution
+        if: inputs.phase == 'enable-raaga-import-execution'
+        run: |
+          sam deploy \
+            --template-file .aws-sam/build/template.yaml \
+            --stack-name prod-sadhana-app \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --s3-bucket "prod-sadhana-intake-deploy-627821644317-${AWS_REGION}" \
+            --s3-prefix sadhana-api \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "Stage=prod" \
+              "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
+              "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
+              "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
+              "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
+              "EnablePointInTimeRecovery=true" \
+              "SrutiIngressReady=enabled" \
+              "SrutiRegistrationReads=enabled" \
+              "SrutiReviewWrites=enabled" \
+              "RaagaIntakeReads=enabled" \
+              "RaagaReviewWrites=enabled" \
+              "RaagaParentStatusReads=enabled" \
+              "RaagaParentActionReads=enabled" \
+              "RaagaParentInvitations=enabled" \
+              "RaagaParentResends=enabled" \
+              "RaagaImportPreview=enabled" \
+              "RaagaImportWrites=enabled" \
+              "RaagaIdentityReconciled=enabled"
+          {
+            echo '### Raagasudha final import execution'
+            echo
+            echo '- Approved Raagasudha registrations can now be imported after exact-reference confirmation.'
+            echo '- This changes feature gates only; it does not import, copy, or delete registration data.'
+            echo '- Existing imported registrations are not re-created by the canonical import path.'
           } >> "$GITHUB_STEP_SUMMARY"
