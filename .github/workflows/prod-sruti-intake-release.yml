@@ -11,6 +11,7 @@ on:
           - enable-intake
           - activate-sadhana-reads
           - enable-raaga-parent-action-reads
+          - enable-raaga-parent-invitations
       test_registration_id:
         description: Required for activate-sadhana-reads; ID from a verified synthetic prod submission
         type: string
@@ -175,16 +176,16 @@ jobs:
           SADHANA_CLOUDFORMATION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
         run: bash scripts/deploy-sruti-public.sh --enable
       - uses: aws-actions/setup-sam@v3
-        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads'
+        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations'
         with:
           use-installer: true
       - name: Install the locked esbuild version for SAM
-        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads'
+        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations'
         run: |
           ESBUILD_VERSION="$(node -p "require('./backend/package-lock.json').packages['node_modules/esbuild'].version")"
           npm install --global "esbuild@${ESBUILD_VERSION}"
       - name: Build production Sadhana API
-        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads'
+        if: inputs.phase == 'activate-sadhana-reads' || inputs.phase == 'enable-raaga-parent-action-reads' || inputs.phase == 'enable-raaga-parent-invitations'
         run: sam build --template-file infra/template.yaml
       - name: Enable verified Sruti registration reads
         if: inputs.phase == 'activate-sadhana-reads'
@@ -247,4 +248,32 @@ jobs:
             echo
             echo '- The 503 action-read gate is enabled for authenticated Raagasudha administrators.'
             echo '- Invitation, resend, and verified-account link writes remain disabled.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Enable canonical Raagasudha parent invitations
+        if: inputs.phase == 'enable-raaga-parent-invitations'
+        run: |
+          sam deploy \
+            --template-file .aws-sam/build/template.yaml \
+            --stack-name prod-sadhana-app \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --s3-bucket "prod-sadhana-intake-deploy-627821644317-${AWS_REGION}" \
+            --s3-prefix sadhana-api \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "Stage=prod" \
+              "CognitoUserPoolId=us-east-1_Egro1CA39" \
+              "CognitoAppClientId=mi2ulgljta8vu146uja5ob5il" \
+              "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
+              "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
+              "EnablePointInTimeRecovery=true" \
+              "RaagaParentActionReads=enabled" \
+              "RaagaParentInvitations=enabled"
+          {
+            echo '### Canonical Raagasudha parent invitations'
+            echo
+            echo '- Explicitly confirmed invitations for new Raagasudha parent accounts are enabled for authenticated administrators.'
+            echo '- Resending invitations and linking existing verified accounts remain disabled.'
           } >> "$GITHUB_STEP_SUMMARY"
