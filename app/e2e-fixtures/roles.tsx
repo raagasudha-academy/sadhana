@@ -342,6 +342,7 @@ const apiHandlers: Record<string, (...args: any[]) => any> = {
       imported: true,
       registrationId: registration.registrationId,
       familyId: 'RAAGA-FAMILY-E2E',
+      familyNumber: '001',
       studentRollNumbers: { 'CHILD-E2E-1': 'RS-201', 'CHILD-E2E-2': 'RS-202' },
     };
   },

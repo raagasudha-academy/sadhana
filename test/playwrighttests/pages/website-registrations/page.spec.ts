@@ -25,7 +25,7 @@ test('admin can activate a second academy family for a parent with an existing S
     .getByRole('alertdialog', { name: 'Activate approved application?' })
     .getByRole('button', { name: 'Activate' })
     .click();
-  await expect(page.getByText('Family: RAAGA-FAMILY-E2E')).toBeVisible();
+  await expect(page.getByText('Family 001')).toBeVisible();
   await expect(page.getByText(/RS-201, RS-202/)).toBeVisible();
   await expect(page.getByRole('region', { name: 'Parent portal access' })).toContainText(
     'Not invited',
