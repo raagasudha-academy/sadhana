@@ -10,7 +10,7 @@ LAMBDA='sadhana-m9-isolated-e2e'
 ROLE='sadhana-m9-isolated-e2e-role'
 POOL='us-east-1_nyQjIQasG'
 ACCOUNT='627821644317'
-WEBSITE='https://tc22v9iexa.execute-api.us-east-1.amazonaws.com'
+WEBSITE='https://ruaignd57e.execute-api.us-east-1.amazonaws.com'
 
 def aws(profile,*args):
  cmd=['aws',*args,'--profile',profile,'--region',REGION,'--output','json']
@@ -35,7 +35,7 @@ def main():
  policy={'Version':'2012-10-17','Statement':[
   {'Sid':'M9RegistrationBridgeOnly','Effect':'Allow','Action':['dynamodb:GetItem','dynamodb:Query','dynamodb:PutItem','dynamodb:UpdateItem','dynamodb:ConditionCheckItem'],
    'Resource':[f'arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/sadhana-dev-m9-{t}' for t in ('people','families','family-links','counters','registrations','audit')]},
-  {'Sid':'RaagasudhaRegistrationReadOnly','Effect':'Allow','Action':'execute-api:Invoke','Resource':f'arn:aws:execute-api:{REGION}:{ACCOUNT}:tc22v9iexa/*/GET/admin/registrations/*'},
+  {'Sid':'RaagasudhaRegistrationReadOnly','Effect':'Allow','Action':'execute-api:Invoke','Resource':f'arn:aws:execute-api:{REGION}:{ACCOUNT}:ruaignd57e/$default/GET/admin/registrations/*'},
  ]}
  result={'dryRun':not a.execute,'targetLambda':LAMBDA,'existingProductionApiUnchanged':True,
          'onboardingBridgeOnly':True,'cognitoProvisioningEnabled':False,'guardianAccessAutoApproved':False,
