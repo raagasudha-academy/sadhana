@@ -5,15 +5,20 @@ import { createHash } from 'node:crypto';
 const fail = (status, message) => {
   throw Object.assign(new Error(message), { status });
 };
-const contactGuardHash = (...parts) => createHash('sha256').update(JSON.stringify(parts)).digest('hex');
+const contactGuardHash = (...parts) =>
+  createHash('sha256').update(JSON.stringify(parts)).digest('hex');
 // Match websiteImportCore's current V2 key, with the previous layouts retained
 // for already-imported families. JSON array encoding and institution scope matter.
 export const canonicalRaagaContactGuardId = (email, institution = 'raaga') => {
-  const normalized = String(email || '').trim().toLowerCase();
+  const normalized = String(email || '')
+    .trim()
+    .toLowerCase();
   return `CONTACT#${institution}#${contactGuardHash(institution, normalized)}`;
 };
 export const legacyRaagaContactGuardIds = (email, institution = 'raaga') => {
-  const normalized = String(email || '').trim().toLowerCase();
+  const normalized = String(email || '')
+    .trim()
+    .toLowerCase();
   const emailOnlyHash = contactGuardHash(normalized);
   return [`CONTACT#${institution}#${emailOnlyHash}`, `CONTACT#${emailOnlyHash}`];
 };
@@ -124,7 +129,14 @@ export function createCanonicalRaagaInvitationFlow(
         requestedAt = now(),
         username = usernameFor(reg.registrationId);
       try {
-        await ops.reserveInvite(reg, guardian, actorSub, operationId, requestedAt, contact.counterId);
+        await ops.reserveInvite(
+          reg,
+          guardian,
+          actorSub,
+          operationId,
+          requestedAt,
+          contact.counterId,
+        );
       } catch (e) {
         if (['TransactionCanceledException', 'ConditionalCheckFailedException'].includes(e?.name))
           fail(
