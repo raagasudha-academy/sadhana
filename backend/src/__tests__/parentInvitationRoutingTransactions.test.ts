@@ -67,6 +67,7 @@ for (const institution of ['raaga', 'sruti'] as const) {
             );
             return {
               Item: {
+                counterId: command.input.Key.counterId,
                 personId: guardian.personId,
                 familyId: guardian.familyId,
                 institutionId: institution,

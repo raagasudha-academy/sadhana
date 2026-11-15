@@ -38,7 +38,12 @@ function fixture() {
     email,
     firstName: 'P',
   };
-  const contact = { personId: guardian.personId, familyId: reg.familyId, institutionId: 'raaga' };
+  const contact = {
+    counterId: canonicalRaagaContactGuardId(email),
+    personId: guardian.personId,
+    familyId: reg.familyId,
+    institutionId: 'raaga',
+  };
   const calls = [],
     ops = {
       contact: async () => {
@@ -469,7 +474,7 @@ test('invitation contact guard hashes match the canonical website import algorit
   const expected =
     'CONTACT#raaga#' +
     createHash('sha256')
-      .update(JSON.stringify([email]))
+      .update(JSON.stringify(['raaga', email]))
       .digest('hex');
   assert.equal(canonicalRaagaContactGuardId(email), expected);
 });

@@ -5,11 +5,18 @@ import { createHash } from 'node:crypto';
 const fail = (status, message) => {
   throw Object.assign(new Error(message), { status });
 };
-// Match m95WebsiteImportCore's hash(email): JSON array encoding is significant.
-export const canonicalRaagaContactGuardId = (email, institution = 'raaga') =>
-  `CONTACT#${institution}#${createHash('sha256')
-    .update(JSON.stringify([email]))
-    .digest('hex')}`;
+const contactGuardHash = (...parts) => createHash('sha256').update(JSON.stringify(parts)).digest('hex');
+// Match websiteImportCore's current V2 key, with the previous layouts retained
+// for already-imported families. JSON array encoding and institution scope matter.
+export const canonicalRaagaContactGuardId = (email, institution = 'raaga') => {
+  const normalized = String(email || '').trim().toLowerCase();
+  return `CONTACT#${institution}#${contactGuardHash(institution, normalized)}`;
+};
+export const legacyRaagaContactGuardIds = (email, institution = 'raaga') => {
+  const normalized = String(email || '').trim().toLowerCase();
+  const emailOnlyHash = contactGuardHash(normalized);
+  return [`CONTACT#${institution}#${emailOnlyHash}`, `CONTACT#${emailOnlyHash}`];
+};
 const attr = (attrs, key) => attrs?.find((x) => x.Name === key)?.Value || '';
 const emailPattern = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 const subPattern = /^[a-zA-Z0-9-]{8,128}$/;
@@ -44,8 +51,13 @@ const verify = (reg, guardian, actorSub, institution) => {
   return guardian.email;
 };
 const checkContact = (contact, reg, guardian) => {
+  const validGuardIds = [
+    canonicalRaagaContactGuardId(guardian.email, reg.institutionId),
+    ...legacyRaagaContactGuardIds(guardian.email, reg.institutionId),
+  ];
   if (
     !contact ||
+    !validGuardIds.includes(contact.counterId) ||
     contact.personId !== guardian.personId ||
     contact.familyId !== reg.familyId ||
     contact.institutionId !== reg.institutionId
@@ -79,7 +91,8 @@ export function createCanonicalRaagaInvitationFlow(
         reg.invitationOperationId
       )
         fail(409, 'Parent invitation state changed. Refresh and review.');
-      checkContact(await ops.contact(email), reg, guardian);
+      const contact = await ops.contact(email);
+      checkContact(contact, reg, guardian);
       const lookup = await ops.listByEmail(email);
       if (lookup.paginated)
         fail(
@@ -111,7 +124,7 @@ export function createCanonicalRaagaInvitationFlow(
         requestedAt = now(),
         username = usernameFor(reg.registrationId);
       try {
-        await ops.reserveInvite(reg, guardian, actorSub, operationId, requestedAt);
+        await ops.reserveInvite(reg, guardian, actorSub, operationId, requestedAt, contact.counterId);
       } catch (e) {
         if (['TransactionCanceledException', 'ConditionalCheckFailedException'].includes(e?.name))
           fail(
@@ -167,7 +180,8 @@ export function createCanonicalRaagaInvitationFlow(
         reg.parentAccountEmail !== email
       )
         fail(409, 'Pending invitation metadata requires administrator reconciliation.');
-      checkContact(await ops.contact(email), reg, guardian);
+      const contact = await ops.contact(email);
+      checkContact(contact, reg, guardian);
       const user = await ops.getUser(reg.parentAccountUsername);
       if (
         user?.Enabled !== true ||
@@ -183,7 +197,15 @@ export function createCanonicalRaagaInvitationFlow(
         requestedAt = now(),
         threshold = new Date(Date.parse(requestedAt) - 60000).toISOString();
       try {
-        await ops.reserveResend(reg, guardian, actorSub, operationId, requestedAt, threshold);
+        await ops.reserveResend(
+          reg,
+          guardian,
+          actorSub,
+          operationId,
+          requestedAt,
+          threshold,
+          contact.counterId,
+        );
       } catch (e) {
         if (['TransactionCanceledException', 'ConditionalCheckFailedException'].includes(e?.name))
           fail(429, 'Invitation recently requested or account changed. Wait and refresh.');

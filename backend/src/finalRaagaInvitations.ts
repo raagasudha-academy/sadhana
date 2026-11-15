@@ -18,6 +18,7 @@ import { parentEmailRouteRecord } from './parentEmailRoute.mjs';
 import {
   createCanonicalRaagaInvitationFlow,
   canonicalRaagaContactGuardId,
+  legacyRaagaContactGuardIds,
 } from './finalRaagaInvitationFlow.mjs';
 
 const table = (kind: string) => entityTable(kind);
@@ -34,7 +35,7 @@ export function makeCanonicalRaagaInvitationReader(
       throw Object.assign(new Error('Cognito user pool not configured.'), { status: 503 });
     return poolId;
   };
-  const identityConditions = (guardian: any, reg: any) => [
+  const identityConditions = (guardian: any, reg: any, contactGuardId: string) => [
     {
       ConditionCheck: {
         TableName: table('people'),
@@ -54,7 +55,7 @@ export function makeCanonicalRaagaInvitationReader(
     {
       ConditionCheck: {
         TableName: table('counters'),
-        Key: { counterId: canonicalRaagaContactGuardId(guardian.email) },
+        Key: { counterId: contactGuardId },
         ConditionExpression: 'personId=:person AND familyId=:family AND institutionId=:inst',
         ExpressionAttributeValues: {
           ':person': guardian.personId,
@@ -65,16 +66,22 @@ export function makeCanonicalRaagaInvitationReader(
     },
   ];
   const ops = {
-    contact: async (email: string) =>
-      (
-        await db.send(
-          new GetCommand({
-            TableName: table('counters'),
-            Key: { counterId: canonicalRaagaContactGuardId(email) },
-            ConsistentRead: true,
-          }),
-        )
-      ).Item ?? null,
+    contact: async (email: string) => {
+      const ids = [canonicalRaagaContactGuardId(email), ...legacyRaagaContactGuardIds(email)];
+      for (const counterId of ids) {
+        const item = (
+          await db.send(
+            new GetCommand({
+              TableName: table('counters'),
+              Key: { counterId },
+              ConsistentRead: true,
+            }),
+          )
+        ).Item;
+        if (item) return item;
+      }
+      return null;
+    },
     listByEmail: async (email: string) => {
       const res = await cognito.send(
         new ListUsersCommand({
@@ -86,7 +93,14 @@ export function makeCanonicalRaagaInvitationReader(
       // Even a non-exact or unverified Cognito match is a conflict: no duplicates.
       return { count: (res.Users ?? []).length, paginated: Boolean(res.PaginationToken) };
     },
-    reserveInvite: (reg: any, guardian: any, actor: string, op: string, ts: string) =>
+    reserveInvite: (
+      reg: any,
+      guardian: any,
+      actor: string,
+      op: string,
+      ts: string,
+      contactGuardId: string,
+    ) =>
       db.send(
         new TransactWriteCommand({
           TransactItems: [
@@ -133,7 +147,7 @@ export function makeCanonicalRaagaInvitationReader(
                 ConditionExpression: 'attribute_not_exists(counterId)',
               },
             },
-            ...identityConditions(guardian, reg),
+            ...identityConditions(guardian, reg, contactGuardId),
           ],
         }),
       ),
@@ -188,6 +202,7 @@ export function makeCanonicalRaagaInvitationReader(
       op: string,
       ts: string,
       threshold: string,
+      contactGuardId: string,
     ) =>
       db.send(
         new TransactWriteCommand({
@@ -258,7 +273,7 @@ export function makeCanonicalRaagaInvitationReader(
                 },
               },
             },
-            ...identityConditions(guardian, reg),
+            ...identityConditions(guardian, reg, contactGuardId),
           ],
         }),
       ),
