@@ -210,11 +210,12 @@ jobs:
               "SrutiIngressReady=enabled" \
               "SrutiRegistrationReads=enabled" \
               "RaagaIntakeReads=enabled" \
-              "RaagaParentStatusReads=enabled"
+              "RaagaParentStatusReads=enabled" \
+              "RaagaImportPreview=enabled"
           {
             echo '### Production Sruti intake release'
             echo
             echo '- The public intake endpoint was verified against the protected prod registration table.'
             echo "- A pending synthetic registration was verified: $TEST_REGISTRATION_ID."
-            echo '- Sruti ingress, Raagasudha/Sruti registration reads, and Raagasudha parent-status reads are enabled; import and review writes remain separately gated.'
+            echo '- Sruti ingress, Raagasudha/Sruti registration reads, Raagasudha parent-status reads, and read-only Raagasudha import previews are enabled; import execution and review writes remain separately gated.'
           } >> "$GITHUB_STEP_SUMMARY"

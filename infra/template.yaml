@@ -50,6 +50,11 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable the admin-only read of canonical Raagasudha parent-account status markers
+  RaagaImportPreview:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable read-only previews of approved Raagasudha registrations without permitting import execution
 
 Conditions:
   UsePitr: !Equals [!Ref EnablePointInTimeRecovery, 'true']
@@ -253,6 +258,7 @@ Resources:
             !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
           SADHANA_FINAL_RAAGA_INTAKE_READS: !Ref RaagaIntakeReads
           SADHANA_FINAL_RAAGA_PARENT_STATUS_READS: !Ref RaagaParentStatusReads
+          SADHANA_FINAL_RAAGA_IMPORT_PREVIEW: !Ref RaagaImportPreview
           SADHANA_FINAL_ADMIN_READS: !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
           SADHANA_FINAL_GUARDIAN_QUEUE_READS:
             !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
