@@ -50,6 +50,11 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable authenticated Raagasudha registration list/detail reads after its stage-specific intake target is verified
+  RaagaReviewWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable authenticated admin approval or discard of Raagasudha website registrations
   RaagaParentStatusReads:
     Type: String
     Default: disabled
@@ -284,6 +289,7 @@ Resources:
           SADHANA_FINAL_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           M91_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           SADHANA_FINAL_RAAGA_INTAKE_READS: !Ref RaagaIntakeReads
+          SADHANA_FINAL_RAAGA_REVIEW_WRITES: !Ref RaagaReviewWrites
           SADHANA_FINAL_RAAGA_PARENT_STATUS_READS: !Ref RaagaParentStatusReads
           SADHANA_FINAL_RAAGA_PARENT_ACTION_READS: !Ref RaagaParentActionReads
           SADHANA_FINAL_RAAGA_PARENT_INVITATIONS: !Ref RaagaParentInvitations
