@@ -44,6 +44,16 @@
       ]
     },
     {
+      "Sid": "AccessProductionRaagasudhaRegistrations",
+      "Effect": "Allow",
+      "Action": "execute-api:Invoke",
+      "Resource": [
+        "arn:aws:execute-api:us-east-1:627821644317:yaug86x7o0/$default/GET/admin/registrations",
+        "arn:aws:execute-api:us-east-1:627821644317:yaug86x7o0/$default/GET/admin/registrations/*",
+        "arn:aws:execute-api:us-east-1:627821644317:yaug86x7o0/$default/PATCH/admin/registrations/*"
+      ]
+    },
+    {
       "Sid": "ManageExistingProductionStaffPool",
       "Effect": "Allow",
       "Action": [
