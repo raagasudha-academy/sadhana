@@ -206,7 +206,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
   const [confirmExistingAccountLink, setConfirmExistingAccountLink] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importResult, setImportResult] = useState<{
-    familyId: string;
+    familyNumber: string;
     studentRollNumbers: Record<string, string>;
     websiteSynced: boolean;
     warning?: string;
@@ -418,7 +418,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
         throw new Error('Activation did not return student records.');
       setFamilyMatch(null);
       setImportResult({
-        familyId: outcome.familyId || '',
+        familyNumber: outcome.familyNumber || '',
         studentRollNumbers: outcome.studentRollNumbers,
         websiteSynced: Boolean(outcome.websiteSynced),
         warning: outcome.warning,
@@ -1054,7 +1054,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                 )}
                 {importResult && (
                   <div role="status" style={{ width: '100%' }}>
-                    <strong>Family: {importResult.familyId}</strong>
+                    <strong>Family {importResult.familyNumber || 'number unavailable'}</strong>
                     <p>
                       Student roll numbers:{' '}
                       {Object.values(importResult.studentRollNumbers).join(', ')}
