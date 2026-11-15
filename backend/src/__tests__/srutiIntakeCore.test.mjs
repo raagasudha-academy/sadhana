@@ -37,7 +37,12 @@ const input = (registrationType, students) => ({
   registrationType,
   guardian,
   students,
-  consents: { registration: true, photography: false },
+  consents: {
+    registration: true,
+    contactMethods: { phone: true, email: false },
+    photographyChoice: 'declined',
+    photography: false,
+  },
 });
 for (const [kind, kids] of [
   ['self', [student('Test', 'self')]],

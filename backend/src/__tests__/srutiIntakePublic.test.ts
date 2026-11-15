@@ -35,7 +35,12 @@ const valid = {
       medicalNotes: '',
     },
   ],
-  consents: { registration: true, photography: false },
+  consents: {
+    registration: true,
+    contactMethods: { phone: true, email: false },
+    photographyChoice: 'declined',
+    photography: false,
+  },
 };
 const event = (method: string, body?: string, headers: any = { origin }) => ({
   headers,

@@ -51,13 +51,20 @@ const learner = (s, kind) => {
   };
 };
 export function validateSrutiSubmission(value) {
+  const methods = plain(value?.consents?.contactMethods) ? value.consents.contactMethods : {};
+  const photographyChoice = value?.consents?.photographyChoice;
   if (
     !plain(value) ||
     value.institution !== 'sruti' ||
     !['self', 'child', 'both'].includes(value.registrationType) ||
     !plain(value.guardian) ||
     !plain(value.consents) ||
-    value.consents.registration !== true
+    value.consents.registration !== true ||
+    typeof methods.phone !== 'boolean' ||
+    typeof methods.email !== 'boolean' ||
+    (!methods.phone && !methods.email) ||
+    !['granted', 'declined'].includes(photographyChoice) ||
+    value.consents.photography !== (photographyChoice === 'granted')
   )
     reject('Invalid Sruti registration or missing consent.');
   if (
@@ -120,7 +127,12 @@ export function validateSrutiSubmission(value) {
     registrationType: value.registrationType,
     guardian,
     students,
-    consents: { registration: true, photography: value.consents.photography === true },
+    consents: {
+      registration: true,
+      contactMethods: { phone: methods.phone, email: methods.email },
+      photographyChoice,
+      photography: photographyChoice === 'granted',
+    },
   };
 }
 export function newSrutiIntakeRecord(
@@ -217,8 +229,10 @@ export function toApprovedM9Registration(record) {
     submittedAt: record.submittedAt,
     mediaConsent: {
       granted: payload.consents.photography,
+      choice: payload.consents.photographyChoice,
       recordedAt: record.submittedAt,
     },
+    contactMethods: payload.consents.contactMethods,
     primaryContactPersonId: primaryId,
     people,
     students,
