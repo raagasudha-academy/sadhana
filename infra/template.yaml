@@ -23,7 +23,7 @@ Parameters:
     Type: String
     Default: disabled
     AllowedValues: [enabled, disabled]
-    Description: Set enabled only while the configured Cognito pool uses email as its sign-in username.
+    Description: Set enabled only while the configured Cognito pool uses email as its sign-in username; alias-based pools should leave this disabled.
   AllowedPortalOrigins:
     Type: CommaDelimitedList
     Description: Required exact comma-separated browser origins for this stage; no paths or wildcard origins. Dev may include localhost. Production must include both production portal origins.

@@ -54,7 +54,7 @@
       ]
     },
     {
-      "Sid": "ManageExistingProductionStaffPool",
+      "Sid": "ManageProductionStaffPoolsDuringCutover",
       "Effect": "Allow",
       "Action": [
         "cognito-idp:ListUsersInGroup",
@@ -66,7 +66,10 @@
         "cognito-idp:AdminUpdateUserAttributes",
         "cognito-idp:ListUsers"
       ],
-      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_Egro1CA39"
+      "Resource": [
+        "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_Egro1CA39",
+        "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_hSh1Ij6iU"
+      ]
     },
     {
       "Sid": "ManageProfilePhotoObjects",

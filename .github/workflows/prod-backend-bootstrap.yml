@@ -147,11 +147,11 @@ jobs:
               "InvitationLambdaS3Key=$COGNITO_INVITATION_LAMBDA_S3_KEY"
       - name: Resolve the existing production Cognito client
         run: |
-          pool_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue|[0]' --output text)"
-          client_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`AppClientId`].OutputValue|[0]' --output text)"
+          pool_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito-v2 --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue|[0]' --output text)"
+          client_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito-v2 --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`AppClientId`].OutputValue|[0]' --output text)"
           pool_name="$(aws cognito-idp describe-user-pool --user-pool-id "$pool_id" --region "$AWS_REGION" --query 'UserPool.Name' --output text)"
-          if [ "$pool_name" != prod-sadhana-user-pool ] || [ -z "$client_id" ] || [ "$client_id" = None ]; then
-            echo 'The existing production Cognito pool/client could not be verified.'
+          if [ "$pool_name" != prod-sadhana-user-pool-v2 ] || [ -z "$client_id" ] || [ "$client_id" = None ]; then
+            echo 'The replacement production Cognito pool/client could not be verified.'
             exit 1
           fi
           echo "COGNITO_USER_POOL_ID=$pool_id" >> "$GITHUB_ENV"
@@ -199,7 +199,7 @@ jobs:
               "Stage=prod" \
               "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
               "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
-              "CognitoEmailUsernameMode=enabled" \
+              "CognitoEmailUsernameMode=disabled" \
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true"

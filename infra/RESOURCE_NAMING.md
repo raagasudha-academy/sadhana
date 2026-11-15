@@ -18,7 +18,7 @@ Use the environment first for stage-scoped resources: `dev-<application>-<resour
 | Sruti public intake API and Lambda | `dev-sadhana-sruti-public-intake` / `dev-sruti-public-intake` | `prod-sadhana-sruti-public-intake` / `prod-sruti-public-intake` |
 | Sruti intake deployment bucket     | `dev-sadhana-intake-deploy-<account>-<region>`                | `prod-sadhana-intake-deploy-<account>-<region>`                 |
 | Portal asset bucket                | n/a                                                           | `prod-sadhana-portal-<account>`                                 |
-| Staff Cognito pool                 | `dev-sadhana-user-pool`                                       | `prod-sadhana-user-pool`                                        |
+| Staff Cognito pool                 | `dev-sadhana-user-pool`                                       | `prod-sadhana-user-pool-v2` (legacy pool retained for rollback) |
 
 Use these CloudFormation stack names for newly created stacks: `dev-sadhana-app`,
 `prod-sadhana-app`, `dev-sadhana-entity-tables`, `prod-sadhana-entity-tables`,
@@ -47,6 +47,8 @@ change routing for other entities.
    minimal teacher profiles from development into production. Do not copy registrations or
    family/login data as part of this seed.
 4. Deploy the Sadhana app with stage-specific table, bucket, Cognito, API, and CORS settings.
+   Production authentication now uses the replacement alias-enabled pool; keep the original
+   production pool intact until full login and administrator workflows are verified.
 5. Copy the existing Raaga Sudha intake records to `prod-raagasudha-student-registrations`.
    Point its production intake Lambda to that source table.
 6. Deploy the disabled Sruti intake stack, verify it writes only to
@@ -58,7 +60,8 @@ change routing for other entities.
 
 The manual GitHub workflow `.github/workflows/prod-backend-bootstrap.yml` provisions the new
 `prod-sadhana-*` tables, the `prod-sadhana-app` API stack, a disabled production Sruti intake
-stack, and the existing production Cognito pool settings and invitation Lambda. It runs the
+stack, and the production Cognito invitation Lambda. It keeps the original Cognito pool for
+rollback while the app and API use the replacement pool. It runs the
 full test suite, then waits for approval on the GitHub `production` environment before applying
 AWS changes. It leaves existing `sadhana-prod-*`
 tables, the current dev stack, and the active Sruti intake untouched. It does not copy data

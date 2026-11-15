@@ -108,6 +108,17 @@ jobs:
             echo "Refusing production release in AWS account $account."
             exit 1
           fi
+      - name: Resolve replacement production Cognito pool and client
+        run: |
+          pool_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito-v2 --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue|[0]' --output text)"
+          client_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito-v2 --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`AppClientId`].OutputValue|[0]' --output text)"
+          pool_name="$(aws cognito-idp describe-user-pool --user-pool-id "$pool_id" --region "$AWS_REGION" --query 'UserPool.Name' --output text)"
+          if [ "$pool_name" != prod-sadhana-user-pool-v2 ] || [ -z "$client_id" ] || [ "$client_id" = None ]; then
+            echo 'The replacement production Cognito pool/client could not be verified.'
+            exit 1
+          fi
+          echo "COGNITO_USER_POOL_ID=$pool_id" >> "$GITHUB_ENV"
+          echo "COGNITO_APP_CLIENT_ID=$client_id" >> "$GITHUB_ENV"
       - name: Verify deployed Sruti site points to production intake
         if: inputs.phase == 'activate-sadhana-reads'
         run: |
@@ -205,8 +216,8 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               "Stage=prod" \
-              "CognitoUserPoolId=us-east-1_Egro1CA39" \
-              "CognitoAppClientId=mi2ulgljta8vu146uja5ob5il" \
+              "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
+              "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true" \
@@ -238,8 +249,8 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               "Stage=prod" \
-              "CognitoUserPoolId=us-east-1_Egro1CA39" \
-              "CognitoAppClientId=mi2ulgljta8vu146uja5ob5il" \
+              "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
+              "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true" \
@@ -265,8 +276,8 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               "Stage=prod" \
-              "CognitoUserPoolId=us-east-1_Egro1CA39" \
-              "CognitoAppClientId=mi2ulgljta8vu146uja5ob5il" \
+              "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
+              "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true" \
@@ -294,8 +305,8 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               "Stage=prod" \
-              "CognitoUserPoolId=us-east-1_Egro1CA39" \
-              "CognitoAppClientId=mi2ulgljta8vu146uja5ob5il" \
+              "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
+              "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true" \

@@ -41,14 +41,16 @@ Lambda roles it creates or passes. The `ProductionCognitoUpdates` inline policy 
 `infra/iam/prod-cognito-cloudformation-execution-permissions.json` grants updates to the existing
 production user pool only. Review CloudFormation change sets before approving the environment job.
 
-The parallel replacement pool uses separate additive inline policies:
+The parallel replacement pool uses separate additive policies:
 `infra/iam/github-production-cognito-v2-deployment-permissions.json` belongs on
 `sadhana-github-production-bootstrap`, and
 `infra/iam/prod-cognito-v2-cloudformation-execution-permissions.json` belongs on
 `prod-sadhana-cloudformation-execution`. Do not replace the existing managed GitHub bootstrap
 policy with a generated copy: the live policy contains portal publishing and other grants that
 are not represented by older source snapshots. These V2 policies only add deployment rights for
-the `sadhana-prod-cognito-v2` stack and Cognito pools tagged `Generation=v2`.
+the `sadhana-prod-cognito-v2` stack and Cognito pools tagged `Generation=v2`. The production app
+and API now use that replacement pool; retain the original pool and its sign-in domain until the
+new portal login and staff workflows are verified.
 
 ## GitHub environment
 
