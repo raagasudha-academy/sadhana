@@ -73,6 +73,10 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
+        - Name: phone_number
+          AttributeDataType: String
+          Mutable: true
+          Required: true
       UserAttributeUpdateSettings:
         AttributesRequireVerificationBeforeUpdate: [email]
       LambdaConfig:
