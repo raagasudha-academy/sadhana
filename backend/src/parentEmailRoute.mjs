@@ -12,7 +12,7 @@ export const parentUsernameFor = (registrationId) => {
 
 export const parentEmailRouteKey = (username) => `EMAIL_ROUTE#${username}`;
 
-export function parentEmailRouteRecord(reg, guardian, timestamp) {
+export function parentEmailRouteRecord(reg, guardian, timestamp, username) {
   if (!['raaga', 'sruti'].includes(reg.institutionId)) {
     throw new Error('Invalid institution for parent email routing');
   }
@@ -24,7 +24,7 @@ export function parentEmailRouteRecord(reg, guardian, timestamp) {
   }
 
   return {
-    counterId: parentEmailRouteKey(parentUsernameFor(reg.registrationId)),
+    counterId: parentEmailRouteKey(username || parentUsernameFor(reg.registrationId)),
     sequenceType: 'PARENT_EMAIL_ROUTE',
     institutionId: reg.institutionId,
     registrationId: reg.registrationId,

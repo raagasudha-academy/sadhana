@@ -1,0 +1,138 @@
+name: Sadhana production Cognito v2 bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sadhana-production-cognito-v2
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - name: Require main branch release
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo 'Production releases must be dispatched from main.'
+            exit 1
+          fi
+      - run: npm run verify
+      - run: npx playwright install chromium
+      - run: npm run test:frontend:playwright
+      - run: npm run verify:backend
+      - run: npm run test:backend:e2e
+      - name: Run Python helper tests
+        run: |
+          python -m pip install boto3
+          npm run test:python
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      CLOUDFORMATION_EXECUTION_ROLE_ARN: ${{ vars.CLOUDFORMATION_EXECUTION_ROLE_ARN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Verify deployment account and role
+        run: |
+          test "$AWS_REGION" = us-east-1
+          test "$CLOUDFORMATION_EXECUTION_ROLE_ARN" = 'arn:aws:iam::627821644317:role/prod-sadhana-cloudformation-execution'
+          account="$(aws sts get-caller-identity --query Account --output text)"
+          test "$account" = 627821644317 || { echo 'Refusing deployment outside the Sadhana production account.'; exit 1; }
+      - name: Create parallel production pool, client and groups
+        run: |
+          aws cloudformation deploy \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --stack-name sadhana-prod-cognito-v2 \
+            --template-file infra/prod-cognito-v2.yaml \
+            --no-fail-on-empty-changeset \
+            --tags Application=Sadhana Environment=prod \
+            --parameter-overrides \
+              'CognitoDomainPrefix=sadhana-prod-v2-627821644317' \
+              'PortalDomains=sadhana.sruti.co.uk,sadhana.raagasudhamusic.co.uk' \
+              'EnableDeletionProtection=false' \
+              'CreateHostedUiDomain=false'
+      - name: Verify v2 pool sign-in configuration and groups
+        id: verify-pool
+        run: |
+          pool_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito-v2 --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue|[0]' --output text)"
+          client_id="$(aws cloudformation describe-stacks --stack-name sadhana-prod-cognito-v2 --region "$AWS_REGION" --query 'Stacks[0].Outputs[?OutputKey==`AppClientId`].OutputValue|[0]' --output text)"
+          config="$(aws cognito-idp describe-user-pool --user-pool-id "$pool_id" --region "$AWS_REGION" --query 'UserPool.{Name:Name,Aliases:AliasAttributes,UsernameAttributes:UsernameAttributes,Mfa:MfaConfiguration,DeletionProtection:DeletionProtection}' --output json)"
+          echo "$config"
+          node -e 'const p=JSON.parse(process.argv[1]); if(p.Name!=="prod-sadhana-user-pool-v2" || !p.Aliases?.includes("email") || !p.Aliases?.includes("phone_number") || p.Mfa!=="OFF" || p.DeletionProtection!=="INACTIVE") process.exit(1)' "$config"
+          groups="$(aws cognito-idp list-groups --user-pool-id "$pool_id" --region "$AWS_REGION" --query 'Groups[].GroupName' --output json)"
+          echo "$groups"
+          node -e 'const g=JSON.parse(process.argv[1]); const e=["prod-super-admin","raagasudha-admin","raagasudha-viewer","sruti-admin","sruti-viewer"]; if(e.some(x=>!g.includes(x)) || g.length!==e.length) process.exit(1)' "$groups"
+          test -n "$client_id"
+          echo "pool_id=$pool_id" >> "$GITHUB_OUTPUT"
+          echo "client_id=$client_id" >> "$GITHUB_OUTPUT"
+      - name: Add hosted login domain and enable pool deletion protection
+        run: |
+          aws cloudformation deploy \
+            --region "$AWS_REGION" \
+            --role-arn "$CLOUDFORMATION_EXECUTION_ROLE_ARN" \
+            --stack-name sadhana-prod-cognito-v2 \
+            --template-file infra/prod-cognito-v2.yaml \
+            --no-fail-on-empty-changeset \
+            --tags Application=Sadhana Environment=prod \
+            --parameter-overrides \
+              'CognitoDomainPrefix=sadhana-prod-v2-627821644317' \
+              'PortalDomains=sadhana.sruti.co.uk,sadhana.raagasudhamusic.co.uk' \
+              'EnableDeletionProtection=true' \
+              'CreateHostedUiDomain=true'
+      - name: Confirm hosted domain and publish staged outputs
+        env:
+          POOL_ID: ${{ steps.verify-pool.outputs.pool_id }}
+          CLIENT_ID: ${{ steps.verify-pool.outputs.client_id }}
+        run: |
+          status=''
+          for attempt in $(seq 1 24); do
+            status="$(aws cognito-idp describe-user-pool-domain --domain sadhana-prod-v2-627821644317 --region "$AWS_REGION" --query 'DomainDescription.Status' --output text)"
+            if [ "$status" = ACTIVE ]; then break; fi
+            sleep 5
+          done
+          test "$status" = ACTIVE || { echo "V2 Cognito domain did not become active (status: $status)."; exit 1; }
+          issuer="https://cognito-idp.${AWS_REGION}.amazonaws.com/${POOL_ID}"
+          domain="https://sadhana-prod-v2-627821644317.auth.${AWS_REGION}.amazoncognito.com"
+          {
+            echo '### Parallel production Cognito pool is ready for user migration'
+            echo
+            echo "- User pool ID: \`$POOL_ID\`"
+            echo "- App client ID: \`$CLIENT_ID\`"
+            echo "- Issuer: \`$issuer\`"
+            echo "- Hosted UI domain: \`$domain\`"
+            echo '- Sign-in: username, email alias, and phone alias.'
+            echo '- MFA: off, matching dev.'
+            echo '- All five current production groups are present.'
+            echo '- Existing production pool, portal variables, API authorizer, users and DynamoDB identities were not changed.'
+            echo '- No users were copied; migrate users and reconcile Cognito subjects before cutover.'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -13,7 +13,7 @@ export async function resolveParentEmailRoute(
   username: string,
   recipientEmail: string,
 ): Promise<'raaga' | 'sruti'> {
-  if (!/^parent-[A-Za-z0-9_-]{8,128}$/.test(username)) fail();
+  if (typeof username !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(username)) fail();
 
   if (typeof recipientEmail !== 'string') fail();
   const email = recipientEmail.trim().toLowerCase();
@@ -41,8 +41,6 @@ export async function resolveParentEmailRoute(
   )
     fail();
 
-  if (parentUsernameFor(route.registrationId) !== username) fail();
-
   const reg = (
     await db.send(
       new GetCommand({
@@ -64,7 +62,11 @@ export async function resolveParentEmailRoute(
     fail();
   }
 
-  if (reg.provisioningStatus === 'INVITATION_CREATING' && !reg.invitationOperationId) fail();
+  if (
+    reg.provisioningStatus === 'INVITATION_CREATING' &&
+    (!reg.invitationOperationId || parentUsernameFor(route.registrationId) !== username)
+  )
+    fail();
 
   if (
     reg.provisioningStatus === 'INVITATION_SENT' &&

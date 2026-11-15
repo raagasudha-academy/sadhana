@@ -19,6 +19,11 @@ Parameters:
   CognitoAppClientId:
     Type: String
     Description: Existing Sadhana staff Cognito app client ID
+  CognitoEmailUsernameMode:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Set enabled only while the configured Cognito pool uses email as its sign-in username.
   AllowedPortalOrigins:
     Type: CommaDelimitedList
     Description: Required exact comma-separated browser origins for this stage; no paths or wildcard origins. Dev may include localhost. Production must include both production portal origins.
@@ -276,6 +281,7 @@ Resources:
               - ApiId: !FindInMap [StageTables, !Ref Stage, RaagasudhaApiId]
             - !Ref AWS::NoValue
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          SADHANA_COGNITO_EMAIL_USERNAME: !Ref CognitoEmailUsernameMode
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
           SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
           SADHANA_ENTITY_TABLE_SET: final

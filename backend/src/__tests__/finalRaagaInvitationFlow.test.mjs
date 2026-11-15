@@ -105,6 +105,22 @@ test('new invitation reserves canonical state before Cognito, without granting a
   );
   assert.match(x.calls[3][1], /^parent-[a-f0-9]{32}$/);
 });
+test('email-username pools receive email and persist Cognito-generated username', async () => {
+  const x = fixture();
+  const cognitoUsername = '34080418-3071-70fc-b7f6-476a35d202c2';
+  x.ops.createUser = async (username, mail, name) => {
+    x.calls.push(['create', username, mail, name]);
+    return { Username: cognitoUsername, Attributes: [{ Name: 'sub', Value: sub }] };
+  };
+  x.ops.completeInvite = async (...args) => x.calls.push(['completeInvite', ...args]);
+  const result = await x
+    .flow({ ...flags, SADHANA_COGNITO_EMAIL_USERNAME: 'enabled' })
+    .invite(x.reg, x.guardian, 'admin-sub');
+  assert.equal(result.status, 'INVITATION_SENT');
+  assert.equal(x.calls[3][1], email);
+  assert.equal(x.calls[3][2], email);
+  assert.equal(x.calls[4][3], cognitoUsername);
+});
 test('all invitations and resends are disabled without final mode, ack and independent flags', async () => {
   const x = fixture();
   for (const env of [
@@ -174,10 +190,9 @@ test('conditional reservation failure never reaches Cognito', async () => {
   await assert.rejects(x.flow().invite(x.reg, x.guardian, 'admin-sub'), (e) => e.status === 409);
   assert(!x.calls.some((v) => Array.isArray(v) && v[0] === 'create'));
 });
-test('creation receipt mismatch must not claim an invitation or link a guardian', async () => {
+test('creation receipt without a Cognito username requires reconciliation', async () => {
   const x = fixture();
   x.ops.createUser = async () => ({
-    Username: 'unexpected',
     Attributes: [{ Name: 'sub', Value: sub }],
   });
   await assert.rejects(x.flow().invite(x.reg, x.guardian, 'admin-sub'), /manual reconciliation/);

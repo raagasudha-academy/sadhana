@@ -127,7 +127,10 @@ export function createCanonicalRaagaInvitationFlow(
       }
       const operationId = getId(),
         requestedAt = now(),
-        username = usernameFor(reg.registrationId);
+        username =
+          env.SADHANA_COGNITO_EMAIL_USERNAME === 'enabled'
+            ? email
+            : usernameFor(reg.registrationId);
       try {
         await ops.reserveInvite(
           reg,
@@ -158,11 +161,17 @@ export function createCanonicalRaagaInvitationFlow(
           `Invitation reservation requires administrator reconciliation (${String(e?.name || 'CognitoFailure').slice(0, 80)}).`,
         );
       }
+      const cognitoUsername = user?.Username;
       const subject = attr(user?.Attributes, 'sub');
-      if (user?.Username !== username || !subPattern.test(subject))
+      if (
+        typeof cognitoUsername !== 'string' ||
+        !cognitoUsername ||
+        cognitoUsername.length > 128 ||
+        !subPattern.test(subject)
+      )
         fail(409, 'Cognito account creation response requires manual reconciliation.');
       try {
-        await ops.completeInvite(reg, operationId, username, email, subject, now());
+        await ops.completeInvite(reg, operationId, cognitoUsername, email, subject, now());
       } catch {
         fail(
           409,
@@ -188,13 +197,12 @@ export function createCanonicalRaagaInvitationFlow(
         !subPattern.test(reg.parentAccountSub || '') ||
         !validEmail(reg.parentAccountEmail) ||
         !reg.parentAccountUsername ||
-        reg.parentAccountUsername !== usernameFor(reg.registrationId) ||
         reg.parentAccountEmail !== email
       )
         fail(409, 'Pending invitation metadata requires administrator reconciliation.');
       const contact = await ops.contact(email);
       checkContact(contact, reg, guardian);
-      const user = await ops.getUser(reg.parentAccountUsername);
+      const user = await ops.getUser(reg.parentAccountUsername, email);
       if (
         user?.Enabled !== true ||
         user.UserStatus !== 'FORCE_CHANGE_PASSWORD' ||
@@ -225,7 +233,7 @@ export function createCanonicalRaagaInvitationFlow(
       }
       // Keep the attempt timestamp if AWS fails or its response is ambiguous. A later
       // retry is bounded by the independent DynamoDB conditional cooldown.
-      await ops.sendResend(reg.parentAccountUsername);
+      await ops.sendResend(reg.parentAccountUsername, email);
       try {
         await ops.completeResend(reg, actorSub, operationId, now());
       } catch {

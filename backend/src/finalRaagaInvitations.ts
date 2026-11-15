@@ -14,7 +14,7 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { entityTable } from './entityTables.mjs';
-import { parentEmailRouteRecord } from './parentEmailRoute.mjs';
+import { parentEmailRouteRecord, parentUsernameFor } from './parentEmailRoute.mjs';
 import {
   createCanonicalRaagaInvitationFlow,
   canonicalRaagaContactGuardId,
@@ -35,6 +35,8 @@ export function makeCanonicalRaagaInvitationReader(
       throw Object.assign(new Error('Cognito user pool not configured.'), { status: 503 });
     return poolId;
   };
+  const cognitoLookup = (username: string, email?: string) =>
+    process.env.SADHANA_COGNITO_EMAIL_USERNAME === 'enabled' ? email || username : username;
   const identityConditions = (guardian: any, reg: any, contactGuardId: string) => [
     {
       ConditionCheck: {
@@ -165,36 +167,70 @@ export function makeCanonicalRaagaInvitationReader(
           }),
         )
         .then((x) => x.User),
-    completeInvite: (
+    completeInvite: async (
       reg: any,
       op: string,
       username: string,
       email: string,
       sub: string,
       ts: string,
-    ) =>
-      db.send(
-        new UpdateCommand({
-          TableName: table('registrations'),
-          Key: { registrationId: reg.registrationId },
-          UpdateExpression:
-            'SET provisioningStatus=:sent,parentAccountSub=:sub,parentAccountUsername=:username,parentAccountEmail=:email,provisioningUpdatedAt=:now,parentInvitationLastSentAt=:now,updatedAt=:now',
-          ConditionExpression:
-            'provisioningStatus=:creating AND invitationOperationId=:op AND familyId=:family',
-          ExpressionAttributeValues: {
-            ':sent': 'INVITATION_SENT',
-            ':creating': 'INVITATION_CREATING',
-            ':op': op,
-            ':sub': sub,
-            ':username': username,
-            ':email': email,
-            ':now': ts,
-            ':family': reg.familyId,
+    ) => {
+      const reservedUsername = parentUsernameFor(reg.registrationId);
+      const items: any[] = [
+        {
+          Update: {
+            TableName: table('registrations'),
+            Key: { registrationId: reg.registrationId },
+            UpdateExpression:
+              'SET provisioningStatus=:sent,parentAccountSub=:sub,parentAccountUsername=:username,parentAccountEmail=:email,provisioningUpdatedAt=:now,parentInvitationLastSentAt=:now,updatedAt=:now',
+            ConditionExpression:
+              'provisioningStatus=:creating AND invitationOperationId=:op AND familyId=:family',
+            ExpressionAttributeValues: {
+              ':sent': 'INVITATION_SENT',
+              ':creating': 'INVITATION_CREATING',
+              ':op': op,
+              ':sub': sub,
+              ':username': username,
+              ':email': email,
+              ':now': ts,
+              ':family': reg.familyId,
+            },
           },
-        }),
+        },
+      ];
+      if (username !== reservedUsername) {
+        items.push(
+          {
+            Delete: {
+              TableName: table('counters'),
+              Key: { counterId: `EMAIL_ROUTE#${reservedUsername}` },
+              ConditionExpression:
+                'sequenceType=:type AND registrationId=:reg AND familyId=:family AND recipientEmail=:email AND #status=:pending',
+              ExpressionAttributeNames: { '#status': 'status' },
+              ExpressionAttributeValues: {
+                ':type': 'PARENT_EMAIL_ROUTE',
+                ':reg': reg.registrationId,
+                ':family': reg.familyId,
+                ':email': email.trim().toLowerCase(),
+                ':pending': 'pending',
+              },
+            },
+          },
+          {
+            Put: {
+              TableName: table('counters'),
+              Item: parentEmailRouteRecord(reg, { email }, ts, username),
+              ConditionExpression: 'attribute_not_exists(counterId)',
+            },
+          },
+        );
+      }
+      return db.send(new TransactWriteCommand({ TransactItems: items }));
+    },
+    getUser: (username: string, email?: string) =>
+      cognito.send(
+        new AdminGetUserCommand({ UserPoolId: pool(), Username: cognitoLookup(username, email) }),
       ),
-    getUser: (username: string) =>
-      cognito.send(new AdminGetUserCommand({ UserPoolId: pool(), Username: username })),
     reserveResend: (
       reg: any,
       guardian: any,
@@ -277,11 +313,11 @@ export function makeCanonicalRaagaInvitationReader(
           ],
         }),
       ),
-    sendResend: (username: string) =>
+    sendResend: (username: string, email?: string) =>
       cognito.send(
         new AdminCreateUserCommand({
           UserPoolId: pool(),
-          Username: username,
+          Username: cognitoLookup(username, email),
           MessageAction: 'RESEND',
           DesiredDeliveryMediums: ['EMAIL'],
         }),

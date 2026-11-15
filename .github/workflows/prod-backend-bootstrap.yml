@@ -199,6 +199,7 @@ jobs:
               "Stage=prod" \
               "CognitoUserPoolId=$COGNITO_USER_POOL_ID" \
               "CognitoAppClientId=$COGNITO_APP_CLIENT_ID" \
+              "CognitoEmailUsernameMode=enabled" \
               "AllowedPortalOrigins=https://sadhana.sruti.co.uk,https://sadhana.raagasudhamusic.co.uk" \
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true"

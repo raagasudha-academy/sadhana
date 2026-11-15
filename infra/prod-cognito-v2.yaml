@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Parallel Sadhana production user pool with username, email and phone sign-in.
+
+Parameters:
+  CognitoDomainPrefix:
+    Type: String
+    Default: sadhana-prod-v2-627821644317
+    Description: New globally unique Cognito managed domain; the current domain remains on the old pool.
+  PortalDomains:
+    Type: CommaDelimitedList
+    Default: sadhana.sruti.co.uk,sadhana.raagasudhamusic.co.uk
+    Description: Production portal hostnames for OAuth callbacks and logout.
+  InvitationLambdaArn:
+    Type: String
+    Default: arn:aws:lambda:us-east-1:627821644317:function:prod-sadhana-cognito-invitation
+    Description: Existing production CustomMessage Lambda reused by the replacement pool.
+  EnableDeletionProtection:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Turn on after the parallel pool and its groups are verified.
+  CreateHostedUiDomain:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Create the new hosted-login domain only after the pool is verified.
+
+Conditions:
+  ProtectPool: !Equals [!Ref EnableDeletionProtection, 'true']
+  CreateHostedUiDomain: !Equals [!Ref CreateHostedUiDomain, 'true']
+
+Resources:
+  SadhanaProdUserPoolV2:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: prod-sadhana-user-pool-v2
+      DeletionProtection: !If [ProtectPool, ACTIVE, INACTIVE]
+      AliasAttributes: [email, phone_number]
+      UsernameConfiguration:
+        CaseSensitive: false
+      AutoVerifiedAttributes: [email, phone_number]
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        SourceArn: arn:aws:ses:us-east-1:627821644317:identity/sruti.co.uk
+        From: 'Śruti Vedam <noreply@sruti.co.uk>'
+        ReplyToEmailAddress: raagasudhaacademy.support@gmail.com
+        ConfigurationSet: sadhana-email-tracking
+      SmsConfiguration:
+        SnsCallerArn: arn:aws:iam::627821644317:role/service-role/CognitoIdpSNSServiceRole
+        ExternalId: 853ec55a-3e55-40e8-a31e-eeea0601339e
+        SnsRegion: us-east-1
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+          - Name: verified_phone_number
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      MfaConfiguration: 'OFF'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate: [email]
+      LambdaConfig:
+        CustomMessage: !Ref InvitationLambdaArn
+      UserPoolTags:
+        Application: Sadhana
+        Environment: prod
+        Generation: v2
+
+  SadhanaProdUserPoolV2InvitationInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref InvitationLambdaArn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${SadhanaProdUserPoolV2}'
+
+  SadhanaProdAppClientV2:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+      ClientName: Sadhana-Portal-Web-Prod-V2
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, phone]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs:
+        - !Sub
+          - 'https://${PortalDomain}/'
+          - PortalDomain: !Select [0, !Ref PortalDomains]
+        - !Sub
+          - 'https://${PortalDomain}/'
+          - PortalDomain: !Select [1, !Ref PortalDomains]
+      LogoutURLs:
+        - !Sub
+          - 'https://${PortalDomain}/'
+          - PortalDomain: !Select [0, !Ref PortalDomains]
+        - !Sub
+          - 'https://${PortalDomain}/'
+          - PortalDomain: !Select [1, !Ref PortalDomains]
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  SadhanaProdCognitoDomainV2:
+    Type: AWS::Cognito::UserPoolDomain
+    Condition: CreateHostedUiDomain
+    Properties:
+      Domain: !Ref CognitoDomainPrefix
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+
+  ProdSuperAdminGroupV2:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: prod-super-admin
+      Description: Prod Sadhana Super administrators
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+  RaagasudhaAdminGroupV2:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: raagasudha-admin
+      Description: Production Raaga Sudha staff administrators.
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+  RaagasudhaViewerGroupV2:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: raagasudha-viewer
+      Description: Production Raaga Sudha read-only staff.
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+  SrutiAdminGroupV2:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: sruti-admin
+      Description: Production Sruti staff administrators.
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+  SrutiViewerGroupV2:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: sruti-viewer
+      Description: Production Sruti read-only staff.
+      UserPoolId: !Ref SadhanaProdUserPoolV2
+
+Outputs:
+  UserPoolId:
+    Value: !Ref SadhanaProdUserPoolV2
+  AppClientId:
+    Value: !Ref SadhanaProdAppClientV2
+  Issuer:
+    Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${SadhanaProdUserPoolV2}'
+  HostedUiDomain:
+    Value: !Sub 'https://${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com'
+  ProductionPortalCallbacks:
+    Value: !Join
+      - ','
+      - - !Sub
+          - 'https://${PortalDomain}/'
+          - PortalDomain: !Select [0, !Ref PortalDomains]
+        - !Sub
+          - 'https://${PortalDomain}/'
+          - PortalDomain: !Select [1, !Ref PortalDomains]
