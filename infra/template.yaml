@@ -51,6 +51,7 @@ Conditions:
   CreateAggregateTable: !Not [!Equals [!Ref Stage, prod]]
   UseProdLambdaBoundary: !Equals [!Ref Stage, prod]
   UseDevFamilyReads: !Equals [!Ref Stage, dev]
+  UseFamilyReads: !Not [!Equals [!Ref Stage, staging]]
 
 Mappings:
   StageTables:
@@ -230,6 +231,7 @@ Resources:
           SADHANA_ENTITY_TABLE_SET: final
           SADHANA_ENTITY_FINAL_ACK: enabled
           SADHANA_DATA_MODE: final
+          SADHANA_FINAL_FAMILY_READS: !If [UseFamilyReads, enabled, disabled]
           SADHANA_FINAL_SRUTI_INGRESS_READY: !If [UseDevFamilyReads, enabled, !Ref SrutiIngressReady]
           SADHANA_FINAL_SRUTI_REGISTRATION_READS: !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
           SADHANA_FINAL_RAAGA_INTAKE_READS: !Ref RaagaIntakeReads
