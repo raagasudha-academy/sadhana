@@ -55,6 +55,26 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable the admin-only read of canonical Raagasudha parent-account status markers
+  RaagaParentActionReads:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable canonical Raagasudha parent-account actions after identity reconciliation
+  RaagaParentInvitations:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Allow an explicitly confirmed admin action to invite a new Raagasudha parent account
+  RaagaParentResends:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Allow an explicitly confirmed admin action to resend a Raagasudha parent invitation
+  RaagaParentLinkWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Allow an explicitly confirmed admin action to link an existing verified parent account
   RaagaImportPreview:
     Type: String
     Default: disabled
@@ -265,6 +285,10 @@ Resources:
           M91_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           SADHANA_FINAL_RAAGA_INTAKE_READS: !Ref RaagaIntakeReads
           SADHANA_FINAL_RAAGA_PARENT_STATUS_READS: !Ref RaagaParentStatusReads
+          SADHANA_FINAL_RAAGA_PARENT_ACTION_READS: !Ref RaagaParentActionReads
+          SADHANA_FINAL_RAAGA_PARENT_INVITATIONS: !Ref RaagaParentInvitations
+          SADHANA_FINAL_RAAGA_PARENT_RESENDS: !Ref RaagaParentResends
+          SADHANA_FINAL_RAAGA_PARENT_LINK_WRITES: !Ref RaagaParentLinkWrites
           SADHANA_FINAL_RAAGA_IMPORT_PREVIEW: !Ref RaagaImportPreview
           SADHANA_FINAL_ADMIN_READS: !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
           SADHANA_FINAL_GUARDIAN_QUEUE_READS:
