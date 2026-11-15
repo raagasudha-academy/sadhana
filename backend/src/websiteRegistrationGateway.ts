@@ -20,6 +20,38 @@ function httpError(message: string, status: number): Error {
   return Object.assign(new Error(message), { status });
 }
 
+const raagasudhaApiIds: Record<string, string> = {
+  dev: 'ruaignd57e',
+  prod: 'yaug86x7o0',
+};
+
+function getRaagasudhaApiBase(): URL {
+  const base = process.env.RAAGASUDHA_REGISTRATIONS_API_URL;
+  const stage = process.env.SADHANA_ENTITY_STAGE;
+  const expectedApiId = stage ? raagasudhaApiIds[stage] : undefined;
+
+  if (!base || !expectedApiId) {
+    throw httpError('Website registration integration is not configured.', 503);
+  }
+
+  const baseUrl = new URL(base);
+
+  if (
+    baseUrl.protocol !== 'https:' ||
+    baseUrl.hostname !== `${expectedApiId}.execute-api.us-east-1.amazonaws.com` ||
+    (baseUrl.pathname !== '/' && baseUrl.pathname !== '') ||
+    baseUrl.username !== '' ||
+    baseUrl.password !== '' ||
+    baseUrl.port !== '' ||
+    baseUrl.search !== '' ||
+    baseUrl.hash !== ''
+  ) {
+    throw httpError('Website registration API destination is invalid.', 503);
+  }
+
+  return baseUrl;
+}
+
 export function intakePath(registrationId?: string, personId?: string): string {
   const valid = (value: string) => /^[A-Za-z0-9_-]{1,120}$/.test(value);
 
@@ -72,28 +104,7 @@ export async function fetchWebsiteRegistration(
   personId?: string,
   filters: IntakeListFilters = {},
 ): Promise<unknown> {
-  const base = process.env.RAAGASUDHA_REGISTRATIONS_API_URL;
-
-  if (!base) {
-    throw httpError('Website registration integration is not configured.', 503);
-  }
-
-  // Allow only the designated Raagasudha API.
-  // Never accept an arbitrary URL from the browser.
-  const baseUrl = new URL(base);
-
-  if (
-    baseUrl.protocol !== 'https:' ||
-    baseUrl.hostname !== 'tc22v9iexa.execute-api.us-east-1.amazonaws.com' ||
-    (baseUrl.pathname !== '/' && baseUrl.pathname !== '') ||
-    baseUrl.username !== '' ||
-    baseUrl.password !== '' ||
-    baseUrl.port !== '' ||
-    baseUrl.search !== '' ||
-    baseUrl.hash !== ''
-  ) {
-    throw httpError('Website registration API destination is invalid.', 503);
-  }
+  const baseUrl = getRaagasudhaApiBase();
 
   const url = new URL(intakePath(registrationId, personId), baseUrl);
 
@@ -184,22 +195,7 @@ export async function reviewWebsiteRegistration(
 ): Promise<unknown> {
   if (!['approved', 'discarded'].includes(reviewStatus))
     throw Object.assign(new Error('Invalid review status.'), { status: 400 });
-  const base = process.env.RAAGASUDHA_REGISTRATIONS_API_URL;
-  if (!base)
-    throw Object.assign(new Error('Website registration integration is not configured.'), {
-      status: 503,
-    });
-  const baseUrl = new URL(base);
-  if (
-    baseUrl.protocol !== 'https:' ||
-    baseUrl.hostname !== 'tc22v9iexa.execute-api.us-east-1.amazonaws.com' ||
-    baseUrl.pathname !== '/' ||
-    baseUrl.search ||
-    baseUrl.hash
-  )
-    throw Object.assign(new Error('Website registration API destination is invalid.'), {
-      status: 503,
-    });
+  const baseUrl = getRaagasudhaApiBase();
   const url = new URL(intakePath(registrationId), baseUrl);
   const body = JSON.stringify({ reviewStatus, reviewer });
   const bytes = new TextEncoder().encode(body);
@@ -253,17 +249,7 @@ export async function updateWebsiteRegistrationImport(
   registrationId: string,
   mapping: { status: 'imported'; familyId: string; studentIds: Record<string, string> },
 ): Promise<void> {
-  const base = process.env.RAAGASUDHA_REGISTRATIONS_API_URL;
-  if (!base) throw httpError('Website registration integration is not configured.', 503);
-  const baseUrl = new URL(base);
-  if (
-    baseUrl.protocol !== 'https:' ||
-    baseUrl.hostname !== 'tc22v9iexa.execute-api.us-east-1.amazonaws.com' ||
-    baseUrl.pathname !== '/' ||
-    baseUrl.search ||
-    baseUrl.hash
-  )
-    throw httpError('Invalid website API destination.', 503);
+  const baseUrl = getRaagasudhaApiBase();
   const url = new URL(intakePath(registrationId), baseUrl);
   const bytes = new TextEncoder().encode(JSON.stringify({ sadhanaImport: mapping }));
   const req = new HttpRequest({
@@ -309,17 +295,7 @@ export async function resetWebsiteRegistrationImport(
     familyDisposition: 'deleted' | 'retained-shared';
   },
 ): Promise<void> {
-  const base = process.env.RAAGASUDHA_REGISTRATIONS_API_URL;
-  if (!base) throw httpError('Website registration integration is not configured.', 503);
-  const baseUrl = new URL(base);
-  if (
-    baseUrl.protocol !== 'https:' ||
-    baseUrl.hostname !== 'tc22v9iexa.execute-api.us-east-1.amazonaws.com' ||
-    baseUrl.pathname !== '/' ||
-    baseUrl.search ||
-    baseUrl.hash
-  )
-    throw httpError('Invalid website API destination.', 503);
+  const baseUrl = getRaagasudhaApiBase();
   const url = new URL(intakePath(registrationId), baseUrl);
   const bytes = new TextEncoder().encode(JSON.stringify({ resetSadhanaImport: evidence }));
   const req = new HttpRequest({

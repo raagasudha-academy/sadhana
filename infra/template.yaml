@@ -52,18 +52,22 @@ Conditions:
   UseProdLambdaBoundary: !Equals [!Ref Stage, prod]
   UseDevFamilyReads: !Equals [!Ref Stage, dev]
   UseFamilyReads: !Not [!Equals [!Ref Stage, staging]]
+  UseRaagaApi: !Not [!Equals [!Ref Stage, staging]]
 
 Mappings:
   StageTables:
     dev:
       SrutiSource: dev-sruti-student-registrations
       SrutiRegistration: dev-sruti-student-registrations
+      RaagasudhaApiId: ruaignd57e
     staging:
       SrutiSource: staging-sruti-student-registrations
       SrutiRegistration: staging-sruti-student-registrations
+      RaagasudhaApiId: unused
     prod:
       SrutiSource: prod-sruti-student-registrations
       SrutiRegistration: prod-sruti-student-registrations
+      RaagasudhaApiId: yaug86x7o0
 
 Resources:
   SadhanaHomeworkMedia:
@@ -225,6 +229,12 @@ Resources:
           SADHANA_ENTITY_STAGE: !Ref Stage
           SRUTI_SOURCE_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiSource]
           SRUTI_REGISTRATIONS_TABLE: !FindInMap [StageTables, !Ref Stage, SrutiRegistration]
+          RAAGASUDHA_REGISTRATIONS_API_URL: !If
+            - UseRaagaApi
+            - !Sub
+              - 'https://${ApiId}.execute-api.${AWS::Region}.amazonaws.com/'
+              - ApiId: !FindInMap [StageTables, !Ref Stage, RaagasudhaApiId]
+            - !Ref AWS::NoValue
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
           SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
@@ -278,6 +288,18 @@ Resources:
                 - !Sub
                   - 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SourceTable}/index/*'
                   - SourceTable: !FindInMap [StageTables, !Ref Stage, SrutiSource]
+            - !If
+              - UseRaagaApi
+              - Effect: Allow
+                Action: [execute-api:Invoke]
+                Resource:
+                  - !Sub
+                    - 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiId}/$default/GET/admin/registrations*'
+                    - ApiId: !FindInMap [StageTables, !Ref Stage, RaagasudhaApiId]
+                  - !Sub
+                    - 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiId}/$default/PATCH/admin/registrations/*'
+                    - ApiId: !FindInMap [StageTables, !Ref Stage, RaagasudhaApiId]
+              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - cognito-idp:ListUsersInGroup
