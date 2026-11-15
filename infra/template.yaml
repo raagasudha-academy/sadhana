@@ -232,8 +232,10 @@ Resources:
           SADHANA_ENTITY_FINAL_ACK: enabled
           SADHANA_DATA_MODE: final
           SADHANA_FINAL_FAMILY_READS: !If [UseFamilyReads, enabled, disabled]
-          SADHANA_FINAL_SRUTI_INGRESS_READY: !If [UseDevFamilyReads, enabled, !Ref SrutiIngressReady]
-          SADHANA_FINAL_SRUTI_REGISTRATION_READS: !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
+          SADHANA_FINAL_SRUTI_INGRESS_READY:
+            !If [UseDevFamilyReads, enabled, !Ref SrutiIngressReady]
+          SADHANA_FINAL_SRUTI_REGISTRATION_READS:
+            !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
           SADHANA_FINAL_RAAGA_INTAKE_READS: !Ref RaagaIntakeReads
           SADHANA_FINAL_ADMIN_READS: !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
           SADHANA_FINAL_GUARDIAN_QUEUE_READS:
