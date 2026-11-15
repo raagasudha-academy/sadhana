@@ -208,11 +208,12 @@ jobs:
               "MiddlesbroughCredentialParameter=$MIDDLE_CREDENTIAL_PARAMETER" \
               "EnablePointInTimeRecovery=true" \
               "SrutiIngressReady=enabled" \
-              "SrutiRegistrationReads=enabled"
+              "SrutiRegistrationReads=enabled" \
+              "RaagaIntakeReads=enabled"
           {
             echo '### Production Sruti intake release'
             echo
             echo '- The public intake endpoint was verified against the protected prod registration table.'
             echo "- A pending synthetic registration was verified: $TEST_REGISTRATION_ID."
-            echo '- Sruti registration reads and ingress readiness are enabled; import and review writes remain separately gated.'
+            echo '- Sruti ingress and Sruti/Raagasudha registration reads are enabled; import and review writes remain separately gated.'
           } >> "$GITHUB_STEP_SUMMARY"
