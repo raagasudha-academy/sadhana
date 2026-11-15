@@ -30,6 +30,7 @@ const config = {
   apiUrl: import.meta.env.VITE_SADHANA_API_URL?.trim().replace(/\/$/, '') || '',
 };
 const configured = Object.values(config).every(Boolean);
+const emailLoginProxy = import.meta.env.VITE_SADHANA_EMAIL_LOGIN_PROXY?.trim() === 'enabled';
 // Vite base is '/' for localhost and '/repo/' for GitHub project Pages.
 const applicationUrl = () => new URL(import.meta.env.BASE_URL || '/', window.location.origin).href;
 const partlyConfigured = Object.values(config).some(Boolean);
@@ -267,6 +268,8 @@ function SignInGate() {
         <CognitoPassword
           region={region}
           clientId={config.clientId}
+          apiUrl={config.apiUrl}
+          emailLoginProxy={emailLoginProxy}
           onAuthenticated={(next) => {
             sessionStorage.removeItem('sadhana_signed_out');
             setSignedOut(false);

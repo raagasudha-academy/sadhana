@@ -100,7 +100,11 @@ Resources:
       UserPoolId: !Ref SadhanaProdUserPoolV2
       ClientName: Sadhana-Portal-Web-Prod-V2
       GenerateSecret: false
-      ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      ExplicitAuthFlows:
+        - ALLOW_USER_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
       EnableTokenRevocation: true
       PreventUserExistenceErrors: ENABLED
       AllowedOAuthFlowsUserPoolClient: true

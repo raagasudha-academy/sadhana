@@ -238,6 +238,10 @@ Resources:
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PATCH, OPTIONS]
         MaxAge: 600
+      RouteSettings:
+        'POST /api/auth/{proxy+}':
+          ThrottlingBurstLimit: 10
+          ThrottlingRateLimit: 5
       Auth:
         DefaultAuthorizer: CognitoStaff
         Authorizers:
@@ -291,6 +295,7 @@ Resources:
               - ApiId: !FindInMap [StageTables, !Ref Stage, RaagasudhaApiId]
             - !Ref AWS::NoValue
           SADHANA_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          SADHANA_COGNITO_APP_CLIENT_ID: !Ref CognitoAppClientId
           SADHANA_COGNITO_EMAIL_USERNAME: !Ref CognitoEmailUsernameMode
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
           SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
@@ -377,6 +382,8 @@ Resources:
                 - cognito-idp:AdminRemoveUserFromGroup
                 - cognito-idp:AdminUpdateUserAttributes
                 - cognito-idp:ListUsers
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminRespondToAuthChallenge
               Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
             - Effect: Allow
               Action:
@@ -405,6 +412,14 @@ Resources:
             ApiId: !Ref SadhanaApi
             Path: /api/{proxy+}
             Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        PublicEmailAuth:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SadhanaApi
+            Path: /api/auth/{proxy+}
+            Method: POST
             Auth:
               Authorizer: NONE
 

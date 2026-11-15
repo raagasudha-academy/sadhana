@@ -72,6 +72,12 @@
       ]
     },
     {
+      "Sid": "AllowEmailPasswordAuthenticationForProdV2Pool",
+      "Effect": "Allow",
+      "Action": ["cognito-idp:AdminInitiateAuth", "cognito-idp:AdminRespondToAuthChallenge"],
+      "Resource": "arn:aws:cognito-idp:us-east-1:627821644317:userpool/us-east-1_hSh1Ij6iU"
+    },
+    {
       "Sid": "ManageProfilePhotoObjects",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject"],

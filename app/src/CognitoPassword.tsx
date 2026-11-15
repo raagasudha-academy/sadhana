@@ -13,6 +13,7 @@ type Challenge = {
   name: string;
   session: string;
   username: string;
+  email: string;
   parameters: Record<string, string>;
 };
 const KEY = 'sadhana_password_session_v1';
@@ -119,11 +120,15 @@ export async function refreshPasswordSession(
 export default function CognitoPassword({
   region,
   clientId,
+  apiUrl,
+  emailLoginProxy,
   onAuthenticated,
   onManagedLogin,
 }: {
   region: string;
   clientId: string;
+  apiUrl: string;
+  emailLoginProxy: boolean;
   onAuthenticated: (token: Tokens) => void;
   onManagedLogin: () => void;
 }) {
@@ -141,7 +146,7 @@ export default function CognitoPassword({
   useEffect(() => {
     setError('');
   }, [mode]);
-  const accepted = (r: Record<string, any>, user: string) => {
+  const accepted = (r: Record<string, any>, user: string, email = user) => {
     if (r.AuthenticationResult) {
       onAuthenticated(makeTokens(r, user));
       return;
@@ -155,6 +160,7 @@ export default function CognitoPassword({
       name,
       session: String(r.Session || ''),
       username: user,
+      email,
       parameters: r.ChallengeParameters || {},
     });
     setAnswer('');
@@ -167,14 +173,28 @@ export default function CognitoPassword({
     setBusy(true);
     setError('');
     try {
-      const r = await cognito(region, 'InitiateAuth', {
-        AuthFlow: 'USER_AUTH',
-        ClientId: clientId,
-        AuthParameters: { USERNAME: user, PASSWORD: password, PREFERRED_CHALLENGE: 'PASSWORD' },
-      });
+      let r: Record<string, any>;
+      if (emailLoginProxy) {
+        const response = await fetch(`${apiUrl}/auth/login`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: user, password }),
+        });
+        r = (await response.json().catch(() => ({}))) as Record<string, any>;
+        if (!response.ok) throw Error(String(r.error || 'Incorrect email or password.'));
+      } else {
+        r = await cognito(region, 'InitiateAuth', {
+          AuthFlow: 'USER_AUTH',
+          ClientId: clientId,
+          AuthParameters: { USERNAME: user, PASSWORD: password, PREFERRED_CHALLENGE: 'PASSWORD' },
+        });
+      }
       const canonicalUsername =
-        r.ChallengeParameters?.USER_ID_FOR_SRP || r.ChallengeParameters?.USERNAME || user;
-      accepted(r, canonicalUsername);
+        r.Username ||
+        r.ChallengeParameters?.USER_ID_FOR_SRP ||
+        r.ChallengeParameters?.USERNAME ||
+        user;
+      accepted(r, canonicalUsername, user);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -211,13 +231,32 @@ export default function CognitoPassword({
                 : 'SMS_OTP_CODE']: answer.trim(),
         };
       }
-      const r = await cognito(region, 'RespondToAuthChallenge', {
-        ClientId: clientId,
-        ChallengeName: challenge.name,
-        Session: challenge.session,
-        ChallengeResponses: response,
-      });
-      accepted(r, challenge.username);
+      let r: Record<string, any>;
+      if (emailLoginProxy) {
+        const challengeResponse = await fetch(`${apiUrl}/auth/challenge`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: challenge.email,
+            username: challenge.username,
+            session: challenge.session,
+            challengeName: challenge.name,
+            newPassword,
+            phone,
+          }),
+        });
+        r = (await challengeResponse.json().catch(() => ({}))) as Record<string, any>;
+        if (!challengeResponse.ok)
+          throw Error(String(r.error || 'Cognito could not complete the operation.'));
+      } else {
+        r = await cognito(region, 'RespondToAuthChallenge', {
+          ClientId: clientId,
+          ChallengeName: challenge.name,
+          Session: challenge.session,
+          ChallengeResponses: response,
+        });
+      }
+      accepted(r, r.Username || challenge.username, challenge.email);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -278,11 +317,11 @@ export default function CognitoPassword({
       >
         {!challenge && (
           <label className="password-field">
-            Email address or username
+            {emailLoginProxy ? 'Email address' : 'Email address or username'}
             <input
               type="text"
-              autoComplete="username"
-              placeholder="Email or username"
+              autoComplete={emailLoginProxy ? 'email' : 'username'}
+              placeholder={emailLoginProxy ? 'you@example.com' : 'Email or username'}
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}

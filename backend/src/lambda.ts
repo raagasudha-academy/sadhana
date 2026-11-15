@@ -113,6 +113,7 @@ import { defaultM95Reader } from './compatibility.ts';
 import { defaultM95DirectoryReader } from './directoryCompatibility.ts';
 import { defaultM10CoreDirectoryReader } from './coreDirectory.ts';
 import { finalFamilyContactRoute } from './finalFamilyContact.ts';
+import { emailLoginRoute } from './emailLogin.ts';
 
 export function createHandler(
   repository: SadhanaRepository,
@@ -189,6 +190,8 @@ export function createHandler(
       const requestMethod = event.requestContext?.http?.method ?? event.httpMethod;
       if (requestMethod === 'OPTIONS')
         return { statusCode: 204, headers: { 'cache-control': 'no-store' }, body: '' };
+      const publicAuthResponse = await emailLoginRoute(event);
+      if (publicAuthResponse) return publicAuthResponse;
       // DO NOT use event.headers or a user-selected frontend persona as an identity.
       // API Gateway's JWT authorizer verifies signature, issuer, audience and expiry.
       const claims = event?.requestContext?.authorizer?.jwt?.claims;
