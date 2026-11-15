@@ -283,12 +283,13 @@ jobs:
               "EnablePointInTimeRecovery=true" \
               "RaagaParentActionReads=enabled" \
               "RaagaParentInvitations=enabled" \
+              "RaagaParentResends=enabled" \
               "RaagaReviewWrites=enabled"
           {
             echo '### Canonical Raagasudha parent invitations'
             echo
             echo '- Explicitly confirmed invitations for new Raagasudha parent accounts are enabled for authenticated administrators.'
-            echo '- Raagasudha review writes remain enabled; resending invitations and linking existing verified accounts remain disabled.'
+            echo '- Raagasudha review writes and invitation resends are enabled; linking existing verified accounts remains disabled.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Enable Raagasudha registration review writes
         if: inputs.phase == 'enable-raaga-review-writes'
