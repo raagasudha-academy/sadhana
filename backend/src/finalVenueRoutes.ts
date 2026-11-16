@@ -20,10 +20,7 @@ export function makeFinalVenueWriter(db: DB, now = () => new Date().toISOString(
     body: any,
   ) {
     demandInstitution(claims, institution);
-    const allowedFields = new Set([
-      ...ALLOWED_FIELDS.venues,
-      ...(id ? ['expectedVersion'] : []),
-    ]);
+    const allowedFields = new Set([...ALLOWED_FIELDS.venues, ...(id ? ['expectedVersion'] : [])]);
     if (!object(body) || Object.keys(body).some((key) => !allowedFields.has(key)))
       throw httpError(400, 'Invalid venue details.');
     const timestamp = now();

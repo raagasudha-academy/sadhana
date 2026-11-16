@@ -98,9 +98,7 @@ export function StudentRecord({
             .map((sessionId) => {
               const session: any = sessionsById.get(sessionId);
               const rsvp = rsvps.find((record: any) => String(record.sessionId) === sessionId);
-              const mark = attendance.find(
-                (record: any) => String(record.sessionId) === sessionId,
-              );
+              const mark = attendance.find((record: any) => String(record.sessionId) === sessionId);
               const classRecord: any = session ? classesById.get(String(session.classId)) : null;
               return {
                 sessionId,
@@ -444,9 +442,7 @@ export function StudentRecord({
                   </thead>
                   <tbody>
                     {attendanceRsvps.map((record) => {
-                      const parsedDate = record.date
-                        ? new Date(`${record.date}T12:00:00`)
-                        : null;
+                      const parsedDate = record.date ? new Date(`${record.date}T12:00:00`) : null;
                       const date =
                         parsedDate && !Number.isNaN(parsedDate.getTime())
                           ? fmtDate(record.date)

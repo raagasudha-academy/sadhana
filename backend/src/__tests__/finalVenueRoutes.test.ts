@@ -46,11 +46,18 @@ test('final venue edit accepts expectedVersion with the editable venue fields', 
   assert.equal(result.name, 'Middlesbrough Hindu Temple');
   assert.equal(result.postcode, 'TS3 6EF');
   assert.equal(result.notes, 'None');
-  assert.equal(calls.filter((command) => command.constructor.name === 'TransactWriteCommand').length, 1);
+  assert.equal(
+    calls.filter((command) => command.constructor.name === 'TransactWriteCommand').length,
+    1,
+  );
 });
 
 test('final venue create still rejects expectedVersion and unknown edit fields', async () => {
-  const write = makeFinalVenueWriter({ send: async () => { throw new Error('Must not write'); } });
+  const write = makeFinalVenueWriter({
+    send: async () => {
+      throw new Error('Must not write');
+    },
+  });
   const claims = { sub: 'sruti-admin', 'cognito:groups': ['sruti-admin'] };
   await assert.rejects(
     write('sruti', claims, undefined, {
