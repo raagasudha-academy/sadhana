@@ -374,13 +374,18 @@ Resources:
           SADHANA_FINAL_CALENDAR_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalCalendarWrites]
           SADHANA_FINAL_SERIES_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalSeriesWrites]
           SADHANA_FINAL_EVENT_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalEventWrites]
-          SADHANA_FINAL_LEARNER_READS: !Ref FinalLearnerReads
+          SADHANA_FINAL_LEARNER_READS: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerReads]
           SADHANA_FINAL_LEARNER_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerWrites]
-          SADHANA_FINAL_LEARNER_EXTRAS_READS: !Ref FinalLearnerExtrasReads
-          SADHANA_FINAL_LEARNER_DIRECTORY_READS: !Ref FinalLearnerDirectoryReads
-          SADHANA_FINAL_LEARNER_PREFERENCES_PARITY: !Ref FinalLearnerPreferencesParity
-          SADHANA_FINAL_HOMEWORK_READS: !Ref FinalHomeworkReads
-          SADHANA_FINAL_LEARNER_MEDIA: !Ref FinalLearnerMedia
+          SADHANA_FINAL_LEARNER_EXTRAS_READS:
+            !If [UseDevFamilyReads, enabled, !Ref FinalLearnerExtrasReads]
+          SADHANA_FINAL_LEARNER_DIRECTORY_READS:
+            !If [UseDevFamilyReads, enabled, !Ref FinalLearnerDirectoryReads]
+          SADHANA_FINAL_LEARNER_PREFERENCES_PARITY:
+            !If [UseDevFamilyReads, enabled, !Ref FinalLearnerPreferencesParity]
+          SADHANA_FINAL_HOMEWORK_READS: !If [UseDevFamilyReads, enabled, !Ref FinalHomeworkReads]
+          SADHANA_FINAL_LEARNER_MEDIA: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerMedia]
+          SADHANA_FINAL_HOMEWORK_MEDIA: !If [UseDevFamilyReads, enabled, disabled]
+          SADHANA_FINAL_TEACHER_PRACTICE_READS: !If [UseDevFamilyReads, enabled, disabled]
           SADHANA_LEARNER_MEDIA_BUCKET: !Ref SadhanaHomeworkMedia
           SADHANA_FINAL_FAMILY_READS: !If [UseFamilyReads, enabled, disabled]
           SADHANA_FINAL_SRUTI_INGRESS_READY:
@@ -389,10 +394,12 @@ Resources:
             !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
           SADHANA_FINAL_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           M91_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
-          SADHANA_FINAL_RAAGA_INTAKE_READS: !Ref RaagaIntakeReads
+          SADHANA_FINAL_RAAGA_INTAKE_READS: !If [UseDevFamilyReads, enabled, !Ref RaagaIntakeReads]
           SADHANA_FINAL_RAAGA_REVIEW_WRITES: !Ref RaagaReviewWrites
-          SADHANA_FINAL_RAAGA_PARENT_STATUS_READS: !Ref RaagaParentStatusReads
-          SADHANA_FINAL_RAAGA_PARENT_ACTION_READS: !Ref RaagaParentActionReads
+          SADHANA_FINAL_RAAGA_PARENT_STATUS_READS:
+            !If [UseDevFamilyReads, enabled, !Ref RaagaParentStatusReads]
+          SADHANA_FINAL_RAAGA_PARENT_ACTION_READS:
+            !If [UseDevFamilyReads, enabled, !Ref RaagaParentActionReads]
           SADHANA_FINAL_RAAGA_PARENT_INVITATIONS: !Ref RaagaParentInvitations
           SADHANA_FINAL_RAAGA_PARENT_RESENDS: !Ref RaagaParentResends
           SADHANA_FINAL_RAAGA_PARENT_LINK_WRITES: !Ref RaagaParentLinkWrites
@@ -406,7 +413,7 @@ Resources:
               !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue],
             ]
           SADHANA_FINAL_GUARDIAN_QUEUE_READS:
-            !If [UseProdLambdaBoundary, enabled, !Ref AWS::NoValue]
+            !If [UseProdLambdaBoundary, enabled, !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue]]
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:
@@ -476,6 +483,11 @@ Resources:
                 - s3:PutObject
                 - s3:GetObject
               Resource: !Sub '${SadhanaProfilePhotos.Arn}/profiles/*'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/*'
             - Effect: Allow
               Action:
                 - s3:ListBucket
