@@ -360,7 +360,7 @@ export default function PracticeReview({
                           aria-label={`Practice audio for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
                           src={r.url}
                         />
-                      ) : r.mime === 'video/mp4' ? (
+                      ) : r.mime.startsWith('video/') ? (
                         <video
                           controls
                           preload="none"
