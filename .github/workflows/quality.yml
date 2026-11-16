@@ -19,9 +19,6 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - run: npm ci
       - run: npm run verify
       - name: Restore Playwright browser cache
@@ -33,10 +30,6 @@ jobs:
         run: npx playwright install chromium
       - name: Run frontend browser tests
         run: npm run test:frontend:playwright
-      - name: Run Python helper tests
-        run: |
-          python -m pip install boto3
-          npm run test:python
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -54,3 +47,16 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm run test:e2e
+  python-helpers:
+    name: Python helper tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install helper dependency
+        run: python -m pip install boto3
+      - name: Run Python helper tests
+        run: python -m unittest discover -s backend/test -p 'test_*.py'
