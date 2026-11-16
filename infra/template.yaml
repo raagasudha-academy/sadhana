@@ -485,6 +485,11 @@ Resources:
               Resource: !Sub '${SadhanaProfilePhotos.Arn}/profiles/*'
             - Effect: Allow
               Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/*'
+            - Effect: Allow
+              Action:
                 - s3:ListBucket
               Resource: !GetAtt SadhanaProfilePhotos.Arn
             - Effect: Allow
