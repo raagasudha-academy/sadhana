@@ -98,13 +98,21 @@ export function makeFinalVenueWriter(db: DB, now = () => new Date().toISOString(
       !previous.institutionIds?.includes(institution)
     )
       throw httpError(403, 'Venue is not available to this institution.');
-    if (previous.version !== expectedVersion)
-      throw httpError(409, 'Venue changed. Refresh and retry.');
-    const prior = [previous.legacyPayload, previous.calendarRecord].find(
-      (payload) => object(payload) && payload.id === id,
-    );
+    const priorEntry = [
+      ['legacyPayload', previous.legacyPayload],
+      ['calendarRecord', previous.calendarRecord],
+    ].find(([, payload]) => object(payload) && payload.id === id);
+    const priorField = priorEntry?.[0];
+    const prior = priorEntry?.[1];
     if (!prior)
       throw httpError(409, 'Venue requires canonical data reconciliation before editing.');
+    // Older venue rows keep their revision only in the legacy projection. Use
+    // that revision when the canonical top-level attribute has not been backfilled.
+    const currentVersion = Number.isSafeInteger(previous.version)
+      ? previous.version
+      : prior.version;
+    if (!Number.isSafeInteger(currentVersion) || currentVersion !== expectedVersion)
+      throw httpError(409, 'Venue changed. Refresh and retry.');
     const editable = Object.fromEntries(
       ALLOWED_FIELDS.venues.map((field) => [
         field,
@@ -112,7 +120,7 @@ export function makeFinalVenueWriter(db: DB, now = () => new Date().toISOString(
       ]),
     );
     const clean = validate('venues', editable, { creating: false });
-    const nextVersion = expectedVersion + 1;
+    const nextVersion = currentVersion + 1;
     const legacyPayload = {
       ...prior,
       ...clean,
@@ -142,6 +150,9 @@ export function makeFinalVenueWriter(db: DB, now = () => new Date().toISOString(
           }
         : {}),
     };
+    const conditionExpression = Number.isSafeInteger(previous.version)
+      ? 'attribute_exists(venueId) AND #version=:expected'
+      : `attribute_exists(venueId) AND attribute_not_exists(#version) AND ${priorField}.#version=:expected`;
     await db.send(
       new TransactWriteCommand({
         TransactItems: [
@@ -149,7 +160,7 @@ export function makeFinalVenueWriter(db: DB, now = () => new Date().toISOString(
             Put: {
               TableName: entityTable('venues'),
               Item: next,
-              ConditionExpression: 'attribute_exists(venueId) AND #version=:expected',
+              ConditionExpression: conditionExpression,
               ExpressionAttributeNames: { '#version': 'version' },
               ExpressionAttributeValues: { ':expected': expectedVersion },
             },
