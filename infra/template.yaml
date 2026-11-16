@@ -50,6 +50,21 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable separately audited administrator teacher activation, archive and restore operations
+  FinalCalendarWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable final-table calendar and class schedule writes
+  FinalSeriesWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable final-table recurring schedule series changes
+  FinalEventWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable final-table managed event create, edit and cancel operations
   FinalLearnerReads:
     Type: String
     Default: disabled
@@ -356,6 +371,9 @@ Resources:
           SADHANA_FINAL_VENUE_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalVenueWrites]
           SADHANA_FINAL_TEACHER_LIFECYCLE_WRITES:
             !If [UseDevFamilyReads, enabled, !Ref FinalTeacherLifecycleWrites]
+          SADHANA_FINAL_CALENDAR_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalCalendarWrites]
+          SADHANA_FINAL_SERIES_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalSeriesWrites]
+          SADHANA_FINAL_EVENT_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalEventWrites]
           SADHANA_FINAL_LEARNER_READS: !Ref FinalLearnerReads
           SADHANA_FINAL_LEARNER_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerWrites]
           SADHANA_FINAL_LEARNER_EXTRAS_READS: !Ref FinalLearnerExtrasReads
