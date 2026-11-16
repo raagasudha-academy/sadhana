@@ -25,7 +25,9 @@ describe('message notifications', () => {
     expect(item.messageThread).toEqual({
       threadId: 'thread-1',
       peerId: 'teacher-1',
+      peerName: 'Tara Teacher',
       classId: 'class-1',
+      className: 'Vedic Chanting',
       studentId: 'student-1',
     });
   });

@@ -89,6 +89,7 @@ export default function TeacherManagement({
   const [revision, setRevision] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<TeacherRecord | null>(null);
   const [editingPhotoUrl, setEditingPhotoUrl] = useState('');
 
   const isAdmin = cloud?.staff.role === 'admin';
@@ -145,30 +146,12 @@ export default function TeacherManagement({
       return;
     }
 
-    if (
-      archive &&
-      !window.confirm(`Archive ${teacher.displayName}? Historical records will remain.`)
-    )
-      return;
-
     setArchiveBusyId(teacher.id);
     setError('');
 
     try {
-      await cloud.api.updateTeacher(
-        institution,
-        teacher.id,
-        {
-          displayName: teacher.displayName,
-          institutions: teacher.institutions,
-          subjects: teacher.subjects,
-          aliases: teacher.aliases,
-          cognitoSub: teacher.cognitoSub || '',
-          active: !archive,
-        },
-        teacher.version,
-      );
-
+      await cloud.api.updateTeacherLifecycle(institution, teacher.id, !archive, teacher.version);
+      setArchiveTarget(null);
       setRevision((v) => v + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to update teacher.');
@@ -271,7 +254,7 @@ export default function TeacherManagement({
           {message}
         </p>
       )}
-      {error && editing === undefined && (
+      {error && editing === undefined && !archiveTarget && (
         <p className="sadhana-sync-error" role="alert">
           {error}
         </p>
@@ -312,7 +295,7 @@ export default function TeacherManagement({
                     }
                     aria-label={`${t.active ? 'Archive' : !t.cognitoSub ? 'Activate' : 'Restore'} ${t.displayName}`}
                     disabled={archiveBusyId === t.id}
-                    onClick={() => void setTeacherArchived(t, t.active)}
+                    onClick={() => setArchiveTarget(t)}
                   >
                     {t.active ? <Archive size={17} /> : <RotateCcw size={17} />}
                   </button>
@@ -571,6 +554,74 @@ export default function TeacherManagement({
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {archiveTarget && (
+        <div className="reg-shade">
+          <section
+            className="reg-modal teacher-archive-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="teacher-archive-title"
+            aria-describedby="teacher-archive-description"
+          >
+            <div className="reg-modal-head">
+              <div>
+                <h2 id="teacher-archive-title">
+                  {archiveTarget.active
+                    ? 'Archive teacher?'
+                    : archiveTarget.cognitoSub
+                      ? 'Restore teacher?'
+                      : 'Activate teacher?'}
+                </h2>
+                <p>{archiveTarget.displayName}</p>
+              </div>
+              <button
+                className="reg-icon-btn"
+                onClick={() => setArchiveTarget(null)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="teacher-archive-description" id="teacher-archive-description">
+              {archiveTarget.active
+                ? 'Historical class and academic records will remain. Archiving removes this teacher from active directories and class assignment choices.'
+                : archiveTarget.cognitoSub
+                  ? 'This makes the teacher active again in academy directories and class assignment choices.'
+                  : 'This activates the teacher profile. A Sadhana login is still required before assigning classes.'}
+            </p>
+            {error && (
+              <p className="reg-error teacher-archive-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="reg-modal-actions teacher-archive-actions">
+              <button
+                type="button"
+                className="reg-secondary"
+                onClick={() => setArchiveTarget(null)}
+                disabled={!!archiveBusyId}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={archiveTarget.active ? 'reg-danger' : 'reg-primary'}
+                onClick={() => void setTeacherArchived(archiveTarget, archiveTarget.active)}
+                disabled={archiveBusyId === archiveTarget.id}
+              >
+                {archiveBusyId === archiveTarget.id
+                  ? 'Saving…'
+                  : archiveTarget.active
+                    ? 'Archive teacher'
+                    : archiveTarget.cognitoSub
+                      ? 'Restore teacher'
+                      : 'Activate teacher'}
+              </button>
+            </div>
           </section>
         </div>
       )}

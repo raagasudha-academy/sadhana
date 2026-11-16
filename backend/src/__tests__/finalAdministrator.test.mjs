@@ -100,7 +100,7 @@ test('SAM enables administrator and guardian queue reads only in production', ()
   const template = readFileSync(new URL('../../../infra/template.yaml', import.meta.url), 'utf8');
   assert.match(
     template,
-    /SADHANA_FINAL_ADMIN_READS:\s*!If\s*\[UseProdLambdaBoundary,\s*enabled,\s*!Ref AWS::NoValue\]/,
+    /SADHANA_FINAL_ADMIN_READS:\s*!If\s*\[\s*UseProdLambdaBoundary,\s*enabled,\s*!If\s*\[UseDevFamilyReads,\s*enabled,\s*!Ref AWS::NoValue\]/,
   );
   assert.match(
     template,

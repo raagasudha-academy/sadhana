@@ -22,6 +22,15 @@ type Message = {
   createdAt: string;
   read: boolean;
 };
+type InitialMessageThread = {
+  threadId: string;
+  peerId: string;
+  classId: string;
+  peerName?: string;
+  peerRole?: Contact['peerRole'];
+  className?: string;
+  photoUrl?: string;
+};
 const contactSections = [
   { role: 'student', label: 'Students' },
   { role: 'teacher', label: 'Teachers' },
@@ -50,11 +59,15 @@ export default function MessagesPage({
   workspace,
   studentId,
   compact = false,
+  initialThread,
+  onInitialThreadOpened,
 }: {
   cloud: CloudSession;
   workspace: InstitutionId;
   studentId?: string;
   compact?: boolean;
+  initialThread?: InitialMessageThread | null;
+  onInitialThreadOpened?: () => void;
 }) {
   const [contacts, setContacts] = useState<Contact[]>([]),
     [threads, setThreads] = useState<Thread[]>([]),
@@ -66,6 +79,7 @@ export default function MessagesPage({
     [error, setError] = useState('');
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const bottom = useRef<HTMLDivElement>(null);
+  const handledInitialThread = useRef('');
   const refreshThreads = useCallback(async () => {
     const data = await cloud.api.listMessageThreads(workspace, studentId);
     setThreads(data.records);
@@ -115,6 +129,27 @@ export default function MessagesPage({
   useEffect(() => {
     void loadDirectory();
   }, [loadDirectory]);
+  useEffect(() => {
+    if (!initialThread) return;
+    const key = `${initialThread.threadId}|${initialThread.peerId}|${initialThread.classId}`;
+    if (handledInitialThread.current === key) return;
+    const contact = threads.find((item) => item.threadId === initialThread.threadId) ||
+      contacts.find(
+        (item) =>
+          item.threadId === initialThread.threadId ||
+          (item.peerId === initialThread.peerId && item.classId === initialThread.classId),
+      ) || {
+        ...initialThread,
+        peerName: initialThread.peerName || 'Contact',
+        peerRole: initialThread.peerRole || 'student',
+        className: initialThread.className || 'Class conversation',
+      };
+    handledInitialThread.current = key;
+    setError('');
+    setRows([]);
+    setActive(contact);
+    onInitialThreadOpened?.();
+  }, [initialThread, threads, contacts, onInitialThreadOpened]);
   useEffect(() => {
     if (!active) return;
     void loadActive(active);

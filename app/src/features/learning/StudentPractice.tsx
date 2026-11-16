@@ -76,9 +76,13 @@ function PracticeMediaPicker({
         {slots.map(({ key, label, accept, icon: Icon }) => {
           const file = files[key];
           const preview = previews[key];
+          const videoSelected = !!file && key === 'video';
           const id = `practice-media-${key}`;
           return (
-            <div className={`v1376-practice-media-tile${file ? ' has-file' : ''}`} key={key}>
+            <div
+              className={`v1376-practice-media-tile${file ? ' has-file' : ''}${file && key.startsWith('image') ? ' has-image' : ''}${videoSelected ? ' has-video' : ''}`}
+              key={key}
+            >
               <input
                 id={id}
                 className="v1376-practice-media-input"
@@ -107,7 +111,9 @@ function PracticeMediaPicker({
                 className={`v1376-practice-media-picker${disabled ? ' is-disabled' : ''}`}
                 title={file ? `Replace ${label.toLowerCase()}` : `Choose ${label.toLowerCase()}`}
               >
-                {preview && key.startsWith('image') && !unpreviewable[key] ? (
+                {videoSelected ? (
+                  <strong>Replace video</strong>
+                ) : preview && key.startsWith('image') && !unpreviewable[key] ? (
                   <img
                     className="v1376-practice-media-thumbnail"
                     src={preview}
@@ -119,7 +125,7 @@ function PracticeMediaPicker({
                     <Icon size={34} strokeWidth={1.8} />
                   </span>
                 )}
-                <strong>{label}</strong>
+                {!videoSelected && <strong>{label}</strong>}
               </label>
               {file && key === 'audio' && (
                 <div className="v1376-practice-media-preview">
@@ -127,7 +133,7 @@ function PracticeMediaPicker({
                 </div>
               )}
               {file && key === 'video' && (
-                <div className="v1376-practice-media-preview">
+                <div className="v1376-practice-media-preview is-video">
                   <video controls preload="metadata" playsInline src={preview} />
                 </div>
               )}

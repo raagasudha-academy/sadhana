@@ -44,7 +44,7 @@ const guardian: any = {
   version: 1,
 };
 
-test('confirmed invited Sruti parent links transactionally with the reserved source alias', async () => {
+test('confirmed invited parent links transactionally when invitation email is unverified', async () => {
   const envKeys = [
     'SADHANA_ENTITY_STAGE',
     'SADHANA_ENTITY_TABLE_SET',
@@ -100,7 +100,7 @@ test('confirmed invited Sruti parent links transactionally with the reserved sou
               Attributes: [
                 { Name: 'sub', Value: subject },
                 { Name: 'email', Value: email },
-                { Name: 'email_verified', Value: 'true' },
+                { Name: 'email_verified', Value: 'false' },
               ],
             },
           ],
@@ -108,7 +108,7 @@ test('confirmed invited Sruti parent links transactionally with the reserved sou
       },
     };
     const reader = makeM10FinalFamilyAccessReader(db as any, cognito, 'test-pool');
-    const linked = await reader.linkInvitedSrutiParent(subject);
+    const linked = await reader.linkInvitedParent(subject, 'sruti');
     assert.equal(linked?.cognitoSub, subject);
     const registrationUpdate = transaction.find(
       (action) => action.Update?.TableName === 'dev-sadhana-registrations',

@@ -66,7 +66,8 @@ export function makeM10FinalFamilyAccessReader(
     linksForGuardian: (id: string) =>
       query('family-links', 'GuardianAccessIndex', 'guardianPersonId', id),
     link: (id: string) => get('family-links', 'linkId', id),
-    async linkInvitedSrutiParent(subject: string) {
+    async linkInvitedParent(subject: string, institution: 'raaga' | 'sruti') {
+      if (!['raaga', 'sruti'].includes(institution)) return null;
       if (!cognito || !poolId) return null;
       const listed = await cognito.send(
         new ListUsersCommand({ UserPoolId: poolId, Filter: `sub = "${subject}"`, Limit: 2 }),
@@ -75,8 +76,7 @@ export function makeM10FinalFamilyAccessReader(
         (user: any) =>
           user.Enabled === true &&
           user.UserStatus === 'CONFIRMED' &&
-          user.Attributes?.some((a: any) => a.Name === 'sub' && a.Value === subject) &&
-          user.Attributes?.some((a: any) => a.Name === 'email_verified' && a.Value === 'true'),
+          user.Attributes?.some((a: any) => a.Name === 'sub' && a.Value === subject),
       );
       if (listed.PaginationToken || users.length !== 1) return null;
       const user = users[0],
@@ -86,7 +86,7 @@ export function makeM10FinalFamilyAccessReader(
       if (
         !route ||
         route.sequenceType !== 'PARENT_EMAIL_ROUTE' ||
-        route.institutionId !== 'sruti' ||
+        route.institutionId !== institution ||
         route.status !== 'pending' ||
         !route.registrationId ||
         !route.familyId
@@ -96,7 +96,7 @@ export function makeM10FinalFamilyAccessReader(
       if (
         !registration ||
         registration.registrationId !== route.registrationId ||
-        registration.institutionId !== 'sruti' ||
+        registration.institutionId !== institution ||
         registration.source !== 'website' ||
         registration.importStatus !== 'imported' ||
         registration.familyId !== route.familyId ||
@@ -113,7 +113,7 @@ export function makeM10FinalFamilyAccessReader(
         !family ||
         family.familyId !== route.familyId ||
         family.status !== 'active' ||
-        !family.institutionIds?.includes('sruti') ||
+        !family.institutionIds?.includes(institution) ||
         !family.primaryContactPersonId
       )
         return null;
@@ -126,14 +126,14 @@ export function makeM10FinalFamilyAccessReader(
         guardian.personId !== family.primaryContactPersonId ||
         guardian.familyId !== family.familyId ||
         guardian.status !== 'active' ||
-        !guardian.institutionIds?.includes('sruti') ||
+        !guardian.institutionIds?.includes(institution) ||
         !guardian.personTypes?.includes('guardian') ||
         guardian.email !== email ||
         email !== route.recipientEmail
       )
         return null;
       if (guardian.cognitoSub && guardian.cognitoSub !== subject) return null;
-      const guardId = guardianInstitutionGuardId(subject, 'sruti'),
+      const guardId = guardianInstitutionGuardId(subject, institution),
         legacyGuardId = cognitoSubjectGuardId(subject);
       const [guard, legacyGuard, subjectPeople] = await Promise.all([
         get('counters', 'counterId', guardId),
@@ -151,7 +151,7 @@ export function makeM10FinalFamilyAccessReader(
               .trim()
               .toLowerCase() !== email ||
             !Array.isArray(p.institutionIds) ||
-            p.institutionIds.includes('sruti'),
+            p.institutionIds.includes(institution),
         )
       )
         return null;
@@ -165,7 +165,7 @@ export function makeM10FinalFamilyAccessReader(
             .trim()
             .toLowerCase() !== email ||
           !Array.isArray(owner.institutionIds) ||
-          owner.institutionIds.includes('sruti')
+          owner.institutionIds.includes(institution)
         )
           return null;
       }
@@ -187,7 +187,7 @@ export function makeM10FinalFamilyAccessReader(
                   ExpressionAttributeValues: {
                     ':active': 'ACTIVE',
                     ':now': now,
-                    ':inst': 'sruti',
+                    ':inst': institution,
                     ':source': 'website',
                     ':imported': 'imported',
                     ':family': family.familyId,
@@ -214,7 +214,7 @@ export function makeM10FinalFamilyAccessReader(
                     ':email': email,
                     ':family': family.familyId,
                     ':active': 'active',
-                    ':inst': 'sruti',
+                    ':inst': institution,
                     ':guardian': 'guardian',
                     ':previous': guardian.version,
                   },
@@ -226,7 +226,7 @@ export function makeM10FinalFamilyAccessReader(
                   Item: {
                     counterId: guardId,
                     personId: guardian.personId,
-                    institutionId: 'sruti',
+                    institutionId: institution,
                     sequenceType: 'COGNITO_SUB_GUARD',
                     createdAt: now,
                   },
@@ -241,7 +241,7 @@ export function makeM10FinalFamilyAccessReader(
                         Item: {
                           counterId: legacyGuardId,
                           personId: guardian.personId,
-                          institutionId: 'sruti',
+                          institutionId: institution,
                           sequenceType: 'COGNITO_SUB_GUARD',
                           createdAt: now,
                         },
@@ -255,7 +255,7 @@ export function makeM10FinalFamilyAccessReader(
                   TableName: table('audit'),
                   Item: {
                     auditId: `guardian_identity_${randomUUID()}`,
-                    institutionId: 'sruti',
+                    institutionId: institution,
                     actorCognitoSub: subject,
                     action: 'INVITED_PARENT_IDENTITY_LINKED',
                     resourceType: 'person',

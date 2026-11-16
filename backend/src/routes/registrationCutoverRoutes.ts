@@ -19,6 +19,7 @@ export type RegistrationReader = {
   list: (
     institution: 'raaga' | 'sruti',
     limit: number,
+    status?: string,
   ) => Promise<{ items: M9RegistrationRow[]; more: boolean }>;
   get: (registrationId: string) => Promise<M9RegistrationRow | null>;
 };
@@ -30,17 +31,45 @@ const client = () =>
 // Lazy resolution prevents a missing final-table acknowledgement from failing Lambda cold start.
 const sourceTable = () => srutiRegistrationTable();
 const defaultReader: RegistrationReader = {
-  async list(inst, limit) {
-    const page = await client().send(
-      new QueryCommand({
-        TableName: sourceTable(),
-        IndexName: 'InstitutionRegistrationsIndex',
-        KeyConditionExpression: 'institutionId = :inst',
-        ExpressionAttributeValues: { ':inst': inst },
-        Limit: limit,
-      }),
-    );
-    return { items: (page.Items ?? []) as M9RegistrationRow[], more: !!page.LastEvaluatedKey };
+  async list(inst, limit, status) {
+    const items: M9RegistrationRow[] = [];
+    let cursor: Record<string, unknown> | undefined;
+    let more = false;
+    do {
+      const page = await client().send(
+        new QueryCommand({
+          TableName: sourceTable(),
+          IndexName: 'InstitutionRegistrationsIndex',
+          KeyConditionExpression: 'institutionId = :inst',
+          ...(status
+            ? {
+                FilterExpression:
+                  '#source=:source AND (#review=:status OR #recordStatus=:status OR #importStatus=:status)',
+                ExpressionAttributeNames: {
+                  '#source': 'source',
+                  '#review': 'reviewStatus',
+                  '#recordStatus': 'status',
+                  '#importStatus': 'importStatus',
+                },
+                ExpressionAttributeValues: {
+                  ':inst': inst,
+                  ':source': 'sruti-website',
+                  ':status': status,
+                },
+              }
+            : { ExpressionAttributeValues: { ':inst': inst } }),
+          ExclusiveStartKey: cursor,
+          Limit: Math.min(100, limit + 1 - items.length),
+        }),
+      );
+      items.push(...((page.Items ?? []) as M9RegistrationRow[]));
+      cursor = page.LastEvaluatedKey;
+      if (items.length > limit) {
+        more = true;
+        break;
+      }
+    } while (cursor);
+    return { items: items.slice(0, limit), more };
   },
   async get(id) {
     const item = await client().send(
@@ -211,12 +240,10 @@ export function makeM10RegistrationCutoverRoutes(
         !['pending', 'approved', 'discarded', 'imported'].includes(query.status)
       )
         throw httpError(400, 'Invalid status.');
-      const page = await reader.list(institution, limit);
+      const page = await reader.list(institution, limit, query.status);
       const items = page.items.filter(
         (item) => item.institutionId === institution && item.source === 'sruti-website',
       );
-      // Filtering a limited GSI page cannot claim complete filter pagination.
-      if (query.status !== undefined) return denied();
       return json(200, {
         records: items.map(publicRow),
         more: page.more,

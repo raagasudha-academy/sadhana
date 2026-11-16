@@ -4,11 +4,13 @@ export type MessageThreadActivity = {
   threadId: string;
   peerId: string;
   peerName: string;
+  peerRole?: 'teacher' | 'student' | 'admin' | 'guardian';
   classId: string;
   className: string;
   lastMessage: string;
   lastAt: string;
   unreadCount: number;
+  photoUrl?: string;
 };
 
 export function messageThreadNotifications(
@@ -36,6 +38,10 @@ export function messageThreadNotifications(
       threadId: thread.threadId,
       peerId: thread.peerId,
       classId: thread.classId,
+      ...(thread.peerName ? { peerName: thread.peerName } : {}),
+      ...(thread.peerRole ? { peerRole: thread.peerRole } : {}),
+      ...(thread.className ? { className: thread.className } : {}),
+      ...(thread.photoUrl ? { photoUrl: thread.photoUrl } : {}),
       ...(studentId ? { studentId } : {}),
     },
   }));

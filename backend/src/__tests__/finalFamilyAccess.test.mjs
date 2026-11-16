@@ -105,13 +105,14 @@ test('existing learner portal contract: only active approved guardian students',
     ],
   });
 });
-test('first Sruti login reconciles the confirmed invitation before listing its approved children', async () => {
+test('first invited-parent login reconciles the invitation before listing approved children', async () => {
   let linkedSubject = '';
   const reader = {
     ...base,
     peopleForSubject: async () => [],
-    linkInvitedSrutiParent: async (sub) => {
+    linkInvitedParent: async (sub, institution) => {
       linkedSubject = sub;
+      assert.equal(institution, 'sruti');
       return actor;
     },
   };
@@ -127,6 +128,38 @@ test('first Sruti login reconciles the confirmed invitation before listing its a
     ],
   });
   assert.equal(linkedSubject, subject);
+});
+test('first Raagasudha login uses the same invitation reconciliation path', async () => {
+  const raagaActor = { ...actor, institutionIds: ['raaga'] };
+  const raagaStudent = {
+    ...student,
+    institutionIds: ['raaga'],
+    studentProfile: { rollNumbers: { raaga: '001-003' } },
+  };
+  const raagaLink = { ...link, institutionId: 'raaga' };
+  let linkedInstitution = '';
+  const reader = {
+    peopleForSubject: async () => [],
+    linkInvitedParent: async (_sub, institution) => {
+      linkedInstitution = institution;
+      return raagaActor;
+    },
+    person: async (id) => (id === raagaActor.personId ? raagaActor : raagaStudent),
+    linksForGuardian: async () => [raagaLink],
+    link: async () => raagaLink,
+  };
+  assert.deepEqual(await finalLinkedStudents('raaga', subject, reader), {
+    records: [
+      {
+        id: raagaStudent.personId,
+        name: 'Asha K',
+        rollNumber: '001-003',
+        kind: 'guardian',
+        relationship: 'child',
+      },
+    ],
+  });
+  assert.equal(linkedInstitution, 'raaga');
 });
 test('approved guardian link can bridge separate family records without moving either person', async () => {
   const otherFamilyGuardian = { ...actor, familyId: 'FAM_PARENT' };

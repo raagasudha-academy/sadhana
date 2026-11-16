@@ -162,9 +162,13 @@ test('Sruti-only administrator cannot request Raagasudha registration data', asy
   );
 });
 
-test('unmigrated Sruti photo and filtered listing routes fail closed', async () => {
+test('unmigrated Sruti photo fails closed and filtered listings pass status', async () => {
+  let requestedStatus: string | undefined;
   const route = makeM10RegistrationCutoverRoutes({
-    list: async () => ({ items: [], more: false }),
+    list: async (_institution, _limit, status) => {
+      requestedStatus = status;
+      return { items: [], more: false };
+    },
     get: async () => null,
   });
   assert.equal(
@@ -177,15 +181,12 @@ test('unmigrated Sruti photo and filtered listing routes fail closed', async () 
     )?.statusCode,
     503,
   );
-  assert.equal(
-    (
-      await route(
-        ctx(['website-registrations'], 'GET', 'sruti', ['sruti-admin'], {
-          institution: 'sruti',
-          status: 'pending',
-        }),
-      )
-    )?.statusCode,
-    503,
+  const filteredList = await route(
+    ctx(['website-registrations'], 'GET', 'sruti', ['sruti-admin'], {
+      institution: 'sruti',
+      status: 'pending',
+    }),
   );
+  assert.equal(filteredList?.statusCode, 200);
+  assert.equal(requestedStatus, 'pending');
 });

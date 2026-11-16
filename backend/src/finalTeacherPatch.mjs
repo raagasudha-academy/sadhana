@@ -3,6 +3,7 @@ export async function finalTeacherPatchRoute(context, deps, access, env = proces
   if (env.SADHANA_ENTITY_TABLE_SET !== 'final') return undefined;
   const { parts, method, query = {}, claims, event } = context;
   if (parts?.[0] !== 'teachers' || method !== 'PATCH') return undefined;
+  if (parts.length === 3 && parts[2] === 'lifecycle') return undefined;
   if (parts.length !== 2 || !/^TEACHER-[0-9a-f-]{36}$/i.test(parts[1]))
     return { status: 400, body: { error: 'Invalid teacher ID.' } };
   if (!claims?.sub)

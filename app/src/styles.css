@@ -2025,6 +2025,39 @@ body {
 .nav-tiny-dot {
   background: var(--sd-lavender);
 }
+.teacher-archive-modal {
+  width: min(100%, 480px);
+}
+.teacher-archive-description {
+  margin: 0;
+  padding: 20px 25px;
+  color: #56647b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.teacher-archive-error {
+  margin: 0 25px 18px;
+}
+.teacher-archive-actions {
+  padding: 0 25px 24px;
+  margin-top: 0;
+}
+.nav-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--sd-gold);
+  color: var(--sd-midnight);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
 .sidebar-help svg {
   color: var(--sd-gold);
 }

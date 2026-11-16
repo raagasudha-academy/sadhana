@@ -3,7 +3,6 @@ import {
   CalendarDays,
   ChevronLeft,
   CircleAlert,
-  ClipboardCheck,
   GraduationCap,
   Info,
   MessageCircle,
@@ -159,6 +158,81 @@ export function ProfileScreen({
     };
   }, [cloud?.api, classItem?.institution, classItem?.id]);
 
+  const [studentSessionActivity, setStudentSessionActivity] = useState<any[]>([]);
+  const [studentActivityBusy, setStudentActivityBusy] = useState(false);
+  const [studentActivityError, setStudentActivityError] = useState('');
+  useEffect(() => {
+    if (!student || activeTab !== 'Attendance' || !cloud?.api) return;
+    let active = true;
+    setStudentSessionActivity([]);
+    setStudentActivityBusy(true);
+    setStudentActivityError('');
+    Promise.all([
+      cloud.api.listOperations('rsvp', student.institution),
+      cloud.api.listOperations('attendance', student.institution),
+      cloud.api.listSchedule(student.institution),
+    ])
+      .then(([rsvpResult, attendanceResult, scheduleResult]: any[]) => {
+        if (!active) return;
+        const rsvps = (rsvpResult.records || []).filter(
+          (record: any) => String(record.studentId) === String(student.id),
+        );
+        const marks = (attendanceResult.records || []).filter(
+          (record: any) => String(record.studentId) === String(student.id),
+        );
+        const relevantSessionIds = new Set(
+          [...rsvps, ...marks].map((record: any) => String(record.sessionId || '')).filter(Boolean),
+        );
+        const schedule = scheduleResult.records || [];
+        const classes = new Map(
+          schedule
+            .filter((record: any) => record.recordType === 'class')
+            .map((record: any) => [String(record.id), record]),
+        );
+        const sessions = new Map(
+          schedule
+            .filter(
+              (record: any) =>
+                record.recordType === 'class-session' && relevantSessionIds.has(String(record.id)),
+            )
+            .map((record: any) => [String(record.id), record]),
+        );
+        const activity = Array.from(relevantSessionIds)
+          .map((sessionId) => {
+            const session: any = sessions.get(sessionId);
+            const rsvp = rsvps.find((record: any) => String(record.sessionId) === sessionId);
+            const attendance = marks.find((record: any) => String(record.sessionId) === sessionId);
+            const classRecord: any = session ? classes.get(String(session.classId)) : null;
+            return {
+              sessionId,
+              date: session?.date || '',
+              startTime: session?.startTime || '',
+              className: classRecord?.name || session?.name || '',
+              rsvp: rsvp?.intention || rsvp?.response || '',
+              attendance: attendance?.status || '',
+            };
+          })
+          .sort(
+            (a, b) =>
+              String(b.date).localeCompare(String(a.date)) ||
+              String(b.startTime).localeCompare(String(a.startTime)),
+          );
+        setStudentSessionActivity(activity);
+      })
+      .catch((e: any) => {
+        if (active)
+          setStudentActivityError(
+            e instanceof Error ? e.message : 'Unable to load attendance and RSVP history.',
+          );
+      })
+      .finally(() => {
+        if (active) setStudentActivityBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, cloud?.api, student?.id, student?.institution]);
+
   const [rosterBusy, setRosterBusy] = useState(false);
   const [rosterError, setRosterError] = useState('');
   useEffect(() => {
@@ -259,7 +333,13 @@ export function ProfileScreen({
         </div>
         <div className="profile-body">
           {isStudent ? (
-            <StudentTab item={item} tab={activeTab} />
+            <StudentTab
+              item={item}
+              tab={activeTab}
+              sessionActivity={studentSessionActivity}
+              activityBusy={studentActivityBusy}
+              activityError={studentActivityError}
+            />
           ) : (
             <ClassTab
               item={item}
@@ -291,7 +371,13 @@ export function InfoRow({ name, children }: any) {
     </div>
   );
 }
-export function StudentTab({ item, tab }: any) {
+export function StudentTab({
+  item,
+  tab,
+  sessionActivity = [],
+  activityBusy = false,
+  activityError = '',
+}: any) {
   const c: any = undefined; // Teacher student profiles await the live directory.
   if (tab === 'Overview')
     return (
@@ -364,13 +450,63 @@ export function StudentTab({ item, tab }: any) {
     return (
       <>
         <h2>Attendance RSVPs</h2>
-        <div className="detail-card">
-          <ClipboardCheck size={18} />
-          <div>
-            <strong>Intended attendance</strong>
-            <p>Session-by-session RSVP history will appear here after integration.</p>
+        <p className="muted">Session RSVP and teacher-marked attendance are shown separately.</p>
+        {activityBusy && <p role="status">Loading attendance and RSVP history…</p>}
+        {activityError && (
+          <p role="alert" className="sadhana-sync-error">
+            {activityError}
+          </p>
+        )}
+        {!activityBusy && !activityError && (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Session date</th>
+                  <th>Class</th>
+                  <th>RSVP</th>
+                  <th>Attendance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessionActivity.map((record: any) => {
+                  const parsedDate = record.date ? new Date(`${record.date}T12:00:00`) : null;
+                  const date =
+                    parsedDate && !Number.isNaN(parsedDate.getTime())
+                      ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(parsedDate)
+                      : 'Date unavailable';
+                  const rsvp =
+                    record.rsvp === 'attending'
+                      ? 'Attending'
+                      : record.rsvp === 'not_attending'
+                        ? 'Not attending'
+                        : record.rsvp === 'unknown'
+                          ? 'Not sure yet'
+                          : 'No response';
+                  const attendance = record.attendance
+                    ? String(record.attendance).replace(/_/g, ' ')
+                    : 'Not marked';
+                  return (
+                    <tr key={record.sessionId}>
+                      <td>
+                        {date}
+                        {record.startTime ? ` · ${displayTime(record.startTime)}` : ''}
+                      </td>
+                      <td>{record.className || 'Class unavailable'}</td>
+                      <td>{rsvp}</td>
+                      <td>{attendance}</td>
+                    </tr>
+                  );
+                })}
+                {!sessionActivity.length && (
+                  <tr>
+                    <td colSpan={4}>No RSVP or attendance records have been recorded.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
       </>
     );
   return (

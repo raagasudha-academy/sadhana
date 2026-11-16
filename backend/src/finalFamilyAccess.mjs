@@ -34,10 +34,11 @@ export async function finalLinkedStudents(institution, subject, reader) {
   if (!validId(subject)) throw error(401, 'Verified account required.');
   const candidates = await reader.peopleForSubject(subject);
   let matched = matchingCognitoPerson(candidates, subject, institution);
-  // A confirmed parent invitation is identity evidence for this exact Cognito
-  // subject. Reconcile older Sruti invitations on the parent's first login.
-  if (!matched && institution === 'sruti' && typeof reader.linkInvitedSrutiParent === 'function') {
-    const linked = await reader.linkInvitedSrutiParent(subject);
+  // An accepted invitation binds this exact Cognito subject to the imported
+  // registration and family. Reconcile invited parents on their first login;
+  // existing-account links still use the separately verified admin workflow.
+  if (!matched && typeof reader.linkInvitedParent === 'function') {
+    const linked = await reader.linkInvitedParent(subject, institution);
     if (linked) matched = matchingCognitoPerson([linked], subject, institution);
   }
   if (!matched) return { records: [] };

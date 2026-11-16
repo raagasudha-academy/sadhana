@@ -128,7 +128,8 @@ async function limitRead<T>(work: () => Promise<T>): Promise<T> {
 const retryDelay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions) {
-  if (!/^https:\/\//.test(baseUrl)) throw new Error('The API must use HTTPS.');
+  if (!/^https:\/\//.test(baseUrl) && baseUrl !== '/__sadhana_api')
+    throw new Error('The API must use HTTPS or the local development proxy.');
   if (typeof getAccessToken !== 'function')
     throw new Error('Provide a Cognito access-token function.');
   const request = async <T>(
@@ -165,20 +166,23 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           }
           throw error;
         }
+        const payload: unknown = await res.json().catch(() => ({}));
+        const apiError =
+          typeof payload === 'object' && payload !== null && 'error' in payload
+            ? String(payload.error)
+            : '';
+        const deliberatelyUnavailable =
+          res.status === 503 &&
+          /disabled|not enabled|not verified|not migrated|cutover/i.test(apiError);
         if (
           (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) &&
-          attempt + 1 < attempts
+          attempt + 1 < attempts &&
+          !deliberatelyUnavailable
         ) {
           await retryDelay(300 * 2 ** attempt);
           continue;
         }
-        const payload: unknown = await res.json().catch(() => ({}));
-        if (!res.ok)
-          throw new Error(
-            typeof payload === 'object' && payload !== null && 'error' in payload
-              ? String(payload.error)
-              : `Request failed (${res.status})`,
-          );
+        if (!res.ok) throw new Error(apiError || `Request failed (${res.status})`);
         return payload as T;
       }
       throw new Error('The request could not be completed.');
@@ -996,6 +1000,16 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         institution,
         body: { ...data, expectedVersion },
       }),
+    updateTeacherLifecycle: (
+      institution: InstitutionId,
+      id: string,
+      active: boolean,
+      expectedVersion: number,
+    ) =>
+      request<{ record: TeacherRecord }>('PATCH', `/teachers/${encodeURIComponent(id)}/lifecycle`, {
+        institution,
+        body: { active, expectedVersion },
+      }),
     listTeacherLinks: (institution: InstitutionId) =>
       request<TeacherLinkList>('GET', '/schedule/teacher-links', { params: { institution } }),
     linkTeacherIdentity: (
@@ -1273,10 +1287,10 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       }),
     listWebsiteRegistrations: (filters: Record<string, string> = {}) =>
       request<unknown>('GET', '/website-registrations', { params: filters }),
-    listSrutiWebsiteRegistrations: () =>
+    listSrutiWebsiteRegistrations: (filters: Record<string, string> = {}) =>
       request<unknown>('GET', '/website-registrations', {
         institution: 'sruti',
-        params: { limit: '100' },
+        params: { limit: '100', ...filters },
       }),
     getSrutiWebsiteRegistration: (id: string) =>
       request<unknown>('GET', `/website-registrations/${encodeURIComponent(id)}`, {

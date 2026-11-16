@@ -27,7 +27,10 @@ const config = {
   issuer: import.meta.env.VITE_SADHANA_COGNITO_ISSUER?.trim() || '',
   clientId: import.meta.env.VITE_SADHANA_COGNITO_CLIENT_ID?.trim() || '',
   domain: import.meta.env.VITE_SADHANA_COGNITO_DOMAIN?.trim().replace(/\/$/, '') || '',
-  apiUrl: import.meta.env.VITE_SADHANA_API_URL?.trim().replace(/\/$/, '') || '',
+  apiUrl:
+    import.meta.env.DEV && import.meta.env.VITE_SADHANA_API_URL?.trim()
+      ? '/__sadhana_api'
+      : import.meta.env.VITE_SADHANA_API_URL?.trim().replace(/\/$/, '') || '',
 };
 const configured = Object.values(config).every(Boolean);
 const emailLoginProxy = import.meta.env.VITE_SADHANA_EMAIL_LOGIN_PROXY?.trim() === 'enabled';
@@ -375,7 +378,7 @@ export default function CloudAuth() {
       config.issuer,
     ) ||
     !cognitoDomain(config.domain) ||
-    !config.apiUrl.startsWith('https://')
+    !(config.apiUrl.startsWith('https://') || config.apiUrl === '/__sadhana_api')
   ) {
     return (
       <AuthCard title="Check Sadhana configuration">

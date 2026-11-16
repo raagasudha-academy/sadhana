@@ -58,6 +58,7 @@ import { finalOperationsRoute } from './finalOperations.mjs';
 import { finalOperationsEnrolmentWriteRoute } from './finalOperationsEnrolmentWrite.mjs';
 import { finalTeacherPatchRoute } from './finalTeacherPatch.mjs';
 import { finalTeacherPatch } from './finalTeacherPatchData.ts';
+import { finalTeacherLifecycle, finalTeacherLifecycleRoute } from './finalTeacherLifecycle.ts';
 import { finalVenueRoute, finalVenueWriter } from './finalVenueRoutes.ts';
 import { finalTeacherCreateRoute } from './finalTeacherCreate.mjs';
 import { finalTeacherCreate } from './finalTeacherCreateData.ts';
@@ -342,6 +343,24 @@ export function createHandler(
           { admin: demandInstitution },
         );
         if (teacherPatch) return json(teacherPatch.status, teacherPatch.body);
+      }
+      {
+        const lifecycle = await finalTeacherLifecycleRoute(
+          routeContext,
+          {
+            parse: (request) =>
+              readJSON(
+                request.body
+                  ? request.isBase64Encoded
+                    ? Buffer.from(request.body, 'base64').toString('utf8')
+                    : request.body
+                  : '{}',
+              ),
+            update: finalTeacherLifecycle(),
+          },
+          { admin: demandInstitution },
+        );
+        if (lifecycle) return json(lifecycle.status, lifecycle.body);
       }
       {
         const teacherCreate = await finalTeacherCreateRoute(

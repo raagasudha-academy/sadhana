@@ -58,6 +58,27 @@ const PersistentRegistration = lazy(() => import('./PersistentRegistration'));
 const LiveDashboard = lazy(() => import('./LiveDashboard'));
 const WebsiteRegistrations = lazy(() => import('./WebsiteRegistrations'));
 const SrutiWebsiteRegistrations = lazy(() => import('./SrutiWebsiteRegistrations'));
+
+function registrationRows(value: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) return value.filter((row) => !!row && typeof row === 'object');
+  if (!value || typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  for (const key of ['records', 'registrations', 'items', 'results', 'data']) {
+    const rows = registrationRows(record[key]);
+    if (rows.length) return rows;
+  }
+  return [];
+}
+
+function pendingRegistrationCount(value: unknown) {
+  const rows = registrationRows(value);
+  const more =
+    !!value && typeof value === 'object' && Boolean((value as Record<string, unknown>).more);
+  const pending = rows.filter(
+    (row) => String(row.reviewStatus ?? row.status ?? 'pending').toLowerCase() === 'pending',
+  ).length;
+  return { count: pending, more };
+}
 const SyllabusLibrary = lazy(() => import('./features/learning/SyllabusLibrary'));
 
 export default function App({ cloud }: { cloud?: CloudSession } = {}) {
@@ -213,6 +234,11 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState('all');
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [pendingWebsiteRegistrations, setPendingWebsiteRegistrations] = useState<{
+    count: number;
+    more: boolean;
+  } | null>(null);
+  const [initialMessageThread, setInitialMessageThread] = useState<any>(null);
   const [families, setFamilies] = useState(initialFamilies);
   const [members, setMembers] = useState(initialMembers);
   const [enrolments, setEnrolments] = useState(initialEnrolments);
@@ -414,6 +440,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     const scopes = notificationScopeKey ? (notificationScopeKey.split('|') as InstitutionId[]) : [];
     if (!cloud || !scopes.length) {
       setNotifications([]);
+      setPendingWebsiteRegistrations(null);
       return () => {
         active = false;
       };
@@ -458,6 +485,29 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
           : [],
       );
       setNotifications([...learnerActivity, ...activity]);
+      if (person.admin && currentRole === 'admin' && currentWorkspace === 'raaga') {
+        const registrationResults = await Promise.allSettled([
+          cloud.api.listWebsiteRegistrations({
+            institution: 'raaga',
+            status: 'pending',
+            limit: '100',
+          }),
+        ]);
+        if (!active) return;
+        if (registrationResults.every((result) => result.status === 'fulfilled')) {
+          const totals = registrationResults.map((result) =>
+            pendingRegistrationCount((result as PromiseFulfilledResult<unknown>).value),
+          );
+          setPendingWebsiteRegistrations({
+            count: totals.reduce((total, item) => total + item.count, 0),
+            more: totals.some((item) => item.more),
+          });
+        } else {
+          setPendingWebsiteRegistrations(null);
+        }
+      } else {
+        setPendingWebsiteRegistrations(null);
+      }
     };
     void refreshMessageActivity();
     const refreshWhenVisible = () => {
@@ -472,9 +522,20 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
       window.removeEventListener('focus', refreshWhenVisible);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [cloud?.api, notificationScopeKey, studentMode, visibleStudentId]);
+  }, [
+    cloud?.api,
+    notificationScopeKey,
+    studentMode,
+    visibleStudentId,
+    person.admin,
+    currentRole,
+    currentWorkspace,
+  ]);
   const unread = notifications
     .filter((n) => !n.read && notificationInstitutions.includes(n.institution))
+    .reduce((total, n) => total + Math.max(1, Number(n.unreadCount) || 0), 0);
+  const unreadMessageCount = notifications
+    .filter((n) => n.messageThread && !n.read && notificationInstitutions.includes(n.institution))
     .reduce((total, n) => total + Math.max(1, Number(n.unreadCount) || 0), 0);
   const selectNotification = async (notification: any) => {
     if (notification.activityId && cloud) {
@@ -513,6 +574,12 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
         item.id === notification.id ? { ...item, read: true, unreadCount: 0 } : item,
       ),
     );
+    if (thread) {
+      setInitialMessageThread(thread);
+      switchWorkspace(notification.institution);
+      goPage('Messages');
+      setNotifsOpen(false);
+    }
   };
   // Keep View As scoped to the academy; preserve the selected student only
   // when that same student has an authorised membership in the new academy.
@@ -663,8 +730,20 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
           : 'New venue saved to DynamoDB.',
       );
     } catch (error) {
-      if (error instanceof Error && /changed|refresh/i.test(error.message))
-        setVenueError('Conflict detected. Refresh the page before trying again.');
+      if (error instanceof Error && /changed|refresh/i.test(error.message)) {
+        try {
+          const latest = await cloud.api.list('venues', institution);
+          setVenues(latest.records || []);
+          setVenueError('');
+          setVenueDialog(null);
+          setVenueSuccess(
+            'This venue changed after you opened it. The latest details are loaded; reopen the venue and reapply your edit.',
+          );
+          return;
+        } catch {
+          setVenueError('The venue changed, but its latest details could not be refreshed.');
+        }
+      }
       throw error;
     }
   };
@@ -878,9 +957,30 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                   key={p}
                   onClick={() => goPage(p)}
                   className={`nav-link ${activeNavPage === p ? 'nav-active' : ''}`}
+                  aria-label={
+                    p === 'Messages' && unreadMessageCount > 0
+                      ? `Messages, ${unreadMessageCount} unread`
+                      : p === 'People & Access' && (pendingWebsiteRegistrations?.count ?? 0) > 0
+                        ? `People & Access, ${pendingWebsiteRegistrations!.count}${pendingWebsiteRegistrations!.more ? ' or more' : ''} unapproved website registrations`
+                        : undefined
+                  }
                 >
                   <Icon size={18} />
                   <span>{p}</span>
+                  {p === 'People & Access' && (pendingWebsiteRegistrations?.count ?? 0) > 0 && (
+                    <span className="nav-unread-badge" aria-hidden="true">
+                      {pendingWebsiteRegistrations!.count > 99
+                        ? '99+'
+                        : pendingWebsiteRegistrations!.more
+                          ? `${pendingWebsiteRegistrations!.count}+`
+                          : pendingWebsiteRegistrations!.count}
+                    </span>
+                  )}
+                  {p === 'Messages' && unreadMessageCount > 0 && (
+                    <span className="nav-unread-badge" aria-hidden="true">
+                      {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                    </span>
+                  )}
                   {p === 'Dashboard' && <span className="nav-tiny-dot" />}
                 </button>
               );
@@ -1103,6 +1203,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       enrolments={enrolments}
                       members={members}
                       isTeacher={teacherMode}
+                      cloud={cloud}
                     />
                   ) : classProfile ? (
                     <ProfileScreen
@@ -1168,7 +1269,12 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       practiceLogs={practiceLogs}
                     />
                   ) : activePage === 'Messages' && cloud ? (
-                    <MessagesPage cloud={cloud} workspace={currentWorkspace as InstitutionId} />
+                    <MessagesPage
+                      cloud={cloud}
+                      workspace={currentWorkspace as InstitutionId}
+                      initialThread={initialMessageThread}
+                      onInitialThreadOpened={() => setInitialMessageThread(null)}
+                    />
                   ) : activePage === 'Families & Students' || activePage === 'My Students' ? (
                     teacherMode ? (
                       <AcademyOperations
