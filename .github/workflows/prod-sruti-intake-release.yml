@@ -1,23 +1,16 @@
-name: Production Sruti intake release
+name: Reusable production Sruti intake release
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       phase:
         description: Select one protected release phase
-        type: choice
         required: true
-        options:
-          - enable-intake
-          - activate-sadhana-reads
-          - enable-raaga-parent-action-reads
-          - enable-raaga-parent-invitations
-          - enable-raaga-import-execution
-          - enable-raaga-review-writes
+        type: string
       test_registration_id:
         description: Required for activate-sadhana-reads; ID from a verified synthetic prod submission
-        type: string
         required: false
+        type: string
 
 permissions:
   contents: read
@@ -27,46 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    runs-on: macos-15-intel
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: npm ci
-      - run: npm ci --prefix backend
-      - name: Require main branch release
-        run: |
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo 'Production resources can only be released from main.'
-            exit 1
-          fi
-      - name: Run frontend checks, unit tests, and build
-        run: npm run verify
-      - name: Install Chromium for frontend E2E
-        run: npx playwright install chromium
-      - name: Run frontend browser tests
-        run: npm run test:frontend:playwright
-      - name: Run backend checks and build
-        run: npm run verify:backend
-      - name: Run backend unit tests
-        run: npm run test:backend:unit
-      - name: Run backend HTTP E2E tests
-        run: npm run test:backend:e2e
-      - name: Run Python helper tests
-        run: |
-          python -m pip install boto3
-          npm run test:python
-
   release:
-    needs: verify
     runs-on: ubuntu-latest
     environment: production
     permissions:

@@ -1465,25 +1465,27 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
           onClose={() => setNotifsOpen(false)}
         />
       )}
-      {cloud && (teacherMode || studentMode || (person.admin && currentRole === 'admin')) && (
-        <MessagesWidget
-          cloud={cloud}
-          institutions={
-            teacherMode
-              ? verifiedTeachingInstitutions
-              : studentMode
-                ? learnerInstitutions
-                : availableInstitutions
-          }
-          studentId={studentMode ? visibleStudentId : undefined}
-          defaultInstitution={
-            currentWorkspace === 'raaga' || currentWorkspace === 'sruti'
-              ? currentWorkspace
-              : undefined
-          }
-          canChooseInstitution={!teacherMode}
-        />
-      )}
+      {activePage !== 'Messages' &&
+        cloud &&
+        (teacherMode || studentMode || (person.admin && currentRole === 'admin')) && (
+          <MessagesWidget
+            cloud={cloud}
+            institutions={
+              teacherMode
+                ? verifiedTeachingInstitutions
+                : studentMode
+                  ? learnerInstitutions
+                  : availableInstitutions
+            }
+            studentId={studentMode ? visibleStudentId : undefined}
+            defaultInstitution={
+              currentWorkspace === 'raaga' || currentWorkspace === 'sruti'
+                ? currentWorkspace
+                : undefined
+            }
+            canChooseInstitution={!teacherMode}
+          />
+        )}
     </div>
   );
 }

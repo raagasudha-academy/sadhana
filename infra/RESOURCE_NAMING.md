@@ -58,7 +58,8 @@ change routing for other entities.
 7. Verify both production domains, API CORS, login, registration review/import, and media
    access. Retire old resources only through a separately reviewed cleanup step.
 
-The manual GitHub workflow `.github/workflows/prod-backend-bootstrap.yml` provisions the new
+The **Sadhana production deployment** workflow (`.github/workflows/deploy-prod.yml`, target
+`backend-bootstrap`) provisions the new
 `prod-sadhana-*` tables, the `prod-sadhana-app` API stack, a disabled production Sruti intake
 stack, and the production Cognito invitation Lambda. It keeps the original Cognito pool for
 rollback while the app and API use the replacement pool. It runs the

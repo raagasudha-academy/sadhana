@@ -1,7 +1,7 @@
-name: Sadhana production backend bootstrap
+name: Reusable production backend bootstrap
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -11,58 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    runs-on: macos-15-intel
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: npm ci
-      - run: npm ci --prefix backend
-      - name: Require main branch release
-        run: |
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo 'Production resources can only be bootstrapped from main.'
-            exit 1
-          fi
-      - name: Run frontend checks, unit tests, and build
-        run: npm run verify
-      - name: Install Chromium for frontend E2E
-        run: npx playwright install chromium
-      - name: Run frontend browser tests
-        run: npm run test:frontend:playwright
-      - name: Run backend checks and build
-        run: npm run verify:backend
-      - name: Run backend unit tests
-        run: npm run test:backend:unit
-      - name: Run backend HTTP E2E tests
-        run: npm run test:backend:e2e
-      - name: Run Python helper tests
-        run: |
-          python -m pip install boto3
-          npm run test:python
-      - name: Validate production templates and naming
-        run: |
-          node --input-type=module <<'NODE'
-          import { makeProductionEntityTablesTemplate } from './backend/scripts/prodEntityTablesTemplate.mjs';
-          const template = makeProductionEntityTablesTemplate('prod');
-          const names = Object.values(template.Resources).map((resource) => resource.Properties.TableName);
-          if (names.length !== 20) throw new Error(`Expected 20 production tables, found ${names.length}.`);
-          if (names.some((name) => !['prod-sadhana-', 'prod-sruti-', 'prod-raagasudha-'].some((prefix) => name.startsWith(prefix)))) {
-            throw new Error(`Unexpected non-production-prefixed table name: ${names.find((name) => !['prod-sadhana-', 'prod-sruti-', 'prod-raagasudha-'].some((prefix) => name.startsWith(prefix)))}`);
-          }
-          console.log(`Validated ${names.length} production-prefixed tables.`);
-          NODE
-
   bootstrap:
-    needs: verify
     runs-on: ubuntu-latest
     environment: production
     permissions:
