@@ -131,7 +131,7 @@ function target(record: ScheduleRecord, existing?: Record<string, any>) {
       description: record.programme,
       status: record.status || 'active',
       teacherPersonIds: record.teacherId ? [record.teacherId] : [],
-      defaultVenueId: existing?.defaultVenueId ?? null,
+      defaultVenueId: record.venueId || existing?.defaultVenueId || null,
     });
   } else {
     Object.assign(next, {
@@ -400,6 +400,80 @@ export function makeM95CalendarWriter(client: CalendarClient) {
     };
   };
   return {
+    async createRecurring(
+      inst: ScheduleInstitution,
+      master: ScheduleRecord,
+      sessions: ScheduleRecord[],
+      claims: Claims,
+    ) {
+      checkPilot();
+      if (inst === 'shared') throw httpError(400, 'Choose an academy.');
+      demandInstitution(claims, inst);
+      if (
+        master.recordType !== 'class' ||
+        master.institution !== inst ||
+        sessions.length < 1 ||
+        sessions.length > 80 ||
+        sessions.some(
+          (session) =>
+            session.recordType !== 'class-session' ||
+            session.institution !== inst ||
+            session.classId !== master.id,
+        )
+      )
+        throw httpError(400, 'Invalid recurring class.');
+      const validMaster = validateScheduleRecord(master);
+      const validSessions = sessions.map((session) => validateScheduleRecord(session));
+      const now = String(master.updatedAt);
+      const actions = [
+        {
+          Put: {
+            TableName: table('classes'),
+            Item: target(validMaster),
+            ConditionExpression: 'attribute_not_exists(classId)',
+          },
+        },
+        ...validSessions.map((session) => ({
+          Put: {
+            TableName: table('sessions'),
+            Item: target(session),
+            ConditionExpression: 'attribute_not_exists(sessionId)',
+          },
+        })),
+        {
+          Put: {
+            TableName: table('audit'),
+            Item: audit(
+              inst,
+              'M95_CREATE_RECURRING_CLASS',
+              validMaster.id,
+              String(claims.sub),
+              now,
+            ),
+            ConditionExpression: 'attribute_not_exists(auditId)',
+          },
+        },
+      ];
+      try {
+        await client.send(new TransactWriteCommand({ TransactItems: actions }));
+      } catch (e) {
+        if (
+          ['TransactionCanceledException', 'ConditionalCheckFailedException'].includes(
+            (e as Error)?.name,
+          )
+        )
+          throw httpError(
+            409,
+            'Class creation conflicted with another write. Nothing was created.',
+          );
+        throw e;
+      }
+      return {
+        record: validMaster,
+        sessionCount: validSessions.length,
+        dates: validSessions.map((x) => x.date),
+      };
+    },
     async create(inst: ScheduleInstitution, raw: Record<string, any>, claims: Claims) {
       checkPilot();
       if (inst === 'shared')

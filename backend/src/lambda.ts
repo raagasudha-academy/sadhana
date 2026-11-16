@@ -107,6 +107,7 @@ import { m10CoreWriteService } from './coreWriteService.ts';
 import { m95GuardianService } from './guardianRegistration.ts';
 import { m10FinalGuardianQueueReader } from './finalGuardianQueueData.ts';
 import { defaultM95CalendarWriter } from './calendarWrite.ts';
+import { finalRecurringClasses } from './finalRecurringClasses.ts';
 import { defaultM10FinalScheduleSessionAdmin } from './finalScheduleSessionAdmin.ts';
 import { defaultM95SeriesWriter } from './seriesWrite.ts';
 import { defaultM95ManagedEventWriter } from './managedEventWrite.ts';
@@ -427,6 +428,7 @@ export function createHandler(
                   : '',
               ),
             calendar: defaultM95CalendarWriter,
+            recurring: () => finalRecurringClasses,
             sessions: defaultM10FinalScheduleSessionAdmin,
             series: defaultM95SeriesWriter,
             events: defaultM95ManagedEventWriter,

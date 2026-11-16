@@ -5,6 +5,7 @@ export type FinalScheduleWriteDependencies = {
   assertConfigured: () => void;
   parse: (event: RouteContext['event']) => Record<string, any>;
   calendar: () => Client;
+  recurring: () => Client;
   sessions: () => Client;
   series: () => Client;
   events: () => Client;
