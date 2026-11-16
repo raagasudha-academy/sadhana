@@ -1048,6 +1048,7 @@ export default function RegistrationModule({
             });
           }}
           practiceLogs={practiceLogs}
+          operationsApi={operationsApi}
         />
       ) : (
         <>

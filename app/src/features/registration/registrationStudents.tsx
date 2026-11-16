@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   GraduationCap,
@@ -37,8 +37,12 @@ export function StudentRecord({
   onEditEnrol,
   onRemoveEnrol,
   practiceLogs = [],
+  operationsApi,
 }: any) {
   const [tab, setTab] = useState('Overview');
+  const [attendanceRsvps, setAttendanceRsvps] = useState<any[]>([]);
+  const [attendanceBusy, setAttendanceBusy] = useState(false);
+  const [attendanceError, setAttendanceError] = useState('');
   const list = enrollments.filter((e) => e.studentId === person.id && e.institution === workspace);
   const period = lastFourWeeks();
   const calculated = reportForStudent(
@@ -52,6 +56,81 @@ export function StudentRecord({
   );
   const activeEnrolments = list.filter((e) => getEnrolmentStatus(e) === 'Active');
   const upcomingEnrolments = list.filter((e) => getEnrolmentStatus(e) === 'Upcoming');
+  useEffect(() => {
+    if (tab !== 'Attendance' || !operationsApi) return;
+    let active = true;
+    setAttendanceBusy(true);
+    setAttendanceError('');
+    Promise.all([
+      operationsApi.listOperations('rsvp', workspace),
+      operationsApi.listOperations('attendance', workspace),
+      operationsApi.listSchedule(workspace),
+    ])
+      .then(([rsvpResult, attendanceResult, scheduleResult]: any[]) => {
+        if (!active) return;
+        const rsvps = (rsvpResult.records || []).filter(
+          (record: any) => String(record.studentId) === String(person.id),
+        );
+        const attendance = (attendanceResult.records || []).filter(
+          (record: any) => String(record.studentId) === String(person.id),
+        );
+        const sessionIds = new Set(
+          [...rsvps, ...attendance]
+            .map((record: any) => String(record.sessionId || ''))
+            .filter(Boolean),
+        );
+        const schedule = scheduleResult.records || [];
+        const classesById = new Map(
+          schedule
+            .filter((record: any) => record.recordType === 'class')
+            .map((record: any) => [String(record.id), record]),
+        );
+        const sessionsById = new Map(
+          schedule
+            .filter(
+              (record: any) =>
+                record.recordType === 'class-session' && sessionIds.has(String(record.id)),
+            )
+            .map((record: any) => [String(record.id), record]),
+        );
+        setAttendanceRsvps(
+          Array.from(sessionIds)
+            .map((sessionId) => {
+              const session: any = sessionsById.get(sessionId);
+              const rsvp = rsvps.find((record: any) => String(record.sessionId) === sessionId);
+              const mark = attendance.find(
+                (record: any) => String(record.sessionId) === sessionId,
+              );
+              const classRecord: any = session ? classesById.get(String(session.classId)) : null;
+              return {
+                sessionId,
+                date: session?.date || '',
+                startTime: session?.startTime || '',
+                className: classRecord?.name || session?.name || '',
+                intention: rsvp?.intention || rsvp?.response || '',
+                attendance: mark?.status || '',
+              };
+            })
+            .sort(
+              (a, b) =>
+                String(b.date).localeCompare(String(a.date)) ||
+                String(b.startTime).localeCompare(String(a.startTime)),
+            ),
+        );
+      })
+      .catch((error: any) => {
+        if (active)
+          setAttendanceError(
+            error instanceof Error ? error.message : 'Unable to load attendance and RSVPs.',
+          );
+      })
+      .finally(() => {
+        if (active) setAttendanceBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [operationsApi, person.id, tab, workspace]);
   return (
     <>
       <button className="back-link" onClick={onBack}>
@@ -345,9 +424,62 @@ export function StudentRecord({
         {tab === 'Attendance' && (
           <>
             <h2>Attendance RSVPs</h2>
-            <p className="reg-muted">
-              Session RSVP information will be connected in the attendance phase.
-            </p>
+            <p className="reg-muted">Session RSVP and teacher-marked attendance history.</p>
+            {attendanceBusy && <p role="status">Loading attendance and RSVPs…</p>}
+            {attendanceError && (
+              <p className="reg-error" role="alert">
+                {attendanceError}
+              </p>
+            )}
+            {!attendanceBusy && !attendanceError && (
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Session date</th>
+                      <th>Class</th>
+                      <th>RSVP</th>
+                      <th>Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendanceRsvps.map((record) => {
+                      const parsedDate = record.date
+                        ? new Date(`${record.date}T12:00:00`)
+                        : null;
+                      const date =
+                        parsedDate && !Number.isNaN(parsedDate.getTime())
+                          ? fmtDate(record.date)
+                          : 'Date unavailable';
+                      const intention =
+                        record.intention === 'attending'
+                          ? 'Attending'
+                          : record.intention === 'not_attending'
+                            ? 'Not attending'
+                            : record.intention === 'unknown'
+                              ? 'Not sure yet'
+                              : 'No response';
+                      return (
+                        <tr key={record.sessionId}>
+                          <td>
+                            {date}
+                            {record.startTime ? ` · ${record.startTime}` : ''}
+                          </td>
+                          <td>{record.className || 'Class unavailable'}</td>
+                          <td>{intention}</td>
+                          <td>{record.attendance || 'Not marked'}</td>
+                        </tr>
+                      );
+                    })}
+                    {!attendanceRsvps.length && (
+                      <tr>
+                        <td colSpan={4}>No RSVP or attendance records have been recorded.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
         {tab === 'Notes' && (

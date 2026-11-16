@@ -58,6 +58,7 @@ import { finalOperationsRoute } from './finalOperations.mjs';
 import { finalOperationsEnrolmentWriteRoute } from './finalOperationsEnrolmentWrite.mjs';
 import { finalTeacherPatchRoute } from './finalTeacherPatch.mjs';
 import { finalTeacherPatch } from './finalTeacherPatchData.ts';
+import { finalVenueRoute, finalVenueWriter } from './finalVenueRoutes.ts';
 import { finalTeacherCreateRoute } from './finalTeacherCreate.mjs';
 import { finalTeacherCreate } from './finalTeacherCreateData.ts';
 import { finalOperationsHistory } from './finalOperationsHistory.ts';
@@ -636,6 +637,20 @@ export function createHandler(
           service: cascadeServiceFactory(),
         });
         if (result) return json(result.status, result.body);
+      }
+      {
+        const venue = await finalVenueRoute(routeContext, {
+          parse: (request) =>
+            readJSON(
+              request.body
+                ? request.isBase64Encoded
+                  ? Buffer.from(request.body, 'base64').toString('utf8')
+                  : request.body
+                : '{}',
+            ),
+          write: finalVenueWriter(),
+        });
+        if (venue) return json(venue.status, venue.body);
       }
       // Canonical final mode MUST stop here. M10 pilot, M9 onboarding,
       // legacy identity, and the PK/SK repository below are NOT final routes.
