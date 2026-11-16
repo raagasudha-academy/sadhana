@@ -1,14 +1,12 @@
-name: Sadhana Teachers — GitHub Pages
+name: Sadhana dev portal deployment
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
   pages: write
   id-token: write
 concurrency:
-  group: sadhana-teacher-pages
+  group: sadhana-dev-portal-pages
   cancel-in-progress: true
 jobs:
   verify-and-deploy:
@@ -35,8 +33,6 @@ jobs:
           done
       - name: Frontend verification
         run: npm run verify
-      - name: Backend unit verification
-        run: cd backend && npm ci && npm run check
       - name: Build GitHub Pages release
         env:
           VITE_SADHANA_COGNITO_ISSUER: ${{ vars.VITE_SADHANA_COGNITO_ISSUER }}

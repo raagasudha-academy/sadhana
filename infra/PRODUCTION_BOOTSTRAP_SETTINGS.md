@@ -1,8 +1,9 @@
 # Production bootstrap settings
 
-The backend bootstrap workflow is `.github/workflows/prod-backend-bootstrap.yml`. It runs
-verification first and requests approval through GitHub's `production` environment before
-assuming an AWS role. Keep the existing required reviewer rule enabled.
+The single production entrypoint is `.github/workflows/deploy-prod.yml`. Choose the
+`backend-bootstrap` target for the initial stack setup. It runs verification first and requests
+approval through GitHub's `production` environment before assuming an AWS role. Keep the
+existing required reviewer rule enabled.
 
 ## AWS role trust
 
@@ -77,9 +78,9 @@ Create the CloudFormation execution role and boundary policies with the AWS admi
 session, attach the GitHub policy to the OIDC role, and set all three environment variables
 above before dispatching the workflow.
 
-After this branch is merged or pushed to `main`, run **Sadhana production backend bootstrap**
-from **Actions → Run workflow**. The workflow runs the frontend, backend, Python, and production
-table-name checks before the protected `bootstrap` job can request approval. That job updates
+After this branch is merged or pushed to `main`, run **Sadhana production deployment** from
+**Actions → Run workflow** and select `backend-bootstrap`. The workflow runs the frontend,
+backend, Python, and production table-name checks before its protected job can request approval. It updates
 the existing production Cognito pool and its custom invitation Lambda, creates the prefixed
 production tables and Sadhana API resources, and deploys a disabled Sruti intake stack. It does
 not copy selected development data, publish the portal, or switch the live Sruti intake.

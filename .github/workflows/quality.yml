@@ -1,10 +1,18 @@
 name: Quality checks
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     runs-on: macos-15-intel
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,6 +24,11 @@ jobs:
           python-version: '3.12'
       - run: npm ci
       - run: npm run verify
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser for frontend E2E
         run: npx playwright install chromium
       - name: Run frontend browser tests
@@ -26,6 +39,7 @@ jobs:
           npm run test:python
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: backend

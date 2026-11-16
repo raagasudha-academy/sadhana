@@ -2,13 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORKFLOW="pages-teachers.yml"
+WORKFLOW="deploy-dev.yml"
 BRANCH="$(git -C "$ROOT" branch --show-current)"
 
 command -v gh >/dev/null || { echo 'GitHub CLI (gh) is required to dispatch the Pages workflow.' >&2; exit 1; }
 [[ -n "$BRANCH" ]] || { echo 'Detached HEAD; checkout the deployment branch first.' >&2; exit 1; }
 
-if [[ -n "$(git -C "$ROOT" status --porcelain -- package.json app src public index.html vite.config.ts .github/workflows/pages-teachers.yml)" ]]; then
+if [[ -n "$(git -C "$ROOT" status --porcelain -- package.json app src public index.html vite.config.ts .github/workflows/deploy-dev.yml)" ]]; then
   echo 'Frontend files or deployment configuration have uncommitted changes. Commit them before deploying.' >&2
   exit 1
 fi

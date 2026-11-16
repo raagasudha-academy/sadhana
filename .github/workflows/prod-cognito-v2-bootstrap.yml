@@ -1,7 +1,7 @@
-name: Sadhana production Cognito v2 bootstrap
+name: Reusable production Cognito v2 deployment
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -11,39 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: npm ci
-      - run: npm ci --prefix backend
-      - name: Require main branch release
-        run: |
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo 'Production releases must be dispatched from main.'
-            exit 1
-          fi
-      - run: npm run verify
-      - run: npx playwright install chromium
-      - run: npm run test:frontend:playwright
-      - run: npm run verify:backend
-      - run: npm run test:backend:e2e
-      - name: Run Python helper tests
-        run: |
-          python -m pip install boto3
-          npm run test:python
-
   deploy:
-    needs: verify
     runs-on: ubuntu-latest
     environment: production
     permissions:
