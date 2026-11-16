@@ -21,6 +21,7 @@ export interface ScheduleRecord {
   status?: ScheduleStatus;
   classId?: string;
   teacherId?: string;
+  venueId?: string;
   sessionOverrideFields?: string[];
   timezone: 'Europe/London';
   importKey?: string;
@@ -65,6 +66,8 @@ export function validateScheduleRecord(x: ScheduleRecord): ScheduleRecord {
     (typeof x.teacherId !== 'string' || !/^TEACHER-[0-9a-f-]{36}$/i.test(x.teacherId))
   )
     throw httpError(400, 'Invalid linked teacher ID.');
+  if (x.venueId !== undefined && (typeof x.venueId !== 'string' || x.venueId.length > 120))
+    throw httpError(400, 'Invalid linked venue ID.');
   if (x.timezone !== 'Europe/London')
     throw httpError(400, 'Calendar timezone must be Europe/London.');
   if (x.recordType === 'class') {

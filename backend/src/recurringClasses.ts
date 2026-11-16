@@ -91,7 +91,11 @@ export function recurrenceDates(first: string, r: Recurrence): string[] {
     throw httpError(400, 'Could not generate the requested sessions within two years.');
   return result;
 }
-function parse(inst: InstitutionId, claims: Claims, body: Record<string, any>) {
+export function parseRecurringClassInput(
+  inst: InstitutionId,
+  claims: Claims,
+  body: Record<string, any>,
+) {
   if (!permittedInstitutions(claims).includes(inst))
     throw httpError(403, 'Academy administrator required to create recurring classes.');
   if (!body || typeof body !== 'object' || Array.isArray(body))
@@ -179,7 +183,7 @@ export async function previewRecurringClass(
   claims: Claims,
   body: Record<string, any>,
 ) {
-  const { dates } = parse(inst, claims, body);
+  const { dates } = parseRecurringClassInput(inst, claims, body);
   const found = await inspect(inst, body, dates);
   return {
     dates,
@@ -194,7 +198,7 @@ export async function createRecurringClass(
   claims: Claims,
   body: Record<string, any>,
 ) {
-  const { dates } = parse(inst, claims, body);
+  const { dates } = parseRecurringClassInput(inst, claims, body);
   const found = await inspect(inst, body, dates);
   if (found.duplicateNames.length)
     throw httpError(

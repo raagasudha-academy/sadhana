@@ -13,7 +13,7 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
   const { parts, method, claims, query = {}, event } = context;
   if (
     !Array.isArray(parts) ||
-    !['schedule', 'events', 'additional-sessions'].includes(parts[0]) ||
+    !['schedule', 'events', 'additional-sessions', 'recurring-classes'].includes(parts[0]) ||
     method === 'GET'
   )
     return undefined;
@@ -25,6 +25,24 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
     return fail('Final-table cutover has not been authorised.');
   const root = parts[0],
     institution = query.institution ?? context.inst;
+  const payload = () => dependencies.parse(event);
+  if (root === 'recurring-classes') {
+    if (
+      method !== 'POST' ||
+      !(parts.length === 1 || (parts.length === 2 && parts[1] === 'preview'))
+    )
+      return fail('Unsupported recurring-class action.', 405);
+    if (institution !== 'raaga' && institution !== 'sruti') return fail('Choose an academy.', 400);
+    if (env.SADHANA_FINAL_CALENDAR_WRITES !== 'enabled')
+      return fail('This final-table scheduling write is disabled.');
+    access.admin(claims, institution);
+    dependencies.assertConfigured();
+    const writer = dependencies.recurring();
+    const body = payload();
+    return parts.length === 2
+      ? { status: 200, body: await writer.preview(institution, claims, body) }
+      : { status: 201, body: await writer.create(institution, claims, body) };
+  }
   if (root === 'additional-sessions') {
     if (method !== 'POST' || parts.length !== 1)
       return fail('Unsupported additional-sessions action.', 405);
@@ -56,7 +74,6 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
   // On live dependencies this invokes entityTable(), verifying that routing
   // resolves to the authorised *final* set before opening any DB clients.
   dependencies.assertConfigured();
-  const payload = () => dependencies.parse(event);
 
   if (root === 'schedule') {
     if (institution !== 'raaga' && institution !== 'sruti')
