@@ -43,6 +43,9 @@ export function StudentRecord({
   const [attendanceRsvps, setAttendanceRsvps] = useState<any[]>([]);
   const [attendanceBusy, setAttendanceBusy] = useState(false);
   const [attendanceError, setAttendanceError] = useState('');
+  const [studentPracticeLogs, setStudentPracticeLogs] = useState<any[]>(practiceLogs);
+  const [practiceBusy, setPracticeBusy] = useState(false);
+  const [practiceError, setPracticeError] = useState('');
   const list = enrollments.filter((e) => e.studentId === person.id && e.institution === workspace);
   const period = lastFourWeeks();
   const calculated = reportForStudent(
@@ -52,8 +55,17 @@ export function StudentRecord({
     period.to,
     enrollments,
     classes,
-    practiceLogs,
+    studentPracticeLogs,
   );
+  const recentPracticeLogs = studentPracticeLogs
+    .filter(
+      (record) =>
+        String(record.studentId) === String(person.id) &&
+        record.institution === workspace &&
+        record.date >= period.from &&
+        record.date <= period.to,
+    )
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const activeEnrolments = list.filter((e) => getEnrolmentStatus(e) === 'Active');
   const upcomingEnrolments = list.filter((e) => getEnrolmentStatus(e) === 'Upcoming');
   useEffect(() => {
@@ -124,6 +136,37 @@ export function StudentRecord({
       })
       .finally(() => {
         if (active) setAttendanceBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [operationsApi, person.id, tab, workspace]);
+  useEffect(() => {
+    if (tab !== 'Practice' || !operationsApi) return;
+    let active = true;
+    setPracticeBusy(true);
+    setPracticeError('');
+    operationsApi
+      .listOperations('practice', workspace)
+      .then((result: any) => {
+        if (!active) return;
+        setStudentPracticeLogs(
+          (result.records || [])
+            .filter((record: any) => String(record.studentId) === String(person.id))
+            .map((record: any) => ({
+              ...record,
+              institution: record.institution || workspace,
+            })),
+        );
+      })
+      .catch((error: any) => {
+        if (active)
+          setPracticeError(
+            error instanceof Error ? error.message : 'Unable to load this student’s practice.',
+          );
+      })
+      .finally(() => {
+        if (active) setPracticeBusy(false);
       });
     return () => {
       active = false;
@@ -389,33 +432,33 @@ export function StudentRecord({
                 <span>Total minutes</span>
               </div>
             </div>
-            <p className="reg-muted">
-              Record or correct practice from Practice & Reports. Voided records do not contribute
-              to totals.
-            </p>
+            <p className="reg-muted">Student submitted practice for the last four weeks.</p>
+            {practiceBusy && <p role="status">Refreshing practice records…</p>}
+            {practiceError && (
+              <p className="reg-error" role="alert">
+                {practiceError}
+              </p>
+            )}
             <div className="reg-stack">
-              {practiceLogs
-                .filter(
-                  (l) =>
-                    l.studentId === person.id &&
-                    l.institution === workspace &&
-                    l.date >= period.from &&
-                    l.date <= period.to,
-                )
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .map((l) => (
-                  <div className="reg-enrol-row" key={l.id}>
-                    <CalendarDays size={16} />
-                    <div>
-                      <strong>
-                        {l.date}: {l.didPractice ? 'Yes' : 'No'} · {l.minutes} min
-                      </strong>
-                      <small>
-                        {l.comments || 'No comment'} · {l.status}
-                      </small>
-                    </div>
+              {recentPracticeLogs.map((l) => (
+                <div className="reg-enrol-row" key={l.id}>
+                  <CalendarDays size={16} />
+                  <div>
+                    <strong>
+                      {l.date}: {l.didPractice ? 'Yes' : 'No'} · {l.minutes} min
+                    </strong>
+                    <small>
+                      {l.comments || l.topic || 'No comment'} · {l.status || 'Submitted'}
+                    </small>
                   </div>
-                ))}
+                </div>
+              ))}
+              {!practiceBusy && !practiceError && recentPracticeLogs.length === 0 && (
+                <NoResults
+                  title="No practice submitted in the last four weeks"
+                  detail="Practice entries appear here after the student submits them."
+                />
+              )}
             </div>
           </>
         )}

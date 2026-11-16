@@ -28,6 +28,7 @@ export default function PersistentRegistration({
   const [members, setMembers] = useState<any[]>([]);
   const [enrolments, setEnrolments] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [practiceLogs, setPracticeLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadedOnce, setLoadedOnce] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +45,7 @@ export default function PersistentRegistration({
       cloud.api.listOperations('family', workspace),
       cloud.api.listOperations('student', workspace),
       cloud.api.listOperations('enrolment', workspace),
+      cloud.api.listOperations('practice', workspace),
       (() => {
         const cached = calendarCache.get(workspace);
         if (cached && Date.now() - cached.at < 120000)
@@ -54,7 +56,7 @@ export default function PersistentRegistration({
         });
       })(),
     ])
-      .then(([f, s, e, calendar]) => {
+      .then(([f, s, e, practice, calendar]) => {
         if (!current) return;
         setFamilies(f.records.map((r: any) => ({ ...r, createdIn: workspace })));
         setMembers(
@@ -67,6 +69,12 @@ export default function PersistentRegistration({
         );
         setEnrolments(
           (e.records || []).map((record: any) => ({
+            ...record,
+            institution: record.institution || workspace,
+          })),
+        );
+        setPracticeLogs(
+          (practice.records || []).map((record: any) => ({
             ...record,
             institution: record.institution || workspace,
           })),
@@ -134,6 +142,8 @@ export default function PersistentRegistration({
           members={members}
           enrolments={enrolments}
           classes={classes}
+          practiceLogs={practiceLogs}
+          setPracticeLogs={setPracticeLogs}
           setFamilies={setFamilies}
           setMembers={setMembers}
           setEnrolments={setEnrolments}
