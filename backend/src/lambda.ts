@@ -625,6 +625,7 @@ export function createHandler(
           routeContext,
           {
             list: listAdministrators,
+            listDirectory: listTeacherVisibleAdministrators,
             invite: inviteAdministrator,
             changeAccess: changeAdministratorAccess,
             updateProfile: updateAdministratorProfile,

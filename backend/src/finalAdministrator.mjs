@@ -39,6 +39,14 @@ export async function finalAdministratorRoute(context, services, access, env = p
     return { status: 200, body: await services.list(institution, claims) };
   }
 
+  if (method === 'GET' && parts.length === 2 && parts[1] === 'directory') {
+    if (env.SADHANA_FINAL_ADMIN_READS !== 'enabled')
+      return blocked('Final administrator directory is disabled.');
+    const institution = query.institution ?? context.inst;
+    if (!validInstitution(institution)) return blocked('Choose a valid institution.', 400);
+    return { status: 200, body: await services.listDirectory(institution, claims) };
+  }
+
   if (parts.length !== 2) return blocked('Unsupported administrator operation.', 405);
   const route = actions[`${method}:${parts[1]}`];
   if (!route) return blocked('Unsupported administrator operation.', 405);

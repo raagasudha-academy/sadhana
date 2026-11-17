@@ -21,6 +21,8 @@ const staff = { sub: 'staff', admin: [], manager: false };
 let calls = [];
 const services = {
   list: async (institution, who) => (calls.push(['list', institution, who.sub]), { records: [] }),
+  listDirectory: async (institution, who) =>
+    (calls.push(['listDirectory', institution, who.sub]), { records: [] }),
   invite: async (data, who) => (calls.push(['invite', data, who.sub]), { invited: true }),
   changeAccess: async (data, who) => (
     calls.push(['changeAccess', data, who.sub]),
@@ -83,6 +85,15 @@ test('final administrator GET is institution-scoped and uses existing Cognito re
   assert.deepEqual(calls, [['list', 'sruti', 'configured-manager']]);
   clear();
   await assert.rejects(() => route('administrators', 'GET', 'sruti', raaga), { status: 403 });
+  assert.deepEqual(calls, []);
+});
+test('teacher-visible administrator directory GET uses the read-only Cognito reader', async () => {
+  clear();
+  const result = await route('administrators/directory', 'GET', 'sruti');
+  assert.deepEqual(result, { status: 200, body: { records: [] } });
+  assert.deepEqual(calls, [['listDirectory', 'sruti', 'configured-manager']]);
+  clear();
+  assert.equal((await route('administrators/directory', 'GET', 'invalid')).status, 400);
   assert.deepEqual(calls, []);
 });
 test('admin reads require dedicated flag, ACK, and non-split mode', async () => {
