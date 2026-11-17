@@ -112,7 +112,7 @@ export async function finalRegistrationRoute(context, dependencies, access, env 
               ...result,
               importWritesEnabled:
                 env.SADHANA_FINAL_SRUTI_IMPORT_WRITES === 'enabled' &&
-                env.M91_SRUTI_IMPORT_WRITES === 'enabled',
+                env.SRUTI_IMPORT_WRITES === 'enabled',
             },
       };
     }

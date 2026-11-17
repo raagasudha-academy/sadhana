@@ -187,7 +187,7 @@ test('Sruti student import execution remains blocked even if M91 flag is acciden
   reset();
   const env = {
     ...regFlags,
-    M91_SRUTI_IMPORT_WRITES: 'enabled',
+    SRUTI_IMPORT_WRITES: 'enabled',
     SADHANA_FINAL_SRUTI_IMPORT_WRITES: 'enabled',
   };
   assert.equal(

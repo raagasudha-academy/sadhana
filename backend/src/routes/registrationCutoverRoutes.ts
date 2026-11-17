@@ -209,7 +209,7 @@ export function makeM10RegistrationCutoverRoutes(
       if (!/^SR-[A-Za-z0-9-]{1,110}$/.test(parts[1]))
         throw httpError(400, 'Invalid Sruti registration identifier.');
       const execute = parts[2] === 'import-execute';
-      if (execute && process.env.M91_SRUTI_IMPORT_WRITES !== 'enabled') return denied();
+      if (execute && process.env.SRUTI_IMPORT_WRITES !== 'enabled') return denied();
       const raw = event.body
         ? event.isBase64Encoded
           ? Buffer.from(event.body, 'base64').toString('utf8')

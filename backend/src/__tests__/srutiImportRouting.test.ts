@@ -62,8 +62,8 @@ test('Sruti import preview is read-only, institution scoped and independent of b
 });
 
 test('Sruti execute remains disabled without dedicated import switch', async () => {
-  const prior = process.env.M91_SRUTI_IMPORT_WRITES;
-  delete process.env.M91_SRUTI_IMPORT_WRITES;
+  const prior = process.env.SRUTI_IMPORT_WRITES;
+  delete process.env.SRUTI_IMPORT_WRITES;
   let called = false;
   const route = makeM10RegistrationCutoverRoutes(
     reader as any,
@@ -80,13 +80,13 @@ test('Sruti execute remains disabled without dedicated import switch', async () 
     assert.equal(result?.statusCode, 503);
     assert.equal(called, false);
   } finally {
-    if (prior !== undefined) process.env.M91_SRUTI_IMPORT_WRITES = prior;
+    if (prior !== undefined) process.env.SRUTI_IMPORT_WRITES = prior;
   }
 });
 
 test('Sruti execute validates exact confirmation and rejects malformed requests before import', async () => {
-  const prior = process.env.M91_SRUTI_IMPORT_WRITES;
-  process.env.M91_SRUTI_IMPORT_WRITES = 'enabled';
+  const prior = process.env.SRUTI_IMPORT_WRITES;
+  process.env.SRUTI_IMPORT_WRITES = 'enabled';
   let calls = 0;
   const route = makeM10RegistrationCutoverRoutes(
     reader as any,
@@ -122,8 +122,8 @@ test('Sruti execute validates exact confirmation and rejects malformed requests 
     assert.equal(result?.statusCode, 200);
     assert.equal(calls, 1);
   } finally {
-    if (prior === undefined) delete process.env.M91_SRUTI_IMPORT_WRITES;
-    else process.env.M91_SRUTI_IMPORT_WRITES = prior;
+    if (prior === undefined) delete process.env.SRUTI_IMPORT_WRITES;
+    else process.env.SRUTI_IMPORT_WRITES = prior;
   }
 });
 

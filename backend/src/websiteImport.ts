@@ -165,7 +165,7 @@ export async function m95ImportApprovedWebsiteRegistration(
   if (
     execute &&
     (scopedSrutiRoute
-      ? process.env.M91_SRUTI_IMPORT_WRITES !== 'enabled'
+      ? process.env.SRUTI_IMPORT_WRITES !== 'enabled'
       : inst === 'raaga' && finalRaaga()
         ? mode !== 'fresh' ||
           process.env.SADHANA_FINAL_RAAGA_IMPORT_WRITES !== 'enabled' ||
