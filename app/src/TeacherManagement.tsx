@@ -6,28 +6,10 @@ import type { InstitutionId } from './types';
 import { institutions } from './institutions';
 import PhotoAvatarEditor from './PhotoAvatarEditor';
 import { NAME_TITLES, splitTitledName, titledName, type NameTitle } from './nameTitles';
-
-const teacherPortraitFiles: Record<string, string> = {
-  'mrs praveena srikailash': 'praveena-srikailash.png',
-  'mrs amruta hasa': 'amruta-hasa.png',
-  'dr aishwarya amarnath': 'aishwarya-amarnath.png',
-  'dr uma geethanath': 'uma-geethanath.png',
-  'mr srikailash venkitadri': 'srikailash-venkitadri.png',
-  'mr vibhas chengalavala': 'vibhas-chengalavala.png',
-  'ms swathi komaraolu': 'swathi-komaraolu.png',
-  'mohana kamanooru': 'mohana-kamanooru.png',
-};
+import { teacherPortraitFallbackUrl } from './teacherPortraits';
 
 function TeacherPortrait({ name, photoUrl = '' }: { name: string; photoUrl?: string }) {
-  const key = name.trim().toLowerCase().replace(/\s+/g, ' ');
-  const normalized = (value: string) =>
-    value.replace(/^(mrs?|miss|ms|dr|prof)\.?\s+/, '').replace(/[^a-z]/g, '');
-  const filename =
-    teacherPortraitFiles[key] ||
-    Object.entries(teacherPortraitFiles).find(
-      ([label]) => normalized(label) === normalized(key),
-    )?.[1];
-  const fallback = filename ? `${import.meta.env.BASE_URL}teachers/${filename}` : '';
+  const fallback = teacherPortraitFallbackUrl(name);
   const [source, setSource] = useState(photoUrl || fallback);
   useEffect(() => setSource(photoUrl || fallback), [photoUrl, fallback]);
   return (
