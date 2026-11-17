@@ -1,6 +1,7 @@
 import { listTeachers, saveTeacher, myTeacherIdentity } from '../teacherDirectory.ts';
 import {
   listAdministrators,
+  listTeacherVisibleAdministrators,
   inviteAdministrator,
   changeAdministratorAccess,
   updateAdministratorProfile,
@@ -38,6 +39,8 @@ export async function staffRoutes({
     );
   }
   if (parts[0] === 'administrators') {
+    if (method === 'GET' && parts.length === 2 && parts[1] === 'directory')
+      return json(200, await listTeacherVisibleAdministrators(inst, claims));
     if (method === 'GET' && parts.length === 1)
       return json(200, await listAdministrators(inst, claims));
     const body = readJSON(

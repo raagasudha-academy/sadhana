@@ -391,6 +391,17 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       }),
     listAdministrators: (institution: InstitutionId) =>
       request<AdministratorListResponse>('GET', '/administrators', { institution }),
+    listTeacherVisibleAdministrators: (institution: InstitutionId) =>
+      request<{
+        records: Array<{
+          displayName: string;
+          email: string;
+          enabled: boolean;
+          status: string;
+          photoUrl?: string;
+          institution: InstitutionId;
+        }>;
+      }>('GET', '/administrators/directory', { institution }),
     updateAdministratorProfile: (
       username: string,
       firstName: string,

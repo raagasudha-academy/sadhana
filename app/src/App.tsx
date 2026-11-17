@@ -1383,7 +1383,11 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       onEdit={(v) => setVenueDialog({ record: v })}
                     />
                   ) : activePage === 'Teachers' ? (
-                    <TeacherManagement cloud={cloud} workspace={currentWorkspace} />
+                    <TeacherManagement
+                      cloud={cloud}
+                      workspace={currentWorkspace}
+                      readOnly={teacherMode}
+                    />
                   ) : activePage === 'Administrators' && teacherMode && cloud ? (
                     <TeacherAdministrators
                       cloud={cloud}

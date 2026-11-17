@@ -43,9 +43,11 @@ type TeacherForm = ReturnType<typeof initialForm>;
 export default function TeacherManagement({
   cloud,
   workspace,
+  readOnly = false,
 }: {
   cloud?: CloudSession;
   workspace: string;
+  readOnly?: boolean;
 }) {
   const allowed = cloud?.staff.institutions || [];
   const scopedInstitutions: InstitutionId[] =
@@ -74,7 +76,7 @@ export default function TeacherManagement({
   const [archiveTarget, setArchiveTarget] = useState<TeacherRecord | null>(null);
   const [editingPhotoUrl, setEditingPhotoUrl] = useState('');
 
-  const isAdmin = cloud?.staff.role === 'admin';
+  const isAdmin = cloud?.staff.role === 'admin' && !readOnly;
 
   useEffect(() => {
     let active = true;
