@@ -53,6 +53,7 @@ const SadhanaMyProfile = lazy(() => import('./SadhanaMyProfile'));
 const FeesComingSoon = lazy(() => import('./features/sadhanaCoreStarter/FeesComingSoon'));
 const TeacherManagement = lazy(() => import('./TeacherManagement'));
 const AdminManagement = lazy(() => import('./AdminManagement'));
+const TeacherAdministrators = lazy(() => import('./TeacherAdministrators'));
 const AccountAccess = lazy(() => import('./AccountAccess'));
 const AcademyOperations = lazy(() => import('./AcademyOperations'));
 const PersistentRegistration = lazy(() => import('./PersistentRegistration'));
@@ -402,6 +403,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
             'Syllabus & Resources',
             'Messages',
             'Teachers',
+            'Administrators',
             'Venues',
             'My Profile',
           ]
@@ -1344,6 +1346,11 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                     />
                   ) : activePage === 'Teachers' ? (
                     <TeacherManagement cloud={cloud} workspace={currentWorkspace} />
+                  ) : activePage === 'Administrators' && teacherMode && cloud ? (
+                    <TeacherAdministrators
+                      cloud={cloud}
+                      institution={currentWorkspace as InstitutionId}
+                    />
                   ) : activePage === 'Administrators' ? (
                     <AdminManagement cloud={cloud} workspace={currentWorkspace} />
                   ) : activePage === 'Account Access' && cloud ? (

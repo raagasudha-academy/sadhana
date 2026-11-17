@@ -9,6 +9,7 @@ const pages: Record<ViewRole, readonly string[]> = {
     'Syllabus & Resources',
     'Messages',
     'Teachers',
+    'Administrators',
     'Venues',
     'My Profile',
   ],

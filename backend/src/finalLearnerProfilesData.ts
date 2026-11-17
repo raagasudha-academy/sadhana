@@ -122,10 +122,9 @@ export function makeM10FinalLearnerProfilesData(
           const publicId = /^TEACHER-[a-f0-9-]{36}$/i.test(p.legacyPayload?.id || '')
             ? p.legacyPayload.id
             : undefined;
+          const linkedSub = p.cognitoSub || p.legacyPayload?.cognitoSub;
           const sub =
-            typeof p.cognitoSub === 'string' && /^[0-9a-f-]{36}$/i.test(p.cognitoSub)
-              ? p.cognitoSub
-              : '';
+            typeof linkedSub === 'string' && /^[0-9a-f-]{36}$/i.test(linkedSub) ? linkedSub : '';
           return {
             name: name(p),
             subjects: (Array.isArray(p.legacyPayload?.subjects) ? p.legacyPayload.subjects : [])
