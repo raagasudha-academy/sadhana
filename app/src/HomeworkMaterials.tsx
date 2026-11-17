@@ -68,6 +68,10 @@ export function TeacherHomeworkMaterials({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [pending, setPending] = useState<Array<{ id: string; mime: string }>>([]);
+  const currentMaterialMimes = [
+    ...records.map((record) => record.mime),
+    ...pending.map((record) => record.mime),
+  ];
   const reload = async () => {
     const data = await cloud.api.teacherHomeworkMaterialLinks(inst, classId, homeworkId);
     setRecords(data.records);
@@ -165,9 +169,7 @@ export function TeacherHomeworkMaterials({
           <div className="sadhana-homework-upload-grid" aria-label="Upload teacher materials">
             <label
               className={
-                records.concat(pending).filter((r) => r.mime.startsWith('image/')).length > 0
-                  ? 'has-file'
-                  : ''
+                currentMaterialMimes.some((mime) => mime.startsWith('image/')) ? 'has-file' : ''
               }
             >
               <Image size={22} />
@@ -178,7 +180,7 @@ export function TeacherHomeworkMaterials({
                 aria-label="Add homework image 1"
                 disabled={
                   busy ||
-                  records.concat(pending).filter((r) => r.mime.startsWith('image/')).length >= 1
+                  currentMaterialMimes.filter((mime) => mime.startsWith('image/')).length >= 1
                 }
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -189,7 +191,7 @@ export function TeacherHomeworkMaterials({
             </label>
             <label
               className={
-                records.concat(pending).filter((r) => r.mime.startsWith('image/')).length > 1
+                currentMaterialMimes.filter((mime) => mime.startsWith('image/')).length > 1
                   ? 'has-file'
                   : ''
               }
@@ -202,7 +204,7 @@ export function TeacherHomeworkMaterials({
                 aria-label="Add homework image 2"
                 disabled={
                   busy ||
-                  records.concat(pending).filter((r) => r.mime.startsWith('image/')).length >= 2
+                  currentMaterialMimes.filter((mime) => mime.startsWith('image/')).length >= 2
                 }
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -213,7 +215,7 @@ export function TeacherHomeworkMaterials({
             </label>
             <label
               className={
-                records.concat(pending).some((r) => r.mime.startsWith('audio/')) ? 'has-file' : ''
+                currentMaterialMimes.some((mime) => mime.startsWith('audio/')) ? 'has-file' : ''
               }
             >
               <Music2 size={22} />
@@ -222,7 +224,7 @@ export function TeacherHomeworkMaterials({
                 type="file"
                 accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
                 aria-label="Add homework audio"
-                disabled={busy || records.concat(pending).some((r) => r.mime.startsWith('audio/'))}
+                disabled={busy || currentMaterialMimes.some((mime) => mime.startsWith('audio/'))}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
@@ -232,7 +234,7 @@ export function TeacherHomeworkMaterials({
             </label>
             <label
               className={
-                records.concat(pending).some((r) => r.mime.startsWith('video/')) ? 'has-file' : ''
+                currentMaterialMimes.some((mime) => mime.startsWith('video/')) ? 'has-file' : ''
               }
             >
               <Video size={22} />
@@ -241,7 +243,7 @@ export function TeacherHomeworkMaterials({
                 type="file"
                 accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
                 aria-label="Add homework video"
-                disabled={busy || records.concat(pending).some((r) => r.mime.startsWith('video/'))}
+                disabled={busy || currentMaterialMimes.some((mime) => mime.startsWith('video/'))}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
