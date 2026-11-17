@@ -96,7 +96,7 @@ test('admin reads require dedicated flag, ACK, and non-split mode', async () => 
     assert.deepEqual(calls, []);
   }
 });
-test('SAM enables administrator and guardian queue reads only in production', () => {
+test('SAM enables administrator and guardian queue reads in dev and production', () => {
   const template = readFileSync(new URL('../../../infra/template.yaml', import.meta.url), 'utf8');
   assert.match(
     template,
@@ -104,7 +104,7 @@ test('SAM enables administrator and guardian queue reads only in production', ()
   );
   assert.match(
     template,
-    /SADHANA_FINAL_GUARDIAN_QUEUE_READS:\s*!If\s*\[UseProdLambdaBoundary,\s*enabled,\s*!Ref AWS::NoValue\]/,
+    /SADHANA_FINAL_GUARDIAN_QUEUE_READS:\s*!If\s*\[\s*UseProdLambdaBoundary,\s*enabled,\s*!If\s*\[UseDevFamilyReads,\s*enabled,\s*!Ref AWS::NoValue\]/,
   );
   assert.doesNotMatch(
     template,
