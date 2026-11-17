@@ -11,14 +11,14 @@
 
 The `github-pages` environment already contains the dev Cognito/API variables. Add:
 
-| Variable | Value |
-| --- | --- |
+| Variable                   | Value                                                           |
+| -------------------------- | --------------------------------------------------------------- |
 | `AWS_CODE_DEPLOY_ROLE_ARN` | `arn:aws:iam::627821644317:role/sadhana-github-dev-code-deploy` |
 
 The `production` environment already contains `AWS_ROLE_ARN` for portal publication and the production portal variables. Add:
 
-| Variable | Value |
-| --- | --- |
+| Variable                   | Value                                                            |
+| -------------------------- | ---------------------------------------------------------------- |
 | `AWS_CODE_DEPLOY_ROLE_ARN` | `arn:aws:iam::627821644317:role/sadhana-github-prod-code-deploy` |
 
 These role ARNs are identifiers, not credentials. The workflow gets temporary AWS credentials through GitHub OIDC.
