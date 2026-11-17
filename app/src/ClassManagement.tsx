@@ -347,7 +347,7 @@ export function VenueFormDialog({ record, venues, onSave, onClose }: any) {
   return (
     <Dialog
       title={record ? 'Edit venue' : 'Add a venue'}
-      subtitle="Saved in DynamoDB. The change appears in linked classes automatically."
+      subtitle="Updates appear automatically on linked class calendars."
       onClose={saving ? () => {} : onClose}
     >
       <form className="reg-form" onSubmit={(e) => void submit(e)}>
@@ -417,7 +417,7 @@ export function VenueFormDialog({ record, venues, onSave, onClose }: any) {
             Cancel
           </button>
           <button className="reg-primary" type="submit" disabled={saving}>
-            {saving ? 'Saving…' : record ? 'Save to DynamoDB' : 'Add to DynamoDB'}
+            {saving ? 'Saving…' : record ? 'Save venue' : 'Add venue'}
           </button>
         </div>
       </form>
@@ -479,7 +479,7 @@ export function VenueManager({
             <p>
               {learnerView
                 ? 'Venues available to your approved academy classes.'
-                : 'Shared venue details for Raagasudha and Sruti. Changes are saved to DynamoDB.'}
+                : 'Manage teaching venues shared by Raagasudha and Śruti.'}
             </p>
           </div>
           <div className="heading-actions">
@@ -535,10 +535,18 @@ export function VenueManager({
           ))}
         </div>
         {!rows.length && !error && !busy && (
-          <div className="reg-empty">
+          <div className="reg-empty venue-empty-state">
             <MapPin size={27} />
-            <strong>{learnerView ? 'No venues available' : 'No venues loaded'}</strong>
-            {!learnerView && <p>Check the DynamoDB directory and venue-linking migration.</p>}
+            <strong>
+              {learnerView ? 'No venues available yet' : 'No venues in the directory yet'}
+            </strong>
+            <p>
+              {learnerView
+                ? 'Your academy has not added any teaching venues yet. Contact your administrator if you expected to see one.'
+                : canEdit
+                  ? 'Add a venue to make it available when scheduling in-person classes.'
+                  : 'An authorised academy administrator can add teaching venues here.'}
+            </p>
           </div>
         )}
         {learnerView ? (
@@ -547,12 +555,9 @@ export function VenueManager({
           </p>
         ) : (
           <p className="reg-footnote">
-            <CheckCircle2 size={15} /> Changes to shared venues update calendar display
-            automatically. Calendar records are not rewritten.{' '}
-            {canEdit
-              ? 'Raagasudha, Sruti and Sadhana Super Admins can edit venues.'
-              : 'An authorised administrator account is required to edit venues.'}{' '}
-            Physical deletion is disabled.
+            <CheckCircle2 size={15} /> Editing a venue updates its displayed details on linked
+            calendars. Existing class dates and records stay the same; venue deletion is
+            unavailable.
           </p>
         )}
       </section>

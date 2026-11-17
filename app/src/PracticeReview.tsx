@@ -124,6 +124,9 @@ export default function PracticeReview({
     }
   };
   const selected = entries.find((p) => p.id === open);
+  const selectedReviewed = Boolean(
+    selected?.teacherReviewed || selected?.teacherComments?.length || feedback[open]?.length,
+  );
   return (
     <section className="tw-review">
       <div className="tw-section-head">
@@ -322,7 +325,15 @@ export default function PracticeReview({
                     <td>{p.minutes || 0}</td>
                     <td>
                       {p.teacherReviewed || p.teacherComments?.length ? (
-                        <span className="practice-review-status is-reviewed">Reviewed</span>
+                        <button
+                          type="button"
+                          className="practice-review-status is-reviewed practice-review-action"
+                          aria-label={`View reviewed practice for ${names.get(p.studentId) || 'student'} on ${p.date}`}
+                          aria-pressed={open === p.id}
+                          onClick={() => void inspect(p.id)}
+                        >
+                          Reviewed · View
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -391,23 +402,33 @@ export default function PracticeReview({
                 </p>
               ))}
               {feedback[open]?.length === 0 && <p>No teacher comments yet.</p>}
-              <label htmlFor="teacher-comment">Add comment</label>
-              <textarea
-                id="teacher-comment"
-                maxLength={1000}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Feedback on the student's practice"
-              />
+              {selectedReviewed ? (
+                <p className="tw-hint" role="status">
+                  This practice has been reviewed and is read-only.
+                </p>
+              ) : (
+                <>
+                  <label htmlFor="teacher-comment">Add comment</label>
+                  <textarea
+                    id="teacher-comment"
+                    maxLength={1000}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Feedback on the student's practice"
+                  />
+                  <div className="tw-feedback-actions">
+                    <button
+                      type="button"
+                      className="reg-primary"
+                      disabled={busy || !comment.trim()}
+                      onClick={() => void submit(open)}
+                    >
+                      {busy ? 'Saving…' : 'Save comment'}
+                    </button>
+                  </div>
+                </>
+              )}
               <div className="tw-feedback-actions">
-                <button
-                  type="button"
-                  className="reg-primary"
-                  disabled={busy || !comment.trim()}
-                  onClick={() => void submit(open)}
-                >
-                  {busy ? 'Saving…' : 'Save comment'}
-                </button>
                 <button
                   type="button"
                   className="reg-secondary"

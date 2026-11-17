@@ -55,13 +55,16 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - name: Restore Playwright browser cache
+        if: ${{ github.event_name != 'push' || github.ref == 'refs/heads/main' }}
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser for frontend E2E
+        if: ${{ github.event_name != 'push' || github.ref == 'refs/heads/main' }}
         run: npx playwright install chromium
       - name: Run frontend browser tests
+        if: ${{ github.event_name != 'push' || github.ref == 'refs/heads/main' }}
         run: npm run test:frontend:playwright
 
   backend:
@@ -80,7 +83,9 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
-      - run: npm run test:e2e
+      - name: Run backend E2E tests
+        if: ${{ github.event_name != 'push' || github.ref == 'refs/heads/main' }}
+        run: npm run test:e2e
       - name: Package Lambda code
         run: |
           mkdir -p "$RUNNER_TEMP/sadhana-lambda"

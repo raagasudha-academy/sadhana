@@ -179,6 +179,8 @@ export function makeM10TeacherPracticeRoutes(
           createdAt: c.createdAt,
         })),
       });
+    if (practice.teacherReviewed === true || (practice.teacherComments?.length ?? 0) > 0)
+      throw httpError(409, 'This practice has already been reviewed and is read-only.');
     const comment = validateM9TeacherComment(
       readJSON(
         event.body

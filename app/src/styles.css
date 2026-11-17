@@ -2448,6 +2448,11 @@ input:focus-visible {
 .reg-empty p {
   font-size: 13px;
 }
+.venue-empty-state p {
+  max-width: 460px;
+  margin: 0;
+  line-height: 1.55;
+}
 .reg-success {
   display: flex;
   align-items: center;

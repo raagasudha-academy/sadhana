@@ -2,6 +2,7 @@ import { srutiGuardianCandidates, requestSrutiGuardianFromRaaga } from '../cross
 import {
   myStudentLinks,
   requestStudentAccess,
+  listGuardianCandidates,
   listAccessRequests,
   decideStudentAccess,
   myStudentOverview,
@@ -13,6 +14,7 @@ export async function familyRoutes({
   event,
   parts,
   method,
+  query,
   inst,
   claims,
 }: RouteContext): Promise<JsonResponse | undefined> {
@@ -39,6 +41,8 @@ export async function familyRoutes({
       return json(201, await requestStudentAccess(inst, claims, body));
     if (method === 'GET' && parts[1] === 'requests' && parts.length === 2)
       return json(200, await listAccessRequests(inst, claims));
+    if (method === 'GET' && parts[1] === 'guardian-candidates' && parts.length === 2)
+      return json(200, await listGuardianCandidates(inst, claims, query.studentId || ''));
     if (method === 'POST' && parts[1] === 'decide' && parts.length === 2)
       return json(200, await decideStudentAccess(inst, claims, body));
     return json(405, { error: 'Unsupported account access action.' });

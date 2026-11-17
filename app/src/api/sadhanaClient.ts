@@ -948,6 +948,19 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         institution,
         body: { studentId, kind: 'guardian', beneficiarySubject },
       }),
+    listGuardianCandidates: (institution: InstitutionId, studentId: string) =>
+      request<{
+        records: Array<{
+          studentId: string;
+          parentName: string;
+          subject: string;
+          name: string;
+          email: string;
+        }>;
+      }>('GET', '/family-access/guardian-candidates', {
+        institution,
+        params: { studentId },
+      }),
     listAccessRequests: (institution: InstitutionId) =>
       request<{
         records: Array<{

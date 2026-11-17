@@ -28,6 +28,7 @@ import type { InstitutionId } from './types';
 import MessagesWidget from './MessagesWidget';
 import MessagesPage from './MessagesPage';
 import { messageThreadNotifications } from './messageNotifications';
+import { teacherPortraitFallbackUrl } from './teacherPortraits';
 import {
   adminNavigationGroup,
   adminPeopleTabs,
@@ -82,17 +83,20 @@ function pendingRegistrationCount(value: unknown) {
 const SyllabusLibrary = lazy(() => import('./features/learning/SyllabusLibrary'));
 
 export default function App({ cloud }: { cloud?: CloudSession } = {}) {
-  const [ownPhotoUrl, setOwnPhotoUrl] = useState(cloud?.staff.photoUrl || '');
+  const [ownPhotoUrl, setOwnPhotoUrl] = useState(
+    cloud?.staff.photoUrl || teacherPortraitFallbackUrl(cloud?.staff.displayName || ''),
+  );
   // Signed photo URLs are temporary; refresh the account's OWN portrait at bootstrap.
   // Never derive this avatar from the selected learner/child record.
   useEffect(() => {
     if (!cloud?.api) return;
     let active = true;
-    setOwnPhotoUrl(cloud.staff.photoUrl || '');
+    const fallbackPhoto = teacherPortraitFallbackUrl(cloud.staff.displayName || '');
+    setOwnPhotoUrl(cloud.staff.photoUrl || fallbackPhoto);
     void cloud.api
       .getMyProfile()
       .then((profile) => {
-        if (active) setOwnPhotoUrl(profile.photoUrl || '');
+        if (active) setOwnPhotoUrl(profile.photoUrl || fallbackPhoto);
       })
       .catch(() => {
         /* The existing avatar remains usable if profile read-back fails. */
@@ -100,7 +104,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     return () => {
       active = false;
     };
-  }, [cloud?.api, cloud?.staff.subject]);
+  }, [cloud?.api, cloud?.staff.displayName, cloud?.staff.subject]);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncError, setSyncError] = useState('');

@@ -1656,8 +1656,8 @@ export default function RegistrationModule({
               </div>
             )}
             <p className="reg-footnote">
-              <Info size={15} /> Records are saved to DynamoDB for this academy. Family and student
-              IDs are shared across academies; class enrolments remain academy-specific.
+              <Info size={15} /> Family and student IDs are shared across academies; class
+              enrolments stay with the selected academy.
             </p>
           </section>
         </>
@@ -1665,7 +1665,7 @@ export default function RegistrationModule({
       {dialog === 'import-csv' && (
         <Modal
           title="Import students from CSV"
-          subtitle="Preview and validate before saving to DynamoDB. Roll numbers are allocated automatically."
+          subtitle="Preview and validate the file before importing. Roll numbers are allocated automatically."
           onClose={() => {
             if (!importBusy) setDialog(null);
           }}

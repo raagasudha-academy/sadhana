@@ -11,7 +11,31 @@ type RequestRow = {
   version: number;
   familyReviewRequired?: boolean;
 };
-type Student = { id: string; name: string; rollNumber?: string; archived?: boolean };
+type Student = {
+  id: string;
+  name: string;
+  rollNumber?: string;
+  familyId?: string;
+  classification?: string;
+  relationship?: string;
+  createdIn?: string;
+  visibleIn?: string[];
+  institution?: string;
+  archived?: boolean;
+};
+type GuardianCandidate = {
+  studentId: string;
+  parentName: string;
+  subject: string;
+  name: string;
+  email: string;
+};
+const personClassification = (record: Student) =>
+  String(record.classification || record.relationship || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+const isChild = (record: Student) => personClassification(record) === 'child';
 export default function AccountAccess({
   cloud,
   institution,
@@ -36,6 +60,7 @@ export default function AccountAccess({
   const [srutiCandidates, setSrutiCandidates] = useState<
     Array<{ studentId: string; subject: string }>
   >([]);
+  const [guardianCandidates, setGuardianCandidates] = useState<GuardianCandidate[]>([]);
   const [srutiPair, setSrutiPair] = useState('');
   const loadSrutiCandidates = async () => {
     if (institution !== 'sruti') return;
@@ -99,13 +124,25 @@ export default function AccountAccess({
   useEffect(() => {
     void load();
     setStudentId('');
+    setStudents([]);
+    setGuardianCandidates([]);
+    setBeneficiary('');
     setRequestError('');
     setNotice('');
     let active = true;
     cloud.api
       .listOperations('student', institution)
       .then((r) => {
-        if (active) setStudents((r.records || []).filter((s: Student) => !s.archived));
+        if (active)
+          setStudents(
+            (r.records || []).filter(
+              (s: Student) =>
+                !s.archived &&
+                (Array.isArray(s.visibleIn)
+                  ? s.visibleIn.includes(institution)
+                  : (s.createdIn || s.institution) === institution),
+            ),
+          );
       })
       .catch(() => {
         if (active) setStudents([]);
@@ -114,6 +151,31 @@ export default function AccountAccess({
       active = false;
     };
   }, [institution]);
+  useEffect(() => {
+    setGuardianCandidates([]);
+    setBeneficiary('');
+    if (!studentId) return;
+    let active = true;
+    cloud.api
+      .listGuardianCandidates(institution, studentId)
+      .then((r) => {
+        if (active)
+          setGuardianCandidates(
+            (r.records || []).filter((candidate) => candidate.studentId === studentId),
+          );
+      })
+      .catch((e) => {
+        if (active) {
+          setGuardianCandidates([]);
+          setRequestError(
+            e instanceof Error ? e.message : 'Unable to load the selected child’s parent account',
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [cloud.api, institution, studentId]);
   useEffect(() => {
     setSrutiCandidates([]);
     setSrutiPair('');
@@ -125,10 +187,6 @@ export default function AccountAccess({
     setRequestError('');
     setNotice('');
     try {
-      if (!guardianSubjects.has(beneficiary))
-        throw new Error(
-          'No verified guardian relationship is available for this student. Verify and register the family relationship before requesting access.',
-        );
       await cloud.api.requestGuardianLinkForAccount(institution, studentId, beneficiary);
       setNotice(
         'Guardian request recorded for the selected account. No access is granted until verified and approved.',
@@ -194,6 +252,7 @@ export default function AccountAccess({
   // 'Student (self)' approvals must be reviewed separately; they do not prove guardianship.
   const selectableStudents = students.filter(
     (s) =>
+      isChild(s) &&
       !rows.some(
         (r) =>
           r.studentId === s.id &&
@@ -201,16 +260,14 @@ export default function AccountAccess({
           (r.status === 'approved' || r.status === 'pending'),
       ),
   );
-  // Existing verified guardian approvals are the only reliable relationship evidence
-  // available in this API response. Administrator membership is NOT evidence.
-  const guardianSubjects = new Set(
-    rows
-      .filter((r) => r.studentId === studentId && r.kind === 'guardian' && r.status === 'approved')
-      .map((r) => r.subject),
-  );
-  const eligibleGuardians = Object.entries(accounts).filter(([subject]) =>
-    guardianSubjects.has(subject),
-  );
+  const eligibleGuardians = [
+    ...new Map(
+      guardianCandidates
+        .filter((candidate) => candidate.studentId === studentId)
+        .map((candidate) => [candidate.subject, candidate]),
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  const eligibleGuardianSubjects = new Set(eligibleGuardians.map((candidate) => candidate.subject));
   const selected = rows.filter((r) => filter === 'all' || r.status === filter);
   const unavailable = /unknown endpoint|not found|404/i.test(error);
   const accountResolved = (r: RequestRow) => accounts[r.subject]?.verified === true;
@@ -234,13 +291,13 @@ export default function AccountAccess({
         <div>
           <h3>Create a guardian request</h3>
           <p>
-            Select a student and verified guardian account. The request stays pending until
-            approved.
+            Select a child and the verified account matching their registered parent/guardian. The
+            request stays pending until reviewed.
           </p>
         </div>
         <div className="access-self-controls access-guardian-grid">
           <label htmlFor="access-child">
-            Student
+            Child
             <select
               id="access-child"
               value={studentId}
@@ -251,7 +308,7 @@ export default function AccountAccess({
               }}
               disabled={busy}
             >
-              <option value="">Choose student…</option>
+              <option value="">Choose child…</option>
               {selectableStudents.map((s) => (
                 <option value={s.id} key={s.id}>
                   {s.name}
@@ -266,19 +323,22 @@ export default function AccountAccess({
               id="access-beneficiary"
               value={beneficiary}
               onChange={(e) => setBeneficiary(e.target.value)}
-              disabled={busy}
+              disabled={busy || !studentId}
             >
               <option value="">
                 {studentId
                   ? eligibleGuardians.length
-                    ? 'Choose verified guardian…'
-                    : 'No verified guardian on file'
-                  : 'Select a student first…'}
+                    ? 'Choose a parent/guardian…'
+                    : 'No verified account matches this child’s family email'
+                  : 'Select a child first…'}
               </option>
-              {eligibleGuardians.map(([sub, a]) => (
-                <option key={sub} value={sub}>
-                  {a.name}
-                  {a.email ? ` · ${a.email}` : ''}
+              {eligibleGuardians.map((candidate) => (
+                <option key={candidate.subject} value={candidate.subject}>
+                  {candidate.name}
+                  {candidate.parentName && candidate.parentName !== candidate.name
+                    ? ` · ${candidate.parentName}`
+                    : ''}
+                  {candidate.email ? ` · ${candidate.email}` : ''}
                 </option>
               ))}
             </select>
@@ -290,7 +350,7 @@ export default function AccountAccess({
             disabled={
               !studentId ||
               !beneficiary ||
-              !guardianSubjects.has(beneficiary) ||
+              !eligibleGuardianSubjects.has(beneficiary) ||
               busy ||
               canonicalQueue
             }
@@ -301,9 +361,9 @@ export default function AccountAccess({
         <details className="access-guidance">
           <summary>Who can receive a request?</summary>
           <p>
-            Only accounts with a verified family relationship are listed. Admin status and
-            historical Student (self) links do not prove guardianship. Link new family relationships
-            through the verified family-access workflow first.
+            The child list uses the student record classification. Parent accounts appear only when
+            a verified Cognito account email exactly matches a registered parent/guardian record.
+            Each request remains pending until an administrator reviews the relationship.
           </p>
         </details>
         {canonicalQueue && (

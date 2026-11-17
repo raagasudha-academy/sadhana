@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CloudSession } from './CloudAuth';
 import PhotoAvatarEditor from './PhotoAvatarEditor';
 import { jpegData } from './ProfilePhotoUpload';
+import { teacherPortraitFallbackUrl } from './teacherPortraits';
 import type { InstitutionId } from './types';
 import './sadhanaMyProfile.css';
 type Profile = {
@@ -212,8 +213,9 @@ export default function SadhanaMyProfile({
         if (active) {
           setProfile(p);
           setForm({ name: p.name, givenName: p.givenName, familyName: p.familyName });
-          setPhotoUrl(p.photoUrl || '');
-          onPhotoChange?.(p.photoUrl || '');
+          const photo = p.photoUrl || teacherPortraitFallbackUrl(p.name || cloud.staff.displayName);
+          setPhotoUrl(photo);
+          onPhotoChange?.(photo);
         }
       })
       .catch((e) => {
