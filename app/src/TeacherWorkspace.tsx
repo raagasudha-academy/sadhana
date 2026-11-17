@@ -87,12 +87,25 @@ export default function TeacherWorkspace({
       ...next.map(homeworkMimeForFile),
     ];
     if (next.some((f) => !homeworkFileAllowed(f)) || !homeworkSelectionAllowed(mimes)) {
-      setError('Use up to 3 images, 1 audio file and 1 video, within each file size limit.');
+      setError('Use up to 2 images, 1 audio file and 1 video, within each file size limit.');
       return;
     }
     setError('');
     setHomeworkFiles(next);
   };
+  const retainedHomeworkMimes = [
+    ...existingMaterials.filter((m) => !removedMaterialIds.includes(m.id)).map((m) => m.mime),
+    ...homeworkFiles.map(homeworkMimeForFile),
+  ];
+  const homeworkImageCount = retainedHomeworkMimes.filter((mime) =>
+    mime.startsWith('image/'),
+  ).length;
+  const homeworkAudioCount = retainedHomeworkMimes.filter((mime) =>
+    mime.startsWith('audio/'),
+  ).length;
+  const homeworkVideoCount = retainedHomeworkMimes.filter((mime) =>
+    mime.startsWith('video/'),
+  ).length;
   const startEdit = async (a: {
     id: string;
     title: string;
@@ -577,47 +590,60 @@ export default function TeacherWorkspace({
                   <div className="sv1276-hw-wide sadhana-form-materials">
                     <strong>Attach homework materials</strong>
                     <p>
-                      Optional: up to 3 images (JPEG, PNG or WebP 5 MB; HEIC or HEIF 10 MB), 1 audio
-                      file (20 MB) and 1 video (100 MB). Share document links in Instructions.
+                      Optional: 2 images (JPEG, PNG or WebP 5 MB; HEIC or HEIF 10 MB), 1 audio file
+                      (20 MB) and 1 video (100 MB). Share document links in Instructions.
                     </p>
-                    <div className="sadhana-upload-icons">
-                      <label>
+                    <div className="sadhana-homework-upload-grid">
+                      <label className={homeworkImageCount > 0 ? 'has-file' : ''}>
                         <Image size={22} />
-                        Images
+                        Image 1
                         <input
-                          aria-label="Add homework images"
+                          aria-label="Add homework image 1"
                           type="file"
                           accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                          multiple
-                          disabled={busy}
+                          disabled={busy || homeworkImageCount >= 1}
                           onChange={(e) => {
                             chooseHomeworkFiles(e.target.files);
                             e.target.value = '';
                           }}
                         />
                       </label>
-                      <label>
+                      <label className={homeworkImageCount > 1 ? 'has-file' : ''}>
+                        <Image size={22} />
+                        Image 2
+                        <input
+                          aria-label="Add homework image 2"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                          disabled={busy || homeworkImageCount >= 2}
+                          onChange={(e) => {
+                            chooseHomeworkFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <label className={homeworkAudioCount ? 'has-file' : ''}>
                         <Music2 size={22} />
                         Audio
                         <input
                           aria-label="Add homework audio"
                           type="file"
                           accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                          disabled={busy}
+                          disabled={busy || homeworkAudioCount >= 1}
                           onChange={(e) => {
                             chooseHomeworkFiles(e.target.files);
                             e.target.value = '';
                           }}
                         />
                       </label>
-                      <label>
+                      <label className={homeworkVideoCount ? 'has-file' : ''}>
                         <Video size={22} />
                         Video
                         <input
                           aria-label="Add homework video"
                           type="file"
                           accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
-                          disabled={busy}
+                          disabled={busy || homeworkVideoCount >= 1}
                           onChange={(e) => {
                             chooseHomeworkFiles(e.target.files);
                             e.target.value = '';

@@ -1427,7 +1427,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
       !Number.isSafeInteger(body.expectedVersion) ||
       body.expectedVersion < 1 ||
       !Array.isArray(body.ids) ||
-      body.ids.length > 5 ||
+      body.ids.length > 4 ||
       new Set(body.ids).size !== body.ids.length ||
       body.ids.some((id: unknown) => !teacherMaterialId(id))
     )

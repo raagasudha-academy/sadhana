@@ -86,7 +86,7 @@ export function TeacherHomeworkMaterials({
     try {
       const mimes = [...records.map((r) => r.mime), ...pending.map((r) => r.mime)];
       if (!canAdd(mimes, file))
-        throw Error('Use up to 3 images, 1 audio file and 1 video, within each file size limit.');
+        throw Error('Use up to 2 images, 1 audio file and 1 video, within each file size limit.');
       const mime = homeworkMimeForFile(file);
       const signed = await cloud.api.beginTeacherHomeworkMaterial(
         inst,
@@ -130,7 +130,7 @@ export function TeacherHomeworkMaterials({
   return (
     <div className="sadhana-homework-materials">
       <h4>Assignment materials</h4>
-      <p>Optional: up to 3 images, 1 audio file and 1 video. Available to enrolled learners.</p>
+      <p>Optional: 2 images, 1 audio file and 1 video. Available to enrolled learners.</p>
       {error && <p role="alert">{error}</p>}
       <ul>
         {records.map((r) => (
@@ -162,14 +162,24 @@ export function TeacherHomeworkMaterials({
       )}
       {editable && (
         <>
-          <div className="sadhana-upload-icons" aria-label="Upload teacher materials">
-            <label>
+          <div className="sadhana-homework-upload-grid" aria-label="Upload teacher materials">
+            <label
+              className={
+                records.concat(pending).filter((r) => r.mime.startsWith('image/')).length > 0
+                  ? 'has-file'
+                  : ''
+              }
+            >
               <Image size={22} />
-              Images
+              Image 1
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                disabled={busy}
+                aria-label="Add homework image 1"
+                disabled={
+                  busy ||
+                  records.concat(pending).filter((r) => r.mime.startsWith('image/')).length >= 1
+                }
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
@@ -177,13 +187,42 @@ export function TeacherHomeworkMaterials({
                 }}
               />
             </label>
-            <label>
+            <label
+              className={
+                records.concat(pending).filter((r) => r.mime.startsWith('image/')).length > 1
+                  ? 'has-file'
+                  : ''
+              }
+            >
+              <Image size={22} />
+              Image 2
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                aria-label="Add homework image 2"
+                disabled={
+                  busy ||
+                  records.concat(pending).filter((r) => r.mime.startsWith('image/')).length >= 2
+                }
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void upload(file);
+                }}
+              />
+            </label>
+            <label
+              className={
+                records.concat(pending).some((r) => r.mime.startsWith('audio/')) ? 'has-file' : ''
+              }
+            >
               <Music2 size={22} />
               Audio
               <input
                 type="file"
                 accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                disabled={busy}
+                aria-label="Add homework audio"
+                disabled={busy || records.concat(pending).some((r) => r.mime.startsWith('audio/'))}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
@@ -191,13 +230,18 @@ export function TeacherHomeworkMaterials({
                 }}
               />
             </label>
-            <label>
+            <label
+              className={
+                records.concat(pending).some((r) => r.mime.startsWith('video/')) ? 'has-file' : ''
+              }
+            >
               <Video size={22} />
               Video
               <input
                 type="file"
                 accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
-                disabled={busy}
+                aria-label="Add homework video"
+                disabled={busy || records.concat(pending).some((r) => r.mime.startsWith('video/'))}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';

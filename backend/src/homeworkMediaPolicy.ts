@@ -17,13 +17,13 @@ export const homeworkMediaRules = {
 export type HomeworkMediaKind = 'image' | 'audio' | 'video';
 export function validateHomeworkMediaCounts(mimes: string[]): boolean {
   if (
-    mimes.length > 5 ||
+    mimes.length > 4 ||
     !mimes.every((m) => Object.prototype.hasOwnProperty.call(homeworkMediaRules, m))
   )
     return false;
   const kinds = mimes.map((m) => homeworkMediaRules[m as keyof typeof homeworkMediaRules].kind);
   return (
-    kinds.filter((kind) => kind === 'image').length <= 3 &&
+    kinds.filter((kind) => kind === 'image').length <= 2 &&
     kinds.filter((kind) => kind === 'audio').length <= 1 &&
     kinds.filter((kind) => kind === 'video').length <= 1
   );

@@ -7,7 +7,8 @@ const read = (p: string) => readFileSync(new URL('../../../../' + p, import.meta
 describe('homework media scope', () => {
   it('supports optional images, audio and video', () => {
     const m = compactSource(read('backend/src/homeworkMediaPolicy.ts'));
-    expect(m).toContain(compactSource('mimes.length > 5'));
+    expect(m).toContain(compactSource('mimes.length > 4'));
+    expect(m).toContain(compactSource("kinds.filter((kind) => kind === 'image').length <= 2"));
     expect(m).toContain("'video/mp4':");
     expect(m).toContain("'audio/mpeg':");
   });

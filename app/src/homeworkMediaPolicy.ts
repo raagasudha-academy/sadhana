@@ -41,11 +41,11 @@ export const homeworkFileAllowed = (file: File) => {
 };
 
 export const homeworkSelectionAllowed = (mimes: string[]) => {
-  if (mimes.length > 5) return false;
+  if (mimes.length > 4) return false;
   const types = mimes.map((mime) => homeworkMediaTypes[mime]?.kind);
   return (
     types.every(Boolean) &&
-    types.filter((kind) => kind === 'image').length <= 3 &&
+    types.filter((kind) => kind === 'image').length <= 2 &&
     types.filter((kind) => kind === 'audio').length <= 1 &&
     types.filter((kind) => kind === 'video').length <= 1
   );

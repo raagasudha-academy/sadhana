@@ -2,14 +2,11 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { homeworkMediaAllowed, validateHomeworkMediaCounts } from '../homeworkMediaPolicy.ts';
 
-test('homework accepts up to three images', () => {
+test('homework accepts up to two images', () => {
   assert.equal(validateHomeworkMediaCounts([]), true);
   assert.equal(validateHomeworkMediaCounts(['image/jpeg']), true);
-  assert.equal(validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'image/webp']), true);
-  assert.equal(
-    validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'image/webp', 'image/jpeg']),
-    false,
-  );
+  assert.equal(validateHomeworkMediaCounts(['image/jpeg', 'image/png']), true);
+  assert.equal(validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'image/webp']), false);
 });
 
 test('homework allows optional audio and video while rejecting documents', () => {
@@ -22,13 +19,7 @@ test('homework allows optional audio and video while rejecting documents', () =>
     assert.equal(validateHomeworkMediaCounts([mime]), false);
   }
   assert.equal(
-    validateHomeworkMediaCounts([
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'audio/mpeg',
-      'video/mp4',
-    ]),
+    validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'audio/mpeg', 'video/mp4']),
     true,
   );
   assert.equal(validateHomeworkMediaCounts(['audio/mpeg', 'audio/mp4']), false);

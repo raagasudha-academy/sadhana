@@ -169,21 +169,56 @@
   border-radius: 12px;
   padding: 1rem 1.2rem;
 }
-.sv1276-teacher-homework .sadhana-upload-icons {
-  grid-template-columns: minmax(0, 220px);
-  margin: 0.6rem 0;
+.sv1276-teacher-homework .sadhana-homework-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0.75rem 0;
 }
-.sv1276-teacher-homework .sadhana-upload-icons label {
-  min-height: 86px;
-  border: 1px solid #c7a257;
+.sv1276-teacher-homework .sadhana-homework-upload-grid label {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid #e5d5b3;
+  border-radius: 12px;
   background: #fffdf8;
+  padding: 0.8rem 0.5rem;
+  color: #203d64;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
-.sv1276-teacher-homework .sadhana-upload-icons label:hover {
+.sv1276-teacher-homework .sadhana-homework-upload-grid label:hover:not(:has(input:disabled)) {
   background: #f8f0df;
   border-color: #a68239;
+}
+.sv1276-teacher-homework .sadhana-homework-upload-grid label.has-file {
+  border-color: #c7a257;
+  background: #f8f0df;
+}
+.sv1276-teacher-homework .sadhana-homework-upload-grid input[type='file'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.sv1276-teacher-homework .sadhana-homework-upload-grid label:has(input:disabled) {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.sv1276-teacher-homework .sadhana-homework-upload-grid label:focus-within {
+  outline: 3px solid rgba(199, 162, 87, 0.5);
+  outline-offset: 2px;
 }
 .sv1276-teacher-homework .sadhana-material-file {
   padding: 0.65rem 0.75rem;
@@ -379,6 +414,9 @@
   max-width: 100vw;
 }
 @media (max-width: 640px) {
+  .sv1276-teacher-homework .sadhana-homework-upload-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .sv1276-teacher-homework .sv1276-hw-records {
     grid-template-columns: 1fr;
   }
