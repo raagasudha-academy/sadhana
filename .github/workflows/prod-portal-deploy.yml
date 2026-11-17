@@ -14,6 +14,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
     permissions:
       contents: read
       id-token: write
@@ -29,6 +31,7 @@ jobs:
       - name: Check production configuration
         env:
           AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_CODE_DEPLOY_ROLE_ARN: ${{ vars.AWS_CODE_DEPLOY_ROLE_ARN }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           PORTAL_BUCKET: ${{ vars.PROD_PORTAL_BUCKET }}
           DISTRIBUTION_ID: ${{ vars.PROD_CLOUDFRONT_DISTRIBUTION_ID }}
@@ -37,7 +40,7 @@ jobs:
           COGNITO_DOMAIN: ${{ vars.VITE_SADHANA_COGNITO_DOMAIN }}
           API_URL: ${{ vars.VITE_SADHANA_API_URL }}
         run: |
-          for value in "$AWS_ROLE_ARN" "$AWS_REGION" "$PORTAL_BUCKET" "$DISTRIBUTION_ID" "$COGNITO_ISSUER" "$COGNITO_CLIENT_ID" "$COGNITO_DOMAIN" "$API_URL"; do
+          for value in "$AWS_ROLE_ARN" "$AWS_CODE_DEPLOY_ROLE_ARN" "$AWS_REGION" "$PORTAL_BUCKET" "$DISTRIBUTION_ID" "$COGNITO_ISSUER" "$COGNITO_CLIENT_ID" "$COGNITO_DOMAIN" "$API_URL"; do
             if [ -z "$value" ]; then
               echo 'Missing production portal GitHub environment variable'
               exit 1
@@ -53,6 +56,7 @@ jobs:
           test "$COGNITO_CLIENT_ID" = '3la4lus8pr050j4a3vtkt8kmsr' || { echo 'Production portal must use the replacement production Cognito client'; exit 1; }
           test "$COGNITO_DOMAIN" = 'https://sadhana-prod-v2-627821644317.auth.us-east-1.amazoncognito.com' || { echo 'Production portal must use the replacement production Cognito domain'; exit 1; }
           test "$API_URL" = 'https://6vmaya3er2.execute-api.us-east-1.amazonaws.com/prod/api' || { echo 'Production portal must use the production API stage'; exit 1; }
+          test "$AWS_CODE_DEPLOY_ROLE_ARN" = 'arn:aws:iam::627821644317:role/sadhana-github-prod-code-deploy' || { echo 'Unexpected production Lambda code deployment role'; exit 1; }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -66,6 +70,27 @@ jobs:
           VITE_SADHANA_API_URL: ${{ vars.VITE_SADHANA_API_URL }}
           VITE_SADHANA_EMAIL_LOGIN_PROXY: enabled
         run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: sadhana-lambda
+          path: ./lambda-package
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CODE_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Verify production AWS account and Lambda
+        run: |
+          test "$(aws sts get-caller-identity --query Account --output text)" = 627821644317
+          aws lambda get-function-configuration --function-name prod-sadhana-api --region "$AWS_REGION" \
+            --query 'FunctionName' --output text | grep -Fx prod-sadhana-api
+      - name: Deploy production Lambda code only
+        run: |
+          expected="$(openssl dgst -sha256 -binary ./lambda-package/lambda.zip | openssl base64 -A)"
+          aws lambda update-function-code --function-name prod-sadhana-api --region "$AWS_REGION" \
+            --zip-file fileb://./lambda-package/lambda.zip >/dev/null
+          aws lambda wait function-updated --function-name prod-sadhana-api --region "$AWS_REGION"
+          actual="$(aws lambda get-function-configuration --function-name prod-sadhana-api --region "$AWS_REGION" --query CodeSha256 --output text)"
+          test "$actual" = "$expected" || { echo 'Deployed Lambda hash does not match the verified artifact'; exit 1; }
       - name: Upload portal build
         env:
           PORTAL_BUCKET: ${{ vars.PROD_PORTAL_BUCKET }}
