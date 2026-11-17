@@ -142,7 +142,7 @@ export function StudentRecord({
     };
   }, [operationsApi, person.id, tab, workspace]);
   useEffect(() => {
-    if (tab !== 'Practice' || !operationsApi) return;
+    if (!operationsApi) return;
     let active = true;
     setPracticeBusy(true);
     setPracticeError('');
@@ -171,7 +171,7 @@ export function StudentRecord({
     return () => {
       active = false;
     };
-  }, [operationsApi, person.id, tab, workspace]);
+  }, [operationsApi, person.id, workspace]);
   return (
     <>
       <button className="back-link" onClick={onBack}>
@@ -365,9 +365,14 @@ export function StudentRecord({
                 </div>
               </div>
               <small>
-                Calculated only from records entered in this browser session; live practice history
-                is not connected yet.
+                Based on this student’s live practice submissions from the last four weeks.
               </small>
+              {practiceBusy && <p role="status">Loading live practice history…</p>}
+              {practiceError && (
+                <p className="reg-error" role="alert">
+                  {practiceError}
+                </p>
+              )}
             </div>
           </div>
         )}
