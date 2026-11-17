@@ -2,7 +2,7 @@ import { entityTable } from './entityTables.mjs';
 /** Opt-in M9 practice and RSVP writes: only M9 tables, with fresh identity checks.
  * Leave disabled on the existing deployed Lambda until isolated end-to-end tests pass.
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
@@ -14,6 +14,8 @@ import { httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import { isWithinPracticeWindow } from './practiceWindow.ts';
 import { matchingCognitoPerson, authorisedStudent } from './finalAccessCore.mjs';
+import { learnerActivityNotifications } from './learnerActivityNotifications.ts';
+import { listMessageAdministrators } from './adminDirectory.ts';
 import {
   validatePractice,
   validateRsvp,
@@ -51,7 +53,15 @@ const clock = () =>
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date());
-export function makeM9LearnerWrites(db: M9LearnerWriteDb) {
+type ActivityWriter = ReturnType<typeof learnerActivityNotifications>['notify'];
+type AdminDirectory = typeof listMessageAdministrators;
+const adminNotificationId = (sub: string) =>
+  `ADMIN-${createHash('sha256').update(sub).digest('hex')}`;
+export function makeM9LearnerWrites(
+  db: M9LearnerWriteDb,
+  notifyActivity: ActivityWriter = async () => ({ recipients: 0 }),
+  listAdmins: AdminDirectory = async () => [],
+) {
   const get = async (domain: string, key: string, value: string) =>
     (
       await db.send(
@@ -213,6 +223,7 @@ export function makeM9LearnerWrites(db: M9LearnerWriteDb) {
     const row = await get('classes', 'classId', classId);
     if (!row || row.institutionId !== inst || row.status === 'archived')
       throw httpError(403, 'Class does not belong to the academy');
+    return row;
   }
   async function savePractice(
     inst: InstitutionId,
@@ -229,7 +240,7 @@ export function makeM9LearnerWrites(db: M9LearnerWriteDb) {
       throw httpError(503, 'Learner writes disabled');
     const { actor, checks } = await identity(inst, claims, studentId);
     const input = validatePractice(body, isWithinPracticeWindow);
-    await ensureClass(inst, input.classId);
+    const classRecord = await ensureClass(inst, input.classId);
     const enrolmentCheck = await enrolled(inst, studentId, input.classId, input.date);
     const existing = (
       await query('practice', 'StudentPracticeIndex', 'studentId', studentId)
@@ -317,6 +328,42 @@ export function makeM9LearnerWrites(db: M9LearnerWriteDb) {
       if (e.name === 'TransactionCanceledException')
         throw httpError(409, 'Practice or access changed. Refresh and retry');
       throw e;
+    }
+    if (!old) {
+      const assignedTeacherIds = [
+        ...(Array.isArray(classRecord.teacherPersonIds) ? classRecord.teacherPersonIds : []),
+        classRecord.teacherId,
+        classRecord.legacyPayload?.teacherId,
+      ].filter((value: unknown): value is string => typeof value === 'string' && !!value);
+      const teachers = await Promise.all(
+        [...new Set(assignedTeacherIds)].map((personId) => get('people', 'personId', personId)),
+      );
+      const teacherRecipients = teachers
+        .filter(
+          (teacher) =>
+            teacher?.status === 'active' &&
+            teacher.personTypes?.includes('teacher') &&
+            teacher.institutionIds?.includes(inst),
+        )
+        .map((teacher) => teacher.personId as string);
+      let adminRecipients: string[] = [];
+      try {
+        adminRecipients = (await listAdmins(inst)).map((admin) => adminNotificationId(admin.sub));
+      } catch {
+        // Continue to notify assigned teachers if the admin directory is unavailable.
+      }
+      try {
+        await notifyActivity({
+          institution: inst,
+          recipientPersonIds: [...new Set([...teacherRecipients, ...adminRecipients])],
+          title: 'Practice logged',
+          detail: `${actor.displayName || 'A learner'} · ${input.topic || classRecord.name || 'Practice'} · ${input.minutes} min`,
+          category: 'Practice',
+          resourceId: id,
+        });
+      } catch {
+        // Practice has already been saved; notification delivery is best effort.
+      }
     }
     return {
       record: {
@@ -463,5 +510,7 @@ export function m9LearnerWrites() {
       new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }),
       { marshallOptions: { removeUndefinedValues: true } },
     ),
+    learnerActivityNotifications().notify,
+    listMessageAdministrators,
   ));
 }

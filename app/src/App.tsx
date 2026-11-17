@@ -5,7 +5,7 @@ import './workspaceVisualConsistency.css';
 import { learnerPageMap } from './app/learnerNavigation';
 import './learnerContent.css';
 import './sessionFooter.css';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   Bell,
   Check,
@@ -214,6 +214,39 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
           : role,
     ),
   );
+  const historyPopRef = useRef(false);
+  useEffect(() => {
+    const currentState = window.history.state;
+    if (!currentState?.sadhanaPage) {
+      window.history.replaceState({ ...currentState, sadhanaPage: page }, '', window.location.href);
+    }
+  }, []);
+  useEffect(() => {
+    if (historyPopRef.current) {
+      historyPopRef.current = false;
+      return;
+    }
+    if (window.history.state?.sadhanaPage === page) return;
+    window.history.pushState(
+      { ...window.history.state, sadhanaPage: page },
+      '',
+      window.location.href,
+    );
+  }, [page]);
+  useEffect(() => {
+    const restorePage = (event: PopStateEvent) => {
+      const target = event.state?.sadhanaPage;
+      if (typeof target !== 'string') return;
+      historyPopRef.current = true;
+      setPage(target);
+      setStudent(null);
+      setClassProfile(null);
+      setSession(null);
+      setMobileNav(false);
+    };
+    window.addEventListener('popstate', restorePage);
+    return () => window.removeEventListener('popstate', restorePage);
+  }, []);
   const [mobileNav, setMobileNav] = useState(false);
   useEffect(() => {
     try {
@@ -400,6 +433,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
             'Dashboard',
             'My Classes',
             'My Students',
+            'Practice & Reports',
             'Syllabus & Resources',
             'Messages',
             'Teachers',
@@ -467,14 +501,14 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
             )
           : [],
       );
-      const learnerResults =
-        studentMode && visibleStudentId
-          ? await Promise.allSettled(
-              scopes.map((institution) =>
-                cloud.api.listLearnerNotifications(institution, visibleStudentId),
-              ),
-            )
-          : [];
+      const learnerResults = await Promise.allSettled(
+        scopes.map((institution) =>
+          cloud.api.listLearnerNotifications(
+            institution,
+            studentMode && visibleStudentId ? visibleStudentId : undefined,
+          ),
+        ),
+      );
       if (!active) return;
       const learnerActivity = learnerResults.flatMap((result) =>
         result.status === 'fulfilled'
@@ -549,7 +583,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
         await cloud.api.markLearnerNotificationRead(
           notification.institution,
           notification.id,
-          visibleStudentId,
+          studentMode && visibleStudentId ? visibleStudentId : undefined,
         );
       } catch {
         return;
@@ -559,6 +593,10 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
           item.id === notification.id ? { ...item, read: true, unreadCount: 0 } : item,
         ),
       );
+      if (notification.category === 'Practice' && (teacherMode || person.admin)) {
+        setNotifsOpen(false);
+        goPage('Practice & Reports');
+      }
       return;
     }
     const thread = notification.messageThread;
