@@ -104,11 +104,11 @@ test('SAM enables administrator and guardian queue reads in dev and production',
   );
   assert.match(
     template,
-        /SADHANA_FINAL_GUARDIAN_QUEUE_READS:\s*!If\s*\[\s*UseProdLambdaBoundary,\s*enabled,\s*!If\s*\[UseDevFamilyReads,\s*enabled,\s*!Ref AWS::NoValue\]/,
+    /SADHANA_FINAL_GUARDIAN_QUEUE_READS:\s*!If\s*\[\s*UseProdLambdaBoundary,\s*enabled,\s*!If\s*\[UseDevFamilyReads,\s*enabled,\s*!Ref AWS::NoValue\]/,
   );
   assert.doesNotMatch(
     template,
-            /SADHANA_FINAL_(?:ADMIN_(?:INVITES|ACCESS_CHANGES|PROFILE_WRITES)|GUARDIAN_(?:REQUESTS|DECISIONS)):/,
+    /SADHANA_FINAL_(?:ADMIN_(?:INVITES|ACCESS_CHANGES|PROFILE_WRITES)|GUARDIAN_(?:REQUESTS|DECISIONS)):/,
   );
 });
 test('read denies unauthorised staff, missing JWT and invalid academy', async () => {
