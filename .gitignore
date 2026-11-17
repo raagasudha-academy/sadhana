@@ -16,6 +16,7 @@ build/
 .vitest/
 coverage/
 playwright-report/
+playwright-report-live/
 test-results/
 
 # Python environments and caches

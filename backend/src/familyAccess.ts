@@ -64,6 +64,76 @@ const validInst = (v: string): InstitutionId => {
 };
 const validSub = isAccountSubject;
 const validStudent = isStudentRecordId;
+const classification = (record: any) =>
+  String(record?.classification || record?.relationship || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+const isChildRecord = (record: any) => classification(record) === 'child';
+const scopedToInstitution = (record: any, inst: InstitutionId) =>
+  Array.isArray(record?.visibleIn)
+    ? record.visibleIn.includes(inst)
+    : (record?.createdIn || record?.institution) === inst;
+async function verifiedParentCandidate(inst: InstitutionId, studentId: string) {
+  const student = (
+    await db.send(
+      new GetCommand({
+        TableName: table(),
+        Key: { PK: 'OPS#GLOBAL#STUDENT', SK: `ITEM#${studentId}` },
+        ConsistentRead: true,
+      }),
+    )
+  ).Item;
+  if (!student || student.id !== studentId || student.archived || !isChildRecord(student))
+    throw httpError(409, 'Choose an active student classified as a child.');
+  if (!scopedToInstitution(student, inst))
+    throw httpError(404, 'Student not found in this academy.');
+
+  const familyId = String(student.familyId || '');
+  if (!familyId) throw httpError(409, 'The selected child has no registered family record.');
+  const family = (
+    await db.send(
+      new GetCommand({
+        TableName: table(),
+        Key: { PK: 'OPS#GLOBAL#FAMILY', SK: `ITEM#${familyId}` },
+        ConsistentRead: true,
+      }),
+    )
+  ).Item;
+  if (
+    !family ||
+    family.archived ||
+    String(family.id || family.familyId || '') !== familyId ||
+    !scopedToInstitution(family, inst)
+  )
+    throw httpError(409, 'The selected child’s family record is unavailable in this academy.');
+
+  const email = String(family.email || family.legacyPayload?.email || '')
+    .trim()
+    .toLowerCase();
+  if (!email || email.includes('"') || email.includes(String.fromCharCode(92)))
+    throw httpError(409, 'Add a valid parent/guardian email to the child’s family record first.');
+  const pool = process.env.SADHANA_COGNITO_USER_POOL_ID;
+  if (!pool) throw httpError(503, 'Cognito identity directory is not configured');
+  const page = await identityCognito.send(
+    new ListUsersCommand({ UserPoolId: pool, Filter: `email = "${email}"`, Limit: 2 }),
+  );
+  const matches = (page.Users || []).flatMap((user) => {
+    const subject = user.Attributes?.find((attribute) => attribute.Name === 'sub')?.Value || '';
+    const identity = validSub(subject) ? verifiedParentIdentity(subject, [user]) : null;
+    return identity && identity.email.toLowerCase() === email ? [{ subject, ...identity }] : [];
+  });
+  if (matches.length !== 1)
+    throw httpError(409, 'No unique verified Cognito account matches this family’s parent email.');
+  return {
+    studentId,
+    familyId,
+    parentName: String(family.parentName || family.legacyPayload?.parentName || ''),
+    subject: matches[0].subject,
+    name: matches[0].name,
+    email: matches[0].email,
+  };
+}
 export const isSupportedAccessRollNumber = (value: unknown): value is string =>
   typeof value === 'string' && /^(?:\d{3}-\d{3}|(?:RS|SR)-\d{3,})$/i.test(value.trim());
 const key = (inst: InstitutionId, sub: string, studentId: string) => ({
@@ -172,6 +242,12 @@ export async function requestStudentAccess(instRaw: string, claims: Claims, body
   if (beneficiary !== claims.sub) {
     demandInstitution(claims, inst);
     if (body.kind !== 'guardian') throw httpError(400, 'On-behalf links must be guardian requests');
+    const candidate = await verifiedParentCandidate(inst, resolvedStudentId);
+    if (candidate.subject !== beneficiary)
+      throw httpError(
+        409,
+        'Choose the verified parent account registered for this child’s family.',
+      );
   }
   const now = new Date().toISOString(),
     k = key(inst, beneficiary, resolvedStudentId);
@@ -245,6 +321,17 @@ export async function requestStudentAccess(instRaw: string, claims: Claims, body
     }
   }
   return { submitted: true, status: 'pending' };
+}
+export async function listGuardianCandidates(
+  instRaw: string,
+  claims: Claims,
+  studentIdRaw: string,
+) {
+  const inst = validInst(instRaw);
+  demandInstitution(claims, inst);
+  if (!validStudent(studentIdRaw)) throw httpError(400, 'Choose a valid child.');
+  const candidate = await verifiedParentCandidate(inst, studentIdRaw);
+  return { records: [candidate] };
 }
 export async function listAccessRequests(instRaw: string, claims: Claims) {
   const inst = validInst(instRaw);

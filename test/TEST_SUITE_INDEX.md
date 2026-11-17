@@ -52,6 +52,18 @@ Run browser tests and compare them with the screenshots using:
 npm run test:frontend:playwright
 ```
 
+## Live dev portal checks
+
+Read-only Playwright smoke checks against the deployed dev portal are in `test/portal/`. They have a separate config and never start the local Vite server. The target is restricted to `https://sadhana-dev.sruti.co.uk`. Public smoke runs without credentials; administrator, teacher and student checks use role-specific environment variables, assert the role returned by `/api/me`, and skip when credentials are absent.
+
+Run them intentionally with:
+
+```sh
+npm run test:portal:live
+```
+
+See [`test/portal/README.md`](portal/README.md) for credential setup, target safety and limits. These live tests are not part of CI and perform no record writes. The existing synthetic browser suite and guarded AWS helper remain separate.
+
 Refresh screenshot baselines intentionally with:
 
 ```sh
