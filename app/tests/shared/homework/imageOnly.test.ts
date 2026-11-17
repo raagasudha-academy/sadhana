@@ -4,12 +4,12 @@ import { compactSource } from '../../sourceText';
 
 const read = (p: string) => readFileSync(new URL('../../../../' + p, import.meta.url), 'utf8');
 
-describe('image-only homework scope', () => {
-  it('supports three images and blocks new video/audio', () => {
+describe('homework media scope', () => {
+  it('supports optional images, audio and video', () => {
     const m = compactSource(read('backend/src/homeworkMediaPolicy.ts'));
-    expect(m).toContain(compactSource('mimes.length <= 3'));
-    expect(m).not.toContain("'video/mp4':");
-    expect(m).not.toContain("'audio/mpeg':");
+    expect(m).toContain(compactSource('mimes.length > 5'));
+    expect(m).toContain("'video/mp4':");
+    expect(m).toContain("'audio/mpeg':");
   });
 
   it('renders teacher/student images inline', () => {

@@ -121,16 +121,16 @@
   overflow-x: auto;
 }
 .student-portal-v119 .v1376-practice-page .access-table-wrap table {
-  min-width: 560px;
+  min-width: 700px;
 }
 .student-portal-v119 .v1376-practice-media {
   grid-column: 1/-1;
   min-width: 0;
   margin: 0;
   padding: 10px 12px;
-  border: 1px solid #dce5f0;
+  border: 1px solid #e5d5b3;
   border-radius: 12px;
-  background: #f8fafd;
+  background: #fffaf1;
 }
 .student-portal-v119 .v1376-practice-media-heading {
   display: flex;
@@ -159,9 +159,9 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   min-width: 0;
-  border: 1px solid #d8e2ef;
+  border: 1px solid #e5d5b3;
   border-radius: 10px;
-  background: #fff;
+  background: #fffdf8;
   overflow: hidden;
 }
 .student-portal-v119 .v1376-practice-media-input {
@@ -201,7 +201,7 @@
   width: 44px;
   height: 44px;
   border-radius: 9px;
-  background: #eef2fa;
+  background: #f6ecd3;
   color: #566d9c;
 }
 .student-portal-v119 .v1376-practice-media-thumbnail {

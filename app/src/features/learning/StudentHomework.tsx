@@ -159,8 +159,8 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                   />
                 </label>
                 <div className="sv1278-upload-note">
-                  <strong>Media · {submission.attachmentIds.length}/3 files</strong>
-                  <p>JPEG, PNG or WebP · up to 5 MB each</p>
+                  <strong>Optional media · {submission.attachmentIds.length}/4 files</strong>
+                  <p>Up to 2 images, 1 audio file and 1 video · size limits vary by type</p>
                   <label className="sv1278-media-add">
                     <UploadCloud size={18} />
                     <span>{submissionBusy ? 'Uploading…' : 'Add media'}</span>
@@ -168,11 +168,11 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                       aria-label="Add homework media"
                       type="file"
                       multiple
-                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif,audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,video/mp4,video/quicktime,video/3gpp,.jpg,.jpeg,.png,.webp,.heic,.heif,.mp3,.m4a,.aac,.wav,.mp4,.mov,.3gp"
                       disabled={
                         !submissionEditable ||
                         submissionBusy ||
-                        submission.attachmentIds.length >= 3
+                        submission.attachmentIds.length >= 4
                       }
                       onChange={(e) => {
                         void uploadHomeworkFiles(e.target.files);
@@ -193,6 +193,21 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                                 loading="lazy"
                               />
                             </a>
+                          ) : a.mime.startsWith('audio/') ? (
+                            <audio
+                              controls
+                              preload="none"
+                              src={a.url}
+                              aria-label="Homework audio"
+                            />
+                          ) : a.mime.startsWith('video/') ? (
+                            <video
+                              controls
+                              playsInline
+                              preload="metadata"
+                              src={a.url}
+                              aria-label="Homework video"
+                            />
                           ) : (
                             <a href={a.url} target="_blank" rel="noreferrer">
                               Previous media ({a.mime})

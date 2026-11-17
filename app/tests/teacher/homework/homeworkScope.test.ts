@@ -21,9 +21,9 @@ describe('v13.6.1 homework scope regression', () => {
     expect(media).toContain('image/jpeg');
     expect(media).toContain('image/png');
     expect(media).toContain('image/webp');
-    expect(media).toContain(compactSource('mimes.length <= 3'));
-    expect(media).not.toContain("'video/mp4'");
-    expect(media).not.toContain("'audio/mp4'");
+    expect(media).toContain(compactSource('mimes.length > 5'));
+    expect(media).toContain("'video/mp4'");
+    expect(media).toContain("'audio/mp4'");
     expect(compactSource(teacher)).toContain('setEditingHomework({id,version})');
   });
 });

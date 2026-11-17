@@ -95,6 +95,11 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable identity- and enrolment-scoped learner and staff homework reads
+  FinalHomeworkWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable identity- and enrolment-scoped learner submissions and staff homework changes
   FinalLearnerMedia:
     Type: String
     Default: disabled
@@ -383,9 +388,11 @@ Resources:
           SADHANA_FINAL_LEARNER_PREFERENCES_PARITY:
             !If [UseDevFamilyReads, enabled, !Ref FinalLearnerPreferencesParity]
           SADHANA_FINAL_HOMEWORK_READS: !If [UseDevFamilyReads, enabled, !Ref FinalHomeworkReads]
+          SADHANA_FINAL_HOMEWORK_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalHomeworkWrites]
           SADHANA_FINAL_LEARNER_MEDIA: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerMedia]
           SADHANA_FINAL_HOMEWORK_MEDIA: !If [UseDevFamilyReads, enabled, disabled]
           SADHANA_FINAL_TEACHER_PRACTICE_READS: !If [UseDevFamilyReads, enabled, disabled]
+          SADHANA_FINAL_TEACHER_PRACTICE_WRITES: !If [UseDevFamilyReads, enabled, disabled]
           SADHANA_LEARNER_MEDIA_BUCKET: !Ref SadhanaHomeworkMedia
           SADHANA_FINAL_FAMILY_READS: !If [UseFamilyReads, enabled, disabled]
           SADHANA_FINAL_SRUTI_INGRESS_READY:
@@ -413,7 +420,11 @@ Resources:
               !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue],
             ]
           SADHANA_FINAL_GUARDIAN_QUEUE_READS:
-            !If [UseProdLambdaBoundary, enabled, !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue]]
+            !If [
+              UseProdLambdaBoundary,
+              enabled,
+              !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue],
+            ]
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:

@@ -3,6 +3,7 @@ import type { CloudSession } from '../../CloudAuth';
 import type { InstitutionId } from '../../types';
 import type { PublishedAcademy } from './StudentAcademy';
 import type { LearnerPage } from '../../StudentHome';
+import { homeworkFileAllowed, learnerHomeworkSelectionAllowed } from '../../homeworkMediaPolicy';
 const practiceUploadMime = (file: File) => {
   if (file.type) return file.type;
   const ext = file.name.split('.').pop()?.toLowerCase();
@@ -274,20 +275,17 @@ export function useStudentPortalController({
   const uploadHomeworkFiles = async (files: FileList | null) => {
     if (!files || !activeId || !selectedHomework || !submissionEditable || !submission) return;
     const newFiles = Array.from(files);
-    const acceptedMime = ['image/jpeg', 'image/png', 'image/webp'];
-    const maxBytes = () => 5_000_000;
     const ids = [...submission.attachmentIds];
     const selected = attachments.filter((x) => ids.includes(x.id)).map((x) => x.mime);
     const newMimes = newFiles.map(supportedHomeworkMime);
     const nextTypes = [...selected, ...newMimes];
-    const count = (kind: string) => nextTypes.filter((x) => x.startsWith(`${kind}/`)).length;
     if (
-      nextTypes.length > 3 ||
-      newFiles.some(
-        (x, i) => !acceptedMime.includes(newMimes[i]) || x.size <= 0 || x.size > maxBytes(),
-      )
+      !learnerHomeworkSelectionAllowed(nextTypes) ||
+      newFiles.some((file) => !homeworkFileAllowed(file))
     ) {
-      setError('Homework accepts up to 3 JPEG, PNG or WebP images (5 MB each).');
+      setError(
+        'Homework accepts up to 2 images, 1 audio file and 1 video. Check file size limits.',
+      );
       return;
     }
     setSubmissionBusy(true);

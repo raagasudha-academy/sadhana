@@ -79,7 +79,14 @@ export function makeM10FinalOperationsHistory(client: Client) {
       })
       .map((row) => {
         const source = original(row);
-        if (source !== row) return source;
+        if (source !== row)
+          return kind === 'practice'
+            ? {
+                ...source,
+                teacherReviewed:
+                  source.teacherReviewed === true || source.teacherComments?.length > 0,
+              }
+            : source;
         if (kind === 'practice')
           return {
             id: row.practiceId,
@@ -91,6 +98,7 @@ export function makeM10FinalOperationsHistory(client: Client) {
             minutes: row.minutes ?? 0,
             comments: row.comments ?? '',
             version: row.version ?? 1,
+            teacherReviewed: row.teacherReviewed === true || row.teacherComments?.length > 0,
           };
         return {
           id: row.rsvpId,

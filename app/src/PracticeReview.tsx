@@ -321,13 +321,18 @@ export default function PracticeReview({
                     <td>{p.topic || p.comments || 'Practice'}</td>
                     <td>{p.minutes || 0}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="reg-secondary"
-                        onClick={() => void inspect(p.id)}
-                      >
-                        {open === p.id ? 'Reviewing' : 'Review'}
-                      </button>
+                      {p.teacherReviewed || p.teacherComments?.length ? (
+                        <span className="practice-review-status is-reviewed">Reviewed</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="practice-review-status is-pending practice-review-action"
+                          aria-pressed={open === p.id}
+                          onClick={() => void inspect(p.id)}
+                        >
+                          Review
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -360,13 +365,19 @@ export default function PracticeReview({
                           aria-label={`Practice audio for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
                           src={r.url}
                         />
-                      ) : r.mime === 'video/mp4' ? (
+                      ) : r.mime.startsWith('video/') ? (
                         <video
                           controls
-                          preload="none"
+                          playsInline
+                          preload="metadata"
                           aria-label={`Practice video for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
-                          src={r.url}
-                        />
+                        >
+                          <source src={r.url} type={r.mime} />
+                          Your browser cannot play this video.{' '}
+                          <a href={r.url} target="_blank" rel="noreferrer">
+                            Open video
+                          </a>
+                        </video>
                       ) : null}
                     </div>
                   ))

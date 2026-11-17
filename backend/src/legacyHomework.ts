@@ -25,6 +25,11 @@ import {
   isHomeworkReleased,
 } from './homeworkPublishingPolicy.ts';
 import { makeLearnerActivityNotifications } from './learnerActivityNotifications.ts';
+import {
+  homeworkMediaAllowed,
+  homeworkMediaRules,
+  validateHomeworkMediaCounts,
+} from './homeworkMediaPolicy.ts';
 
 export type HomeworkDB = { send: (command: any) => Promise<any> };
 const table = (entity: string) => entityTable(entity);
@@ -32,15 +37,9 @@ const assignmentId = (v: unknown) => typeof v === 'string' && /^HOMEWORK-[0-9a-f
 const teacherMaterialId = (v: unknown) =>
   typeof v === 'string' && /^MATERIAL#[0-9a-f-]{36}$/i.test(v);
 const teacherMaterialType = (mime: unknown, size: unknown) =>
-  typeof mime === 'string' &&
-  ['image/jpeg', 'image/png', 'image/webp'].includes(mime) &&
-  Number.isSafeInteger(size) &&
-  Number(size) > 0 &&
-  Number(size) <= 5_000_000;
+  typeof mime === 'string' && homeworkMediaAllowed(mime, size);
 const teacherMaterialExt = (mime: string) =>
-  (({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }) as Record<string, string>)[
-    mime
-  ];
+  homeworkMediaRules[mime as keyof typeof homeworkMediaRules]?.ext;
 const acceptableId = (v: unknown) => typeof v === 'string' && /^[-a-zA-Z0-9_]{4,150}$/.test(v);
 const isObject = (v: unknown): v is Record<string, any> =>
   !!v && typeof v === 'object' && !Array.isArray(v);
@@ -1428,7 +1427,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
       !Number.isSafeInteger(body.expectedVersion) ||
       body.expectedVersion < 1 ||
       !Array.isArray(body.ids) ||
-      body.ids.length > 3 ||
+      body.ids.length > 5 ||
       new Set(body.ids).size !== body.ids.length ||
       body.ids.some((id: unknown) => !teacherMaterialId(id))
     )
@@ -1438,6 +1437,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     if (h.version !== body.expectedVersion)
       throw httpError(409, 'Assignment changed. Refresh first');
     const receiptChecks: any[] = [];
+    const selectedMimes: string[] = [];
     for (const id of body.ids) {
       const r = await get('submissions', id);
       if (
@@ -1450,6 +1450,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
         !teacherMaterialType(r.mime, r.size)
       )
         throw httpError(403, 'Unverified or unrelated material receipt');
+      selectedMimes.push(r.mime);
       receiptChecks.push({
         ConditionCheck: {
           TableName: table('submissions'),
@@ -1466,6 +1467,8 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
         },
       });
     }
+    if (!validateHomeworkMediaCounts(selectedMimes))
+      throw httpError(400, 'Too many homework attachments of one type');
     const updated = {
       ...h,
       materialIds: body.ids,
@@ -1522,7 +1525,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
   }
   async function signedTeacherMaterials(inst: InstitutionId, h: any) {
     const ids = h.materialIds || [];
-    if (!Array.isArray(ids) || ids.length > 3 || ids.some((id: unknown) => !teacherMaterialId(id)))
+    if (!Array.isArray(ids) || ids.length > 5 || ids.some((id: unknown) => !teacherMaterialId(id)))
       throw httpError(409, 'Saved materials need reconciliation');
     const records = [];
     for (const id of ids) {
@@ -1544,6 +1547,8 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
         url: await mediaIO.signGet(materialBucket(), r.objectKey),
       });
     }
+    if (!validateHomeworkMediaCounts(records.map((record) => record.mime)))
+      throw httpError(409, 'Saved materials need reconciliation');
     return { records };
   }
   async function teacherMaterialLinks(

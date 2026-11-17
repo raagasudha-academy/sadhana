@@ -1,24 +1,27 @@
 import './homeworkIcons.css';
 import { useEffect, useState } from 'react';
-import { Image } from 'lucide-react';
+import { Image, Music2, Video } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
+import {
+  homeworkFileAllowed,
+  homeworkMimeForFile,
+  homeworkSelectionAllowed,
+} from './homeworkMediaPolicy';
+
+export { homeworkFileAllowed, homeworkSelectionAllowed };
 
 type Material = { id: string; mime: string; size: number; url: string };
-type MediaKind = 'image';
-const kinds: Record<string, MediaKind> = {
-  'image/jpeg': 'image',
-  'image/png': 'image',
-  'image/webp': 'image',
-};
 export const homeworkMediaKind = (mime: string) =>
-  mime.startsWith('image/') ? 'Image' : 'Previous attachment';
-export const homeworkFileAllowed = (f: File) =>
-  !!kinds[f.type] && f.size > 0 && f.size <= 5_000_000;
-export const homeworkSelectionAllowed = (mimes: string[]) =>
-  mimes.length <= 3 && mimes.every((m) => !!kinds[m]);
+  mime.startsWith('image/')
+    ? 'Image'
+    : mime.startsWith('audio/')
+      ? 'Audio'
+      : mime.startsWith('video/')
+        ? 'Video'
+        : 'Previous attachment';
 const canAdd = (mimes: string[], file: File) =>
-  homeworkFileAllowed(file) && homeworkSelectionAllowed([...mimes, file.type]);
+  homeworkFileAllowed(file) && homeworkSelectionAllowed([...mimes, homeworkMimeForFile(file)]);
 export function HomeworkMediaPreview({
   mime,
   url,
@@ -28,11 +31,17 @@ export function HomeworkMediaPreview({
   url: string;
   alt: string;
 }) {
-  return mime.startsWith('image/') ? (
-    <a href={url} target="_blank" rel="noreferrer" aria-label={`Enlarge ${alt}`}>
-      <img className="sadhana-homework-image" src={url} alt={alt} loading="lazy" />
-    </a>
-  ) : (
+  if (mime.startsWith('image/'))
+    return (
+      <a href={url} target="_blank" rel="noreferrer" aria-label={`Enlarge ${alt}`}>
+        <img className="sadhana-homework-image" src={url} alt={alt} loading="lazy" />
+      </a>
+    );
+  if (mime.startsWith('audio/'))
+    return <audio controls preload="none" aria-label={alt} src={url} />;
+  if (mime.startsWith('video/'))
+    return <video controls playsInline preload="metadata" aria-label={alt} src={url} />;
+  return (
     <a href={url} target="_blank" rel="noreferrer">
       Previous attachment ({mime})
     </a>
@@ -76,17 +85,19 @@ export function TeacherHomeworkMaterials({
     setError('');
     try {
       const mimes = [...records.map((r) => r.mime), ...pending.map((r) => r.mime)];
-      if (!canAdd(mimes, file)) throw Error('Maximum three images (5 MB each).');
+      if (!canAdd(mimes, file))
+        throw Error('Use up to 3 images, 1 audio file and 1 video, within each file size limit.');
+      const mime = homeworkMimeForFile(file);
       const signed = await cloud.api.beginTeacherHomeworkMaterial(
         inst,
         classId,
         homeworkId,
-        file.type,
+        mime,
         file.size,
       );
       const response = await fetch(signed.uploadUrl, {
         method: 'PUT',
-        headers: signed.headers,
+        headers: { ...signed.headers, 'Content-Type': mime },
         body: file,
       });
       if (!response.ok) throw Error(`Upload failed (${response.status})`);
@@ -119,7 +130,7 @@ export function TeacherHomeworkMaterials({
   return (
     <div className="sadhana-homework-materials">
       <h4>Assignment materials</h4>
-      <p>Up to three images (5 MB each). Available to enrolled learners.</p>
+      <p>Optional: up to 3 images, 1 audio file and 1 video. Available to enrolled learners.</p>
       {error && <p role="alert">{error}</p>}
       <ul>
         {records.map((r) => (
@@ -154,15 +165,43 @@ export function TeacherHomeworkMaterials({
           <div className="sadhana-upload-icons" aria-label="Upload teacher materials">
             <label>
               <Image size={22} />
-              Image
+              Images
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
                 disabled={busy}
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
+                  const file = e.target.files?.[0];
                   e.target.value = '';
-                  if (f) void upload(f);
+                  if (file) void upload(file);
+                }}
+              />
+            </label>
+            <label>
+              <Music2 size={22} />
+              Audio
+              <input
+                type="file"
+                accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
+                disabled={busy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void upload(file);
+                }}
+              />
+            </label>
+            <label>
+              <Video size={22} />
+              Video
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
+                disabled={busy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void upload(file);
                 }}
               />
             </label>

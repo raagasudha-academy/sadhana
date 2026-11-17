@@ -8,8 +8,9 @@ import {
   homeworkMediaKind,
   HomeworkMediaPreview,
 } from './HomeworkMaterials';
-import { Image } from 'lucide-react';
+import { Image, Music2, Video } from 'lucide-react';
 import './homeworkIcons.css';
+import { homeworkMimeForFile } from './homeworkMediaPolicy';
 import { RefreshCw } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
@@ -83,10 +84,10 @@ export default function TeacherWorkspace({
     const next = [...homeworkFiles, ...Array.from(files)];
     const mimes = [
       ...existingMaterials.filter((m) => !removedMaterialIds.includes(m.id)).map((m) => m.mime),
-      ...next.map((f) => f.type),
+      ...next.map(homeworkMimeForFile),
     ];
     if (next.some((f) => !homeworkFileAllowed(f)) || !homeworkSelectionAllowed(mimes)) {
-      setError('Maximum three images (5 MB each).');
+      setError('Use up to 3 images, 1 audio file and 1 video, within each file size limit.');
       return;
     }
     setError('');
@@ -185,16 +186,17 @@ export default function TeacherWorkspace({
         // First publish the assignment, then upload its private materials using its new ID.
         // Never overwrite existing linked materials if an upload fails.
         for (const file of homeworkFiles) {
+          const mime = homeworkMimeForFile(file);
           const signed = await cloud.api.beginTeacherHomeworkMaterial(
             workspace,
             effectiveClass,
             id,
-            file.type,
+            mime,
             file.size,
           );
           const response = await fetch(signed.uploadUrl, {
             method: 'PUT',
-            headers: signed.headers,
+            headers: { ...signed.headers, 'Content-Type': mime },
             body: file,
           });
           if (!response.ok) throw Error(`Material upload failed (${response.status})`);
@@ -574,7 +576,10 @@ export default function TeacherWorkspace({
                   </label>
                   <div className="sv1276-hw-wide sadhana-form-materials">
                     <strong>Attach homework materials</strong>
-                    <p>Up to 3 images (5 MB each). Share document links in Instructions.</p>
+                    <p>
+                      Optional: up to 3 images (JPEG, PNG or WebP 5 MB; HEIC or HEIF 10 MB), 1 audio
+                      file (20 MB) and 1 video (100 MB). Share document links in Instructions.
+                    </p>
                     <div className="sadhana-upload-icons">
                       <label>
                         <Image size={22} />
@@ -582,8 +587,36 @@ export default function TeacherWorkspace({
                         <input
                           aria-label="Add homework images"
                           type="file"
-                          accept="image/jpeg,image/png,image/webp"
+                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
                           multiple
+                          disabled={busy}
+                          onChange={(e) => {
+                            chooseHomeworkFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <label>
+                        <Music2 size={22} />
+                        Audio
+                        <input
+                          aria-label="Add homework audio"
+                          type="file"
+                          accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
+                          disabled={busy}
+                          onChange={(e) => {
+                            chooseHomeworkFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <label>
+                        <Video size={22} />
+                        Video
+                        <input
+                          aria-label="Add homework video"
+                          type="file"
+                          accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
                           disabled={busy}
                           onChange={(e) => {
                             chooseHomeworkFiles(e.target.files);
@@ -599,7 +632,7 @@ export default function TeacherWorkspace({
                           <HomeworkMediaPreview
                             mime={m.mime}
                             url={m.url}
-                            alt="Existing homework image"
+                            alt={`Existing homework ${homeworkMediaKind(m.mime).toLowerCase()}`}
                           />
                           <button
                             type="button"

@@ -291,6 +291,7 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
               <th>Date</th>
               <th>Topic & media</th>
               <th>Minutes</th>
+              <th>Teacher feedback</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -353,15 +354,18 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                       )}
                     </div>
                   </td>
+                  <td>{r.minutes}</td>
                   <td>
-                    {r.minutes}
                     {r.teacherComments?.length > 0 && (
                       <div className="student-teacher-feedback">
-                        <strong>Teacher feedback</strong>
+                        <span className="practice-review-status is-reviewed">Reviewed</span>
                         {r.teacherComments.map((c) => (
                           <p key={c.id}>{c.comment}</p>
                         ))}
                       </div>
+                    )}
+                    {!r.teacherComments?.length && (
+                      <span className="practice-review-status is-pending">Awaiting feedback</span>
                     )}
                   </td>
                   <td>
@@ -384,7 +388,7 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                         setNotes(r.comments);
                       }}
                     >
-                      Correct
+                      Edit submission
                     </button>
                   </td>
                 </tr>
@@ -392,7 +396,7 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
             })}
             {!detail.practice.length && (
               <tr>
-                <td colSpan={4}>No recorded practice yet.</td>
+                <td colSpan={5}>No recorded practice yet.</td>
               </tr>
             )}
           </tbody>

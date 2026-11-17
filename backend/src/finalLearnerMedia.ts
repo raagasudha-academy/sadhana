@@ -184,7 +184,7 @@ export function makeM10FinalLearnerMedia(
         (body.purpose === 'profile' && !body.mime.startsWith('image/')) ||
         (body.purpose === 'practice' &&
           (!validId(body.practiceId) ||
-            !['image/', 'audio/'].some((prefix) => body.mime.startsWith(prefix))))
+            !['image/', 'audio/', 'video/'].some((prefix) => body.mime.startsWith(prefix))))
       )
         throw httpError(400, 'Unsupported media type or size');
       const access = await allowed(inst, claims, id),
