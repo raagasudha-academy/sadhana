@@ -7,10 +7,14 @@ if (existsSync(credentialsFile)) process.loadEnvFile(credentialsFile);
 
 const baseURL = process.env.SADHANA_LIVE_BASE_URL || 'https://sadhana-dev.sruti.co.uk';
 const target = new URL(baseURL);
+const allowedDevOrigins = new Set([
+  'https://sadhana-dev.sruti.co.uk',
+  'https://sadhana-dev.raagasudhamusic.co.uk',
+]);
 
-if (target.origin !== 'https://sadhana-dev.sruti.co.uk') {
+if (!allowedDevOrigins.has(target.origin)) {
   throw new Error(
-    `Live portal tests are restricted to https://sadhana-dev.sruti.co.uk; received ${target.origin}`,
+    `Live portal tests are restricted to configured Sadhana dev origins; received ${target.origin}`,
   );
 }
 

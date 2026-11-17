@@ -35,8 +35,8 @@
     "deploy:dev:backend": "npm run deploy:backend",
     "deploy:dev:backend:dry-run": "npm run deploy:backend:dry-run",
     "deploy:dev:frontend": "npm run deploy:frontend",
-    "format:check": "prettier --check app/src app/tests app/e2e-fixtures backend/src backend/scripts test scripts infra .github/workflows docs/PHASE_1_BASELINE.md docs/architecture/inventory.md test/TEST_SUITE_INDEX.md README.md CONTRIBUTING.md package.json tsconfig.json vite.config.ts vitest.config.ts playwright.config.ts eslint.config.mjs .prettierrc.json backend/package.json backend/tsconfig.json",
-    "format": "prettier --write app/src app/tests app/e2e-fixtures backend/src backend/scripts test scripts infra .github/workflows docs/PHASE_1_BASELINE.md docs/architecture/inventory.md test/TEST_SUITE_INDEX.md README.md CONTRIBUTING.md package.json tsconfig.json vite.config.ts vitest.config.ts playwright.config.ts eslint.config.mjs .prettierrc.json backend/package.json backend/tsconfig.json"
+    "format:check": "prettier --check app/src app/tests app/e2e-fixtures backend/src backend/scripts test scripts infra .github/workflows docs/PHASE_1_BASELINE.md docs/architecture/inventory.md test/TEST_SUITE_INDEX.md README.md CONTRIBUTING.md package.json tsconfig.json vite.config.ts vitest.config.ts playwright.config.ts playwright.live.config.ts eslint.config.mjs .prettierrc.json backend/package.json backend/tsconfig.json",
+    "format": "prettier --write app/src app/tests app/e2e-fixtures backend/src backend/scripts test scripts infra .github/workflows docs/PHASE_1_BASELINE.md docs/architecture/inventory.md test/TEST_SUITE_INDEX.md README.md CONTRIBUTING.md package.json tsconfig.json vite.config.ts vitest.config.ts playwright.config.ts playwright.live.config.ts eslint.config.mjs .prettierrc.json backend/package.json backend/tsconfig.json"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

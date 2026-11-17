@@ -50,6 +50,15 @@ export default function TeacherWorkspace({
         ? 'attendance'
         : 'students',
   );
+  useEffect(() => {
+    setArea(
+      initialArea === 'practice'
+        ? 'practice'
+        : initialArea === 'attendance'
+          ? 'attendance'
+          : 'students',
+    );
+  }, [initialArea]);
   const [students, setStudents] = useState<any[]>([]),
     [enrolments, setEnrolments] = useState<any[]>([]),
     [attendance, setAttendance] = useState<any[]>([]),
