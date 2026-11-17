@@ -21,8 +21,10 @@ const staff = { sub: 'staff', admin: [], manager: false };
 let calls = [];
 const services = {
   list: async (institution, who) => (calls.push(['list', institution, who.sub]), { records: [] }),
-  listDirectory: async (institution, who) =>
-    (calls.push(['listDirectory', institution, who.sub]), { records: [] }),
+  listDirectory: async (institution, who) => (
+    calls.push(['listDirectory', institution, who.sub]),
+    { records: [] }
+  ),
   invite: async (data, who) => (calls.push(['invite', data, who.sub]), { invited: true }),
   changeAccess: async (data, who) => (
     calls.push(['changeAccess', data, who.sub]),

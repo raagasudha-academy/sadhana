@@ -91,6 +91,7 @@ import { isMessageRoute } from './messageRoutePolicy.mjs';
 import { finalAdministratorRoute } from './finalAdministrator.mjs';
 import {
   listAdministrators,
+  listTeacherVisibleAdministrators,
   inviteAdministrator,
   changeAdministratorAccess,
   updateAdministratorProfile,
