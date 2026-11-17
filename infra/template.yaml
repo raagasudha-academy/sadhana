@@ -306,7 +306,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins: !Ref AllowedPortalOrigins
         AllowHeaders: [authorization, content-type]
-        AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
+        AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
         MaxAge: 600
       RouteSettings:
         'POST /api/auth/{proxy+}':
@@ -368,6 +368,7 @@ Resources:
           SADHANA_COGNITO_APP_CLIENT_ID: !Ref CognitoAppClientId
           SADHANA_COGNITO_EMAIL_USERNAME: !Ref CognitoEmailUsernameMode
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
+          SADHANA_ALLOWED_PORTAL_ORIGINS: !Join [',', !Ref AllowedPortalOrigins]
           SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
           SADHANA_ENTITY_TABLE_SET: final
           SADHANA_ENTITY_FINAL_ACK: enabled
@@ -517,8 +518,8 @@ Resources:
             ApiId: !Ref SadhanaApi
             Path: /api/{proxy+}
             Method: ANY
-        # Browsers send OPTIONS without an Authorization header. This more
-        # specific method overrides the authenticated ANY route for preflight.
+        # Keep preflight unauthenticated and let the Lambda return CORS headers
+        # for the exact allowlisted origin before the browser sends a JWT.
         CorsPreflight:
           Type: HttpApi
           Properties:

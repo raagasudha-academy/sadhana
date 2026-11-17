@@ -122,6 +122,7 @@ export async function provisionParentAccount(registrationId: string) {
         Username: `parent-${crypto.randomUUID()}`,
         UserAttributes: [
           { Name: 'email', Value: email },
+          { Name: 'email_verified', Value: 'true' },
           { Name: 'name', Value: String(parent?.fullName || 'Parent').slice(0, 90) },
           ...(phone ? [{ Name: 'phone_number', Value: phone }] : []),
         ],
