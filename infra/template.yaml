@@ -403,6 +403,8 @@ Resources:
           SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           SADHANA_FINAL_SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, disabled]
           SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, disabled]
+          SADHANA_FINAL_SRUTI_PARENT_INVITATIONS: !If [UseDevFamilyReads, enabled, disabled]
+          SADHANA_FINAL_SRUTI_PARENT_RESENDS: !If [UseDevFamilyReads, enabled, disabled]
           SADHANA_FINAL_RAAGA_INTAKE_READS: !If [UseDevFamilyReads, enabled, !Ref RaagaIntakeReads]
           SADHANA_FINAL_RAAGA_REVIEW_WRITES: !Ref RaagaReviewWrites
           SADHANA_FINAL_RAAGA_PARENT_STATUS_READS:

@@ -683,10 +683,6 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
               existing account with a verified matching email, or ask Cognito to send an invitation
               if no account exists.
             </p>
-            <p>
-              The email is not guaranteed. After the parent activates the account and signs in, they
-              can see the linked children and their enrolled classes.
-            </p>
             <div className="wr-modal-actions">
               <button
                 type="button"
