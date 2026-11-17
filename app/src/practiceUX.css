@@ -116,21 +116,156 @@
 .student-portal-v119 .v1376-practice-history-head h3 {
   font-size: 20px;
 }
-.student-portal-v119 .v1376-practice-page .access-table-wrap {
-  width: 100%;
-  overflow-x: auto;
+.student-portal-v119 .v1376-practice-history-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 0;
 }
-.student-portal-v119 .v1376-practice-page .access-table-wrap table {
-  min-width: 700px;
+.student-portal-v119 .v1376-practice-history-entry {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #dfe7f1;
+  border-radius: 13px;
+  background: #fff;
+}
+.student-portal-v119 .v1376-practice-history-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.student-portal-v119 .v1376-practice-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #526984;
+  font-size: 13px;
+}
+.student-portal-v119 .v1376-practice-history-meta time,
+.student-portal-v119 .v1376-practice-history-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1px solid #e0e8f2;
+  border-radius: 999px;
+  background: #f7f9fc;
+}
+.student-portal-v119 .v1376-practice-history-entry-head button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #c8a45b;
+  border-radius: 9px;
+  background: #fffaf1;
+  color: #203d64;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.student-portal-v119 .v1376-practice-history-entry-head button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.student-portal-v119 .v1376-practice-history-content {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.student-portal-v119 .v1376-practice-history-topic,
+.student-portal-v119 .v1376-practice-history-media-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+.student-portal-v119 .v1376-practice-history-topic > strong {
+  min-width: 0;
+  color: #263b58;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.student-portal-v119 .v1376-practice-history-media-label {
+  padding-top: 3px;
+  color: #71829b;
+  font-size: 12px;
+  font-weight: 700;
+}
+.student-portal-v119 .v1376-practice-history-images,
+.student-portal-v119 .v1376-practice-history-audio,
+.student-portal-v119 .v1376-practice-history-videos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.student-portal-v119 .v1376-practice-history-images > a {
+  display: block;
+  width: 96px;
+}
+.student-portal-v119 .v1376-practice-history-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 10px;
+  min-width: 0;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f6;
+  color: #526984;
+  font-size: 13px;
+}
+.student-portal-v119 .v1376-practice-history-feedback p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.student-portal-v119 .v1376-practice-history-images img {
+  display: block;
+  width: 100%;
+  height: 72px;
+  border-radius: 9px;
+  background: #f3f6fa;
+  object-fit: cover;
+}
+.student-portal-v119 .v1376-practice-history-audio audio {
+  display: block;
+  width: min(100%, 340px);
+  min-height: 42px;
+}
+.student-portal-v119 .v1376-practice-history-videos video {
+  display: block;
+  width: min(100%, 320px);
+  max-height: 180px;
+  aspect-ratio: 16 / 9;
+  border-radius: 9px;
+  background: #111;
+  object-fit: contain;
+}
+.student-portal-v119 .v1376-practice-history-empty {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border: 1px dashed #cbd8e8;
+  border-radius: 12px;
+  background: #f7f9fc;
+  color: #526984;
+  font-size: 13px;
+}
+.student-portal-v119 .v1376-practice-history-empty strong {
+  color: #263b58;
+  font-size: 14px;
 }
 .student-portal-v119 .v1376-practice-media {
   grid-column: 1/-1;
   min-width: 0;
   margin: 0;
-  padding: 10px 12px;
-  border: 1px solid #e5d5b3;
+  padding: 14px 16px;
+  border: 1px dashed #b9c9dc;
   border-radius: 12px;
-  background: #fffaf1;
+  background: #f7f9fc;
 }
 .student-portal-v119 .v1376-practice-media-heading {
   display: flex;
@@ -151,7 +286,7 @@
 .student-portal-v119 .v1376-practice-media-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 .student-portal-v119 .v1376-practice-media-tile {
   position: relative;
@@ -181,13 +316,15 @@
 }
 .student-portal-v119 .v1376-practice-media-picker {
   display: flex;
-  min-height: 82px;
+  min-height: 112px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 10px;
   text-align: center;
+  color: #203d64;
+  background: #fffdf8;
   cursor: pointer;
 }
 .student-portal-v119 .v1376-practice-media-picker.is-disabled {
@@ -287,42 +424,33 @@
 }
 .student-portal-v119 .v1376-history-thumbnail {
   display: block;
-  width: 84px;
-  height: 64px;
-  margin-top: 7px;
+  width: 100%;
+  height: 72px;
+  margin-top: 0;
   object-fit: cover;
-  border-radius: 7px;
-}
-.student-portal-v119 .v1376-practice-page td audio,
-.student-portal-v119 .v1376-practice-page td video {
-  display: block;
-  max-width: 220px;
-  max-height: 140px;
-  margin: 8px 0;
-}
-.student-portal-v119 .v1376-history-topic {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  border-radius: 9px;
 }
 .student-portal-v119 .v1376-recording-upload {
-  display: inline-grid;
+  display: inline-flex;
   position: relative;
-  place-items: center;
-  width: 36px;
-  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  width: fit-content;
   margin: 0;
-  border: 1px solid #d6e0ee;
+  padding: 7px 10px;
+  border: 1px solid #e5d5b3;
   border-radius: 9px;
-  background: #eef2fa;
-  color: #536b9b;
+  background: #fffaf1;
+  color: #405a83;
+  font-size: 12px;
+  font-weight: 650;
   cursor: pointer;
 }
 .student-portal-v119 .v1376-recording-upload:hover {
-  background: #e3ebf8;
-  border-color: #aebfdb;
+  background: #fff4df;
+  border-color: #c8a45b;
 }
 .student-portal-v119 .v1376-recording-upload:focus-within {
   outline: 3px solid #a3c4f1;
@@ -338,17 +466,6 @@
   clip: rect(0, 0, 0, 0) !important;
   white-space: nowrap !important;
   border: 0 !important;
-}
-.student-portal-v119 .v1376-recording-upload .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 .student-portal-v119 .sv123-verified-phone {
   margin: 22px 0;
@@ -441,13 +558,16 @@
     flex-direction: column;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .student-portal-v119 .v1376-practice-media-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-@media (max-width: 420px) {
-  .student-portal-v119 .v1376-practice-media-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .student-portal-v119 .v1376-practice-history-entry-head {
+    align-items: flex-start;
+  }
+  .student-portal-v119 .v1376-practice-history-topic,
+  .student-portal-v119 .v1376-practice-history-media-row {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 8px;
   }
 }

@@ -284,123 +284,139 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
         <h3>Practice history</h3>
         <span>Your recorded sessions</span>
       </div>
-      <div className="access-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Topic & media</th>
-              <th>Minutes</th>
-              <th>Teacher feedback</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {detail.practice.map((r) => {
-              const practiceMedia = (media || []).filter(
-                (m: any) => m.purpose === 'practice' && m.practiceId === r.id,
-              );
-              const hasAudio = practiceMedia.some((m: any) => m.mime?.startsWith('audio/'));
-              return (
-                <tr key={r.id}>
-                  <td>{r.date}</td>
-                  <td>
-                    <div className="v1376-history-topic">
-                      {r.topic || 'Practice'}
-                      {practiceMedia.map((m: any) =>
-                        m.mime?.startsWith('image/') ? (
-                          <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
-                            <img
-                              className="v1376-history-thumbnail"
-                              src={m.url}
-                              alt={`Practice image from ${r.date}`}
-                            />
-                          </a>
-                        ) : m.mime?.startsWith('audio/') ? (
-                          <audio
-                            key={m.id}
-                            controls
-                            preload="none"
-                            aria-label={`Practice audio from ${r.date}`}
+      <div className="v1376-practice-history-list">
+        {detail.practice.map((r) => {
+          const practiceMedia = (media || []).filter(
+            (m: any) => m.purpose === 'practice' && m.practiceId === r.id,
+          );
+          const imageMedia = practiceMedia.filter((m: any) => m.mime?.startsWith('image/'));
+          const audioMedia = practiceMedia.filter((m: any) => m.mime?.startsWith('audio/'));
+          const videoMedia = practiceMedia.filter((m: any) => m.mime?.startsWith('video/'));
+          const teacherComments = r.teacherComments || [];
+          const reviewed = teacherComments.length > 0;
+          const editDisabled = r.date < todayUK() || reviewed;
+          return (
+            <article className="v1376-practice-history-entry" key={r.id}>
+              <header className="v1376-practice-history-entry-head">
+                <div className="v1376-practice-history-meta">
+                  <time dateTime={r.date}>{r.date}</time>
+                  <span>{r.minutes} min</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={editDisabled}
+                  title={
+                    reviewed
+                      ? 'Reviewed by teacher; corrections locked'
+                      : r.date < todayUK()
+                        ? 'Practice date has passed'
+                        : undefined
+                  }
+                  onClick={() => {
+                    setEdit({ id: r.id, version: r.version });
+                    setClassId(r.classId);
+                    setDate(r.date);
+                    setMinutes(r.minutes);
+                    setTopic(r.topic);
+                    setNotes(r.comments);
+                  }}
+                >
+                  Edit submission
+                </button>
+              </header>
+              <div className="v1376-practice-history-content">
+                <div className="v1376-practice-history-topic">
+                  <span className="v1376-practice-history-media-label">Topic</span>
+                  <strong>{r.topic || 'Practice session'}</strong>
+                </div>
+                {imageMedia.length > 0 && (
+                  <div className="v1376-practice-history-media-row">
+                    <span className="v1376-practice-history-media-label">Images</span>
+                    <div className="v1376-practice-history-images">
+                      {imageMedia.map((m: any) => (
+                        <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
+                          <img
+                            className="v1376-history-thumbnail"
                             src={m.url}
+                            alt={`Practice image from ${r.date}`}
                           />
-                        ) : m.mime?.startsWith('video/') ? (
-                          <video
-                            key={m.id}
-                            controls
-                            preload="none"
-                            playsInline
-                            aria-label={`Practice video from ${r.date}`}
-                            src={m.url}
-                          />
-                        ) : null,
-                      )}
-                      {!hasAudio && (
-                        <label className="v1376-recording-upload" title="Add audio">
-                          <Music2 size={20} />
-                          <span className="sr-only">Add audio</span>
-                          <input
-                            type="file"
-                            accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                            disabled={uploadBusy}
-                            aria-label="Add audio to practice"
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) void uploadEvidence(f, 'practice', r.id);
-                              e.target.value = '';
-                            }}
-                          />
-                        </label>
-                      )}
+                        </a>
+                      ))}
                     </div>
-                  </td>
-                  <td>{r.minutes}</td>
-                  <td>
-                    {r.teacherComments?.length > 0 && (
-                      <div className="student-teacher-feedback">
-                        <span className="practice-review-status is-reviewed">Reviewed</span>
-                        {r.teacherComments.map((c) => (
-                          <p key={c.id}>{c.comment}</p>
-                        ))}
-                      </div>
+                  </div>
+                )}
+                <div className="v1376-practice-history-media-row">
+                  <span className="v1376-practice-history-media-label">Audio</span>
+                  <div className="v1376-practice-history-audio">
+                    {audioMedia.map((m: any) => (
+                      <audio
+                        key={m.id}
+                        controls
+                        preload="none"
+                        aria-label={`Practice audio from ${r.date}`}
+                        src={m.url}
+                      />
+                    ))}
+                    {!audioMedia.length && (
+                      <label className="v1376-recording-upload" title="Add audio">
+                        <Music2 size={18} />
+                        <span>Add audio</span>
+                        <input
+                          type="file"
+                          accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
+                          disabled={uploadBusy}
+                          aria-label="Add audio to practice"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void uploadEvidence(f, 'practice', r.id);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
                     )}
-                    {!r.teacherComments?.length && (
-                      <span className="practice-review-status is-pending">Awaiting feedback</span>
-                    )}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={r.date < todayUK() || !!r.teacherComments?.length}
-                      title={
-                        r.teacherComments?.length
-                          ? 'Reviewed by teacher; corrections locked'
-                          : r.date < todayUK()
-                            ? 'Practice date has passed'
-                            : undefined
-                      }
-                      onClick={() => {
-                        setEdit({ id: r.id, version: r.version });
-                        setClassId(r.classId);
-                        setDate(r.date);
-                        setMinutes(r.minutes);
-                        setTopic(r.topic);
-                        setNotes(r.comments);
-                      }}
-                    >
-                      Edit submission
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {!detail.practice.length && (
-              <tr>
-                <td colSpan={5}>No recorded practice yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+                {videoMedia.length > 0 && (
+                  <div className="v1376-practice-history-media-row">
+                    <span className="v1376-practice-history-media-label">Video</span>
+                    <div className="v1376-practice-history-videos">
+                      {videoMedia.map((m: any) => (
+                        <video
+                          key={m.id}
+                          controls
+                          preload="metadata"
+                          playsInline
+                          aria-label={`Practice video from ${r.date}`}
+                          src={m.url}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="v1376-practice-history-feedback">
+                {reviewed ? (
+                  <>
+                    <span className="practice-review-status is-reviewed">Reviewed</span>
+                    {teacherComments.map((comment) => (
+                      <p key={comment.id}>{comment.comment}</p>
+                    ))}
+                  </>
+                ) : (
+                  <span className="practice-review-status is-pending">
+                    Awaiting teacher feedback
+                  </span>
+                )}
+              </div>
+            </article>
+          );
+        })}
+        {!detail.practice.length && (
+          <div className="v1376-practice-history-empty">
+            <strong>No practice sessions recorded yet</strong>
+            <span>Your submitted sessions will appear here with teacher feedback.</span>
+          </div>
+        )}
       </div>
     </section>
   );
