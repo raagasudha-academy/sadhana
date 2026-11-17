@@ -17,7 +17,9 @@ const response = (statusCode: number, body: unknown, origin: string) => ({
   headers: {
     'content-type': 'application/json',
     'cache-control': 'no-store',
-    ...(allowedOrigins().has(origin) ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {}),
+    ...(allowedOrigins().has(origin)
+      ? { 'access-control-allow-origin': origin, vary: 'Origin' }
+      : {}),
   },
   body: JSON.stringify(body),
 });
@@ -25,7 +27,8 @@ export function makeM91SrutiIntakeHandler(dbClient: { send: (command: any) => Pr
   return async function handler(event: any) {
     const origin = event.headers?.origin || event.headers?.Origin || '';
     const method = event.requestContext?.http?.method || event.httpMethod;
-    if (!allowedOrigins().has(origin)) return response(403, { error: 'Origin not allowed.' }, origin);
+    if (!allowedOrigins().has(origin))
+      return response(403, { error: 'Origin not allowed.' }, origin);
     if (method === 'OPTIONS')
       return {
         statusCode: 204,

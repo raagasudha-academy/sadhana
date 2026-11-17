@@ -2,11 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeM10RegistrationCutoverRoutes } from '../routes/registrationCutoverRoutes.ts';
 
-const keys = [
-  'M10_REGISTRATION_M9_READS',
-  'M95_ONBOARDING_MODE',
-  'SRUTI_REVIEW_WRITES',
-] as const;
+const keys = ['M10_REGISTRATION_M9_READS', 'M95_ONBOARDING_MODE', 'SRUTI_REVIEW_WRITES'] as const;
 async function enabled(fn: () => Promise<void>) {
   const prior = keys.map((k) => process.env[k]);
   process.env.M10_REGISTRATION_M9_READS = 'enabled';

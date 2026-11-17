@@ -26,9 +26,7 @@ const date = (x) => {
 };
 const ageCutoff = (years) => {
   const today = new Date();
-  return new Date(
-    Date.UTC(today.getUTCFullYear() - years, today.getUTCMonth(), today.getUTCDate()),
-  )
+  return new Date(Date.UTC(today.getUTCFullYear() - years, today.getUTCMonth(), today.getUTCDate()))
     .toISOString()
     .slice(0, 10);
 };
@@ -58,7 +56,10 @@ const learner = (s, kind) => {
     medicalNotes: bounded(s.medicalNotes, 1500),
   };
 };
-export function validateSrutiSubmission(value, { allowLegacyMissingGuardianDateOfBirth = false } = {}) {
+export function validateSrutiSubmission(
+  value,
+  { allowLegacyMissingGuardianDateOfBirth = false } = {},
+) {
   const methods = plain(value?.consents?.contactMethods) ? value.consents.contactMethods : {};
   const photographyChoice = value?.consents?.photographyChoice;
   if (
