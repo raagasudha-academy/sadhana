@@ -6,13 +6,20 @@ import { srutiWriterTables } from './srutiMirrorPolicy.mjs';
 const db = DynamoDBDocumentClient.from(
   new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }),
 );
-const origins = new Set(['https://sruti.co.uk', 'https://www.sruti.co.uk']);
+const allowedOrigins = () => {
+  if (process.env.SADHANA_ENTITY_STAGE === 'dev') {
+    return new Set(['http://localhost:5173', 'http://localhost:5174']);
+  }
+  return new Set(['https://sruti.co.uk', 'https://www.sruti.co.uk']);
+};
 const response = (statusCode: number, body: unknown, origin: string) => ({
   statusCode,
   headers: {
     'content-type': 'application/json',
     'cache-control': 'no-store',
-    ...(origins.has(origin) ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {}),
+    ...(allowedOrigins().has(origin)
+      ? { 'access-control-allow-origin': origin, vary: 'Origin' }
+      : {}),
   },
   body: JSON.stringify(body),
 });
@@ -20,7 +27,8 @@ export function makeM91SrutiIntakeHandler(dbClient: { send: (command: any) => Pr
   return async function handler(event: any) {
     const origin = event.headers?.origin || event.headers?.Origin || '';
     const method = event.requestContext?.http?.method || event.httpMethod;
-    if (!origins.has(origin)) return response(403, { error: 'Origin not allowed.' }, origin);
+    if (!allowedOrigins().has(origin))
+      return response(403, { error: 'Origin not allowed.' }, origin);
     if (method === 'OPTIONS')
       return {
         statusCode: 204,
@@ -34,7 +42,7 @@ export function makeM91SrutiIntakeHandler(dbClient: { send: (command: any) => Pr
       };
     if (method !== 'POST') return response(405, { error: 'Method not allowed.' }, origin);
     if (
-      process.env.SADHANA_ENTITY_STAGE !== 'prod' ||
+      !['dev', 'prod'].includes(process.env.SADHANA_ENTITY_STAGE || '') ||
       process.env.M91_SRUTI_PUBLIC_INTAKE !== 'enabled'
     )
       return response(503, { error: 'Registrations are not enabled.' }, origin);

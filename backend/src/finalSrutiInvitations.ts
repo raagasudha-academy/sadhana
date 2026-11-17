@@ -311,6 +311,7 @@ export function makeCanonicalSrutiInvitationReader(db: DB, cognito: Cognito, poo
             Username: username,
             UserAttributes: [
               { Name: 'email', Value: email },
+              { Name: 'email_verified', Value: 'true' },
               { Name: 'name', Value: name },
             ],
             DesiredDeliveryMediums: ['EMAIL'],

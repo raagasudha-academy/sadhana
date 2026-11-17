@@ -1,4 +1,4 @@
-/** Persist learner-facing activity notifications in the existing notifications entity. */
+/** Persist learner and staff activity notifications in the existing notifications entity. */
 import { randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
@@ -9,16 +9,19 @@ type DB = { send: (command: any) => Promise<any> };
 type Activity = {
   institution: InstitutionId;
   classIds?: string[];
+  recipientPersonIds?: string[];
   title: string;
   detail: string;
-  category: 'Homework' | 'Schedule' | 'Resources';
+  category: 'Homework' | 'Schedule' | 'Resources' | 'Practice';
   resourceId: string;
 };
 
 export function makeLearnerActivityNotifications(db: DB) {
   const table = () => entityTable('notifications');
   async function notify(activity: Activity) {
-    const ids = new Set<string>();
+    const ids = new Set(
+      (activity.recipientPersonIds || []).filter((id) => typeof id === 'string' && id.length > 0),
+    );
     for (const classId of [...new Set(activity.classIds || [])]) {
       let cursor: any;
       do {

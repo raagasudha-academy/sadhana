@@ -563,6 +563,7 @@ export default function TeacherWorkspace({
                     Assignment title
                     <input
                       value={homeworkTitle}
+                      disabled={busy}
                       maxLength={120}
                       required
                       onChange={(e) => setHomeworkTitle(e.target.value)}
@@ -573,6 +574,7 @@ export default function TeacherWorkspace({
                     Due date
                     <input
                       type="date"
+                      disabled={busy}
                       required
                       value={homeworkDue}
                       onChange={(e) => setHomeworkDue(e.target.value)}
@@ -582,6 +584,7 @@ export default function TeacherWorkspace({
                     Instructions
                     <textarea
                       value={homeworkInstructions}
+                      disabled={busy}
                       maxLength={3000}
                       required
                       onChange={(e) => setHomeworkInstructions(e.target.value)}
@@ -711,6 +714,7 @@ export default function TeacherWorkspace({
                           <button
                             className="sadhana-hw-secondary"
                             type="button"
+                            disabled={busy}
                             onClick={() => void startEdit(a)}
                           >
                             Edit & republish
@@ -718,6 +722,7 @@ export default function TeacherWorkspace({
                           <button
                             className="sadhana-hw-secondary"
                             type="button"
+                            disabled={busy}
                             onClick={() => void reviewHomework(a.id)}
                           >
                             Review Submissions

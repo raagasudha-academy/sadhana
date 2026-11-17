@@ -339,6 +339,7 @@ export function makeM10CoreWriteService(db: CoreDb) {
         const family = {
           familyId,
           familyNumber,
+          gender: body.gender || '',
           primaryContactPersonId: guardianId,
           institutionIds: [inst],
           status: 'active',
@@ -360,6 +361,7 @@ export function makeM10CoreWriteService(db: CoreDb) {
           personId: guardianId,
           ...names(body.parentName),
           phone: body.phone,
+          ...(body.gender ? { gender: body.gender } : {}),
           personTypes: ['guardian'],
           institutionIds: [inst],
           familyId,
@@ -937,14 +939,17 @@ export function makeM10CoreWriteService(db: CoreDb) {
         if (!contact || contact.familyId !== id || !scope(contact, inst))
           throw httpError(409, 'Primary contact mismatch.');
         const now = new Date().toISOString();
-        const newContact = {
+        const newContact: RecordValue = {
           ...contact,
           ...names(updated.parentName),
           version: contact.version + 1,
           updatedAt: now,
         };
+        if (updated.gender) newContact.gender = updated.gender;
+        else delete newContact.gender;
         const newFamily = {
           ...current,
+          gender: updated.gender || '',
           version: expectedVersion + 1,
           updatedAt: now,
           legacyPayload: { ...old, ...updated, version: expectedVersion + 1, updatedAt: now },

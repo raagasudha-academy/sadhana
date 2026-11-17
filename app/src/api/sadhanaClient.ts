@@ -391,6 +391,17 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       }),
     listAdministrators: (institution: InstitutionId) =>
       request<AdministratorListResponse>('GET', '/administrators', { institution }),
+    listTeacherVisibleAdministrators: (institution: InstitutionId) =>
+      request<{
+        records: Array<{
+          displayName: string;
+          email: string;
+          enabled: boolean;
+          status: string;
+          photoUrl?: string;
+          institution: InstitutionId;
+        }>;
+      }>('GET', '/administrators/directory', { institution }),
     updateAdministratorProfile: (
       username: string,
       firstName: string,
@@ -450,7 +461,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         institution,
         params: studentId ? { studentId } : undefined,
       }),
-    listLearnerNotifications: (institution: InstitutionId, studentId: string) =>
+    listLearnerNotifications: (institution: InstitutionId, studentId?: string) =>
       request<{
         records: Array<{
           id: string;
@@ -462,12 +473,15 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           read: boolean;
           activityId: string;
         }>;
-      }>('GET', '/messages/notifications', { institution, params: { studentId } }),
-    markLearnerNotificationRead: (institution: InstitutionId, id: string, studentId: string) =>
+      }>('GET', '/messages/notifications', {
+        institution,
+        params: studentId ? { studentId } : undefined,
+      }),
+    markLearnerNotificationRead: (institution: InstitutionId, id: string, studentId?: string) =>
       request<{ updated: number }>(
         'POST',
         `/messages/notifications/${encodeURIComponent(id)}/read`,
-        { institution, params: { studentId }, body: {} },
+        { institution, params: studentId ? { studentId } : undefined, body: {} },
       ),
     getMessageThread: (
       institution: InstitutionId,

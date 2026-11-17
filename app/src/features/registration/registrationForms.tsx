@@ -5,6 +5,7 @@ import { clean, familyLabel, Modal, Field } from './registrationShared';
 
 export function RegisterFamily({ onSave, onClose }: any) {
   const [parentName, setParentName] = useState('');
+  const [gender, setGender] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [location, setLocation] = useState('');
@@ -29,6 +30,7 @@ export function RegisterFamily({ onSave, onClose }: any) {
       email: m.email.trim().toLowerCase(),
       phone: m.phone.replace(/[\s-]/g, ''),
       relationship: m.relationship,
+      gender: '',
     }));
     if (
       learners.some(
@@ -46,6 +48,7 @@ export function RegisterFamily({ onSave, onClose }: any) {
         email: familyEmail,
         phone: familyPhone,
         relationship: 'parent_guardian',
+        gender,
       });
     if (
       !learners.length ||
@@ -58,6 +61,7 @@ export function RegisterFamily({ onSave, onClose }: any) {
     setError('');
     onSave({
       parentName: clean(parentName),
+      gender,
       email: familyEmail,
       phone: familyPhone,
       location: clean(location),
@@ -82,6 +86,14 @@ export function RegisterFamily({ onSave, onClose }: any) {
               onChange={(e) => setParentName(e.target.value)}
               placeholder="Full name"
             />
+          </Field>
+          <Field label="Parent / guardian gender">
+            <select value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">Prefer not to say</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Other">Other</option>
+            </select>
           </Field>
           <PhoneField label="WhatsApp" value={phone} onChange={setPhone} />
         </div>

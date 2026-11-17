@@ -9,7 +9,12 @@ import {
   AdminRemoveUserFromGroupCommand,
   AdminUpdateUserAttributesCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { demandInstitution, httpError, SUPER_ADMIN_GROUPS } from './model.ts';
+import {
+  demandInstitution,
+  demandViewInstitution,
+  httpError,
+  SUPER_ADMIN_GROUPS,
+} from './model.ts';
 import { adminPhotoUrl } from './profilePhotos.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import {
@@ -113,6 +118,47 @@ export async function listAdministrators(instValue: unknown, claims: Claims) {
       throw httpError(413, 'Administrator directory pagination limit exceeded.');
   } while (token);
   return { records, canManage: canManageAdmins(claims, superSub()) };
+}
+
+/** Read-only administrator profile cards for staff who can view this academy. */
+export async function listTeacherVisibleAdministrators(instValue: unknown, claims: Claims) {
+  const institution = readInstitution(instValue);
+  demandViewInstitution(claims, institution);
+  const records: {
+    displayName: string;
+    email: string;
+    enabled: boolean;
+    status: string;
+    photoUrl: string;
+    institution: InstitutionId;
+  }[] = [];
+  let token: string | undefined;
+  do {
+    const result = await cognito.send(
+      new ListUsersInGroupCommand({
+        UserPoolId: pool(),
+        GroupName: adminGroup[institution],
+        Limit: 60,
+        ...(token ? { NextToken: token } : {}),
+      }),
+    );
+    for (const user of result.Users || []) {
+      if (!user.Username) continue;
+      const sub = attr(user.Attributes, 'sub');
+      records.push({
+        displayName: fullName(user.Attributes, user.Username),
+        email: attr(user.Attributes, 'email'),
+        enabled: user.Enabled !== false,
+        status: user.UserStatus || '',
+        photoUrl: sub ? await adminPhotoUrl(sub, attr(user.Attributes, 'picture')) : '',
+        institution,
+      });
+    }
+    token = result.NextToken;
+    if (records.length >= 500 && token)
+      throw httpError(413, 'Administrator directory pagination limit exceeded.');
+  } while (token);
+  return { records };
 }
 
 /** Minimal, institution-scoped admin identities for learner/staff message contacts. */

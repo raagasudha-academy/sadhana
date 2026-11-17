@@ -17,7 +17,7 @@ const regFlags = {
   SADHANA_FINAL_SRUTI_INGRESS_READY: 'enabled',
   SADHANA_FINAL_SRUTI_REGISTRATION_READS: 'enabled',
   SADHANA_FINAL_SRUTI_REVIEW_WRITES: 'enabled',
-  M91_SRUTI_REVIEW_WRITES: 'enabled',
+  SRUTI_REVIEW_WRITES: 'enabled',
 };
 const learnFlags = {
   ...base,
@@ -187,7 +187,7 @@ test('Sruti student import execution remains blocked even if M91 flag is acciden
   reset();
   const env = {
     ...regFlags,
-    M91_SRUTI_IMPORT_WRITES: 'enabled',
+    SRUTI_IMPORT_WRITES: 'enabled',
     SADHANA_FINAL_SRUTI_IMPORT_WRITES: 'enabled',
   };
   assert.equal(
@@ -242,7 +242,7 @@ test('registration rejects unauthorised, missing JWT, invalid method and disable
         'sruti',
         srutiAdmin,
         {},
-        { ...regFlags, M91_SRUTI_REVIEW_WRITES: '' },
+        { ...regFlags, SRUTI_REVIEW_WRITES: '' },
       )
     ).status,
     503,

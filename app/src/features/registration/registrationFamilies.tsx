@@ -94,6 +94,10 @@ export function FamilyDetail({
             <strong>{family.parentName}</strong>
           </div>
           <div className="reg-info-row">
+            <span>Parent / guardian gender</span>
+            <strong>{family.gender || 'Not provided'}</strong>
+          </div>
+          <div className="reg-info-row">
             <span>Location</span>
             <strong>{readableLocation(contactDetails?.location || family.location) || '—'}</strong>
           </div>
@@ -293,6 +297,7 @@ export function FamilyDetail({
 export function UpdateFamily({ family, onClose, onSave }: any) {
   const [email, setEmail] = useState(family.email || '');
   const [parentName, setParentName] = useState(family.parentName || '');
+  const [gender, setGender] = useState(family.gender || '');
   const [phone, setPhone] = useState(family.phone || '');
   const [location, setLocation] = useState(family.location || '');
   const [error, setError] = useState('');
@@ -314,6 +319,7 @@ export function UpdateFamily({ family, onClose, onSave }: any) {
     if (email.trim().toLowerCase() !== (family.email || ''))
       changes.email = email.trim().toLowerCase();
     if (name !== family.parentName) changes.parentName = name;
+    if (gender !== (family.gender || '')) changes.gender = gender;
     if (normalizedPhone !== family.phone) changes.phone = normalizedPhone;
     if (clean(location) !== (family.location || '')) changes.location = clean(location);
     if (!Object.keys(changes).length) {
@@ -338,6 +344,14 @@ export function UpdateFamily({ family, onClose, onSave }: any) {
             value={parentName}
             onChange={(e) => setParentName(e.target.value)}
           />
+        </Field>
+        <Field label="Parent / guardian gender">
+          <select value={gender} onChange={(e) => setGender(e.target.value)}>
+            <option value="">Prefer not to say</option>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+          </select>
         </Field>
         <Field label="Parent / guardian email *">
           <input

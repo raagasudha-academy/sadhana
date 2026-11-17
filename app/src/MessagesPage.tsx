@@ -83,6 +83,11 @@ export default function MessagesPage({
   const refreshThreads = useCallback(async () => {
     const data = await cloud.api.listMessageThreads(workspace, studentId);
     setThreads(data.records);
+    setActive((current) => {
+      if (!current) return current;
+      const refreshed = data.records.find((record) => record.threadId === current.threadId);
+      return refreshed?.photoUrl ? { ...current, photoUrl: refreshed.photoUrl } : current;
+    });
   }, [cloud, workspace, studentId]);
   const loadDirectory = useCallback(async () => {
     setLoading(true);

@@ -3,6 +3,7 @@ import type { RouteContext } from './routes/http.ts';
 export type FinalAdministratorResponse = { status: number; body: unknown };
 export type FinalAdministratorServices = {
   list: (institution: InstitutionId, claims: Claims) => Promise<unknown>;
+  listDirectory: (institution: InstitutionId, claims: Claims) => Promise<unknown>;
   invite: (data: Record<string, unknown>, claims: Claims) => Promise<unknown>;
   changeAccess: (data: Record<string, unknown>, claims: Claims) => Promise<unknown>;
   updateProfile: (data: Record<string, unknown>, claims: Claims) => Promise<unknown>;

@@ -101,7 +101,7 @@ export function fieldsOnly(body: unknown, keys: readonly string[]): Draft {
   return structuredClone(body) as Draft;
 }
 export const ALLOWED_FIELDS: Record<ResourceName, readonly string[]> = {
-  families: ['parentName', 'phone', 'createdIn'],
+  families: ['parentName', 'phone', 'gender', 'createdIn'],
   students: [
     'name',
     'email',
@@ -140,6 +140,7 @@ export function validate(
   if (resource === 'families') {
     d.parentName = str(d.parentName, 100);
     d.phone = str(d.phone, 32);
+    d.gender = str(d.gender, 40);
     if (!d.parentName || !/^\+[1-9]\d{7,14}$/.test(d.phone))
       throw httpError(400, 'A parent name and valid international phone number are required.');
     if (!INSTITUTIONS.includes(d.createdIn))

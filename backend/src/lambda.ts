@@ -91,6 +91,7 @@ import { isMessageRoute } from './messageRoutePolicy.mjs';
 import { finalAdministratorRoute } from './finalAdministrator.mjs';
 import {
   listAdministrators,
+  listTeacherVisibleAdministrators,
   inviteAdministrator,
   changeAdministratorAccess,
   updateAdministratorProfile,
@@ -187,12 +188,35 @@ export function createHandler(
   };
   return async (event: SadhanaHttpEvent): Promise<JsonResponse> => {
     try {
-      // CORS preflight is unauthenticated by design. API Gateway adds the
-      // Allow-Origin/Methods/Headers response headers from CorsConfiguration.
-      // All actual data operations still require a verified Cognito JWT.
+      // CORS preflight is unauthenticated and returns headers only for an
+      // exact stage allowlist origin. Data operations still require a JWT.
       const requestMethod = event.requestContext?.http?.method ?? event.httpMethod;
-      if (requestMethod === 'OPTIONS')
-        return { statusCode: 204, headers: { 'cache-control': 'no-store' }, body: '' };
+      if (requestMethod === 'OPTIONS') {
+        const origin = Object.entries(event.headers ?? {}).find(
+          ([name]) => name.toLowerCase() === 'origin',
+        )?.[1];
+        const allowedOrigins = new Set(
+          (process.env.SADHANA_ALLOWED_PORTAL_ORIGINS ?? '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+        );
+        const corsHeaders =
+          origin && allowedOrigins.has(origin)
+            ? {
+                'access-control-allow-origin': origin,
+                'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+                'access-control-allow-headers': 'authorization,content-type',
+                'access-control-max-age': '600',
+                vary: 'Origin',
+              }
+            : {};
+        return {
+          statusCode: 204,
+          headers: { ...corsHeaders, 'cache-control': 'no-store' },
+          body: '',
+        };
+      }
       const publicAuthResponse = await emailLoginRoute(event);
       if (publicAuthResponse) return publicAuthResponse;
       // DO NOT use event.headers or a user-selected frontend persona as an identity.
@@ -232,7 +256,7 @@ export function createHandler(
         const srutiRegistrationReview =
           process.env.M10_REGISTRATION_M9_READS === 'enabled' &&
           process.env.M95_ONBOARDING_MODE === 'enabled' &&
-          process.env.M91_SRUTI_REVIEW_WRITES === 'enabled' &&
+          process.env.SRUTI_REVIEW_WRITES === 'enabled' &&
           requestMethod === 'PATCH' &&
           p.length === 2 &&
           p[0] === 'website-registrations' &&
@@ -602,6 +626,7 @@ export function createHandler(
           routeContext,
           {
             list: listAdministrators,
+            listDirectory: listTeacherVisibleAdministrators,
             invite: inviteAdministrator,
             changeAccess: changeAdministratorAccess,
             updateProfile: updateAdministratorProfile,

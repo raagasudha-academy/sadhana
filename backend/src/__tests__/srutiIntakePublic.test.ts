@@ -10,6 +10,8 @@ const valid = {
   guardian: {
     firstName: 'Test',
     lastName: 'Guardian',
+    dateOfBirth: '2000-05-21',
+    gender: '',
     email: 'test@example.org',
     phone: '07123456789',
     relationship: 'Parent',
@@ -136,7 +138,7 @@ test('valid registration conditionally writes one M9 record and returns a small 
     },
   ));
 
-test('dev intake remains disabled even if its enable flag is set', async () =>
+test('dev intake accepts local test submissions only when explicitly enabled', async () =>
   withEnv(
     {
       M91_SRUTI_PUBLIC_INTAKE: 'enabled',
@@ -144,10 +146,20 @@ test('dev intake remains disabled even if its enable flag is set', async () =>
       SRUTI_SOURCE_REGISTRATIONS_TABLE: 'dev-sruti-student-registrations',
     },
     async () => {
-      let calls = 0;
-      const handler = makeM91SrutiIntakeHandler({ send: async () => (calls++, {}) } as any);
-      assert.equal((await handler(event('POST', JSON.stringify(valid)))).statusCode, 503);
-      assert.equal(calls, 0);
+      const commands: any[] = [];
+      const handler = makeM91SrutiIntakeHandler({
+        send: async (command: any) => {
+          commands.push(command);
+          return {};
+        },
+      } as any);
+      const localEvent = event('POST', JSON.stringify(valid), { origin: 'http://localhost:5173' });
+      assert.equal((await handler(localEvent)).statusCode, 202);
+      assert.equal(commands.length, 1);
+      assert.equal(commands[0].input.TableName, 'dev-sruti-student-registrations');
+      process.env.M91_SRUTI_PUBLIC_INTAKE = 'disabled';
+      assert.equal((await handler(localEvent)).statusCode, 503);
+      assert.equal(commands.length, 1);
     },
   ));
 

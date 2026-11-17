@@ -552,26 +552,30 @@ export function makeFinalMessages(
     );
     return own.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   }
-  const publicContact = async (peer: Person, cls: Person, threadId: string) => ({
-    peerId: peer.personId,
-    peerName: name(peer) || 'Sadhana user',
-    peerRole:
-      peer.isAdminActor || peer.personTypes?.includes('administrator')
-        ? 'admin'
-        : peer.personTypes?.includes('teacher')
-          ? 'teacher'
-          : peer.personTypes?.includes('student')
-            ? 'student'
-            : 'guardian',
-    classId: cls.classId,
-    className: String(cls.name || cls.legacyPayload?.name || 'Class'),
-    threadId,
-    photoUrl:
-      peer.photoUrl ||
-      (typeof peer.cognitoSub === 'string' && /^[a-f0-9-]{36}$/i.test(peer.cognitoSub)
-        ? await photoForSub(peer.cognitoSub)
-        : ''),
-  });
+  const publicContact = async (peer: Person, cls: Person, threadId: string) => {
+    const photoSub =
+      peer.cognitoSub || peer.legacyPayload?.cognitoSub || peer.staffProfile?.cognitoSub;
+    return {
+      peerId: peer.personId,
+      peerName: name(peer) || 'Sadhana user',
+      peerRole:
+        peer.isAdminActor || peer.personTypes?.includes('administrator')
+          ? 'admin'
+          : peer.personTypes?.includes('teacher')
+            ? 'teacher'
+            : peer.personTypes?.includes('student')
+              ? 'student'
+              : 'guardian',
+      classId: cls.classId,
+      className: String(cls.name || cls.legacyPayload?.name || 'Class'),
+      threadId,
+      photoUrl:
+        peer.photoUrl ||
+        (typeof photoSub === 'string' && /^[a-f0-9-]{36}$/i.test(photoSub)
+          ? await photoForSub(photoSub)
+          : ''),
+    };
+  };
   async function contacts(
     institution: InstitutionId,
     claims: Claims,
@@ -788,13 +792,10 @@ export function makeFinalMessages(
   ) {
     const actor = await actorFor(institution, claims, adminInstitutions, actingStudentId);
     if (
-      actor.isAdminActor ||
-      (!actor.personTypes?.includes('student') && !actor.personTypes?.includes('guardian'))
+      !actor.isAdminActor &&
+      !['student', 'guardian', 'teacher'].some((type) => actor.personTypes?.includes(type))
     )
-      throw httpError(
-        403,
-        'Learner notifications are available to students and their approved families.',
-      );
+      throw httpError(403, 'Notifications are unavailable for this account.');
     const rows = await queryAll(
       'notifications',
       'RecipientNotificationsIndex',
@@ -833,13 +834,10 @@ export function makeFinalMessages(
   ) {
     const actor = await actorFor(institution, claims, adminInstitutions, actingStudentId);
     if (
-      actor.isAdminActor ||
-      (!actor.personTypes?.includes('student') && !actor.personTypes?.includes('guardian'))
+      !actor.isAdminActor &&
+      !['student', 'guardian', 'teacher'].some((type) => actor.personTypes?.includes(type))
     )
-      throw httpError(
-        403,
-        'Learner notifications are available to students and their approved families.',
-      );
+      throw httpError(403, 'Notifications are unavailable for this account.');
     const rows = await queryAll(
       'notifications',
       'RecipientNotificationsIndex',

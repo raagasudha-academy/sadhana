@@ -24,6 +24,12 @@ const date = (x) => {
     reject('Invalid birth date.');
   return s;
 };
+const ageCutoff = (years) => {
+  const today = new Date();
+  return new Date(Date.UTC(today.getUTCFullYear() - years, today.getUTCMonth(), today.getUTCDate()))
+    .toISOString()
+    .slice(0, 10);
+};
 const phone = (x) => {
   let s = requireText(x, 35).replace(/[\s().-]/g, '');
   if (/^0\d{10}$/.test(s)) s = '+44' + s.slice(1);
@@ -50,7 +56,10 @@ const learner = (s, kind) => {
     medicalNotes: bounded(s.medicalNotes, 1500),
   };
 };
-export function validateSrutiSubmission(value) {
+export function validateSrutiSubmission(
+  value,
+  { allowLegacyMissingGuardianDateOfBirth = false } = {},
+) {
   const methods = plain(value?.consents?.contactMethods) ? value.consents.contactMethods : {};
   const photographyChoice = value?.consents?.photographyChoice;
   if (
@@ -88,9 +97,16 @@ export function validateSrutiSubmission(value) {
     lastName = requireText(g.lastName, 100),
     email = requireText(g.email, 254).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) reject('Invalid email address.');
+  const guardianDateOfBirth = g.dateOfBirth ? date(g.dateOfBirth) : undefined;
+  if (!guardianDateOfBirth && !allowLegacyMissingGuardianDateOfBirth)
+    reject('Parent or self applicants must be over 18.');
+  if (guardianDateOfBirth && guardianDateOfBirth > ageCutoff(19))
+    reject('Parent or self applicants must be over 18.');
   const guardian = {
     firstName,
     lastName,
+    ...(guardianDateOfBirth ? { dateOfBirth: guardianDateOfBirth } : {}),
+    gender: bounded(g.gender, 30),
     email,
     phone: phone(g.phone),
     relationship: bounded(g.relationship, 30),
@@ -118,10 +134,17 @@ export function validateSrutiSubmission(value) {
       (x) =>
         x.applicantType === 'self' &&
         (x.firstName.toLowerCase() !== firstName.toLowerCase() ||
-          x.lastName.toLowerCase() !== lastName.toLowerCase()),
+          x.lastName.toLowerCase() !== lastName.toLowerCase() ||
+          (guardianDateOfBirth && x.dateOfBirth !== guardianDateOfBirth)),
     )
   )
-    reject('Adult applicant must match the primary contact.');
+    reject('Self applicant must match the adult primary contact.');
+  const over18Cutoff = ageCutoff(19);
+  const under18Cutoff = ageCutoff(18);
+  if (students.some((x) => x.applicantType === 'self' && x.dateOfBirth > over18Cutoff))
+    reject('Self applicants must be over 18.');
+  if (students.some((x) => x.applicantType === 'child' && x.dateOfBirth <= under18Cutoff))
+    reject('Child applicants must be under 18.');
   return {
     institution: 'sruti',
     registrationType: value.registrationType,
@@ -169,7 +192,9 @@ export function toApprovedM9Registration(record) {
     !/^SR-[A-Za-z0-9-]{1,110}$/.test(record.registrationId)
   )
     reject('Sruti record is not approved and pending import.');
-  const payload = validateSrutiSubmission(record.submission);
+  const payload = validateSrutiSubmission(record.submission, {
+    allowLegacyMissingGuardianDateOfBirth: true,
+  });
   const g = payload.guardian;
   const primaryId = 'sruti-primary';
   const address = { line1: g.address1, line2: g.address2, city: g.city, postcode: g.postcode };

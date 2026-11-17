@@ -5,6 +5,7 @@ export interface SadhanaHttpEvent {
   path?: string;
   pathParameters?: { proxy?: string };
   httpMethod?: string;
+  headers?: Record<string, string | undefined> | null;
   body?: string | null;
   isBase64Encoded?: boolean;
   queryStringParameters?: Record<string, string | undefined> | null;

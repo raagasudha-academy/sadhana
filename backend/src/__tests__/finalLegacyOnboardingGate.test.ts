@@ -6,7 +6,7 @@ test('final Lambda blocks exact legacy onboarding writes before repository acces
   const keys = [
     'SADHANA_ENTITY_TABLE_SET',
     'M95_ONBOARDING_MODE',
-    'M91_SRUTI_REVIEW_WRITES',
+    'SRUTI_REVIEW_WRITES',
     'M10_REGISTRATION_M9_READS',
     'M95_COMPAT_MODE',
     'M10_CORE_FRONTEND_WRITES',
@@ -17,7 +17,7 @@ test('final Lambda blocks exact legacy onboarding writes before repository acces
   try {
     process.env.SADHANA_ENTITY_TABLE_SET = 'final';
     process.env.M95_ONBOARDING_MODE = 'enabled';
-    process.env.M91_SRUTI_REVIEW_WRITES = 'enabled';
+    process.env.SRUTI_REVIEW_WRITES = 'enabled';
     process.env.M10_REGISTRATION_M9_READS = 'enabled';
     process.env.M95_COMPAT_MODE = 'pilot';
     process.env.M10_CORE_FRONTEND_WRITES = 'enabled';

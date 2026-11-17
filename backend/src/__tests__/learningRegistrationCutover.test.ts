@@ -122,7 +122,7 @@ test('Sruti M9 registration list and detail enforce institution and source isola
   ));
 
 test('Sruti review writes stay disabled and never invoke the legacy handler', async () =>
-  env('M91_SRUTI_REVIEW_WRITES', 'disabled', async () => {
+  env('SRUTI_REVIEW_WRITES', 'disabled', async () => {
     let touched = false;
     const route = makeM10RegistrationCutoverRoutes(
       {

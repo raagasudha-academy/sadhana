@@ -187,7 +187,7 @@ export function makeM10RegistrationCutoverRoutes(
     // separate flag, not the broad M95_ONBOARDING_MODE switch.
     if (institution === 'sruti' && method === 'PATCH' && parts.length === 2) {
       if (!safeId(parts[1])) throw httpError(400, 'Invalid registration identifier.');
-      if (process.env.M91_SRUTI_REVIEW_WRITES !== 'enabled') return denied();
+      if (process.env.SRUTI_REVIEW_WRITES !== 'enabled') return denied();
       // Delegate only to the version-checked, Sruti-scoped M9 reviewer.
       return srutiReview({
         parts: ['m9-onboarding', 'sruti-intake', parts[1], 'review'],
@@ -209,7 +209,7 @@ export function makeM10RegistrationCutoverRoutes(
       if (!/^SR-[A-Za-z0-9-]{1,110}$/.test(parts[1]))
         throw httpError(400, 'Invalid Sruti registration identifier.');
       const execute = parts[2] === 'import-execute';
-      if (execute && process.env.M91_SRUTI_IMPORT_WRITES !== 'enabled') return denied();
+      if (execute && process.env.SRUTI_IMPORT_WRITES !== 'enabled') return denied();
       const raw = event.body
         ? event.isBase64Encoded
           ? Buffer.from(event.body, 'base64').toString('utf8')
@@ -265,7 +265,7 @@ export function makeM10RegistrationCutoverRoutes(
           registrationType: record.registrationType,
           submission: record.submission,
         },
-        reviewAvailable: process.env.M91_SRUTI_REVIEW_WRITES === 'enabled',
+        reviewAvailable: process.env.SRUTI_REVIEW_WRITES === 'enabled',
         source: 'sruti-stage-source',
       });
     }

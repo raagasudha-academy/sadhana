@@ -21,7 +21,6 @@ import type { Claims } from './model.ts';
 import { adminGroup, requireAdminManager } from './adminPolicy.ts';
 import {
   photoKey,
-  storedPhotoIsValid,
   validatePhotoPayload,
   requireTeacherPhotoPermission,
 } from './profilePhotoRules.ts';
@@ -44,9 +43,15 @@ const getSub = (a: readonly { Name?: string; Value?: string }[] | undefined) =>
 
 export async function signedProfilePhoto(sub: string): Promise<string> {
   if (!process.env.SADHANA_PROFILE_PHOTOS_BUCKET) return '';
-  return getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket(), Key: photoKey(sub) }), {
-    expiresIn: 600,
-  });
+  return getSignedUrl(
+    s3,
+    new GetObjectCommand({
+      Bucket: bucket(),
+      Key: photoKey(sub),
+      ResponseCacheControl: 'private, max-age=60',
+    }),
+    { expiresIn: 3600 },
+  );
 }
 
 /** Read the current profile name, including its title, rather than a stale JWT claim. */
@@ -86,9 +91,13 @@ export async function ownProfilePhoto(sub: string): Promise<string> {
   return signedProfilePhoto(sub);
 }
 
-export async function adminPhotoUrl(sub: string, picture: unknown): Promise<string> {
-  if (!sub || !storedPhotoIsValid(picture, sub)) return '';
-  return signedProfilePhoto(sub);
+export async function adminPhotoUrl(sub: string, _picture: unknown): Promise<string> {
+  // Cognito's picture attribute is only a pointer written during upload; it
+  // can be absent or stale after a profile-photo migration. The caller has
+  // already resolved `sub` from the academy's Cognito admin group, so check
+  // the canonical per-account object directly and sign it only when present.
+  if (!sub) return '';
+  return ownProfilePhoto(sub);
 }
 
 async function usernameBySub(sub: string): Promise<string> {
