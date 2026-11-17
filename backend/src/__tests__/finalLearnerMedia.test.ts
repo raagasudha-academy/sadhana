@@ -93,7 +93,7 @@ test('practice audio upload must reference an existing practice entry for that l
   }
 });
 
-test('practice recording rejects video and files above the audio limit', async () => {
+test('practice recording rejects unsupported video types and files above the audio limit', async () => {
   const service = makeM10FinalLearnerMedia(
     {
       send: async () => {
@@ -109,7 +109,7 @@ test('practice recording rejects video and files above the audio limit', async (
   );
   await assert.rejects(
     service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
-      mime: 'video/mp4',
+      mime: 'video/ogg',
       size: 100,
       purpose: 'practice',
       practiceId: 'PRACTICE-1001',
