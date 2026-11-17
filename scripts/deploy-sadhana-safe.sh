@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FUNCTION="sadhana-dev-SadhanaApiLambda-r891ZvuYQfPh"
+FUNCTION="dev-sadhana-api"
 REGION="us-east-1"
 ACCOUNT="627821644317"
 MODE="${1:---execute}"
