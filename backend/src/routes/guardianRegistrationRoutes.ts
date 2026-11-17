@@ -52,7 +52,7 @@ export function makeM95GuardianRegistrationRoutes(
         return json(200, { record });
       }
       if (method === 'PATCH' && parts.length === 4 && parts[3] === 'review') {
-        if (process.env.M91_SRUTI_REVIEW_WRITES !== 'enabled')
+        if (process.env.SRUTI_REVIEW_WRITES !== 'enabled')
           throw httpError(403, 'Sruti review writes are disabled.');
         const body = readJSON(
           event.body

@@ -232,7 +232,7 @@ export function createHandler(
         const srutiRegistrationReview =
           process.env.M10_REGISTRATION_M9_READS === 'enabled' &&
           process.env.M95_ONBOARDING_MODE === 'enabled' &&
-          process.env.M91_SRUTI_REVIEW_WRITES === 'enabled' &&
+          process.env.SRUTI_REVIEW_WRITES === 'enabled' &&
           requestMethod === 'PATCH' &&
           p.length === 2 &&
           p[0] === 'website-registrations' &&

@@ -5,13 +5,13 @@ import { makeM10RegistrationCutoverRoutes } from '../routes/registrationCutoverR
 const keys = [
   'M10_REGISTRATION_M9_READS',
   'M95_ONBOARDING_MODE',
-  'M91_SRUTI_REVIEW_WRITES',
+  'SRUTI_REVIEW_WRITES',
 ] as const;
 async function enabled(fn: () => Promise<void>) {
   const prior = keys.map((k) => process.env[k]);
   process.env.M10_REGISTRATION_M9_READS = 'enabled';
   process.env.M95_ONBOARDING_MODE = 'enabled';
-  process.env.M91_SRUTI_REVIEW_WRITES = 'enabled';
+  process.env.SRUTI_REVIEW_WRITES = 'enabled';
   try {
     await fn();
   } finally {
@@ -105,7 +105,7 @@ test('Sruti review uses existing conditional M9 reviewer, never legacy', async (
 
 test('Sruti review is disabled unless separate review flag is enabled', async () =>
   enabled(async () => {
-    process.env.M91_SRUTI_REVIEW_WRITES = 'disabled';
+    process.env.SRUTI_REVIEW_WRITES = 'disabled';
     let called = false;
     const route = makeM10RegistrationCutoverRoutes(
       { list: async () => ({ items: [], more: false }), get: async () => null },
@@ -177,7 +177,7 @@ test('Sruti intake lists with M10 and M95 cutover flags disabled, while Raaga re
       (e: any) => e.status === 403,
     );
     // This test verifies read-only listing while the dedicated review switch is off.
-    process.env.M91_SRUTI_REVIEW_WRITES = 'disabled';
+    process.env.SRUTI_REVIEW_WRITES = 'disabled';
     assert.equal(
       (await route(req(['website-registrations', 'SR-2026-4D6401'], 'PATCH', 'sruti')))?.statusCode,
       503,

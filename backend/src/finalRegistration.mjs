@@ -58,7 +58,7 @@ export async function finalRegistrationRoute(context, dependencies, access, env 
   if (
     review &&
     (env.SADHANA_FINAL_SRUTI_REVIEW_WRITES !== 'enabled' ||
-      env.M91_SRUTI_REVIEW_WRITES !== 'enabled')
+      env.SRUTI_REVIEW_WRITES !== 'enabled')
   )
     return stop('Final Sruti registration review writes are disabled.');
   if (parentStatus) {

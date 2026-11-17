@@ -1,4 +1,7 @@
-export declare function validateSrutiSubmission(value: unknown): {
+export declare function validateSrutiSubmission(
+  value: unknown,
+  options?: { allowLegacyMissingGuardianDateOfBirth?: boolean },
+): {
   institution: 'sruti';
   registrationType: 'self' | 'child' | 'both';
   guardian: Record<string, string>;

@@ -14,13 +14,13 @@ const ctx = (body: unknown, claims: any = admin) =>
     event: { body: JSON.stringify(body) },
   }) as any;
 async function withFlags(fn: () => Promise<void>) {
-  const old = [process.env.M95_ONBOARDING_MODE, process.env.M91_SRUTI_REVIEW_WRITES];
+  const old = [process.env.M95_ONBOARDING_MODE, process.env.SRUTI_REVIEW_WRITES];
   process.env.M95_ONBOARDING_MODE = 'enabled';
-  process.env.M91_SRUTI_REVIEW_WRITES = 'enabled';
+  process.env.SRUTI_REVIEW_WRITES = 'enabled';
   try {
     await fn();
   } finally {
-    for (const [i, key] of ['M95_ONBOARDING_MODE', 'M91_SRUTI_REVIEW_WRITES'].entries())
+    for (const [i, key] of ['M95_ONBOARDING_MODE', 'SRUTI_REVIEW_WRITES'].entries())
       old[i] === undefined ? delete process.env[key] : (process.env[key] = old[i]);
   }
 }
@@ -73,7 +73,7 @@ test('Sruti review rejects wrong role and disabled writes before database access
         ),
       (e: any) => e.status === 403,
     );
-    process.env.M91_SRUTI_REVIEW_WRITES = 'disabled';
+    process.env.SRUTI_REVIEW_WRITES = 'disabled';
     await assert.rejects(
       () => route(ctx({ reviewStatus: 'approved', expectedVersion: 1 })),
       (e: any) => e.status === 403,

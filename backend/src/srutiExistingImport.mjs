@@ -124,7 +124,9 @@ export async function srutiExistingIdentityImport(
   }
   if (src.importStatus !== 'pending' || !version(src))
     fail(409, 'Registration is no longer pending import.');
-  const submission = validateSrutiSubmission(src.submission);
+  const submission = validateSrutiSubmission(src.submission, {
+    allowLegacyMissingGuardianDateOfBirth: true,
+  });
   if (
     submission.registrationType !== 'child' ||
     submission.students.some((s) => s.applicantType !== 'child')

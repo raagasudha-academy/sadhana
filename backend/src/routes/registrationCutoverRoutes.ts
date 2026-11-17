@@ -187,7 +187,7 @@ export function makeM10RegistrationCutoverRoutes(
     // separate flag, not the broad M95_ONBOARDING_MODE switch.
     if (institution === 'sruti' && method === 'PATCH' && parts.length === 2) {
       if (!safeId(parts[1])) throw httpError(400, 'Invalid registration identifier.');
-      if (process.env.M91_SRUTI_REVIEW_WRITES !== 'enabled') return denied();
+      if (process.env.SRUTI_REVIEW_WRITES !== 'enabled') return denied();
       // Delegate only to the version-checked, Sruti-scoped M9 reviewer.
       return srutiReview({
         parts: ['m9-onboarding', 'sruti-intake', parts[1], 'review'],
@@ -265,7 +265,7 @@ export function makeM10RegistrationCutoverRoutes(
           registrationType: record.registrationType,
           submission: record.submission,
         },
-        reviewAvailable: process.env.M91_SRUTI_REVIEW_WRITES === 'enabled',
+        reviewAvailable: process.env.SRUTI_REVIEW_WRITES === 'enabled',
         source: 'sruti-stage-source',
       });
     }

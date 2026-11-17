@@ -9,6 +9,8 @@ import { prepareWebsiteImport } from '../websiteImportCore.mjs';
 const guardian = {
   firstName: 'Test',
   lastName: 'Guardian',
+  dateOfBirth: '2000-05-21',
+  gender: '',
   email: 'test@example.org',
   phone: '07123456789',
   relationship: 'Parent',
@@ -23,7 +25,7 @@ const guardian = {
 const student = (firstName, applicantType) => ({
   firstName,
   lastName: 'Guardian',
-  dateOfBirth: '2012-05-21',
+  dateOfBirth: applicantType === 'self' ? '2000-05-21' : '2012-05-21',
   applicantType,
   gender: '',
   school: 'School',
