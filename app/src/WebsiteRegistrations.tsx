@@ -467,7 +467,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
       <div className="wr-heading">
         <div>
           <h1>Website Registrations</h1>
-          <p>Review applications and activate approved students in Sadhana.</p>
+          <p>Review applications, import approved learners, then set up parent access.</p>
         </div>
         <button className="wr-refresh" onClick={() => void load()} disabled={busy}>
           <RefreshCw size={16} /> Refresh
@@ -475,7 +475,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
       </div>
       <div className="wr-banner">
         <ShieldCheck size={18} />
-        <span>Approval and portal activation are separate steps.</span>
+        <span>Review, learner import, and parent access are separate steps.</span>
       </div>
       <div className="wr-toolbar">
         <label>
@@ -1226,13 +1226,13 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
             <div className="wr-modal-icon">
               <ShieldCheck size={22} />
             </div>
-            <h2 id="wr-import-heading">Activate approved application?</h2>
+            <h2 id="wr-import-heading">Import approved learners to Sadhana?</h2>
             <p>
-              Import the students and verify the submitted family links. Possible duplicate learners
-              are blocked for review. Sadhana will check this environment&apos;s account pool for
-              the primary contact. A unique verified account may be linked; otherwise an invitation
-              will be requested if no account exists. Parent access links and class enrolment remain
-              separate.
+              Import the students, assign their roll numbers, and verify the submitted family links.
+              Possible duplicate learners are blocked for review. This step does not send a parent
+              invitation. After import, use the separate parent access action to link a verified
+              existing account or request an invitation. Class enrolment and family access links
+              also remain separate.
             </p>
             <p className="wr-modal-reference">
               Application: <strong>{detail.registrationId}</strong> · Students:{' '}

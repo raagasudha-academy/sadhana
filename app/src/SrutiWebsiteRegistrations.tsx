@@ -338,7 +338,7 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
       <div className="wr-heading">
         <div>
           <h1>Website Registrations</h1>
-          <p>Review applications and activate approved learners.</p>
+          <p>Review applications, import approved learners, then set up parent access.</p>
         </div>
         <button
           type="button"
@@ -645,9 +645,9 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
               {importPreview.studentCount}
             </p>
             <p>
-              Add these approved learners to Sadhana and assign their roll numbers? Sadhana will
-              check this environment&apos;s Sadhana account pool for the primary contact. A unique
-              verified account may be linked; otherwise an invitation will be requested if no
+              This adds the approved learners to Sadhana and assigns their roll numbers. It does
+              not send a parent invitation. After import, use <strong>Set up parent access</strong>
+              as a separate step to link a verified existing account or send an invitation if no
               account exists. This does not approve family access links.
             </p>
             <div className="wr-modal-actions">
@@ -703,7 +703,7 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
                 disabled={parentAccessBusy}
                 onClick={() => void requestParentInvitation()}
               >
-                {parentAccessBusy ? 'Setting up…' : 'Continue'}
+                {parentAccessBusy ? 'Setting up…' : 'Check account and continue'}
               </button>
             </div>
           </div>
