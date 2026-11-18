@@ -1027,6 +1027,26 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         institution,
         body: { ...data, expectedVersion },
       }),
+    linkTeacherAccount: (
+      institution: InstitutionId,
+      id: string,
+      body: {
+        cognitoSub: string;
+        expectedVersion: number;
+        confirmTeacherName: string;
+        identityVerified: boolean;
+      },
+    ) =>
+      request<{
+        record: {
+          id: string;
+          cognitoSub: string;
+          username: string;
+          email: string;
+          version: number;
+          linked: boolean;
+        };
+      }>('POST', `/teachers/${encodeURIComponent(id)}/account-link`, { institution, body }),
     updateTeacherLifecycle: (
       institution: InstitutionId,
       id: string,

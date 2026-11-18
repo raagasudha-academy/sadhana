@@ -58,6 +58,7 @@ import { finalOperationsRoute } from './finalOperations.mjs';
 import { finalOperationsEnrolmentWriteRoute } from './finalOperationsEnrolmentWrite.mjs';
 import { finalTeacherPatchRoute } from './finalTeacherPatch.mjs';
 import { finalTeacherPatch } from './finalTeacherPatchData.ts';
+import { finalTeacherAccountLink } from './finalTeacherAccountLink.ts';
 import { finalTeacherLifecycle, finalTeacherLifecycleRoute } from './finalTeacherLifecycle.ts';
 import { finalVenueRoute, finalVenueWriter } from './finalVenueRoutes.ts';
 import { finalTeacherCreateRoute } from './finalTeacherCreate.mjs';
@@ -365,6 +366,7 @@ export function createHandler(
                   : '{}',
               ),
             patch: finalTeacherPatch(),
+            linkAccount: finalTeacherAccountLink(),
           },
           { admin: demandInstitution },
         );

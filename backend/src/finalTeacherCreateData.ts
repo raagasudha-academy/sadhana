@@ -68,6 +68,8 @@ export function makeFinalTeacherCreate(
     if (!subjects.length) throw httpError(400, 'At least one teaching subject is required.');
     if (typeof body.active !== 'boolean') throw httpError(400, 'Choose active or inactive.');
     const cognitoSub = typeof body.cognitoSub === 'string' ? clean(body.cognitoSub) : '';
+    if (!cognitoSub)
+      throw httpError(400, 'Link an active, confirmed Sadhana login to this teacher.');
     if (cognitoSub && !subjectPattern.test(cognitoSub))
       throw httpError(400, 'Use the Cognito sub, not an email.');
     if (cognitoSub) {

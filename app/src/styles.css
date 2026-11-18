@@ -3855,6 +3855,50 @@ input:focus-visible {
   color: #79869b;
 }
 
+.teacher-unlinked-status {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.teacher-unlinked-status .reg-warning {
+  margin: 0;
+}
+
+.teacher-link-button {
+  justify-self: start;
+}
+
+.teacher-account-link-status {
+  margin: 0;
+}
+
+.teacher-account-link-status.reg-warning {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.teacher-account-link-status .reg-secondary {
+  margin-left: auto;
+}
+
+.teacher-required-login-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #85651d;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.teacher-identity-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #34435b;
+  line-height: 1.5;
+}
+
 @media (hover: none) {
   .teacher-card-actions {
     opacity: 1;
