@@ -53,15 +53,19 @@ function fixture(options: any = {}) {
   );
   return { create, dbCalls, cognitoCalls };
 }
-test('creates canonical teacher and both academy audits atomically without legacy table writes', async () => {
+test('creates a teacher only with a verified Sadhana login and both academy audits atomically', async () => {
   const f = fixture();
-  const record = await f.create('raaga', { sub: 'admin', ...groups }, valid);
+  const record = await f.create(
+    'raaga',
+    { sub: 'admin', ...groups },
+    { ...valid, cognitoSub: sub },
+  );
   assert.equal(record.id, 'TEACHER-11111111-2222-4333-8444-555555555555');
   assert.equal(record.displayName, 'Teacher One');
   assert.deepEqual(record.subjects, ['Vocal']);
   assert.equal(record.version, 1);
   const transaction = f.dbCalls.find((x) => x instanceof TransactWriteCommand).input;
-  assert.equal(transaction.TransactItems.length, 3);
+  assert.equal(transaction.TransactItems.length, 4);
   const person = transaction.TransactItems.find((x: any) => x.Put?.TableName.endsWith('-people'))
     .Put.Item;
   assert.equal(person.personId, record.id);
@@ -69,7 +73,7 @@ test('creates canonical teacher and both academy audits atomically without legac
   assert.deepEqual(person.institutionIds, ['raaga', 'sruti']);
   assert.equal(person.legacyPayload.id, record.id);
   assert.equal(person.legacyPayload.PK, 'TEACHER_REGISTRY');
-  assert.equal(person.cognitoSub, undefined);
+  assert.equal(person.cognitoSub, sub);
   assert.deepEqual(
     transaction.TransactItems.filter((x: any) => x.Put?.TableName.endsWith('-audit-records'))
       .map((x: any) => x.Put.Item.institutionId)
@@ -80,7 +84,7 @@ test('creates canonical teacher and both academy audits atomically without legac
     f.dbCalls.some((x) => x.input?.TableName?.includes('m9-')),
     false,
   );
-  assert.equal(f.cognitoCalls.length, 0);
+  assert.equal(f.cognitoCalls.length, 1);
 });
 test('links only one verified confirmed Cognito user and atomically reserves the global subject', async () => {
   const f = fixture();
@@ -200,4 +204,14 @@ test('validates exact institutions, admin scope, subject syntax, and fields befo
     { status: 403 },
   );
   assert.equal(f.dbCalls.length, 0);
+});
+
+test('requires a Sadhana login for every new teacher profile', async () => {
+  const f = fixture();
+  await assert.rejects(f.create('raaga', { sub: 'admin', ...groups }, valid), { status: 400 });
+  assert.equal(f.cognitoCalls.length, 0);
+  assert.equal(
+    f.dbCalls.some((x) => x instanceof TransactWriteCommand),
+    false,
+  );
 });

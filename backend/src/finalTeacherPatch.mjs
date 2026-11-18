@@ -2,9 +2,11 @@
 export async function finalTeacherPatchRoute(context, deps, access, env = process.env) {
   if (env.SADHANA_ENTITY_TABLE_SET !== 'final') return undefined;
   const { parts, method, query = {}, claims, event } = context;
-  if (parts?.[0] !== 'teachers' || method !== 'PATCH') return undefined;
+  if (parts?.[0] !== 'teachers') return undefined;
+  const accountLink = method === 'POST' && parts.length === 3 && parts[2] === 'account-link';
+  if (!accountLink && (method !== 'PATCH' || parts.length !== 2)) return undefined;
   if (parts.length === 3 && parts[2] === 'lifecycle') return undefined;
-  if (parts.length !== 2 || !/^TEACHER-[0-9a-f-]{36}$/i.test(parts[1]))
+  if ((accountLink && parts.length !== 3) || !/^TEACHER-[0-9a-f-]{36}$/i.test(parts[1]))
     return { status: 400, body: { error: 'Invalid teacher ID.' } };
   if (!claims?.sub)
     return { status: 401, body: { error: 'Authenticated administrator required.' } };
@@ -19,6 +21,10 @@ export async function finalTeacherPatchRoute(context, deps, access, env = proces
   const body = deps.parse(event);
   if (!body || typeof body !== 'object' || Array.isArray(body))
     return { status: 400, body: { error: 'Invalid teacher body.' } };
+  if (accountLink) {
+    const record = await deps.linkAccount(inst, claims, parts[1], body);
+    return { status: 200, body: { record } };
+  }
   const record = await deps.patch(inst, claims, parts[1], body);
   return { status: 200, body: { record } };
 }
