@@ -51,6 +51,33 @@ it('falls back to a learner location when the registration has none', async () =
   expect(location.parentElement?.textContent).toContain('NEWCASTLE');
 });
 
+it('keeps the approval, import, and invitation stages visible for a pending application', async () => {
+  const record = {
+    registrationId: 'RS-PENDING-123',
+    reviewStatus: 'pending',
+    registrationType: 'child',
+    primaryContactPersonId: 'parent-1',
+    people: [{ personId: 'parent-1', fullName: 'Test Parent', email: 'parent@example.org' }],
+    students: [{ personId: 'learner-1' }],
+  };
+  const api = {
+    listWebsiteRegistrations: vi.fn().mockResolvedValue({ registrations: [record] }),
+    getWebsiteRegistration: vi.fn().mockResolvedValue(record),
+  };
+
+  render(<WebsiteRegistrations cloud={{ api } as any} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Test Parent/ }));
+
+  const progress = await screen.findByRole('group', { name: 'Registration progress' });
+  expect(within(progress).getByRole('button', { name: 'Approve application' }).disabled).toBe(
+    false,
+  );
+  expect(within(progress).getByRole('button', { name: 'Import to Sadhana' }).disabled).toBe(true);
+  expect(within(progress).getByRole('button', { name: 'Send parent invitation' }).disabled).toBe(
+    true,
+  );
+});
+
 it('shows the approved, imported, and parent-account stages for an imported registration', async () => {
   const record = {
     registrationId: 'RS-SUMMARY-789',
@@ -77,5 +104,12 @@ it('shows the approved, imported, and parent-account stages for an imported regi
 
   const progress = await screen.findByRole('group', { name: 'Registration progress' });
   expect(await within(progress).findByText('Account already exists')).toBeTruthy();
+  expect(within(progress).getByRole('button', { name: '✓ Approved' }).disabled).toBe(true);
+  expect(within(progress).getByRole('button', { name: '✓ Imported to Sadhana' }).disabled).toBe(
+    true,
+  );
+  expect(within(progress).getByRole('button', { name: 'Account already exists' }).disabled).toBe(
+    true,
+  );
   expect(await screen.findByText('parent@example.org')).toBeTruthy();
 });

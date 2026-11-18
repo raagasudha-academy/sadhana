@@ -596,122 +596,189 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                   </strong>
                 </div>
               </div>
-              {isImported && (
-                <section className="wr-v112-parent-access-panel" aria-label="Parent portal access">
-                  <div
-                    className="wr-registration-stages"
-                    role="group"
-                    aria-label="Registration progress"
+              <section className="wr-v112-parent-access-panel" aria-label="Registration progress">
+                <div
+                  className="wr-registration-stages"
+                  role="group"
+                  aria-label="Registration progress"
+                >
+                  <button
+                    type="button"
+                    className="reg-primary"
+                    disabled={
+                      detail.reviewStatus === 'approved' ||
+                      detail.reviewStatus === 'discarded' ||
+                      reviewBusy
+                    }
+                    onClick={() => setConfirmReview('approved')}
                   >
-                    <button type="button" className="reg-primary" disabled>
-                      {detail.reviewStatus === 'approved' ? '✓ Approved' : 'Pending approval'}
-                    </button>
-                    <span aria-hidden="true">→</span>
-                    <button type="button" className="reg-primary" disabled>
-                      ✓ Imported to Sadhana
-                    </button>
-                    <span aria-hidden="true">→</span>
-                    <div className="reg-primary wr-registration-stage-account" role="status">
-                      {!parentAccess
-                        ? parentAccessChecked
-                          ? 'Parent access not set up'
-                          : 'Checking parent account…'
-                        : (
-                            {
-                              NOT_INVITED: 'Parent access not set up',
-                              INVITATION_SENT: 'Invitation sent',
-                              ACCOUNT_FOUND: 'Account already exists',
-                              NEEDS_VERIFICATION: 'Needs administrator review',
-                              ACTIVE: 'Account already exists',
-                            } as Record<string, string>
-                          )[parentAccess.status] || parentAccess.status}
-                    </div>
-                  </div>
-                  {(parentAccess?.email || contact?.email) && (
-                    <p className="wr-registration-contact-email">
-                      {parentAccess?.email || contact?.email}
-                    </p>
-                  )}
-                  <details className="wr-v118-parent-actions">
-                    <summary>Account actions</summary>
-                    <div className="wr-v112-actions">
+                    {detail.reviewStatus === 'approved'
+                      ? '✓ Approved'
+                      : detail.reviewStatus === 'discarded'
+                        ? 'Discarded'
+                        : reviewBusy
+                          ? 'Approving…'
+                          : 'Approve application'}
+                  </button>
+                  <span aria-hidden="true">→</span>
+                  <button
+                    type="button"
+                    className="reg-primary"
+                    disabled={
+                      detail.reviewStatus !== 'approved' ||
+                      isImported ||
+                      importBusy ||
+                      !parentAccessChecked ||
+                      (Boolean(duplicateSourcePerson) &&
+                        (!correctionConfirmed || !correctedName.trim()))
+                    }
+                    onClick={() => void previewImport()}
+                  >
+                    {isImported
+                      ? '✓ Imported to Sadhana'
+                      : importBusy
+                        ? 'Importing…'
+                        : 'Import to Sadhana'}
+                  </button>
+                  <span aria-hidden="true">→</span>
+                  <button
+                    type="button"
+                    className="reg-primary wr-registration-stage-account"
+                    disabled={
+                      !isImported ||
+                      accessBusy ||
+                      !parentAccessChecked ||
+                      parentAccess?.status !== 'NOT_INVITED'
+                    }
+                    onClick={() => detail && void retryParentAccess(detail.registrationId)}
+                  >
+                    {!isImported
+                      ? 'Send parent invitation'
+                      : accessBusy
+                        ? 'Sending invitation…'
+                        : !parentAccess
+                          ? parentAccessChecked
+                            ? 'Parent access not set up'
+                            : 'Checking parent account…'
+                          : (
+                              {
+                                NOT_INVITED: 'Send parent invitation',
+                                INVITATION_SENT: '✓ Invitation sent',
+                                ACCOUNT_FOUND: 'Account already exists',
+                                NEEDS_VERIFICATION: 'Needs administrator review',
+                                ACTIVE: 'Account already exists',
+                              } as Record<string, string>
+                            )[parentAccess.status] || parentAccess.status}
+                  </button>
+                </div>
+                {isImported && (parentAccess?.email || contact?.email) && (
+                  <p className="wr-registration-contact-email">
+                    {parentAccess?.email || contact?.email}
+                  </p>
+                )}
+                {detail.reviewStatus === 'approved' && !isImported && !parentAccessChecked && (
+                  <div className="wr-v112-error" role="status" style={{ width: '100%' }}>
+                    <p>{accessError || 'Checking Sadhana for an existing import…'}</p>
+                    {accessError && (
                       <button
-                        type="button"
                         className="reg-secondary"
+                        type="button"
                         disabled={accessBusy}
                         onClick={() => void refreshParentAccess(detail.registrationId)}
                       >
-                        {accessBusy ? 'Working…' : 'Refresh access'}
+                        {accessBusy ? 'Checking…' : 'Check again'}
                       </button>
-                      <button
-                        type="button"
-                        className="reg-secondary"
-                        disabled={accessBusy || parentAccess?.status !== 'INVITATION_SENT'}
-                        onClick={async () => {
-                          setAccessBusy(true);
-                          setAccessError('');
-                          try {
-                            const result = await cloud.api.resendParentInvitation(
-                              detail.registrationId,
-                            );
-                            setAccessError(
-                              result.message +
-                                ' A new temporary password replaces the previous one.',
-                            );
-                            await refreshParentAccess(detail.registrationId);
-                          } catch (e) {
-                            setAccessError(
-                              e instanceof Error ? e.message : 'Unable to resend invitation.',
-                            );
-                          } finally {
-                            setAccessBusy(false);
+                    )}
+                  </div>
+                )}
+                {detail.reviewStatus === 'approved' && !isImported && duplicateSourcePerson && (
+                  <p className="wr-v112-error" role="status">
+                    Complete the identity check under Registration actions before importing.
+                  </p>
+                )}
+                {isImported && (
+                  <>
+                    <details className="wr-v118-parent-actions">
+                      <summary>Account actions</summary>
+                      <div className="wr-v112-actions">
+                        <button
+                          type="button"
+                          className="reg-secondary"
+                          disabled={accessBusy}
+                          onClick={() => void refreshParentAccess(detail.registrationId)}
+                        >
+                          {accessBusy ? 'Working…' : 'Refresh access'}
+                        </button>
+                        <button
+                          type="button"
+                          className="reg-secondary"
+                          disabled={accessBusy || parentAccess?.status !== 'INVITATION_SENT'}
+                          onClick={async () => {
+                            setAccessBusy(true);
+                            setAccessError('');
+                            try {
+                              const result = await cloud.api.resendParentInvitation(
+                                detail.registrationId,
+                              );
+                              setAccessError(
+                                result.message +
+                                  ' A new temporary password replaces the previous one.',
+                              );
+                              await refreshParentAccess(detail.registrationId);
+                            } catch (e) {
+                              setAccessError(
+                                e instanceof Error ? e.message : 'Unable to resend invitation.',
+                              );
+                            } finally {
+                              setAccessBusy(false);
+                            }
+                          }}
+                        >
+                          Resend invitation
+                        </button>
+                        <button
+                          type="button"
+                          className="reg-secondary"
+                          disabled={
+                            accessBusy || !parentAccess || parentAccess.status !== 'NOT_INVITED'
                           }
-                        }}
-                      >
-                        Resend invitation
-                      </button>
-                      <button
-                        type="button"
-                        className="reg-secondary"
-                        disabled={
-                          accessBusy || !parentAccess || parentAccess.status !== 'NOT_INVITED'
-                        }
-                        onClick={() => setConfirmExistingAccountLink(true)}
-                      >
-                        Link existing verified account
-                      </button>
-                      <button
-                        type="button"
-                        className="reg-secondary"
-                        disabled={
-                          accessBusy ||
-                          !parentAccess ||
-                          [
-                            'ACTIVE',
-                            'INVITATION_SENT',
-                            'NEEDS_VERIFICATION',
-                            'ACCOUNT_FOUND',
-                          ].includes(parentAccess.status)
-                        }
-                        onClick={() => void retryParentAccess(detail.registrationId)}
-                      >
-                        Request invitation
-                      </button>
-                    </div>
-                  </details>
-                  {accessNotice && <p role="status">{accessNotice}</p>}
-                  {accessError && (
-                    <p className="wr-v112-error" role="alert">
-                      {accessError}
-                    </p>
-                  )}
-                  <small>
-                    Linking checks for exactly one confirmed Cognito account with the primary
-                    contact’s verified email. It does not send an invitation or grant access outside
-                    this academy.
-                  </small>
-                </section>
-              )}
+                          onClick={() => setConfirmExistingAccountLink(true)}
+                        >
+                          Link existing verified account
+                        </button>
+                        <button
+                          type="button"
+                          className="reg-secondary"
+                          disabled={
+                            accessBusy ||
+                            !parentAccess ||
+                            [
+                              'ACTIVE',
+                              'INVITATION_SENT',
+                              'NEEDS_VERIFICATION',
+                              'ACCOUNT_FOUND',
+                            ].includes(parentAccess.status)
+                          }
+                          onClick={() => void retryParentAccess(detail.registrationId)}
+                        >
+                          Request invitation
+                        </button>
+                      </div>
+                    </details>
+                    {accessNotice && <p role="status">{accessNotice}</p>}
+                    {accessError && (
+                      <p className="wr-v112-error" role="alert">
+                        {accessError}
+                      </p>
+                    )}
+                    <small>
+                      Linking checks for exactly one confirmed Cognito account with the primary
+                      contact’s verified email. It does not send an invitation or grant access
+                      outside this academy.
+                    </small>
+                  </>
+                )}
+              </section>
               <div
                 className="wr-card"
                 style={{
@@ -725,31 +792,6 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                 <details className="wr-v118-main-actions">
                   <summary>Registration actions</summary>
                   <div className="wr-v118-main-actions-body">
-                    {detail.reviewStatus === 'approved' && !isImported && !parentAccessChecked && (
-                      <div className="wr-v112-error" role="status" style={{ width: '100%' }}>
-                        <p>{accessError || 'Checking Sadhana for an existing import…'}</p>
-                        {accessError && (
-                          <button
-                            className="reg-secondary"
-                            type="button"
-                            disabled={accessBusy}
-                            onClick={() => void refreshParentAccess(detail.registrationId)}
-                          >
-                            {accessBusy ? 'Checking…' : 'Check again'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {detail.reviewStatus !== 'approved' && detail.reviewStatus !== 'discarded' && (
-                      <button
-                        className="reg-primary"
-                        type="button"
-                        disabled={reviewBusy}
-                        onClick={() => setConfirmReview('approved')}
-                      >
-                        Approve application
-                      </button>
-                    )}
                     {detail.reviewStatus !== 'discarded' && detail.reviewStatus !== 'approved' && (
                       <button
                         className="reg-secondary"
@@ -795,21 +837,6 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                           I have verified the second student's identity and name with the family.
                         </label>
                       </div>
-                    )}
-                    {detail.reviewStatus === 'approved' && !isImported && (
-                      <button
-                        className="reg-primary"
-                        type="button"
-                        disabled={
-                          importBusy ||
-                          !parentAccessChecked ||
-                          (Boolean(duplicateSourcePerson) &&
-                            (!correctionConfirmed || !correctedName.trim()))
-                        }
-                        onClick={() => void previewImport()}
-                      >
-                        {importBusy ? 'Activating…' : 'Activate in Sadhana'}
-                      </button>
                     )}
                     {isImported && (
                       <div className="wr-revoke-entry">
