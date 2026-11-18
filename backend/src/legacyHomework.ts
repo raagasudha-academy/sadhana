@@ -737,7 +737,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     const { actor, checks } = await mediaAccess(inst, claims, studentId, homeworkId);
     const bucket = mediaBucket();
     const id = `MEDIA-${randomUUID()}`,
-      key = `m9-homework-private/${inst}/${studentId}/${homeworkId}/${id}.${type.ext}`;
+      key = `homework-private/${inst}/${studentId}/${homeworkId}/${id}.${type.ext}`;
     const metadata = { institution: inst, student: studentId, homework: homeworkId, receipt: id };
     const item = {
       submissionId: id,

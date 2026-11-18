@@ -54,9 +54,10 @@ test('unmigrated teacher materials stay fenced', () => {
     503,
   );
 });
-test('M9 media implementation uses existing submissions and private S3, no legacy', () => {
+test('M9 media implementation uses existing submissions and the authorized private S3 prefix', () => {
   const s = read('../legacyHomework.ts');
-  assert.match(s, /m9-homework-private/);
+  assert.match(s, /homework-private\/\$\{inst\}\/\$\{studentId\}\/\$\{homeworkId\}/);
+  assert.doesNotMatch(s, /m9-homework-private/);
   assert.match(s, /table\('submissions'\)/);
   assert.match(s, /M9_HOMEWORK_MEDIA/);
   assert.match(s, /mediaStatus=:ready/);
