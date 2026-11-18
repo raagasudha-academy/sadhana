@@ -399,7 +399,17 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                   <>
                     <span className="practice-review-status is-reviewed">Reviewed</span>
                     {teacherComments.map((comment) => (
-                      <p key={comment.id}>{comment.comment}</p>
+                      <div key={comment.id}>
+                        {comment.comment && <p>{comment.comment}</p>}
+                        {comment.audioUrl && (
+                          <audio
+                            controls
+                            preload="none"
+                            src={comment.audioUrl}
+                            aria-label="Teacher audio feedback"
+                          />
+                        )}
+                      </div>
                     ))}
                   </>
                 ) : (

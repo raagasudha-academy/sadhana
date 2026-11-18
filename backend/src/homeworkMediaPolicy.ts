@@ -7,6 +7,7 @@ export const homeworkMediaRules = {
   'image/heif': { kind: 'image', ext: 'heif', max: 10_000_000 },
   'audio/mpeg': { kind: 'audio', ext: 'mp3', max: 20_000_000 },
   'audio/mp4': { kind: 'audio', ext: 'm4a', max: 20_000_000 },
+  'audio/webm': { kind: 'audio', ext: 'webm', max: 20_000_000 },
   'audio/aac': { kind: 'audio', ext: 'aac', max: 20_000_000 },
   'audio/wav': { kind: 'audio', ext: 'wav', max: 20_000_000 },
   'audio/x-wav': { kind: 'audio', ext: 'wav', max: 20_000_000 },

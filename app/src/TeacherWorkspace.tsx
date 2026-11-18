@@ -1,6 +1,7 @@
 import './practiceInsights.css';
 import './homeworkCardActions.css';
 import PracticeReview from './PracticeReview';
+import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   homeworkFileAllowed,
@@ -96,7 +97,7 @@ export default function TeacherWorkspace({
       ...next.map(homeworkMimeForFile),
     ];
     if (next.some((f) => !homeworkFileAllowed(f)) || !homeworkSelectionAllowed(mimes)) {
-      setError('Use up to 2 images, 1 audio file and 1 video, within each file size limit.');
+      setError('Attach up to 2 images, 1 audio file and 1 video.');
       return;
     }
     setError('');
@@ -262,9 +263,13 @@ export default function TeacherWorkspace({
       version: number;
       attachmentIds: string[];
       feedback?: string;
+      feedbackAudioUrl?: string;
     }>
   >([]);
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
+  const [feedbackAudio, setFeedbackAudio] = useState<
+    Record<string, { id?: string; url?: string; name?: string; uploading?: boolean }>
+  >({});
   const [teacherLinks, setTeacherLinks] = useState<
     Record<string, Array<{ id: string; mime: string; url: string }>>
   >({});
@@ -291,6 +296,7 @@ export default function TeacherWorkspace({
         row.studentId,
         feedbackText[row.studentId] || '',
         row.version,
+        feedbackAudio[row.studentId]?.id,
       );
       await reviewHomework(reviewId);
       setNotice('Feedback saved');
@@ -601,10 +607,7 @@ export default function TeacherWorkspace({
                   </label>
                   <div className="sv1276-hw-wide sadhana-form-materials">
                     <strong>Attach homework materials</strong>
-                    <p>
-                      Optional: 2 images (JPEG, PNG or WebP 5 MB; HEIC or HEIF 10 MB), 1 audio file
-                      (20 MB) and 1 video (100 MB). Share document links in Instructions.
-                    </p>
+                    <p>Attach images, audio or video to help explain the assignment.</p>
                     <div className="sadhana-homework-upload-grid">
                       <label className={homeworkImageCount > 0 ? 'has-file' : ''}>
                         <Image size={22} />
@@ -801,19 +804,119 @@ export default function TeacherWorkspace({
                               </ul>
                             </>
                           )}
-                          <label>
-                            Teacher feedback
-                            <textarea
-                              maxLength={2000}
-                              value={feedbackText[row.studentId] || ''}
-                              onChange={(e) =>
-                                setFeedbackText((p) => ({ ...p, [row.studentId]: e.target.value }))
+                          <section className="tw-homework-feedback" aria-label="Teacher feedback">
+                            <h4>Teacher feedback</h4>
+                            <label>
+                              Written feedback <span>Optional</span>
+                              <textarea
+                                rows={4}
+                                maxLength={2000}
+                                value={feedbackText[row.studentId] || ''}
+                                onChange={(e) =>
+                                  setFeedbackText((p) => ({
+                                    ...p,
+                                    [row.studentId]: e.target.value,
+                                  }))
+                                }
+                                placeholder="Share feedback about this submission…"
+                              />
+                            </label>
+                            {row.feedbackAudioUrl && !feedbackAudio[row.studentId]?.url && (
+                              <audio
+                                controls
+                                preload="none"
+                                src={row.feedbackAudioUrl}
+                                aria-label="Saved teacher audio feedback"
+                              />
+                            )}
+                            <div className="tw-feedback-audio-picker">
+                              <span>
+                                Audio feedback <small>Optional</small>
+                              </span>
+                              <AudioFeedbackRecorder
+                                label={`Record optional audio feedback for ${row.studentId}`}
+                                disabled={feedbackAudio[row.studentId]?.uploading}
+                                onRecording={(file) => {
+                                  if (!cloud || !effectiveClass) return;
+                                  const mime = file.type;
+                                  setFeedbackAudio((current) => ({
+                                    ...current,
+                                    [row.studentId]: { name: file.name, uploading: true },
+                                  }));
+                                  void (async () => {
+                                    try {
+                                      const signed =
+                                        await cloud.api.beginTeacherHomeworkFeedbackAudio(
+                                          workspace,
+                                          effectiveClass,
+                                          reviewId,
+                                          row.studentId,
+                                          mime,
+                                          file.size,
+                                        );
+                                      const uploaded = await fetch(signed.uploadUrl, {
+                                        method: 'PUT',
+                                        headers: { ...signed.headers, 'Content-Type': mime },
+                                        body: file,
+                                      });
+                                      if (!uploaded.ok)
+                                        throw new Error(`Audio upload failed (${uploaded.status})`);
+                                      const saved =
+                                        await cloud.api.finishTeacherHomeworkFeedbackAudio(
+                                          workspace,
+                                          effectiveClass,
+                                          reviewId,
+                                          row.studentId,
+                                          signed.key,
+                                        );
+                                      setFeedbackAudio((current) => ({
+                                        ...current,
+                                        [row.studentId]: {
+                                          id: saved.audioId,
+                                          name: file.name,
+                                          url: URL.createObjectURL(file),
+                                        },
+                                      }));
+                                    } catch (uploadError) {
+                                      setFeedbackAudio((current) => ({
+                                        ...current,
+                                        [row.studentId]: {},
+                                      }));
+                                      setError(
+                                        uploadError instanceof Error
+                                          ? uploadError.message
+                                          : 'Unable to upload audio feedback',
+                                      );
+                                    }
+                                  })();
+                                }}
+                              />
+                            </div>
+                            {feedbackAudio[row.studentId]?.url && (
+                              <div className="tw-feedback-audio-preview">
+                                <span>{feedbackAudio[row.studentId]?.name}</span>
+                                <audio
+                                  controls
+                                  preload="metadata"
+                                  src={feedbackAudio[row.studentId]?.url}
+                                />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              disabled={
+                                !!feedbackAudio[row.studentId]?.uploading ||
+                                (!feedbackText[row.studentId]?.trim() &&
+                                  !feedbackAudio[row.studentId]?.id &&
+                                  !row.feedbackAudioUrl)
                               }
-                            />
-                          </label>
-                          <button type="button" onClick={() => void saveFeedback(row)}>
-                            Save feedback
-                          </button>
+                              onClick={() => void saveFeedback(row)}
+                            >
+                              {feedbackAudio[row.studentId]?.uploading
+                                ? 'Uploading audio…'
+                                : 'Save feedback'}
+                            </button>
+                          </section>
                         </article>
                       ))
                     ) : (

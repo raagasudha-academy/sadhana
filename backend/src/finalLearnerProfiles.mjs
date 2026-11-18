@@ -129,7 +129,9 @@ export function makeM10FinalLearnerProfiles(io) {
         }
         teacher = names.filter(Boolean).join(', ');
       }
-      let venue = String(cls.legacyPayload?.location || cls.legacyPayload?.venue || '').trim();
+      let venue = String(
+        cls.location || cls.legacyPayload?.location || cls.legacyPayload?.venue || '',
+      ).trim();
       if (!venue && idOk(cls.defaultVenueId)) {
         const v = await io.venue(cls.defaultVenueId);
         if (v && v.status !== 'archived') venue = String(v.name || '').trim();

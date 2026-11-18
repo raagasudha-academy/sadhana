@@ -54,11 +54,9 @@ const s3 = new S3Client({ requestChecksumCalculation: 'WHEN_REQUIRED' });
 const mediaIo: MediaIO = {
   head: (bucket, key) => s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key })),
   signPut: (bucket, key, mime, size) =>
-    getSignedUrl(
-      s3,
-      new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: mime, ContentLength: size }),
-      { expiresIn: 300 },
-    ),
+    getSignedUrl(s3, new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: mime }), {
+      expiresIn: 300,
+    }),
   signGet: (bucket, key) =>
     getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 180 }),
 };

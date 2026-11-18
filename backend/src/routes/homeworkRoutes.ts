@@ -21,6 +21,16 @@ export const m9HomeworkRoutes: DomainRoute = async ({ event, parts, method, inst
       return json(200, await h.staffMediaLinks(inst, claims, parts[1], parts[3], parts[4]));
     if (parts.length === 5 && parts[2] === 'feedback' && method === 'POST')
       return json(200, await h.feedback(inst, claims, parts[1], parts[3], parts[4], body()));
+    if (parts.length === 6 && parts[2] === 'feedback-audio' && method === 'POST') {
+      const operation =
+        parts[5] === 'start'
+          ? h.beginTeacherFeedbackAudio
+          : parts[5] === 'finish'
+            ? h.finishTeacherFeedbackAudio
+            : undefined;
+      if (operation)
+        return json(200, await operation(inst, claims, parts[1], parts[3], parts[4], body()));
+    }
   }
   if (parts[0] === 'learner' && parts.length >= 3) {
     const student = parts[1];

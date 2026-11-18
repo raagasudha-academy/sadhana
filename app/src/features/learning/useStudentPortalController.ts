@@ -261,6 +261,8 @@ export function useStudentPortalController({
     version: number;
     attachmentIds: string[];
     feedback?: string;
+    feedbackAudioId?: string;
+    feedbackAudioUrl?: string;
     reviewedAt?: string | null;
   } | null>(null);
   const [submissionEditable, setSubmissionEditable] = useState(false);
@@ -283,9 +285,7 @@ export function useStudentPortalController({
       !learnerHomeworkSelectionAllowed(nextTypes) ||
       newFiles.some((file) => !homeworkFileAllowed(file))
     ) {
-      setError(
-        'Homework accepts up to 2 images, 1 audio file and 1 video. Check file size limits.',
-      );
+      setError('Homework accepts up to 2 images, 1 audio file and 1 video.');
       return;
     }
     setSubmissionBusy(true);

@@ -125,6 +125,13 @@
   background: #f0f5fc;
   padding: 12px;
 }
+.sv1278-feedback-audio {
+  display: grid;
+  gap: 0.6rem;
+}
+.sv1278-feedback-audio audio {
+  width: min(100%, 420px);
+}
 .sv1278-review article {
   border-top: 1px solid #dbe4f0;
   padding: 15px 0;

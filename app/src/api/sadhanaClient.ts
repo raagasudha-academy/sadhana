@@ -426,7 +426,13 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       }>('POST', '/administrators/access', { body: { username, institution, grant } }),
     teacherPracticeComments: (institution: InstitutionId, practiceId: string) =>
       request<{
-        records: Array<{ id: string; practiceId: string; comment: string; createdAt: string }>;
+        records: Array<{
+          id: string;
+          practiceId: string;
+          comment: string;
+          createdAt: string;
+          audioUrl?: string;
+        }>;
       }>('GET', `/teacher-practice/${encodeURIComponent(practiceId)}/comments`, { institution }),
     listMessageContacts: (institution: InstitutionId, studentId?: string) =>
       request<{
@@ -554,11 +560,37 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         `/teacher-practice/${encodeURIComponent(practiceId)}/media`,
         { institution },
       ),
-    addTeacherPracticeComment: (institution: InstitutionId, practiceId: string, comment: string) =>
+    beginTeacherPracticeFeedbackAudio: (
+      institution: InstitutionId,
+      practiceId: string,
+      mime: string,
+      size: number,
+    ) =>
+      request<{ uploadUrl: string; key: string; headers: Record<string, string> }>(
+        'POST',
+        `/teacher-practice/${encodeURIComponent(practiceId)}/feedback-audio/start`,
+        { institution, body: { mime, size } },
+      ),
+    finishTeacherPracticeFeedbackAudio: (
+      institution: InstitutionId,
+      practiceId: string,
+      key: string,
+    ) =>
+      request<{ audioId: string }>(
+        'POST',
+        `/teacher-practice/${encodeURIComponent(practiceId)}/feedback-audio/finish`,
+        { institution, body: { key } },
+      ),
+    addTeacherPracticeComment: (
+      institution: InstitutionId,
+      practiceId: string,
+      comment: string,
+      audioId?: string,
+    ) =>
       request<{ record: any }>(
         'POST',
         `/teacher-practice/${encodeURIComponent(practiceId)}/comments`,
-        { institution, body: { comment } },
+        { institution, body: { comment, ...(audioId ? { audioId } : {}) } },
       ),
     listClassHomework: (institution: InstitutionId, classId: string) =>
       request<{
@@ -696,6 +728,8 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           version: number;
           attachmentIds: string[];
           feedback?: string;
+          feedbackAudioId?: string;
+          feedbackAudioUrl?: string;
         };
         editable: boolean;
         dueDate: string;
@@ -750,11 +784,40 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       studentId: string,
       feedback: string,
       expectedVersion: number,
+      feedbackAudioId?: string,
     ) =>
       request<{ saved: boolean }>(
         'POST',
         `/homework/${encodeURIComponent(classId)}/feedback/${encodeURIComponent(homeworkId)}/${encodeURIComponent(studentId)}`,
-        { institution, body: { feedback, expectedVersion } },
+        {
+          institution,
+          body: { feedback, expectedVersion, ...(feedbackAudioId ? { feedbackAudioId } : {}) },
+        },
+      ),
+    beginTeacherHomeworkFeedbackAudio: (
+      institution: InstitutionId,
+      classId: string,
+      homeworkId: string,
+      studentId: string,
+      mime: string,
+      size: number,
+    ) =>
+      request<{ uploadUrl: string; key: string; headers: Record<string, string> }>(
+        'POST',
+        `/homework/${encodeURIComponent(classId)}/feedback-audio/${encodeURIComponent(homeworkId)}/${encodeURIComponent(studentId)}/start`,
+        { institution, body: { mime, size } },
+      ),
+    finishTeacherHomeworkFeedbackAudio: (
+      institution: InstitutionId,
+      classId: string,
+      homeworkId: string,
+      studentId: string,
+      key: string,
+    ) =>
+      request<{ audioId: string }>(
+        'POST',
+        `/homework/${encodeURIComponent(classId)}/feedback-audio/${encodeURIComponent(homeworkId)}/${encodeURIComponent(studentId)}/finish`,
+        { institution, body: { key } },
       ),
     learnerHomework: (institution: InstitutionId, studentId: string) =>
       request<{
@@ -881,7 +944,12 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           topic: string;
           comments: string;
           version: number;
-          teacherComments: Array<{ id: string; comment: string; createdAt: string }>;
+          teacherComments: Array<{
+            id: string;
+            comment: string;
+            createdAt: string;
+            audioUrl?: string;
+          }>;
         }>;
         attendance: {
           marks: Array<{

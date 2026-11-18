@@ -5,6 +5,8 @@ import { entityTable } from './entityTables.mjs';
  */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import {
@@ -17,6 +19,7 @@ export interface M9FinalDb {
   send(command: any): Promise<any>;
 }
 const table = (entity: string) => entityTable(entity);
+const mediaS3 = new S3Client({});
 const MAX_ITEMS = 2000;
 const ukToday = () => {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -131,7 +134,7 @@ export function makeM9FinalLearner(db: M9FinalDb) {
         query('attendance', 'StudentAttendanceIndex', 'studentId', studentId),
         query('rsvps', 'StudentResponsesIndex', 'studentId', studentId),
       ]);
-      return projectLearnerDashboard(
+      const dashboard = projectLearnerDashboard(
         student,
         validEnrollment,
         classes,
@@ -142,6 +145,45 @@ export function makeM9FinalLearner(db: M9FinalDb) {
         ukToday(),
         institution,
       );
+      const bucket = process.env.SADHANA_LEARNER_MEDIA_BUCKET;
+      if (bucket) {
+        dashboard.practice = await Promise.all(
+          dashboard.practice.map(async (entry: any) => ({
+            ...entry,
+            teacherComments: await Promise.all(
+              entry.teacherComments.map(async (comment: any) => {
+                if (
+                  typeof comment.audioId !== 'string' ||
+                  !/^FEEDBACK-[0-9a-f-]{36}$/i.test(comment.audioId)
+                )
+                  return comment;
+                const receipt = await get('submissions', 'submissionId', comment.audioId);
+                if (
+                  !receipt ||
+                  receipt.recordType !== 'teacher-feedback-audio' ||
+                  receipt.purpose !== 'practice' ||
+                  receipt.mediaStatus !== 'ready' ||
+                  receipt.institutionId !== institution ||
+                  receipt.practiceId !== entry.id ||
+                  receipt.studentId !== studentId
+                )
+                  return comment;
+                const audioUrl = await getSignedUrl(
+                  mediaS3,
+                  new GetObjectCommand({
+                    Bucket: bucket,
+                    Key: receipt.objectKey,
+                    ResponseContentType: receipt.mime,
+                  }),
+                  { expiresIn: 180 },
+                );
+                return { ...comment, audioUrl };
+              }),
+            ),
+          })),
+        );
+      }
+      return dashboard;
     },
   };
 }
