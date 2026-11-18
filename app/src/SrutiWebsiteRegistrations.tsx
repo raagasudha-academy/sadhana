@@ -645,8 +645,8 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
               {importPreview.studentCount}
             </p>
             <p>
-              This adds the approved learners to Sadhana and assigns their roll numbers. It does
-              not send a parent invitation. After import, use <strong>Set up parent access</strong>
+              This adds the approved learners to Sadhana and assigns their roll numbers. It does not
+              send a parent invitation. After import, use <strong>Set up parent access</strong>
               as a separate step to link a verified existing account or send an invitation if no
               account exists. This does not approve family access links.
             </p>
