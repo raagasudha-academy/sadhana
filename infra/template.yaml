@@ -105,6 +105,21 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable learner media upload and access through verified private S3 receipts
+  FinalHomeworkMedia:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable private homework material uploads and downloads
+  FinalTeacherPracticeReads:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable teacher reads of learner practice and media
+  FinalTeacherPracticeWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable teacher feedback writes on learner practice
   SrutiIngressReady:
     Type: String
     Default: disabled
@@ -120,6 +135,21 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable institution-scoped approval or rejection of pending Sruti website submissions; does not import students or grant parent access
+  SrutiImportWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable importing reviewed Sruti registrations into canonical student and family records
+  SrutiParentInvitations:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable explicitly confirmed invitations for Sruti parent accounts
+  SrutiParentResends:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable explicitly confirmed resends of Sruti parent invitations
   RaagaIntakeReads:
     Type: String
     Default: disabled
@@ -391,9 +421,11 @@ Resources:
           SADHANA_FINAL_HOMEWORK_READS: !If [UseDevFamilyReads, enabled, !Ref FinalHomeworkReads]
           SADHANA_FINAL_HOMEWORK_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalHomeworkWrites]
           SADHANA_FINAL_LEARNER_MEDIA: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerMedia]
-          SADHANA_FINAL_HOMEWORK_MEDIA: !If [UseDevFamilyReads, enabled, disabled]
-          SADHANA_FINAL_TEACHER_PRACTICE_READS: !If [UseDevFamilyReads, enabled, disabled]
-          SADHANA_FINAL_TEACHER_PRACTICE_WRITES: !If [UseDevFamilyReads, enabled, disabled]
+          SADHANA_FINAL_HOMEWORK_MEDIA: !If [UseDevFamilyReads, enabled, !Ref FinalHomeworkMedia]
+          SADHANA_FINAL_TEACHER_PRACTICE_READS:
+            !If [UseDevFamilyReads, enabled, !Ref FinalTeacherPracticeReads]
+          SADHANA_FINAL_TEACHER_PRACTICE_WRITES:
+            !If [UseDevFamilyReads, enabled, !Ref FinalTeacherPracticeWrites]
           SADHANA_LEARNER_MEDIA_BUCKET: !Ref SadhanaHomeworkMedia
           SADHANA_FINAL_FAMILY_READS: !If [UseFamilyReads, enabled, disabled]
           SADHANA_FINAL_SRUTI_INGRESS_READY:
@@ -402,10 +434,12 @@ Resources:
             !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
           SADHANA_FINAL_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
-          SADHANA_FINAL_SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, disabled]
-          SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, disabled]
-          SADHANA_FINAL_SRUTI_PARENT_INVITATIONS: !If [UseDevFamilyReads, enabled, disabled]
-          SADHANA_FINAL_SRUTI_PARENT_RESENDS: !If [UseDevFamilyReads, enabled, disabled]
+          SADHANA_FINAL_SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, !Ref SrutiImportWrites]
+          SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, !Ref SrutiImportWrites]
+          SADHANA_FINAL_SRUTI_PARENT_INVITATIONS:
+            !If [UseDevFamilyReads, enabled, !Ref SrutiParentInvitations]
+          SADHANA_FINAL_SRUTI_PARENT_RESENDS:
+            !If [UseDevFamilyReads, enabled, !Ref SrutiParentResends]
           SADHANA_FINAL_RAAGA_INTAKE_READS: !If [UseDevFamilyReads, enabled, !Ref RaagaIntakeReads]
           SADHANA_FINAL_RAAGA_REVIEW_WRITES: !Ref RaagaReviewWrites
           SADHANA_FINAL_RAAGA_PARENT_STATUS_READS:
@@ -438,7 +472,9 @@ Resources:
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
+                - dynamodb:BatchGetItem
                 - dynamodb:PutItem
+                - dynamodb:BatchWriteItem
                 - dynamodb:UpdateItem
                 - dynamodb:DeleteItem
                 - dynamodb:Query
