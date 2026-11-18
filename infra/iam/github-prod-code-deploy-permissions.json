@@ -16,6 +16,24 @@
         "lambda:UpdateFunctionCode"
       ],
       "Resource": "arn:aws:lambda:us-east-1:627821644317:function:prod-sadhana-api"
+    },
+    {
+      "Sid": "ListOnlyProductionPortalBucket",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+      "Resource": "arn:aws:s3:::sadhana-prod-portal-627821644317"
+    },
+    {
+      "Sid": "PublishOnlyProductionPortalAssets",
+      "Effect": "Allow",
+      "Action": ["s3:AbortMultipartUpload", "s3:DeleteObject", "s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::sadhana-prod-portal-627821644317/*"
+    },
+    {
+      "Sid": "InvalidateOnlyProductionPortalDistribution",
+      "Effect": "Allow",
+      "Action": "cloudfront:CreateInvalidation",
+      "Resource": "arn:aws:cloudfront::627821644317:distribution/E2OIK9ZX4I8KC8"
     }
   ]
 }
