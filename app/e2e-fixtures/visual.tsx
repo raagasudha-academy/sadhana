@@ -6,7 +6,7 @@ import {
   filterStudentsByLocation,
   sortDirectoryStudents,
 } from '../src/directorySelectors';
-import '../src/styles.css';
+import '../src/portalStyles';
 
 type Student = { id: string; name: string; roll: string; location: string; archived: boolean };
 const initial: Student[] = [

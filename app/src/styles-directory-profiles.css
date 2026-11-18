@@ -1,0 +1,585 @@
+/* v0.7.6 administrator directory */
+.sadhana-admin-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.venue-manage-card.sadhana-admin-card {
+  display: flex !important;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 190px;
+  padding: 18px 16px 50px !important;
+  position: relative;
+  overflow: visible;
+}
+.sadhana-admin-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.sadhana-admin-main .teacher-portrait {
+  width: 78px;
+  min-width: 78px;
+  height: 78px;
+  flex: 0 0 78px;
+}
+.sadhana-admin-details {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.sadhana-admin-details strong {
+  font-size: 15px;
+  line-height: 1.4;
+}
+.sadhana-admin-details small {
+  color: #74839b;
+  overflow-wrap: anywhere;
+}
+.sadhana-admin-card .teacher-b-institutions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.sadhana-admin-card .teacher-b-institutions span {
+  font-size: 11px;
+  border-radius: 7px;
+  padding: 3px 7px;
+  color: #5c6e88;
+  background: #f0f3f8;
+}
+.sadhana-admin-foot {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #738298;
+  margin-top: auto;
+}
+.sadhana-admin-foot span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sadhana-admin-actions {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  display: flex;
+  gap: 5px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+.sadhana-admin-card:hover .sadhana-admin-actions,
+.sadhana-admin-card:focus-within .sadhana-admin-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (max-width: 1250px) {
+  .sadhana-admin-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .sadhana-admin-grid {
+    grid-template-columns: 1fr;
+  }
+  .sadhana-admin-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* v0.7.6.1 — left menu scrolls independently of the main page.
+   Logo and Workspace selector stay in place. */
+.sidebar {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.sidebar-nav-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #72819b transparent;
+  scrollbar-gutter: stable;
+  padding: 3px 4px 3px 0;
+}
+.sidebar-nav-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb {
+  background: #72819b;
+  border-radius: 5px;
+}
+.sidebar-nav-scroll > nav {
+  flex: 0 0 auto;
+}
+.sidebar-nav-scroll > .sidebar-bottom {
+  flex: 0 0 auto;
+}
+.sidebar .brand,
+.sidebar .sidebar-workspace {
+  flex-shrink: 0;
+}
+.sidebar-nav-scroll:focus-visible {
+  outline: 2px solid #afc4ec;
+  outline-offset: -2px;
+}
+
+/* v0.7.6.1 — same compact presentation as registered Teachers */
+.sadhana-admin-main .teacher-portrait {
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #f0e9dc;
+  color: #52617b;
+  font-size: 22px;
+  font-weight: 700;
+}
+.sadhana-admin-main .teacher-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sadhana-admin-details strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.sadhana-admin-actions {
+  align-items: center;
+}
+@media (hover: none) {
+  .sadhana-admin-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* v0.7.6.2 — private profile photo uploading */
+.sadhana-photo-upload {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fafbfe;
+}
+.sadhana-photo-upload-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.sadhana-photo-upload-preview {
+  width: 82px;
+  height: 82px;
+  flex: 0 0 82px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #eef2f8;
+  display: grid;
+  place-items: center;
+  color: #7b8aa1;
+}
+.sadhana-photo-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sadhana-photo-upload-tools {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.sadhana-photo-upload-tools strong {
+  font-size: 14px;
+}
+.sadhana-photo-upload-tools p {
+  font-size: 12px;
+  color: #6e7d93;
+  margin: 0;
+  line-height: 1.4;
+}
+.sadhana-photo-upload-tools input[type='file'] {
+  max-width: 100%;
+  font-size: 12px;
+}
+.sadhana-photo-upload-tools .reg-secondary {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+}
+@media (max-width: 620px) {
+  .sadhana-photo-upload-row {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .sadhana-photo-upload-preview {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+  }
+}
+
+/* v0.7.6.2 UX polish: one clickable avatar instead of a second photo-upload panel */
+.sadhana-account-photo:has(.sadhana-avatar-photo-trigger) {
+  overflow: visible;
+  background: transparent;
+}
+.sadhana-avatar-photo-trigger {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  position: relative;
+  border-radius: 50%;
+  display: block;
+  cursor: pointer;
+}
+.sadhana-avatar-photo-face {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.sadhana-avatar-photo-face > img,
+.sadhana-avatar-photo-original > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.sadhana-avatar-photo-camera {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 32px;
+  height: 32px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #405c89;
+  color: white;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 10px #1b28423d;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+.sadhana-avatar-photo-trigger:hover .sadhana-avatar-photo-camera,
+.sadhana-avatar-photo-trigger:focus-visible .sadhana-avatar-photo-camera {
+  background: #2b4572;
+  transform: scale(1.1);
+}
+.sadhana-avatar-photo-trigger:focus-visible {
+  outline: 3px solid #7998cf;
+  outline-offset: 4px;
+}
+.sadhana-avatar-photo-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #122039a8;
+}
+.sadhana-avatar-photo-dialog {
+  width: min(100%, 430px);
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 24px 65px #13243a50;
+  padding: 24px;
+  max-height: 90dvh;
+  overflow: auto;
+}
+.sadhana-avatar-photo-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sadhana-avatar-photo-heading h2 {
+  margin: 0;
+  color: #2e3e56;
+  font-size: 20px;
+}
+.sadhana-avatar-photo-heading p {
+  margin: 5px 0 0;
+  color: #697a92;
+  font-size: 13px;
+}
+.sadhana-avatar-photo-close {
+  border: 0;
+  background: #f0f3f8;
+  border-radius: 9px;
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #51627c;
+}
+.sadhana-avatar-photo-close:hover {
+  background: #e7edf7;
+}
+.sadhana-avatar-photo-preview {
+  width: 156px;
+  height: 156px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  margin: 22px auto 12px;
+  background: #edf2f8;
+  color: #566784;
+  font-size: 36px;
+}
+.sadhana-avatar-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.sadhana-avatar-photo-original {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.sadhana-avatar-photo-original .teacher-portrait {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.sadhana-avatar-photo-hint {
+  color: #73829a;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  margin: 0 0 16px;
+}
+.sadhana-avatar-photo-choose {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334863;
+}
+.sadhana-avatar-photo-choose input {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #42516b;
+}
+.sadhana-avatar-photo-choose input::file-selector-button {
+  border: 1px solid #d5deed;
+  border-radius: 8px;
+  background: #f6f8fb;
+  color: #344761;
+  padding: 8px 11px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+.sadhana-avatar-photo-actions {
+  display: flex;
+  gap: 9px;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+.sadhana-avatar-photo-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.sadhana-photo-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.sadhana-admin-photo-editor {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 6px 0;
+}
+.sadhana-admin-photo-editor .sadhana-avatar-photo-trigger {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+}
+.sadhana-admin-photo-editor .teacher-portrait {
+  width: 76px;
+  height: 76px;
+  min-width: 76px;
+  border-radius: 50%;
+}
+.sadhana-admin-photo-editor .teacher-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sadhana-admin-photo-editor > span {
+  color: #78869d;
+  font-size: 12px;
+}
+@media (max-width: 500px) {
+  .sadhana-avatar-photo-dialog {
+    padding: 18px;
+  }
+  .sadhana-avatar-photo-preview {
+    width: 128px;
+    height: 128px;
+  }
+}
+
+/* v0.7.6.3 — Teacher card portrait edit control */
+.teacher-card .venue-manage-head:has(.sadhana-avatar-photo-trigger) {
+  display: contents !important;
+}
+.teacher-card .venue-manage-head .sadhana-avatar-photo-trigger {
+  grid-column: 1;
+  grid-row: 1 / span 4;
+  align-self: start;
+  width: 78px;
+  height: 78px;
+  min-width: 78px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.teacher-card .venue-manage-head .sadhana-avatar-photo-trigger .teacher-portrait {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.teacher-card .venue-manage-head .sadhana-avatar-photo-camera {
+  width: 25px;
+  height: 25px;
+  right: -2px;
+  bottom: 0;
+}
+@media (max-width: 700px) {
+  .teacher-card .venue-manage-head .sadhana-avatar-photo-trigger {
+    width: 70px;
+    height: 70px;
+    min-width: 70px;
+  }
+}
+
+/* v0.7.6.3 UI refinement: teacher photo editing within Edit Teacher dialog */
+.sadhana-teacher-photo-editor {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid #e9edf3;
+}
+.sadhana-teacher-photo-editor .sadhana-avatar-photo-trigger,
+.sadhana-teacher-photo-editor > .teacher-portrait {
+  width: 78px;
+  height: 78px;
+  flex: 0 0 78px;
+}
+.sadhana-teacher-photo-editor .teacher-portrait {
+  width: 78px;
+  height: 78px;
+  min-width: 78px;
+  border-radius: 50%;
+}
+.sadhana-teacher-photo-editor .teacher-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sadhana-teacher-photo-help {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.sadhana-teacher-photo-help strong {
+  font-size: 13px;
+  color: #40516b;
+}
+.sadhana-teacher-photo-help span {
+  font-size: 12px;
+  color: #78869d;
+  line-height: 1.4;
+}
+
+/* Administrator access belongs inside Edit Profile, not destructive card actions */
+.sadhana-admin-access-fieldset {
+  border: 1px solid #e0e5ee;
+  border-radius: 12px;
+  padding: 14px 15px;
+  margin: 12px 0 0;
+}
+.sadhana-admin-access-fieldset legend {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 5px;
+  color: #334461;
+}
+.sadhana-admin-access-fieldset > p {
+  font-size: 12px;
+  color: #71809a;
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+.sadhana-admin-access-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid #eff1f5;
+}
+.sadhana-admin-access-row > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.sadhana-admin-access-row strong {
+  font-size: 13px;
+  color: #344560;
+}
+.sadhana-admin-access-row small {
+  font-size: 12px;
+  color: #72839c;
+}
+.sadhana-admin-access-row button {
+  flex: 0 0 auto;
+  min-width: 81px;
+}
+.sadhana-revoke-access {
+  color: #a3404c;
+}
+.sadhana-admin-access-row button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
