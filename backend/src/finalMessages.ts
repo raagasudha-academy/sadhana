@@ -170,11 +170,16 @@ export function makeFinalMessages(
           throw httpError(403, 'Verified student account required.');
         return fresh;
       }
-      const guardians = matches.filter((person) => person.personTypes?.includes('guardian'));
+      const student = await get('people', 'personId', actingStudentId);
+      const guardians = matches.filter(
+        (person) =>
+          person.personTypes?.includes('guardian') &&
+          typeof student?.familyId === 'string' &&
+          person.familyId === student.familyId,
+      );
       if (guardians.length !== 1)
         throw httpError(403, 'Approved family access to this student is required.');
       const guardian = await get('people', 'personId', guardians[0].personId);
-      const student = await get('people', 'personId', actingStudentId);
       // The approved academy-scoped family link authorizes the guardian to act as
       // this child; the guardian need not separately belong to the child's academy.
       if (
