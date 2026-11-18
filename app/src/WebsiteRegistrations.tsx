@@ -198,6 +198,7 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
     imported: boolean;
     status: string;
     updatedAt: string | null;
+    email?: string;
   } | null>(null);
   const [parentAccessChecked, setParentAccessChecked] = useState(false);
   const [accessBusy, setAccessBusy] = useState(false);
@@ -457,6 +458,10 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
   };
   const people = detail?.people || [];
   const contact = people.find((p) => p.personId === detail?.primaryContactPersonId);
+  const learnerCount = detail?.students?.length ?? 0;
+  const registrationLocation =
+    detail?.preferredLocationId ||
+    detail?.students?.find((student) => student.preferredLocationId)?.preferredLocationId;
   return (
     <section className="wr-page">
       <div className="wr-heading">
@@ -577,8 +582,12 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                   <strong>{text(detail.registrationType)}</strong>
                 </div>
                 <div>
+                  <small>Learners</small>
+                  <strong>{learnerCount}</strong>
+                </div>
+                <div>
                   <small>Location</small>
-                  <strong>{text(detail.preferredLocationId)}</strong>
+                  <strong>{text(registrationLocation)}</strong>
                 </div>
                 <div>
                   <small>Import status</small>
@@ -589,25 +598,40 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
               </div>
               {isImported && (
                 <section className="wr-v112-parent-access-panel" aria-label="Parent portal access">
-                  <div>
-                    <strong>Parent portal access</strong>
-                    <p>Family links are verified. Parent sign-in is set up separately.</p>
+                  <div
+                    className="wr-registration-stages"
+                    role="group"
+                    aria-label="Registration progress"
+                  >
+                    <button type="button" className="reg-primary" disabled>
+                      {detail.reviewStatus === 'approved' ? '✓ Approved' : 'Pending approval'}
+                    </button>
+                    <span aria-hidden="true">→</span>
+                    <button type="button" className="reg-primary" disabled>
+                      ✓ Imported to Sadhana
+                    </button>
+                    <span aria-hidden="true">→</span>
+                    <div className="reg-primary wr-registration-stage-account" role="status">
+                      {!parentAccess
+                        ? parentAccessChecked
+                          ? 'Parent access not set up'
+                          : 'Checking parent account…'
+                        : (
+                            {
+                              NOT_INVITED: 'Parent access not set up',
+                              INVITATION_SENT: 'Invitation sent',
+                              ACCOUNT_FOUND: 'Account already exists',
+                              NEEDS_VERIFICATION: 'Needs administrator review',
+                              ACTIVE: 'Account already exists',
+                            } as Record<string, string>
+                          )[parentAccess.status] || parentAccess.status}
+                    </div>
                   </div>
-                  <div className="wr-v112-access-status" role="status">
-                    {!parentAccess
-                      ? parentAccessChecked
-                        ? 'Not linked'
-                        : 'Checking…'
-                      : (
-                          {
-                            NOT_INVITED: 'Not invited',
-                            INVITATION_SENT: 'Invitation requested',
-                            ACCOUNT_FOUND: 'Existing account found',
-                            NEEDS_VERIFICATION: 'Needs verification',
-                            ACTIVE: 'Active',
-                          } as Record<string, string>
-                        )[parentAccess.status] || parentAccess.status}
-                  </div>
+                  {(parentAccess?.email || contact?.email) && (
+                    <p className="wr-registration-contact-email">
+                      {parentAccess?.email || contact?.email}
+                    </p>
+                  )}
                   <details className="wr-v118-parent-actions">
                     <summary>Account actions</summary>
                     <div className="wr-v112-actions">
