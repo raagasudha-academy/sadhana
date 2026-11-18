@@ -671,21 +671,6 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                             )[parentAccess.status] || parentAccess.status}
                   </button>
                 </div>
-                {reviewError && (
-                  <p role="alert" className="wr-error">
-                    {reviewError}
-                  </p>
-                )}
-                {importResult && (
-                  <div role="status" style={{ width: '100%' }}>
-                    <strong>Family {importResult.familyNumber || 'number unavailable'}</strong>
-                    <p>
-                      Student roll numbers:{' '}
-                      {Object.values(importResult.studentRollNumbers).join(', ')}
-                    </p>
-                    {importResult.warning && <p>{importResult.warning}</p>}
-                  </div>
-                )}
                 {isImported && (parentAccess?.email || contact?.email) && (
                   <p className="wr-registration-contact-email">
                     {parentAccess?.email || contact?.email}
@@ -707,40 +692,9 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                   </div>
                 )}
                 {detail.reviewStatus === 'approved' && !isImported && duplicateSourcePerson && (
-                  <div className="wr-allergy" style={{ width: '100%' }}>
-                    <strong>
-                      Repeated student name and DOB — administrator correction required
-                    </strong>
-                    <p>
-                      The website submission contains two student entries with the same name and
-                      DOB. Confirm the second student's correct name against the original form or
-                      guardian before activation. The website record will not be edited by this
-                      action.
-                    </p>
-                    <p>
-                      Second source person ID: <code>{duplicateSourcePerson.personId}</code>
-                    </p>
-                    <label>
-                      Verified second student's name{' '}
-                      <input
-                        aria-label="Verified second student's name"
-                        value={correctedName}
-                        onChange={(e) => {
-                          setCorrectedName(e.target.value);
-                          setCorrectionConfirmed(false);
-                        }}
-                        placeholder="Enter verified full name"
-                      />
-                    </label>
-                    <label style={{ display: 'block', marginTop: 8 }}>
-                      <input
-                        type="checkbox"
-                        checked={correctionConfirmed}
-                        onChange={(e) => setCorrectionConfirmed(e.target.checked)}
-                      />{' '}
-                      I have verified the second student's identity and name with the family.
-                    </label>
-                  </div>
+                  <p className="wr-v112-error" role="status">
+                    Complete the identity check under Registration actions before importing.
+                  </p>
                 )}
                 {isImported && (
                   <>
@@ -809,32 +763,6 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                         >
                           Request invitation
                         </button>
-                        {isImported && (
-                          <button
-                            className="reg-secondary"
-                            type="button"
-                            disabled={revokeBusy}
-                            onClick={async () => {
-                              setRevokeBusy(true);
-                              setRevokeError('');
-                              setRevokeOutcome('');
-                              setRevokePreview(null);
-                              try {
-                                setRevokePreview(
-                                  await cloud.api.previewWebsiteRevocation(detail.registrationId),
-                                );
-                              } catch (e) {
-                                setRevokeError(
-                                  e instanceof Error ? e.message : 'Safety check failed',
-                                );
-                              } finally {
-                                setRevokeBusy(false);
-                              }
-                            }}
-                          >
-                            {revokeBusy ? 'Checking safety…' : 'Review revocation'}
-                          </button>
-                        )}
                       </div>
                     </details>
                     {accessNotice && <p role="status">{accessNotice}</p>}
@@ -851,264 +779,347 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
                   </>
                 )}
               </section>
-              {detail.reviewStatus !== 'approved' && detail.reviewStatus !== 'discarded' && (
-                <div
-                  className="wr-card"
-                  style={{
-                    marginTop: 16,
-                    display: 'flex',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                  }}
-                >
-                  <details className="wr-v118-main-actions">
-                    <summary>Registration actions</summary>
-                    <div className="wr-v118-main-actions-body">
-                      {detail.reviewStatus !== 'discarded' &&
-                        detail.reviewStatus !== 'approved' && (
-                          <button
-                            className="reg-secondary"
-                            type="button"
-                            disabled={reviewBusy}
-                            onClick={() => setConfirmReview('discarded')}
-                          >
-                            Discard
-                          </button>
-                        )}
-                    </div>
-                  </details>
-                  {reviewBusy && <span>Saving review…</span>}
-                </div>
-              )}
-              {revokeError && (
-                <p role="alert" className="wr-error">
-                  {revokeError}
-                </p>
-              )}
-              {revokeOutcome && (
-                <div
-                  role="status"
-                  className={
-                    revokeOutcome === 'completed' ? 'wr-revoke-success' : 'wr-revoke-warning'
-                  }
-                >
-                  <strong>
-                    {revokeOutcome === 'completed'
-                      ? 'Revocation completed'
-                      : 'Website reset needs attention'}
-                  </strong>
-                  <p>
-                    {revokeOutcome === 'completed'
-                      ? 'The activation was revoked. The website application has been refreshed; confirm Pending status before reactivation.'
-                      : 'Sadhana may have removed the records, but website reset is not confirmed. Do not reactivate. Retry the same operation or contact an administrator.'}
-                  </p>
-                  {revokeOutcome === 'completed' && (
-                    <button
-                      type="button"
-                      className="reg-secondary"
-                      onClick={() => {
-                        setRevokeOutcome('');
-                        setFilter('pending');
-                      }}
-                    >
-                      View pending registrations
-                    </button>
-                  )}
-                </div>
-              )}
-              {revokePreview && !revokeConfirm && (
-                <div
-                  className="wr-modal-backdrop"
-                  onMouseDown={(e) => {
-                    if (e.target === e.currentTarget && !revokeBusy) setRevokePreview(null);
-                  }}
-                >
-                  <div
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="wr-v102-heading"
-                    className="wr-modal wr-revoke-modal wr-v102-review"
-                  >
-                    <div className="wr-revoke-title">
-                      <ShieldCheck size={20} />
-                      <h2 id="wr-v102-heading">Review revocation</h2>
-                    </div>
-                    <p className="wr-modal-reference">
-                      Application: <strong>{detail.registrationId}</strong>
-                    </p>
-                    <p>This review does not change any records.</p>
-                    <h3>Affected students ({revokePreview.students.length})</h3>
-                    <ul className="wr-revoke-students">
-                      {revokePreview.students.map((s) => (
-                        <li key={s.id}>
-                          <strong>{s.name || s.id}</strong>
-                          <small>
-                            {s.rollNumber || s.id}
-                            {!s.owned ? ' · Ownership unverified' : ''}
-                          </small>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="wr-revoke-family">
-                      Family: {revokePreview.familyId || 'Not found'} · Shared family records are
-                      protected.
-                    </p>
-                    {revokePreview.blockers.filter(
-                      (reason) => !reason.includes('Revocation execution remains disabled'),
-                    ).length > 0 ? (
-                      <div className="wr-revoke-blockers">
-                        <strong>Safety checks require attention</strong>
-                        <ul>
-                          {revokePreview.blockers
-                            .filter(
-                              (reason) => !reason.includes('Revocation execution remains disabled'),
-                            )
-                            .map((reason, i) => (
-                              <li key={i}>{reason}</li>
-                            ))}
-                        </ul>
+              <div
+                className="wr-card"
+                style={{
+                  marginTop: 16,
+                  display: 'flex',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <details className="wr-v118-main-actions">
+                  <summary>Registration actions</summary>
+                  <div className="wr-v118-main-actions-body">
+                    {detail.reviewStatus !== 'discarded' && detail.reviewStatus !== 'approved' && (
+                      <button
+                        className="reg-secondary"
+                        type="button"
+                        disabled={reviewBusy}
+                        onClick={() => setConfirmReview('discarded')}
+                      >
+                        Discard
+                      </button>
+                    )}
+                    {detail.reviewStatus === 'approved' && !isImported && duplicateSourcePerson && (
+                      <div className="wr-allergy" style={{ width: '100%' }}>
+                        <strong>
+                          Repeated student name and DOB — administrator correction required
+                        </strong>
+                        <p>
+                          The website submission contains two student entries with the same name and
+                          DOB. Confirm the second student's correct name against the original form
+                          or guardian before activation. The website record will not be edited by
+                          this action.
+                        </p>
+                        <p>
+                          Second source person ID: <code>{duplicateSourcePerson.personId}</code>
+                        </p>
+                        <label>
+                          Verified second student's name{' '}
+                          <input
+                            aria-label="Verified second student's name"
+                            value={correctedName}
+                            onChange={(e) => {
+                              setCorrectedName(e.target.value);
+                              setCorrectionConfirmed(false);
+                            }}
+                            placeholder="Enter verified full name"
+                          />
+                        </label>
+                        <label style={{ display: 'block', marginTop: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={correctionConfirmed}
+                            onChange={(e) => setCorrectionConfirmed(e.target.checked)}
+                          />{' '}
+                          I have verified the second student's identity and name with the family.
+                        </label>
                       </div>
-                    ) : (
-                      <p className="wr-revoke-ready">Student and family safety checks passed.</p>
                     )}
-                    {revokePreview.blockers.some((reason) =>
-                      reason.includes('Revocation execution remains disabled'),
-                    ) && (
-                      <p role="status" className="wr-v102-disabled">
-                        Revocation is disabled by the administrator. Review is available, but
-                        deletion cannot be started.
-                      </p>
-                    )}
-                    <div className="wr-modal-actions">
-                      <button
-                        type="button"
-                        className="wr-modal-cancel"
-                        onClick={() => setRevokePreview(null)}
-                      >
-                        Close review
-                      </button>
-                      <button
-                        className="wr-revoke-danger"
-                        type="button"
-                        disabled={!revokePreview.canRevoke || revokeBusy}
-                        onClick={() => {
-                          setRevokePhrase('');
-                          setRevokeConfirm(true);
-                        }}
-                      >
-                        Continue to confirmation
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {revokeConfirm && revokePreview && (
-                <div
-                  className="wr-modal-backdrop"
-                  onMouseDown={(e) => {
-                    if (e.target === e.currentTarget && !revokeBusy) setRevokeConfirm(false);
-                  }}
-                >
-                  <div
-                    role="alertdialog"
-                    aria-modal="true"
-                    aria-labelledby="wr-revoke-heading"
-                    aria-describedby="wr-revoke-description"
-                    className="wr-modal wr-revoke-modal"
-                  >
-                    <div className="wr-modal-icon">
-                      <ShieldCheck size={22} />
-                    </div>
-                    <h2 id="wr-revoke-heading">Revoke student activation?</h2>
-                    <p id="wr-revoke-description">
-                      This removes the listed imported records from Sadhana and returns the website
-                      application to Pending. Audit history remains; roll numbers are not reused.
-                    </p>
-                    <p className="wr-modal-reference">
-                      Application: <strong>{detail.registrationId}</strong>
-                    </p>
-                    <strong>Affected students</strong>
-                    <ul className="wr-revoke-students">
-                      {revokePreview.students.map((s) => (
-                        <li key={s.id}>
-                          <strong>{s.name || s.id}</strong>
-                          <small>{s.rollNumber || s.id}</small>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="wr-revoke-family">
-                      Family: {revokePreview.familyId || 'Not found'} · Shared family records remain
-                      protected.
-                    </p>
-                    <label className="wr-revoke-confirm-label">
-                      Type <strong>REVOKE</strong> to confirm
-                      <input
-                        autoFocus
-                        value={revokePhrase}
-                        aria-label="Type REVOKE"
-                        autoComplete="off"
-                        disabled={revokeBusy}
-                        onChange={(e) => setRevokePhrase(e.target.value)}
-                      />
-                    </label>
-                    {revokeBusy && (
-                      <p role="status" className="wr-revoke-progress">
-                        Revoking in Sadhana and synchronizing the website. Please wait…
-                      </p>
-                    )}
-                    <div className="wr-modal-actions">
-                      <button
-                        className="wr-modal-cancel"
-                        type="button"
-                        disabled={revokeBusy}
-                        onClick={() => setRevokeConfirm(false)}
-                      >
-                        Keep activation
-                      </button>
-                      <button
-                        className="wr-modal-discard"
-                        type="button"
-                        disabled={
-                          revokeBusy || revokePhrase !== 'REVOKE' || !revokePreview.canRevoke
-                        }
-                        onClick={async () => {
-                          if (!detail) return;
-                          setRevokeBusy(true);
-                          setRevokeError('');
-                          try {
-                            const result = await cloud.api.revokeWebsiteRegistration(
-                              detail.registrationId,
-                              revokePhrase,
-                            );
-                            setRevokeConfirm(false);
+                    {isImported && (
+                      <div className="wr-revoke-entry">
+                        <ShieldCheck size={18} />
+                        <div>
+                          <strong>Activated in Sadhana</strong>
+                          <p>Review affected records before revoking.</p>
+                        </div>
+                        <button
+                          className="reg-secondary"
+                          type="button"
+                          disabled={revokeBusy}
+                          onClick={async () => {
+                            setRevokeBusy(true);
+                            setRevokeError('');
+                            setRevokeOutcome('');
                             setRevokePreview(null);
-                            setRevokeOutcome(
-                              result.status === 'completed' ? 'completed' : 'pending',
-                            );
-                            if (result.status !== 'completed')
-                              setRevokeError(
-                                result.warning ||
-                                  'Website reset not yet confirmed. Retry safely before reactivating.',
+                            try {
+                              setRevokePreview(
+                                await cloud.api.previewWebsiteRevocation(detail.registrationId),
                               );
-                            const fresh = await cloud.api.getWebsiteRegistration(
-                              detail.registrationId,
-                            );
-                            setDetail(extractRegistration(fresh));
-                            await load();
-                          } catch (e) {
-                            setRevokeError(e instanceof Error ? e.message : 'Revocation failed');
-                          } finally {
-                            setRevokeBusy(false);
-                          }
+                            } catch (e) {
+                              setRevokeError(
+                                e instanceof Error ? e.message : 'Safety check failed',
+                              );
+                            } finally {
+                              setRevokeBusy(false);
+                            }
+                          }}
+                        >
+                          {revokeBusy ? 'Checking safety…' : 'Review revocation'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </details>
+                {revokeError && (
+                  <p role="alert" className="wr-error">
+                    {revokeError}
+                  </p>
+                )}
+                {revokeOutcome && (
+                  <div
+                    role="status"
+                    className={
+                      revokeOutcome === 'completed' ? 'wr-revoke-success' : 'wr-revoke-warning'
+                    }
+                  >
+                    <strong>
+                      {revokeOutcome === 'completed'
+                        ? 'Revocation completed'
+                        : 'Website reset needs attention'}
+                    </strong>
+                    <p>
+                      {revokeOutcome === 'completed'
+                        ? 'The activation was revoked. The website application has been refreshed; confirm Pending status before reactivation.'
+                        : 'Sadhana may have removed the records, but website reset is not confirmed. Do not reactivate. Retry the same operation or contact an administrator.'}
+                    </p>
+                    {revokeOutcome === 'completed' && (
+                      <button
+                        type="button"
+                        className="reg-secondary"
+                        onClick={() => {
+                          setRevokeOutcome('');
+                          setFilter('pending');
                         }}
                       >
-                        {revokeBusy ? 'Processing…' : 'Revoke activation'}
+                        View pending registrations
                       </button>
+                    )}
+                  </div>
+                )}
+                {revokePreview && !revokeConfirm && (
+                  <div
+                    className="wr-modal-backdrop"
+                    onMouseDown={(e) => {
+                      if (e.target === e.currentTarget && !revokeBusy) setRevokePreview(null);
+                    }}
+                  >
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="wr-v102-heading"
+                      className="wr-modal wr-revoke-modal wr-v102-review"
+                    >
+                      <div className="wr-revoke-title">
+                        <ShieldCheck size={20} />
+                        <h2 id="wr-v102-heading">Review revocation</h2>
+                      </div>
+                      <p className="wr-modal-reference">
+                        Application: <strong>{detail.registrationId}</strong>
+                      </p>
+                      <p>This review does not change any records.</p>
+                      <h3>Affected students ({revokePreview.students.length})</h3>
+                      <ul className="wr-revoke-students">
+                        {revokePreview.students.map((s) => (
+                          <li key={s.id}>
+                            <strong>{s.name || s.id}</strong>
+                            <small>
+                              {s.rollNumber || s.id}
+                              {!s.owned ? ' · Ownership unverified' : ''}
+                            </small>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="wr-revoke-family">
+                        Family: {revokePreview.familyId || 'Not found'} · Shared family records are
+                        protected.
+                      </p>
+                      {revokePreview.blockers.filter(
+                        (reason) => !reason.includes('Revocation execution remains disabled'),
+                      ).length > 0 ? (
+                        <div className="wr-revoke-blockers">
+                          <strong>Safety checks require attention</strong>
+                          <ul>
+                            {revokePreview.blockers
+                              .filter(
+                                (reason) =>
+                                  !reason.includes('Revocation execution remains disabled'),
+                              )
+                              .map((reason, i) => (
+                                <li key={i}>{reason}</li>
+                              ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="wr-revoke-ready">Student and family safety checks passed.</p>
+                      )}
+                      {revokePreview.blockers.some((reason) =>
+                        reason.includes('Revocation execution remains disabled'),
+                      ) && (
+                        <p role="status" className="wr-v102-disabled">
+                          Revocation is disabled by the administrator. Review is available, but
+                          deletion cannot be started.
+                        </p>
+                      )}
+                      <div className="wr-modal-actions">
+                        <button
+                          type="button"
+                          className="wr-modal-cancel"
+                          onClick={() => setRevokePreview(null)}
+                        >
+                          Close review
+                        </button>
+                        <button
+                          className="wr-revoke-danger"
+                          type="button"
+                          disabled={!revokePreview.canRevoke || revokeBusy}
+                          onClick={() => {
+                            setRevokePhrase('');
+                            setRevokeConfirm(true);
+                          }}
+                        >
+                          Continue to confirmation
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+                {revokeConfirm && revokePreview && (
+                  <div
+                    className="wr-modal-backdrop"
+                    onMouseDown={(e) => {
+                      if (e.target === e.currentTarget && !revokeBusy) setRevokeConfirm(false);
+                    }}
+                  >
+                    <div
+                      role="alertdialog"
+                      aria-modal="true"
+                      aria-labelledby="wr-revoke-heading"
+                      aria-describedby="wr-revoke-description"
+                      className="wr-modal wr-revoke-modal"
+                    >
+                      <div className="wr-modal-icon">
+                        <ShieldCheck size={22} />
+                      </div>
+                      <h2 id="wr-revoke-heading">Revoke student activation?</h2>
+                      <p id="wr-revoke-description">
+                        This removes the listed imported records from Sadhana and returns the
+                        website application to Pending. Audit history remains; roll numbers are not
+                        reused.
+                      </p>
+                      <p className="wr-modal-reference">
+                        Application: <strong>{detail.registrationId}</strong>
+                      </p>
+                      <strong>Affected students</strong>
+                      <ul className="wr-revoke-students">
+                        {revokePreview.students.map((s) => (
+                          <li key={s.id}>
+                            <strong>{s.name || s.id}</strong>
+                            <small>{s.rollNumber || s.id}</small>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="wr-revoke-family">
+                        Family: {revokePreview.familyId || 'Not found'} · Shared family records
+                        remain protected.
+                      </p>
+                      <label className="wr-revoke-confirm-label">
+                        Type <strong>REVOKE</strong> to confirm
+                        <input
+                          autoFocus
+                          value={revokePhrase}
+                          aria-label="Type REVOKE"
+                          autoComplete="off"
+                          disabled={revokeBusy}
+                          onChange={(e) => setRevokePhrase(e.target.value)}
+                        />
+                      </label>
+                      {revokeBusy && (
+                        <p role="status" className="wr-revoke-progress">
+                          Revoking in Sadhana and synchronizing the website. Please wait…
+                        </p>
+                      )}
+                      <div className="wr-modal-actions">
+                        <button
+                          className="wr-modal-cancel"
+                          type="button"
+                          disabled={revokeBusy}
+                          onClick={() => setRevokeConfirm(false)}
+                        >
+                          Keep activation
+                        </button>
+                        <button
+                          className="wr-modal-discard"
+                          type="button"
+                          disabled={
+                            revokeBusy || revokePhrase !== 'REVOKE' || !revokePreview.canRevoke
+                          }
+                          onClick={async () => {
+                            if (!detail) return;
+                            setRevokeBusy(true);
+                            setRevokeError('');
+                            try {
+                              const result = await cloud.api.revokeWebsiteRegistration(
+                                detail.registrationId,
+                                revokePhrase,
+                              );
+                              setRevokeConfirm(false);
+                              setRevokePreview(null);
+                              setRevokeOutcome(
+                                result.status === 'completed' ? 'completed' : 'pending',
+                              );
+                              if (result.status !== 'completed')
+                                setRevokeError(
+                                  result.warning ||
+                                    'Website reset not yet confirmed. Retry safely before reactivating.',
+                                );
+                              const fresh = await cloud.api.getWebsiteRegistration(
+                                detail.registrationId,
+                              );
+                              setDetail(extractRegistration(fresh));
+                              await load();
+                            } catch (e) {
+                              setRevokeError(e instanceof Error ? e.message : 'Revocation failed');
+                            } finally {
+                              setRevokeBusy(false);
+                            }
+                          }}
+                        >
+                          {revokeBusy ? 'Processing…' : 'Revoke activation'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {importResult && (
+                  <div role="status" style={{ width: '100%' }}>
+                    <strong>Family {importResult.familyNumber || 'number unavailable'}</strong>
+                    <p>
+                      Student roll numbers:{' '}
+                      {Object.values(importResult.studentRollNumbers).join(', ')}
+                    </p>
+                    {importResult.warning && <p>{importResult.warning}</p>}
+                  </div>
+                )}
+                {reviewBusy && <span>Saving review…</span>}
+                {reviewError && (
+                  <p role="alert" className="wr-error">
+                    {reviewError}
+                  </p>
+                )}
+              </div>
               <h3>Primary contact</h3>
               <div className="wr-card">
                 <strong>{contact?.fullName || 'Not supplied'}</strong>
