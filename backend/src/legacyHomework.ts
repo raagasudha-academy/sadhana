@@ -108,7 +108,6 @@ const realMediaIO: M9MediaIO = {
         Bucket: bucket,
         Key: key,
         ContentType: mime,
-        ContentLength: size,
         Metadata: metadata,
       }),
       {

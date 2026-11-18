@@ -227,7 +227,6 @@ export async function beginLearnerMedia(inst: string, claims: Claims, id: string
       Bucket: bucket(),
       Key: key,
       ContentType: body.mime,
-      ContentLength: body.size,
       Metadata: { student: id, purpose: body.purpose },
     }),
     { expiresIn: 300 },

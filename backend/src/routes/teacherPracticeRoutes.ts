@@ -194,7 +194,6 @@ export function makeM10TeacherPracticeRoutes(
             Bucket: bucket,
             Key: key,
             ContentType: requestBody.mime,
-            ContentLength: requestBody.size,
             Metadata: metadata,
           }),
           {

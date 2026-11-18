@@ -802,7 +802,6 @@ export async function beginHomeworkEvidence(
       Bucket: evidenceBucket(),
       Key: key,
       ContentType: body.mime,
-      ContentLength: body.size,
       Metadata: { institution: inst, student: studentId, homework: homeworkId },
     }),
     {
@@ -1036,7 +1035,6 @@ export async function beginTeacherHomeworkMaterial(
         Bucket: evidenceBucket(),
         Key: key,
         ContentType: body.mime,
-        ContentLength: body.size,
         Metadata: { institution: inst, class: classId, homework: homeworkId },
       }),
       {

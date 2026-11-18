@@ -1,6 +1,7 @@
 import './practiceInsights.css';
 import './homeworkCardActions.css';
 import PracticeReview from './PracticeReview';
+import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   homeworkFileAllowed,
@@ -828,39 +829,21 @@ export default function TeacherWorkspace({
                                 aria-label="Saved teacher audio feedback"
                               />
                             )}
-                            <label className="tw-feedback-audio-picker">
+                            <div className="tw-feedback-audio-picker">
                               <span>
                                 Audio feedback <small>Optional</small>
                               </span>
-                              <input
-                                type="file"
-                                accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                                aria-label={`Add optional audio feedback for ${row.studentId}`}
+                              <AudioFeedbackRecorder
+                                label={`Record optional audio feedback for ${row.studentId}`}
                                 disabled={feedbackAudio[row.studentId]?.uploading}
-                                onChange={(event) => {
-                                  const file = event.currentTarget.files?.[0];
-                                  event.currentTarget.value = '';
-                                  if (!file || !cloud || !effectiveClass) return;
+                                onRecording={(file) => {
+                                  if (!cloud || !effectiveClass) return;
+                                  const mime = file.type;
+                                  setFeedbackAudio((current) => ({
+                                    ...current,
+                                    [row.studentId]: { name: file.name, uploading: true },
+                                  }));
                                   void (async () => {
-                                    const audioTypeByExtension: Record<string, string> = {
-                                      mp3: 'audio/mpeg',
-                                      m4a: 'audio/mp4',
-                                      aac: 'audio/aac',
-                                      wav: 'audio/wav',
-                                    };
-                                    const extension =
-                                      file.name.split('.').pop()?.toLowerCase() || '';
-                                    const mime = file.type.startsWith('audio/')
-                                      ? file.type
-                                      : audioTypeByExtension[extension] || '';
-                                    if (!mime) {
-                                      setError('Choose an MP3, M4A, AAC or WAV audio file.');
-                                      return;
-                                    }
-                                    setFeedbackAudio((current) => ({
-                                      ...current,
-                                      [row.studentId]: { name: file.name, uploading: true },
-                                    }));
                                     try {
                                       const signed =
                                         await cloud.api.beginTeacherHomeworkFeedbackAudio(
@@ -908,7 +891,7 @@ export default function TeacherWorkspace({
                                   })();
                                 }}
                               />
-                            </label>
+                            </div>
                             {feedbackAudio[row.studentId]?.url && (
                               <div className="tw-feedback-audio-preview">
                                 <span>{feedbackAudio[row.studentId]?.name}</span>

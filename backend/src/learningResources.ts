@@ -679,7 +679,6 @@ export async function beginLearningResourceUpload(inst: InstitutionId, claims: C
       Bucket: bucket(),
       Key: key,
       ContentType: mimeType,
-      ContentLength: fileSize,
       Metadata: { institution: inst, owner },
     }),
     { expiresIn: 300, unhoistableHeaders: new Set(['x-amz-meta-institution', 'x-amz-meta-owner']) },

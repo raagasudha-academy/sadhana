@@ -1,6 +1,7 @@
 import './practiceInsights.css';
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpenCheck } from 'lucide-react';
+import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
 import { filterPracticeEntries, practiceTotals } from './practiceSelectors';
@@ -96,6 +97,12 @@ export default function PracticeReview({
     setStudentId('');
     setSearch('');
   }, [workspace]);
+  useEffect(
+    () => () => {
+      if (feedbackAudioUrl) URL.revokeObjectURL(feedbackAudioUrl);
+    },
+    [feedbackAudioUrl],
+  );
   const inspect = async (id: string) => {
     setOpen(id);
     setComment('');
@@ -133,7 +140,8 @@ export default function PracticeReview({
         const mime = feedbackAudio.type.startsWith('audio/')
           ? feedbackAudio.type
           : audioTypeByExtension[extension] || '';
-        if (!mime) throw new Error('Choose an MP3, M4A, AAC or WAV audio file.');
+        if (!mime)
+          throw new Error('The recorded audio format is not supported. Please record again.');
         const signed = await cloud.api.beginTeacherPracticeFeedbackAudio(
           workspace,
           id,
@@ -470,24 +478,20 @@ export default function PracticeReview({
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="Feedback on the student's practice"
                   />
-                  <label className="tw-feedback-audio-picker">
+                  <div className="tw-feedback-audio-picker">
                     <span>
                       Audio feedback <small>Optional</small>
                     </span>
-                    <input
-                      type="file"
-                      accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                      aria-label="Add optional audio feedback"
+                    <AudioFeedbackRecorder
                       disabled={busy}
-                      onChange={(event) => {
-                        const file = event.currentTarget.files?.[0] || null;
-                        event.currentTarget.value = '';
+                      onRecording={(file) => {
+                        if (feedbackAudioUrl) URL.revokeObjectURL(feedbackAudioUrl);
                         setFeedbackAudio(file);
                         setFeedbackAudioId('');
-                        setFeedbackAudioUrl(file ? URL.createObjectURL(file) : '');
+                        setFeedbackAudioUrl(URL.createObjectURL(file));
                       }}
                     />
-                  </label>
+                  </div>
                   {feedbackAudioUrl && (
                     <div className="tw-feedback-audio-preview">
                       <span>{feedbackAudio?.name}</span>

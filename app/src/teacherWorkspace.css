@@ -309,8 +309,41 @@
   color: #77859a;
   font-weight: 400;
 }
-.tw-feedback-audio-picker input {
-  max-width: 100%;
+.tw-audio-recorder {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tw-audio-recorder button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid #d4b36f;
+  border-radius: 10px;
+  color: #173451;
+  background: #fffaf0;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.tw-audio-recorder button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.tw-audio-recorder .tw-audio-recorder-stop {
+  border-color: #c97770;
+  background: #fff4f2;
+}
+.tw-audio-recorder > span,
+.tw-audio-recorder small {
+  color: #697b91;
+}
+.tw-audio-recorder small {
+  flex-basis: 100%;
 }
 .tw-feedback-audio-preview {
   display: grid;
