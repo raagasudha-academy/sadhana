@@ -54,7 +54,7 @@ npm run test:frontend:playwright
 
 ## Live dev portal checks
 
-Read-only Playwright smoke checks against the deployed dev portal are in `test/portal/`. They have a separate config and never start the local Vite server. The target is restricted to `https://sadhana-dev.sruti.co.uk`. Public smoke runs without credentials; administrator, teacher and student checks use role-specific environment variables, assert the role returned by `/api/me`, and skip when credentials are absent.
+Read-only Playwright regression checks against the deployed dev portal are in `test/portal/`. They have a separate config and never start the local Vite server. The runner allows only the two explicit dev portal origins in `playwright.live.config.ts`; production origins are rejected. Public smoke runs without credentials; administrator, teacher and student checks use role-specific environment variables, assert the role returned by `/api/me`, then visit each role's major sections and nested tabs. Diagnostics fail on runtime errors, failed first-party bundles/API requests, production-stage API routing, and shared API writes.
 
 Run them intentionally with:
 
@@ -62,7 +62,7 @@ Run them intentionally with:
 npm run test:portal:live
 ```
 
-See [`test/portal/README.md`](portal/README.md) for credential setup, target safety and limits. These live tests are not part of CI and perform no record writes. The existing synthetic browser suite and guarded AWS helper remain separate.
+See [`test/portal/README.md`](portal/README.md) for credential setup, target safety, the role/page matrix and limits. These live tests are not part of CI and perform no record writes. The existing synthetic browser suite and guarded AWS helper remain separate. Live data mutation coverage requires an isolated disposable tenant and cleanup contract.
 
 Refresh screenshot baselines intentionally with:
 
