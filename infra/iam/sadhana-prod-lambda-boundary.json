@@ -17,12 +17,15 @@
       "Effect": "Allow",
       "Action": [
         "dynamodb:GetItem",
+        "dynamodb:BatchGetItem",
         "dynamodb:PutItem",
+        "dynamodb:BatchWriteItem",
         "dynamodb:UpdateItem",
         "dynamodb:DeleteItem",
         "dynamodb:Query",
         "dynamodb:Scan",
-        "dynamodb:ConditionCheckItem"
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:TransactWriteItems"
       ],
       "Resource": [
         "arn:aws:dynamodb:us-east-1:627821644317:table/prod-sadhana-*",
@@ -82,6 +85,12 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject"],
       "Resource": "arn:aws:s3:::prod-sadhana-profile-photos-627821644317-us-east-1/profiles/*"
+    },
+    {
+      "Sid": "ManagePrivateHomeworkMedia",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::prod-sadhana-homework-media-627821644317-us-east-1/homework-private/*"
     },
     {
       "Sid": "ListProfilePhotoBucket",
