@@ -28,7 +28,7 @@ test('admin can activate a second academy family for a parent with an existing S
   await expect(page.getByText('Family 001')).toBeVisible();
   await expect(page.getByText(/RS-201, RS-202/)).toBeVisible();
   await expect(page.getByRole('region', { name: 'Parent portal access' })).toContainText(
-    'Not invited',
+    'Parent access not set up',
   );
   await page.getByText('Account actions').click();
   await page.getByRole('button', { name: 'Link existing verified account' }).click();
