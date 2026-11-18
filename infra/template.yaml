@@ -434,7 +434,8 @@ Resources:
             !If [UseDevFamilyReads, enabled, !Ref SrutiRegistrationReads]
           SADHANA_FINAL_SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
           SRUTI_REVIEW_WRITES: !Ref SrutiReviewWrites
-          SADHANA_FINAL_SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, !Ref SrutiImportWrites]
+          SADHANA_FINAL_SRUTI_IMPORT_WRITES:
+            !If [UseDevFamilyReads, enabled, !Ref SrutiImportWrites]
           SRUTI_IMPORT_WRITES: !If [UseDevFamilyReads, enabled, !Ref SrutiImportWrites]
           SADHANA_FINAL_SRUTI_PARENT_INVITATIONS:
             !If [UseDevFamilyReads, enabled, !Ref SrutiParentInvitations]
