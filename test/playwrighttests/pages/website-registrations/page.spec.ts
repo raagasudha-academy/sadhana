@@ -19,16 +19,15 @@ test('admin can activate a second academy family for a parent with an existing S
   await expect(page.getByText('Fixture Child One').first()).toBeVisible();
   await expect(page.getByText('Fixture Child Two').first()).toBeVisible();
   await expect(page.getByText(/Address: Carlisle, United Kingdom/)).toBeVisible();
-  await page.getByText('Registration actions').click();
-  await page.getByRole('button', { name: 'Activate in Sadhana' }).click();
+  await page.getByRole('button', { name: 'Import to Sadhana' }).click();
   await page
     .getByRole('alertdialog', { name: 'Activate approved application?' })
     .getByRole('button', { name: 'Activate' })
     .click();
   await expect(page.getByText('Family 001')).toBeVisible();
   await expect(page.getByText(/RS-201, RS-202/)).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Parent portal access' })).toContainText(
-    'Parent access not set up',
+  await expect(page.getByRole('group', { name: 'Registration progress' })).toContainText(
+    'Send parent invitation',
   );
   await page.getByText('Account actions').click();
   await page.getByRole('button', { name: 'Link existing verified account' }).click();
