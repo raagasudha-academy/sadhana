@@ -502,19 +502,12 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
       if (!active) return;
       const activity = results.flatMap((result, index) =>
         result.status === 'fulfilled'
-          ? messageThreadNotifications(
-              scopes[index],
-              result.value.records,
-              messageActingStudentId,
-            )
+          ? messageThreadNotifications(scopes[index], result.value.records, messageActingStudentId)
           : [],
       );
       const learnerResults = await Promise.allSettled(
         scopes.map((institution) =>
-          cloud.api.listLearnerNotifications(
-            institution,
-            messageActingStudentId,
-          ),
+          cloud.api.listLearnerNotifications(institution, messageActingStudentId),
         ),
       );
       if (!active) return;
