@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Plus, UserRound, X, Pencil, Archive, RotateCcw } from 'lucide-react';
+import {
+  Plus,
+  UserRound,
+  X,
+  Pencil,
+  Archive,
+  RotateCcw,
+  CircleAlert,
+  CircleCheck,
+  Link2,
+} from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { TeacherRecord } from './api/sadhanaClient';
 import type { InstitutionId } from './types';
@@ -75,6 +85,11 @@ export default function TeacherManagement({
   const [archiveBusyId, setArchiveBusyId] = useState<string | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<TeacherRecord | null>(null);
   const [editingPhotoUrl, setEditingPhotoUrl] = useState('');
+  const [linkTarget, setLinkTarget] = useState<TeacherRecord | null>(null);
+  const [linkSub, setLinkSub] = useState('');
+  const [linkConfirmation, setLinkConfirmation] = useState('');
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   const isAdmin = cloud?.staff.role === 'admin' && !readOnly;
 
@@ -176,17 +191,18 @@ export default function TeacherManagement({
     setError('');
 
     try {
-      const { title: _title, ...fields } = form;
+      const { title: _title, cognitoSub: _cognitoSub, ...fields } = form;
       const data = {
         ...fields,
         displayName: titledName(form.title, form.displayName),
-        cognitoSub: form.cognitoSub.trim(),
         subjects: form.subjects.map((x) => x.trim()).filter(Boolean),
         aliases: form.aliases.map((x) => x.trim()).filter(Boolean),
       };
 
       if (!data.displayName || !data.subjects.length || !data.institutions.length)
         throw Error('Name, subject and institution are required.');
+      if (!editing && !form.cognitoSub.trim())
+        throw Error('Link an existing Sadhana login before registering a teacher.');
 
       if (editing) {
         await cloud.api.updateTeacher(
@@ -196,7 +212,10 @@ export default function TeacherManagement({
           editing.version,
         );
       } else {
-        await cloud.api.createTeacher(apiInstitution(form.institutions), data);
+        await cloud.api.createTeacher(apiInstitution(form.institutions), {
+          ...data,
+          cognitoSub: form.cognitoSub.trim(),
+        });
       }
 
       setEditing(undefined);
@@ -206,6 +225,35 @@ export default function TeacherManagement({
       setError(e instanceof Error ? e.message : 'Save failed.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openAccountLink = (teacher: TeacherRecord) => {
+    setLinkTarget(teacher);
+    setLinkSub('');
+    setLinkConfirmation('');
+    setIdentityVerified(false);
+    setError('');
+  };
+
+  const linkTeacherAccount = async () => {
+    if (!cloud || !isAdmin || !linkTarget || linking) return;
+    setLinking(true);
+    setError('');
+    try {
+      await cloud.api.linkTeacherAccount(apiInstitution(linkTarget.institutions), linkTarget.id, {
+        cognitoSub: linkSub.trim(),
+        expectedVersion: linkTarget.version,
+        confirmTeacherName: linkConfirmation,
+        identityVerified,
+      });
+      setLinkTarget(null);
+      setRevision((n) => n + 1);
+      setMessage(`Sadhana login linked to ${linkTarget.displayName}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to link the Sadhana login.');
+    } finally {
+      setLinking(false);
     }
   };
 
@@ -298,7 +346,21 @@ export default function TeacherManagement({
                 <small>{t.institutions.map((i) => institutions[i].name).join(' · ')}</small>
               </p>
               {!t.cognitoSub && isAdmin && (
-                <p className="teacher-login-note">Link a Sadhana login before assigning classes.</p>
+                <div className="teacher-unlinked-status">
+                  <p className="reg-warning">
+                    <CircleAlert size={17} aria-hidden="true" />
+                    <span>Sadhana login not linked. Link one before assigning classes.</span>
+                  </p>
+                  {t.institutions.every((i) => allowed.includes(i)) && (
+                    <button
+                      type="button"
+                      className="reg-secondary teacher-link-button"
+                      onClick={() => openAccountLink(t)}
+                    >
+                      <Link2 size={16} /> Link login
+                    </button>
+                  )}
+                </div>
               )}
             </article>
           ))}
@@ -485,23 +547,50 @@ export default function TeacherManagement({
                 />
               </label>
 
-              <label className="reg-field">
-                <span>Link to existing Sadhana login (optional)</span>
-                <input
-                  value={form.cognitoSub}
-                  onChange={(e) =>
-                    setForm((v) => ({
-                      ...v,
-                      cognitoSub: e.target.value,
-                    }))
-                  }
-                  placeholder="Verified Cognito sub"
-                />
-                <small>
-                  For administrators: use the verified account subject ID. Linking does not change
-                  account permissions.
-                </small>
-              </label>
+              {editing ? (
+                editing.cognitoSub ? (
+                  <p className="reg-success teacher-account-link-status" role="status">
+                    <CircleCheck size={17} aria-hidden="true" />
+                    <span>Sadhana login linked</span>
+                  </p>
+                ) : (
+                  <div className="reg-warning teacher-account-link-status">
+                    <CircleAlert size={17} aria-hidden="true" />
+                    <span>This teacher has no Sadhana login linked yet.</span>
+                    {editing.institutions.every((i) => allowed.includes(i)) && (
+                      <button
+                        type="button"
+                        className="reg-secondary"
+                        onClick={() => openAccountLink(editing)}
+                      >
+                        <Link2 size={16} /> Link login
+                      </button>
+                    )}
+                  </div>
+                )
+              ) : (
+                <label className="reg-field">
+                  <span>Link to existing Sadhana login *</span>
+                  <span className="teacher-required-login-label">
+                    <CircleAlert size={17} aria-hidden="true" /> Required for every teacher
+                  </span>
+                  <input
+                    required
+                    value={form.cognitoSub}
+                    onChange={(e) =>
+                      setForm((v) => ({
+                        ...v,
+                        cognitoSub: e.target.value,
+                      }))
+                    }
+                    placeholder="Cognito sub (UUID)"
+                  />
+                  <small>
+                    Use the login’s sub from this environment’s Cognito pool. The account must be
+                    active, confirmed, and not linked to another Sadhana profile.
+                  </small>
+                </label>
+              )}
 
               <label className="reg-field">
                 <span>
@@ -535,6 +624,101 @@ export default function TeacherManagement({
                 </button>
                 <button className="reg-primary" type="submit" disabled={saving}>
                   {saving ? 'Saving…' : 'Save Teacher'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {linkTarget && (
+        <div className="reg-shade" onClick={() => !linking && setLinkTarget(null)}>
+          <section
+            className="reg-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="teacher-account-link-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="reg-modal-head">
+              <div>
+                <h2 id="teacher-account-link-title">Link Sadhana login</h2>
+                <p>{linkTarget.displayName}</p>
+              </div>
+              <button
+                className="reg-icon-btn"
+                type="button"
+                onClick={() => setLinkTarget(null)}
+                disabled={linking}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form
+              className="reg-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void linkTeacherAccount();
+              }}
+            >
+              <p className="reg-warning">
+                <CircleAlert size={17} aria-hidden="true" />
+                <span>
+                  Verify that the Cognito account belongs to this teacher. This link controls the
+                  teacher’s access to classes and teaching tools.
+                </span>
+              </p>
+              <label className="reg-field">
+                <span>Cognito sub *</span>
+                <input
+                  required
+                  value={linkSub}
+                  onChange={(e) => setLinkSub(e.target.value)}
+                  placeholder="UUID from Cognito user attributes"
+                  autoComplete="off"
+                />
+              </label>
+              <label className="reg-field">
+                <span>Type the teacher’s full name to confirm *</span>
+                <input
+                  required
+                  value={linkConfirmation}
+                  onChange={(e) => setLinkConfirmation(e.target.value)}
+                  placeholder={linkTarget.displayName}
+                  autoComplete="off"
+                />
+              </label>
+              <label className="teacher-identity-confirmation">
+                <input
+                  type="checkbox"
+                  checked={identityVerified}
+                  onChange={(e) => setIdentityVerified(e.target.checked)}
+                />
+                I verified this Cognito account belongs to this teacher.
+              </label>
+              {error && (
+                <p className="sadhana-sync-error" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="reg-modal-actions">
+                <button
+                  type="button"
+                  className="reg-secondary"
+                  onClick={() => setLinkTarget(null)}
+                  disabled={linking}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="reg-primary"
+                  type="submit"
+                  disabled={
+                    linking || !identityVerified || !linkSub.trim() || !linkConfirmation.trim()
+                  }
+                >
+                  {linking ? 'Verifying and linking…' : 'Verify and link login'}
                 </button>
               </div>
             </form>
