@@ -74,6 +74,7 @@ const publicSubmission = (s: any) => ({
   updatedAt: s.updatedAt || '',
   submittedAt: s.submittedAt || null,
   feedback: s.feedback || '',
+  feedbackAudioId: s.feedbackAudioId || undefined,
   reviewedAt: s.reviewedAt || null,
 });
 const nowIso = () => new Date().toISOString();
@@ -692,7 +693,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
       throw httpError(403, 'Submission access denied');
     return {
       record: item
-        ? publicSubmission(item)
+        ? await submissionWithFeedbackAudio(inst, item)
         : {
             studentId,
             homeworkId,
@@ -1179,9 +1180,11 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     if (!checkAssignment(inst, h) || h.classId !== classId)
       throw httpError(404, 'Assignment unavailable');
     return {
-      records: (await query('submissions', 'HomeworkSubmissionsIndex', 'homeworkId', homeworkId))
-        .filter((s) => s.institutionId === inst && s.status === 'submitted')
-        .map(publicSubmission),
+      records: await Promise.all(
+        (await query('submissions', 'HomeworkSubmissionsIndex', 'homeworkId', homeworkId))
+          .filter((s) => s.institutionId === inst && s.status === 'submitted')
+          .map((s) => submissionWithFeedbackAudio(inst, s)),
+      ),
     };
   }
   async function feedback(
@@ -1194,7 +1197,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
   ) {
     if (
       !isObject(body) ||
-      !allowFields(body, ['feedback', 'expectedVersion']) ||
+      !allowFields(body, ['feedback', 'expectedVersion', 'feedbackAudioId']) ||
       typeof body.feedback !== 'string' ||
       body.feedback.length > 2000 ||
       !Number.isInteger(body.expectedVersion)
@@ -1215,9 +1218,33 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     )
       throw httpError(404, 'Submission not found');
     if (old.version !== body.expectedVersion) throw httpError(409, 'Submission changed');
+    let feedbackAudioId = old.feedbackAudioId;
+    let feedbackAudioReceipt: any;
+    if (body.feedbackAudioId !== undefined) {
+      if (
+        typeof body.feedbackAudioId !== 'string' ||
+        !/^FEEDBACK-[0-9a-f-]{36}$/i.test(body.feedbackAudioId)
+      )
+        throw httpError(400, 'Invalid feedback audio reference');
+      feedbackAudioReceipt = await get('submissions', body.feedbackAudioId);
+      if (
+        !feedbackAudioReceipt ||
+        feedbackAudioReceipt.recordType !== 'teacher-feedback-audio' ||
+        feedbackAudioReceipt.purpose !== 'homework' ||
+        feedbackAudioReceipt.mediaStatus !== 'ready' ||
+        feedbackAudioReceipt.institutionId !== inst ||
+        feedbackAudioReceipt.classId !== classId ||
+        feedbackAudioReceipt.homeworkId !== homeworkId ||
+        feedbackAudioReceipt.studentId !== studentId ||
+        feedbackAudioReceipt.uploadedBy !== claims.sub
+      )
+        throw httpError(403, 'Feedback audio access denied');
+      feedbackAudioId = body.feedbackAudioId;
+    }
     const updated = {
       ...old,
       feedback: body.feedback.trim(),
+      feedbackAudioId,
       reviewedAt: nowIso(),
       reviewedBy: claims.sub,
       version: old.version + 1,
@@ -1227,6 +1254,28 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
         new TransactWriteCommand({
           TransactItems: [
             ...checks,
+            ...(feedbackAudioReceipt
+              ? [
+                  {
+                    ConditionCheck: {
+                      TableName: table('submissions'),
+                      Key: { submissionId: feedbackAudioReceipt.submissionId },
+                      ConditionExpression:
+                        'recordType=:type AND mediaStatus=:ready AND purpose=:purpose AND institutionId=:inst AND classId=:class AND homeworkId=:homework AND studentId=:student AND uploadedBy=:actor',
+                      ExpressionAttributeValues: {
+                        ':type': 'teacher-feedback-audio',
+                        ':ready': 'ready',
+                        ':purpose': 'homework',
+                        ':inst': inst,
+                        ':class': classId,
+                        ':homework': homeworkId,
+                        ':student': studentId,
+                        ':actor': claims.sub,
+                      },
+                    },
+                  },
+                ]
+              : []),
             {
               Put: {
                 TableName: table('submissions'),
@@ -1255,6 +1304,192 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
       conflict(e);
     }
     return { saved: true };
+  }
+  async function submissionWithFeedbackAudio(inst: InstitutionId, submission: any) {
+    const record = publicSubmission(submission);
+    if (
+      !submission.feedbackAudioId ||
+      !/^FEEDBACK-[0-9a-f-]{36}$/i.test(submission.feedbackAudioId)
+    )
+      return record;
+    const receipt = await get('submissions', submission.feedbackAudioId);
+    if (
+      !receipt ||
+      receipt.recordType !== 'teacher-feedback-audio' ||
+      receipt.purpose !== 'homework' ||
+      receipt.mediaStatus !== 'ready' ||
+      receipt.institutionId !== inst ||
+      receipt.classId !== submission.classId ||
+      receipt.homeworkId !== submission.homeworkId ||
+      receipt.studentId !== submission.studentId ||
+      typeof receipt.objectKey !== 'string' ||
+      !receipt.objectKey.startsWith(`homework-private/teacher-feedback/${inst}/`)
+    )
+      return record;
+    return { ...record, feedbackAudioUrl: await mediaIO.signGet(mediaBucket(), receipt.objectKey) };
+  }
+  async function beginTeacherFeedbackAudio(
+    inst: InstitutionId,
+    claims: Claims,
+    classId: string,
+    homeworkId: string,
+    studentId: string,
+    body: any,
+  ) {
+    if (!mediaEnabled()) throw httpError(503, 'Teacher feedback audio is disabled');
+    if (
+      !isObject(body) ||
+      !allowFields(body, ['mime', 'size']) ||
+      typeof body.mime !== 'string' ||
+      !body.mime.startsWith('audio/') ||
+      !teacherMaterialType(body.mime, body.size)
+    )
+      throw httpError(400, 'Unsupported audio type or size');
+    const { checks } = await teacherAssignment(inst, claims, classId, homeworkId);
+    const submission = await get('submissions', `SUBMISSION-${homeworkId}-${studentId}`);
+    if (
+      !submission ||
+      submission.status !== 'submitted' ||
+      submission.institutionId !== inst ||
+      submission.studentId !== studentId
+    )
+      throw httpError(404, 'Submitted homework unavailable');
+    const id = `FEEDBACK-${randomUUID()}`;
+    const ext = teacherMaterialExt(body.mime);
+    const key = `homework-private/teacher-feedback/${inst}/homework/${classId}/${homeworkId}/${studentId}/${id}.${ext}`;
+    const metadata = {
+      institution: inst,
+      class: classId,
+      homework: homeworkId,
+      student: studentId,
+      receipt: id,
+    };
+    const item = {
+      submissionId: id,
+      recordType: 'teacher-feedback-audio',
+      purpose: 'homework',
+      institutionId: inst,
+      classId,
+      homeworkId,
+      studentId,
+      uploadedBy: claims.sub,
+      objectKey: key,
+      mime: body.mime,
+      size: body.size,
+      mediaStatus: 'pending',
+      createdAt: nowIso(),
+    };
+    try {
+      await db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            ...checks,
+            {
+              Put: {
+                TableName: table('submissions'),
+                Item: item,
+                ConditionExpression: 'attribute_not_exists(submissionId)',
+              },
+            },
+          ],
+        }),
+      );
+    } catch (e) {
+      conflict(e);
+    }
+    return {
+      audioId: id,
+      key: id,
+      uploadUrl: await mediaIO.signPut(mediaBucket(), key, body.mime, body.size, metadata),
+      headers: {
+        'Content-Type': body.mime,
+        'x-amz-meta-institution': inst,
+        'x-amz-meta-class': classId,
+        'x-amz-meta-homework': homeworkId,
+        'x-amz-meta-student': studentId,
+        'x-amz-meta-receipt': id,
+      },
+    };
+  }
+  async function finishTeacherFeedbackAudio(
+    inst: InstitutionId,
+    claims: Claims,
+    classId: string,
+    homeworkId: string,
+    studentId: string,
+    body: any,
+  ) {
+    if (!mediaEnabled()) throw httpError(503, 'Teacher feedback audio is disabled');
+    if (
+      !isObject(body) ||
+      !allowFields(body, ['key']) ||
+      typeof body.key !== 'string' ||
+      !/^FEEDBACK-[0-9a-f-]{36}$/i.test(body.key)
+    )
+      throw httpError(400, 'Invalid feedback audio reference');
+    const { checks } = await teacherAssignment(inst, claims, classId, homeworkId);
+    const receipt = await get('submissions', body.key);
+    if (
+      !receipt ||
+      receipt.recordType !== 'teacher-feedback-audio' ||
+      receipt.purpose !== 'homework' ||
+      receipt.institutionId !== inst ||
+      receipt.classId !== classId ||
+      receipt.homeworkId !== homeworkId ||
+      receipt.studentId !== studentId ||
+      receipt.uploadedBy !== claims.sub
+    )
+      throw httpError(403, 'Feedback audio access denied');
+    if (receipt.mediaStatus === 'ready') return { audioId: receipt.submissionId, ready: true };
+    if (receipt.mediaStatus !== 'pending') throw httpError(409, 'Invalid feedback audio state');
+    let head: any;
+    try {
+      head = await mediaIO.head(mediaBucket(), receipt.objectKey);
+    } catch {
+      throw httpError(409, 'Uploaded feedback audio not found');
+    }
+    if (
+      head.ContentLength !== receipt.size ||
+      head.ContentType !== receipt.mime ||
+      head.Metadata?.institution !== inst ||
+      head.Metadata?.class !== classId ||
+      head.Metadata?.homework !== homeworkId ||
+      head.Metadata?.student !== studentId ||
+      head.Metadata?.receipt !== receipt.submissionId
+    )
+      throw httpError(409, 'Feedback audio verification failed');
+    try {
+      await db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            ...checks,
+            {
+              Update: {
+                TableName: table('submissions'),
+                Key: { submissionId: receipt.submissionId },
+                UpdateExpression: 'SET mediaStatus=:ready, verifiedAt=:now',
+                ConditionExpression:
+                  'recordType=:type AND mediaStatus=:pending AND uploadedBy=:actor AND institutionId=:inst AND classId=:class AND homeworkId=:homework AND studentId=:student',
+                ExpressionAttributeValues: {
+                  ':ready': 'ready',
+                  ':now': nowIso(),
+                  ':type': 'teacher-feedback-audio',
+                  ':pending': 'pending',
+                  ':actor': claims.sub,
+                  ':inst': inst,
+                  ':class': classId,
+                  ':homework': homeworkId,
+                  ':student': studentId,
+                },
+              },
+            },
+          ],
+        }),
+      );
+    } catch (e) {
+      conflict(e);
+    }
+    return { audioId: receipt.submissionId, ready: true };
   }
   // Teacher materials are private S3 objects with canonical submission receipts.
   // Only selected, independently verified receipts are exposed on a homework.
@@ -1584,6 +1819,8 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     complete,
     teacherSubmissions,
     feedback,
+    beginTeacherFeedbackAudio,
+    finishTeacherFeedbackAudio,
     mediaStart,
     mediaFinish,
     mediaLinks,

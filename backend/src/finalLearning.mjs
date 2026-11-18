@@ -6,7 +6,8 @@
  */
 const refuse = (message, status = 503) => ({ status, body: { error: message } });
 const idOk = (value) => typeof value === 'string' && /^[-A-Za-z0-9_]{4,150}$/.test(value);
-const mediaAction = (parts) => parts.includes('evidence') || parts.includes('materials');
+const mediaAction = (parts) =>
+  parts.includes('evidence') || parts.includes('materials') || parts.includes('feedback-audio');
 const jsonResponse = (response) => {
   if (!response || !Number.isInteger(response.statusCode) || typeof response.body !== 'string')
     throw new Error('Invalid teacher-practice response');
@@ -113,10 +114,11 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     };
   }
   if (root === 'teacher-practice') {
+    const feedbackAudio = parts.length === 4 && parts[2] === 'feedback-audio';
     if (
-      parts.length !== 3 ||
-      !['comments', 'media'].includes(parts[2]) ||
       !idOk(id) ||
+      (!feedbackAudio && (parts.length !== 3 || !['comments', 'media'].includes(parts[2]))) ||
+      (feedbackAudio && (!['start', 'finish'].includes(parts[3]) || method !== 'POST')) ||
       (parts[2] === 'comments' && !['GET', 'POST'].includes(method)) ||
       (parts[2] === 'media' && method !== 'GET')
     )
@@ -126,6 +128,8 @@ export async function finalLearningRoute(context, dependencies, env = process.en
         ? 'SADHANA_FINAL_TEACHER_PRACTICE_READS'
         : 'SADHANA_FINAL_TEACHER_PRACTICE_WRITES';
     if (env[flag] !== 'enabled') return refuse('Final teacher practice comments disabled.');
+    if (feedbackAudio && env.SADHANA_FINAL_LEARNER_MEDIA !== 'enabled')
+      return refuse('Final learner media disabled.');
     dependencies.assertConfigured();
     return jsonResponse(await dependencies.teacherPractice(context));
   }
@@ -149,6 +153,22 @@ export async function finalLearningRoute(context, dependencies, env = process.en
       .then((result) => ({ status, body: result }));
   };
   if (root === 'homework') {
+    if (
+      parts.length === 6 &&
+      parts[2] === 'feedback-audio' &&
+      idOk(parts[3]) &&
+      idOk(parts[4]) &&
+      ['start', 'finish'].includes(parts[5]) &&
+      method === 'POST'
+    ) {
+      const operation =
+        parts[5] === 'start' ? 'beginTeacherFeedbackAudio' : 'finishTeacherFeedbackAudio';
+      const args =
+        parts[5] === 'start'
+          ? [institution, claims, id, parts[3], parts[4], body()]
+          : [institution, claims, id, parts[3], parts[4], body()];
+      return one(operation, args);
+    }
     if (parts.length === 5 && parts[2] === 'materials' && idOk(parts[3])) {
       if (parts[4] === 'links' && method === 'GET')
         return one('teacherMaterialLinks', [institution, claims, id, parts[3]]);

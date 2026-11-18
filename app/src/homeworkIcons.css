@@ -325,6 +325,54 @@
   margin: 0.2rem 0;
   white-space: pre-wrap;
 }
+.sv1276-teacher-homework .tw-homework-feedback {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+  padding: 1rem;
+  border: 1px solid #e4d3ae;
+  border-radius: 12px;
+  background: #fffaf0;
+}
+.sv1276-teacher-homework .tw-homework-feedback h4 {
+  margin: 0;
+  color: #263b57;
+}
+.sv1276-teacher-homework .tw-homework-feedback label {
+  display: grid;
+  gap: 0.45rem;
+  color: #354b68;
+  font-weight: 650;
+}
+.sv1276-teacher-homework .tw-homework-feedback label span small {
+  color: #77859a;
+  font-weight: 400;
+}
+.sv1276-teacher-homework .tw-homework-feedback textarea {
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #cbd6e5;
+  border-radius: 10px;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+.sv1276-teacher-homework .tw-homework-feedback audio {
+  display: block;
+  width: min(100%, 420px);
+}
+.sv1276-teacher-homework .tw-homework-feedback > button {
+  justify-self: start;
+  padding: 0.65rem 1rem;
+  border: 1px solid #b9974b;
+  border-radius: 9px;
+  background: #173554;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
 .sv1276-teacher-homework .sv1278-review article > ul,
 .sv1278-homework .sv1278-upload-note ul,
 .sadhana-homework-materials ul {

@@ -160,7 +160,6 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                 </label>
                 <div className="sv1278-upload-note">
                   <strong>Optional media · {submission.attachmentIds.length}/4 files</strong>
-                  <p>Up to 2 images, 1 audio file and 1 video · size limits vary by type</p>
                   <label className="sv1278-media-add">
                     <UploadCloud size={18} />
                     <span>{submissionBusy ? 'Uploading…' : 'Add media'}</span>
@@ -248,6 +247,12 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                   <p className="sv1278-feedback">
                     <strong>Teacher feedback:</strong> {submission.feedback}
                   </p>
+                )}
+                {submission.feedbackAudioUrl && (
+                  <div className="sv1278-feedback sv1278-feedback-audio">
+                    <strong>Teacher audio feedback</strong>
+                    <audio controls preload="none" src={submission.feedbackAudioUrl} />
+                  </div>
                 )}
                 <footer>
                   <span>

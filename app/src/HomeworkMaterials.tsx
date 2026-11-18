@@ -89,8 +89,7 @@ export function TeacherHomeworkMaterials({
     setError('');
     try {
       const mimes = [...records.map((r) => r.mime), ...pending.map((r) => r.mime)];
-      if (!canAdd(mimes, file))
-        throw Error('Use up to 2 images, 1 audio file and 1 video, within each file size limit.');
+      if (!canAdd(mimes, file)) throw Error('Attach up to 2 images, 1 audio file and 1 video.');
       const mime = homeworkMimeForFile(file);
       const signed = await cloud.api.beginTeacherHomeworkMaterial(
         inst,

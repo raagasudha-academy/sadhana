@@ -5,7 +5,7 @@ import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
 import { filterPracticeEntries, practiceTotals } from './practiceSelectors';
 
-type Feedback = { id: string; comment: string; createdAt: string };
+type Feedback = { id: string; comment: string; createdAt: string; audioUrl?: string };
 export default function PracticeReview({
   cloud,
   workspace,
@@ -21,6 +21,9 @@ export default function PracticeReview({
 }) {
   const [open, setOpen] = useState(''),
     [comment, setComment] = useState(''),
+    [feedbackAudio, setFeedbackAudio] = useState<File | null>(null),
+    [feedbackAudioId, setFeedbackAudioId] = useState(''),
+    [feedbackAudioUrl, setFeedbackAudioUrl] = useState(''),
     [feedback, setFeedback] = useState<Record<string, Feedback[]>>({}),
     [recordings, setRecordings] = useState<
       Record<string, Array<{ id: string; mime: string; createdAt: string; url: string }>>
@@ -85,6 +88,9 @@ export default function PracticeReview({
     setFeedback({});
     setRecordings({});
     setComment('');
+    setFeedbackAudio(null);
+    setFeedbackAudioId('');
+    setFeedbackAudioUrl('');
     setNotice('');
     setError('');
     setStudentId('');
@@ -93,6 +99,9 @@ export default function PracticeReview({
   const inspect = async (id: string) => {
     setOpen(id);
     setComment('');
+    setFeedbackAudio(null);
+    setFeedbackAudioId('');
+    setFeedbackAudioUrl('');
     setNotice('');
     setError('');
     try {
@@ -112,8 +121,45 @@ export default function PracticeReview({
     setError('');
     setNotice('');
     try {
-      await cloud.api.addTeacherPracticeComment(workspace, id, comment.trim());
+      let audioId = feedbackAudioId;
+      if (feedbackAudio && !audioId) {
+        const audioTypeByExtension: Record<string, string> = {
+          mp3: 'audio/mpeg',
+          m4a: 'audio/mp4',
+          aac: 'audio/aac',
+          wav: 'audio/wav',
+        };
+        const extension = feedbackAudio.name.split('.').pop()?.toLowerCase() || '';
+        const mime = feedbackAudio.type.startsWith('audio/')
+          ? feedbackAudio.type
+          : audioTypeByExtension[extension] || '';
+        if (!mime) throw new Error('Choose an MP3, M4A, AAC or WAV audio file.');
+        const signed = await cloud.api.beginTeacherPracticeFeedbackAudio(
+          workspace,
+          id,
+          mime,
+          feedbackAudio.size,
+        );
+        const uploaded = await fetch(signed.uploadUrl, {
+          method: 'PUT',
+          headers: { ...signed.headers, 'Content-Type': mime },
+          body: feedbackAudio,
+        });
+        if (!uploaded.ok) throw new Error(`Audio upload failed (${uploaded.status})`);
+        const saved = await cloud.api.finishTeacherPracticeFeedbackAudio(workspace, id, signed.key);
+        audioId = saved.audioId;
+        setFeedbackAudioId(audioId);
+      }
+      await cloud.api.addTeacherPracticeComment(
+        workspace,
+        id,
+        comment.trim(),
+        audioId || undefined,
+      );
       setComment('');
+      setFeedbackAudio(null);
+      setFeedbackAudioId('');
+      setFeedbackAudioUrl('');
       setNotice('Comment saved.');
       await inspect(id);
       await onReload();
@@ -399,6 +445,14 @@ export default function PracticeReview({
               {feedback[open]?.map((f) => (
                 <p key={f.id}>
                   {f.comment} <small>· {f.createdAt.slice(0, 10)}</small>
+                  {f.audioUrl && (
+                    <audio
+                      controls
+                      preload="none"
+                      src={f.audioUrl}
+                      aria-label="Teacher audio feedback"
+                    />
+                  )}
                 </p>
               ))}
               {feedback[open]?.length === 0 && <p>No teacher comments yet.</p>}
@@ -416,6 +470,30 @@ export default function PracticeReview({
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="Feedback on the student's practice"
                   />
+                  <label className="tw-feedback-audio-picker">
+                    <span>
+                      Audio feedback <small>Optional</small>
+                    </span>
+                    <input
+                      type="file"
+                      accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
+                      aria-label="Add optional audio feedback"
+                      disabled={busy}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0] || null;
+                        event.currentTarget.value = '';
+                        setFeedbackAudio(file);
+                        setFeedbackAudioId('');
+                        setFeedbackAudioUrl(file ? URL.createObjectURL(file) : '');
+                      }}
+                    />
+                  </label>
+                  {feedbackAudioUrl && (
+                    <div className="tw-feedback-audio-preview">
+                      <span>{feedbackAudio?.name}</span>
+                      <audio controls preload="metadata" src={feedbackAudioUrl} />
+                    </div>
+                  )}
                   <div className="tw-feedback-actions">
                     <button
                       type="button"
@@ -435,6 +513,9 @@ export default function PracticeReview({
                   onClick={() => {
                     setOpen('');
                     setComment('');
+                    setFeedbackAudio(null);
+                    setFeedbackAudioId('');
+                    setFeedbackAudioUrl('');
                   }}
                 >
                   Close

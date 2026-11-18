@@ -282,10 +282,48 @@
 }
 .tw-practice-feedback textarea {
   width: 100%;
-  min-height: 80px;
-  padding: 10px;
+  min-height: 132px;
+  padding: 12px 14px;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: 10px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}
+.tw-feedback-audio-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid #e4d3ae;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+.tw-feedback-audio-picker span {
+  font-weight: 650;
+}
+.tw-feedback-audio-picker small {
+  margin-left: 6px;
+  color: #77859a;
+  font-weight: 400;
+}
+.tw-feedback-audio-picker input {
+  max-width: 100%;
+}
+.tw-feedback-audio-preview {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f6f8fb;
+  overflow-wrap: anywhere;
+}
+.tw-feedback-audio-preview audio,
+.tw-practice-feedback > p audio,
+.tw-practice-feedback > div audio {
+  width: min(100%, 440px);
 }
 .tw-practice-feedback button {
   justify-self: start;
