@@ -644,7 +644,12 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
               Registration: <strong>{detail.registrationId}</strong> · Students:{' '}
               {importPreview.studentCount}
             </p>
-            <p>Add these approved learners to Sadhana and assign their roll numbers?</p>
+            <p>
+              Add these approved learners to Sadhana and assign their roll numbers? Sadhana will
+              check this environment&apos;s Sadhana account pool for the primary contact. A unique
+              verified account may be linked; otherwise an invitation will be requested if no
+              account exists. This does not approve family access links.
+            </p>
             <div className="wr-modal-actions">
               <button
                 type="button"

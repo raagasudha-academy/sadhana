@@ -16,7 +16,7 @@ import {
 import { verifiedTeacherInstitutions } from './teacherDirectory.ts';
 import { ownProfilePhoto, currentStaffDisplayName, uploadProfilePhoto } from './profilePhotos.ts';
 import { getOwnProfile, saveOwnProfile } from './selfProfile.ts';
-import type { InstitutionId, ResourceName, HttpError } from './model.ts';
+import type { Claims, InstitutionId, ResourceName, HttpError } from './model.ts';
 import { json, readJSON, readPhotoJSON } from './routes/http.ts';
 import type { SadhanaHttpEvent, JsonResponse } from './routes/http.ts';
 import { learningRoutes } from './routes/learningRoutes.ts';
@@ -113,6 +113,55 @@ import { defaultM10FinalScheduleSessionAdmin } from './finalScheduleSessionAdmin
 import { defaultM95SeriesWriter } from './seriesWrite.ts';
 import { defaultM95ManagedEventWriter } from './managedEventWrite.ts';
 import { entityTable } from './entityTables.mjs';
+
+async function autoProvisionImportedParent(
+  institution: 'raaga' | 'sruti',
+  registrationId: string,
+  claims: Claims,
+) {
+  const invitationFlag = `SADHANA_FINAL_${institution.toUpperCase()}_PARENT_INVITATIONS`;
+  if (process.env[invitationFlag] !== 'enabled') return undefined;
+
+  try {
+    if (institution === 'sruti')
+      return await finalSrutiParentAction(
+        'provision-parent',
+        registrationId,
+        String(claims.sub || ''),
+        registrationId,
+      );
+
+    try {
+      return await m10FinalRaagaParentAction(
+        'provision-parent',
+        registrationId,
+        { confirmReference: registrationId, sendInvitation: true },
+        claims,
+      );
+    } catch (error) {
+      // A unique, verified existing login can be linked through the same
+      // guarded operation exposed by the explicit Account Access action.
+      if (
+        !(error instanceof Error) ||
+        !error.message.includes('An account may already exist for this contact')
+      )
+        throw error;
+      return await m10FinalRaagaParentAction(
+        'provision-parent',
+        registrationId,
+        { confirmReference: registrationId, linkVerifiedAccount: true },
+        claims,
+      );
+    }
+  } catch (error) {
+    console.error('Automatic parent setup after website import failed', {
+      institution,
+      registrationId,
+      errorType: error instanceof Error ? error.name : 'Unknown',
+    });
+    return { status: 'RECONCILIATION_REQUIRED', invitationSent: false };
+  }
+}
 import { defaultM95Reader } from './compatibility.ts';
 import { defaultM95DirectoryReader } from './directoryCompatibility.ts';
 import { defaultM10CoreDirectoryReader } from './coreDirectory.ts';
@@ -523,8 +572,27 @@ export function createHandler(
                   : '{}',
               ),
             existingImport: finalSrutiExistingImporter(),
-            freshImport: (id, claims, execute) =>
-              m95ImportApprovedWebsiteRegistration('sruti', claims, id, execute, 'fresh', true),
+            freshImport: async (id, claims, execute) => {
+              const result = await m95ImportApprovedWebsiteRegistration(
+                'sruti',
+                claims,
+                id,
+                execute,
+                'fresh',
+                true,
+              );
+              if (
+                execute &&
+                'imported' in result &&
+                result.imported &&
+                !('alreadyImported' in result && result.alreadyImported)
+              )
+                return {
+                  ...result,
+                  parentAccess: await autoProvisionImportedParent('sruti', id, claims),
+                };
+              return result;
+            },
             parentStatus: finalSrutiParentStatus,
             parentAction: (_action, id, actorSub, confirmReference) =>
               finalSrutiParentAction(_action, id, actorSub, confirmReference),
@@ -552,8 +620,25 @@ export function createHandler(
                 review: reviewWebsiteRegistration,
                 preview: (id, claims) =>
                   m95ImportApprovedWebsiteRegistration('raaga', claims, id, false, 'fresh'),
-                execute: (id, claims) =>
-                  m95ImportApprovedWebsiteRegistration('raaga', claims, id, true, 'fresh'),
+                execute: async (id, claims) => {
+                  const result = await m95ImportApprovedWebsiteRegistration(
+                    'raaga',
+                    claims,
+                    id,
+                    true,
+                    'fresh',
+                  );
+                  if (
+                    'imported' in result &&
+                    result.imported &&
+                    !('alreadyImported' in result && result.alreadyImported)
+                  )
+                    return {
+                      ...result,
+                      parentAccess: await autoProvisionImportedParent('raaga', id, claims),
+                    };
+                  return result;
+                },
                 sync: (id, claims) => m95ReconcileWebsiteImport('raaga', claims, id, true),
               } satisfies Parameters<typeof finalRaagaIntakeRoute>[1] & {
                 parentStatus: typeof finalRaagaParentStatus;

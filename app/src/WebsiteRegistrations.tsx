@@ -1178,7 +1178,10 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
             <h2 id="wr-import-heading">Activate approved application?</h2>
             <p>
               Import the students and verify the submitted family links. Possible duplicate learners
-              are blocked for review. Parent sign-in and class enrolment are separate.
+              are blocked for review. Sadhana will check this environment&apos;s account pool for
+              the primary contact. A unique verified account may be linked; otherwise an invitation
+              will be requested if no account exists. Parent access links and class enrolment remain
+              separate.
             </p>
             <p className="wr-modal-reference">
               Application: <strong>{detail.registrationId}</strong> · Students:{' '}

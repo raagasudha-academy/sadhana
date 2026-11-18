@@ -238,13 +238,14 @@ jobs:
               "EnablePointInTimeRecovery=true" \
               "RaagaParentActionReads=enabled" \
               "RaagaParentInvitations=enabled" \
+              "RaagaParentLinkWrites=enabled" \
               "RaagaParentResends=enabled" \
               "RaagaReviewWrites=enabled"
           {
             echo '### Canonical Raagasudha parent invitations'
             echo
-            echo '- Explicitly confirmed invitations for new Raagasudha parent accounts are enabled for authenticated administrators.'
-            echo '- Raagasudha review writes and invitation resends are enabled; linking existing verified accounts remains disabled.'
+            echo '- Successful new-family imports check the production Cognito pool and request a parent invitation when no account exists.'
+            echo '- A unique, confirmed, email-verified existing account may be linked to the imported guardian; guardian access still follows the separate family-link review state.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Enable Raagasudha registration review writes
         if: inputs.phase == 'enable-raaga-review-writes'
@@ -274,6 +275,7 @@ jobs:
               "RaagaParentStatusReads=enabled" \
               "RaagaParentActionReads=enabled" \
               "RaagaParentInvitations=enabled" \
+              "RaagaParentLinkWrites=enabled" \
               "RaagaImportPreview=enabled"
           {
             echo '### Raagasudha registration review writes'
@@ -309,6 +311,7 @@ jobs:
               "RaagaParentStatusReads=enabled" \
               "RaagaParentActionReads=enabled" \
               "RaagaParentInvitations=enabled" \
+              "RaagaParentLinkWrites=enabled" \
               "RaagaParentResends=enabled" \
               "RaagaImportPreview=enabled" \
               "RaagaImportWrites=enabled" \
