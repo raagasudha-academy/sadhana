@@ -21,7 +21,7 @@ test('admin can activate a second academy family for a parent with an existing S
   await expect(page.getByText(/Address: Carlisle, United Kingdom/)).toBeVisible();
   await page.getByRole('button', { name: 'Import to Sadhana' }).click();
   await page
-    .getByRole('alertdialog', { name: 'Activate approved application?' })
+    .getByRole('alertdialog', { name: 'Import approved learners to Sadhana?' })
     .getByRole('button', { name: 'Activate' })
     .click();
   await expect(page.getByText('Family 001')).toBeVisible();
