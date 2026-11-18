@@ -39,6 +39,17 @@ test('Cognito identity link cannot approve guardian access or create users', () 
   assert.match(identity, /TransactWriteCommand/);
   assert.doesNotMatch(identity, /AdminCreateUserCommand|accessStatus\s*=/);
 });
+test('registration import is separate from explicit parent invitation actions', () => {
+  assert.doesNotMatch(
+    lambda,
+    /autoProvisionImportedParent|Automatic parent setup after website import/,
+  );
+  assert.match(lambda, /parentAction:m10FinalRaagaParentAction/);
+  assert.match(
+    lambda,
+    /parentAction:\(_action,id,actorSub,confirmReference\)=>finalSrutiParentAction/,
+  );
+});
 test('cutover audit cannot execute and has explicit workflow blockers', () => {
   assert.match(readiness, /--execute/);
   assert.match(readiness, /canExecute:false|canExecute: false|readOnly:true/);

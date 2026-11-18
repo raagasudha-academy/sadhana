@@ -114,54 +114,6 @@ import { defaultM95SeriesWriter } from './seriesWrite.ts';
 import { defaultM95ManagedEventWriter } from './managedEventWrite.ts';
 import { entityTable } from './entityTables.mjs';
 
-async function autoProvisionImportedParent(
-  institution: 'raaga' | 'sruti',
-  registrationId: string,
-  claims: Claims,
-) {
-  const invitationFlag = `SADHANA_FINAL_${institution.toUpperCase()}_PARENT_INVITATIONS`;
-  if (process.env[invitationFlag] !== 'enabled') return undefined;
-
-  try {
-    if (institution === 'sruti')
-      return await finalSrutiParentAction(
-        'provision-parent',
-        registrationId,
-        String(claims.sub || ''),
-        registrationId,
-      );
-
-    try {
-      return await m10FinalRaagaParentAction(
-        'provision-parent',
-        registrationId,
-        { confirmReference: registrationId, sendInvitation: true },
-        claims,
-      );
-    } catch (error) {
-      // A unique, verified existing login can be linked through the same
-      // guarded operation exposed by the explicit Account Access action.
-      if (
-        !(error instanceof Error) ||
-        !error.message.includes('An account may already exist for this contact')
-      )
-        throw error;
-      return await m10FinalRaagaParentAction(
-        'provision-parent',
-        registrationId,
-        { confirmReference: registrationId, linkVerifiedAccount: true },
-        claims,
-      );
-    }
-  } catch (error) {
-    console.error('Automatic parent setup after website import failed', {
-      institution,
-      registrationId,
-      errorType: error instanceof Error ? error.name : 'Unknown',
-    });
-    return { status: 'RECONCILIATION_REQUIRED', invitationSent: false };
-  }
-}
 import { defaultM95Reader } from './compatibility.ts';
 import { defaultM95DirectoryReader } from './directoryCompatibility.ts';
 import { defaultM10CoreDirectoryReader } from './coreDirectory.ts';
@@ -581,16 +533,6 @@ export function createHandler(
                 'fresh',
                 true,
               );
-              if (
-                execute &&
-                'imported' in result &&
-                result.imported &&
-                !('alreadyImported' in result && result.alreadyImported)
-              )
-                return {
-                  ...result,
-                  parentAccess: await autoProvisionImportedParent('sruti', id, claims),
-                };
               return result;
             },
             parentStatus: finalSrutiParentStatus,
@@ -628,15 +570,6 @@ export function createHandler(
                     true,
                     'fresh',
                   );
-                  if (
-                    'imported' in result &&
-                    result.imported &&
-                    !('alreadyImported' in result && result.alreadyImported)
-                  )
-                    return {
-                      ...result,
-                      parentAccess: await autoProvisionImportedParent('raaga', id, claims),
-                    };
                   return result;
                 },
                 sync: (id, claims) => m95ReconcileWebsiteImport('raaga', claims, id, true),
