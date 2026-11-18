@@ -73,6 +73,12 @@ const guardian = {
   institutionIds: ['raaga'],
   status: 'active',
 };
+const guardianInOtherAcademy = {
+  ...guardian,
+  personId: 'PERSON-GUARDIAN-OTHER-ACADEMY',
+  familyId: 'FAMILY-OTHER-ACADEMY',
+  institutionIds: ['raaga'],
+};
 const guardianLink = {
   linkId: 'LINK-GUARDIAN-STUDENT-SRUTI',
   familyId: 'FAMILY-1',
@@ -126,9 +132,9 @@ function fixture(
                 : input.ExpressionAttributeValues[':value'] === 'unassigned-sub'
                   ? unassignedStudent
                   : input.ExpressionAttributeValues[':value'] === 'guardian-sub'
-                    ? guardian
+                    ? [guardian, guardianInOtherAcademy]
                     : null;
-          return { Items: p ? [p] : [] };
+          return { Items: Array.isArray(p) ? p : p ? [p] : [] };
         }
         if (input.IndexName === 'InstitutionClassesIndex') return { Items: [cls] };
         if (input.IndexName === 'PersonTypeIndex')
@@ -163,7 +169,16 @@ function fixture(
           };
       }
       if (command instanceof ScanCommand)
-        return { Items: [teacher, student, unassignedStudent, unlinkedStudent, guardian] };
+        return {
+          Items: [
+            teacher,
+            student,
+            unassignedStudent,
+            unlinkedStudent,
+            guardian,
+            guardianInOtherAcademy,
+          ],
+        };
       if (command instanceof GetCommand) {
         const key = input.Key;
         if (input.TableName.endsWith('-people'))
@@ -179,7 +194,9 @@ function fixture(
                       ? unlinkedStudent
                       : key.personId === guardian.personId
                         ? guardian
-                        : undefined,
+                        : key.personId === guardianInOtherAcademy.personId
+                          ? guardianInOtherAcademy
+                          : undefined,
           };
         if (input.TableName.endsWith('-family-links'))
           return { Item: key.linkId === guardianLink.linkId ? guardianLink : undefined };

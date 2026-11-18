@@ -417,6 +417,14 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
   const visibleStudentId = academyFamilyChoices.some((c) => c.id === chosenStudent)
     ? chosenStudent
     : academyFamilyChoices[0]?.id || '';
+  const visibleStudentChoice = academyFamilyChoices.find((c) => c.id === visibleStudentId);
+  // The API resolves a directly signed-in learner from their Cognito identity.
+  // Supplying studentId means "act for this child" and intentionally requires
+  // an approved guardian link, so only send it for guardian/admin proxy views.
+  const messageActingStudentId =
+    studentMode && visibleStudentId && (person.admin || visibleStudentChoice?.kind !== 'student')
+      ? visibleStudentId
+      : undefined;
   const nav = (
     studentMode
       ? [
@@ -488,25 +496,18 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     const refreshMessageActivity = async () => {
       const results = await Promise.allSettled(
         scopes.map((institution) =>
-          cloud.api.listMessageThreads(institution, studentMode ? visibleStudentId : undefined),
+          cloud.api.listMessageThreads(institution, messageActingStudentId),
         ),
       );
       if (!active) return;
       const activity = results.flatMap((result, index) =>
         result.status === 'fulfilled'
-          ? messageThreadNotifications(
-              scopes[index],
-              result.value.records,
-              studentMode ? visibleStudentId : undefined,
-            )
+          ? messageThreadNotifications(scopes[index], result.value.records, messageActingStudentId)
           : [],
       );
       const learnerResults = await Promise.allSettled(
         scopes.map((institution) =>
-          cloud.api.listLearnerNotifications(
-            institution,
-            studentMode && visibleStudentId ? visibleStudentId : undefined,
-          ),
+          cloud.api.listLearnerNotifications(institution, messageActingStudentId),
         ),
       );
       if (!active) return;
@@ -567,6 +568,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     notificationScopeKey,
     studentMode,
     visibleStudentId,
+    messageActingStudentId,
     person.admin,
     currentRole,
     currentWorkspace,
@@ -583,7 +585,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
         await cloud.api.markLearnerNotificationRead(
           notification.institution,
           notification.id,
-          studentMode && visibleStudentId ? visibleStudentId : undefined,
+          messageActingStudentId,
         );
       } catch {
         return;
@@ -1530,7 +1532,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                   ? learnerInstitutions
                   : availableInstitutions
             }
-            studentId={studentMode ? visibleStudentId : undefined}
+            studentId={messageActingStudentId}
             defaultInstitution={
               currentWorkspace === 'raaga' || currentWorkspace === 'sruti'
                 ? currentWorkspace
