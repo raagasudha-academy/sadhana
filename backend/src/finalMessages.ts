@@ -11,10 +11,11 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { entityTable } from './entityTables.mjs';
-import { httpError } from './model.ts';
+import { httpError, viewableInstitutions } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import { listMessageAdministrators } from './adminDirectory.ts';
 import { ownProfilePhoto } from './profilePhotos.ts';
+import { listTeachers } from './teacherDirectory.ts';
 
 type Db = { send: (command: any) => Promise<any> };
 type Person = Record<string, any>;
@@ -79,6 +80,12 @@ export function makeFinalMessages(
   db: Db,
   listAdmins: (institution: InstitutionId) => Promise<AdminContact[]> = async () => [],
   photoForSub: (sub: string) => Promise<string> = ownProfilePhoto,
+  teacherDirectory: (
+    institution: InstitutionId,
+    claims: Claims,
+  ) => Promise<{ records: Array<{ id: string; photoUrl?: string }> }> = async () => ({
+    records: [],
+  }),
 ) {
   const table = (entity: string) => entityTable(entity);
   const get = async (entity: string, key: string, id: string): Promise<Person | null> =>
@@ -557,9 +564,17 @@ export function makeFinalMessages(
     );
     return own.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   }
-  const publicContact = async (peer: Person, cls: Person, threadId: string) => {
+  const publicContact = async (
+    peer: Person,
+    cls: Person,
+    threadId: string,
+    teacherPhotos: Map<string, string>,
+  ) => {
     const photoSub =
       peer.cognitoSub || peer.legacyPayload?.cognitoSub || peer.staffProfile?.cognitoSub;
+    const registeredTeacherId = peer.personTypes?.includes('teacher')
+      ? teacherIds(peer).find((id) => /^TEACHER-[0-9a-f-]{36}$/i.test(id))
+      : undefined;
     return {
       peerId: peer.personId,
       peerName: name(peer) || 'Sadhana user',
@@ -575,11 +590,21 @@ export function makeFinalMessages(
       className: String(cls.name || cls.legacyPayload?.name || 'Class'),
       threadId,
       photoUrl:
+        (registeredTeacherId ? teacherPhotos.get(registeredTeacherId) : '') ||
         peer.photoUrl ||
         (typeof photoSub === 'string' && /^[a-f0-9-]{36}$/i.test(photoSub)
           ? await photoForSub(photoSub)
           : ''),
     };
+  };
+  const teacherPhotosFor = async (institution: InstitutionId, claims: Claims) => {
+    if (!viewableInstitutions(claims).includes(institution)) return new Map<string, string>();
+    // Registered teachers keep their Cognito link in TEACHER_REGISTRY, separate
+    // from the canonical people rows used to assemble messenger contacts.
+    const directory = await teacherDirectory(institution, claims);
+    return new Map<string, string>(
+      directory.records.map((teacher): [string, string] => [teacher.id, teacher.photoUrl || '']),
+    );
   };
   async function contacts(
     institution: InstitutionId,
@@ -588,7 +613,8 @@ export function makeFinalMessages(
     actingStudentId?: string,
   ) {
     const actor = await actorFor(institution, claims, adminInstitutions, actingStudentId),
-      out: Person[] = [];
+      out: Person[] = [],
+      teacherPhotos = await teacherPhotosFor(institution, claims);
     if (actor.isAdminActor) {
       const cls = adminClass(institution),
         peopleById = new Map<string, Person>();
@@ -711,7 +737,7 @@ export function makeFinalMessages(
     for (const peer of out) {
       const cls = peer.__class,
         threadId = threadKey(institution, cls.classId, actor.personId, peer.personId),
-        record = await publicContact(peer, cls, threadId);
+        record = await publicContact(peer, cls, threadId, teacherPhotos);
       unique.set(`${record.peerId}|${record.classId}`, record);
     }
     return {
@@ -757,7 +783,8 @@ export function makeFinalMessages(
   ) {
     const actor = await actorFor(institution, claims, adminInstitutions, actingStudentId),
       rows = await messagesFor(institution, actor),
-      groups = new Map<string, Person[]>();
+      groups = new Map<string, Person[]>(),
+      teacherPhotos = await teacherPhotosFor(institution, claims);
     for (const row of rows) {
       if (!validId(row.otherPersonId) || !validId(row.classId) || !validId(row.threadId)) continue;
       const list = groups.get(row.threadId) || [];
@@ -771,7 +798,7 @@ export function makeFinalMessages(
         const pair = await allowedPair(institution, actor, last.otherPersonId, last.classId);
         if (pair.threadId !== threadId) continue;
         records.push({
-          ...(await publicContact(pair.peer, pair.cls, threadId)),
+          ...(await publicContact(pair.peer, pair.cls, threadId, teacherPhotos)),
           lastMessage: last.messageText,
           lastAt: last.createdAt,
           unreadCount: items.filter(
@@ -1183,5 +1210,7 @@ export function finalMessages() {
       { marshallOptions: { removeUndefinedValues: true } },
     ),
     listMessageAdministrators,
+    ownProfilePhoto,
+    listTeachers,
   ));
 }
