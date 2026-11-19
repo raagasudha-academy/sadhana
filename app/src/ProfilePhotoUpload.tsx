@@ -3,11 +3,27 @@ import { useRef, useState } from 'react';
 import { Camera, ImageUp } from 'lucide-react';
 import type { SadhanaApiClient } from './api/sadhanaClient';
 
-const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
+
+function imageType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  return ({
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  } as Record<string, string>)[ext || ''] || '';
+}
 
 export async function jpegData(file: File): Promise<string> {
-  if (!ALLOWED.has(file.type)) throw new Error('Choose a JPG, PNG or WebP image.');
-  if (file.size > 5 * 1024 * 1024) throw new Error('Choose an image smaller than 5 MB.');
+  if (!ALLOWED.has(imageType(file)))
+    throw new Error('Choose a JPG, PNG, WebP or HEIC photo.');
+  if (file.size > MAX_SOURCE_BYTES)
+    throw new Error('Choose a photo smaller than 20 MB. It will be resized before upload.');
   const source = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -19,10 +35,10 @@ export async function jpegData(file: File): Promise<string> {
     if (
       img.naturalWidth < 32 ||
       img.naturalHeight < 32 ||
-      img.naturalWidth > 8000 ||
-      img.naturalHeight > 8000
+      img.naturalWidth > 12000 ||
+      img.naturalHeight > 12000
     )
-      throw new Error('Choose an image between 32 and 8000 pixels on each side.');
+      throw new Error('Choose a photo between 32 and 12000 pixels on each side.');
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -110,11 +126,11 @@ export default function ProfilePhotoUpload({
         </div>
         <div className="sadhana-photo-upload-tools">
           <strong>{administratorUsername ? 'Administrator portrait' : 'Your profile photo'}</strong>
-          <p>JPG, PNG or WebP, up to 5 MB. Automatically centre-cropped and compressed.</p>
+          <p>JPG, PNG, WebP or HEIC, up to 20 MB. Automatically centre-cropped and compressed.</p>
           <input
             ref={field}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
             aria-label="Choose a profile photo"
             disabled={busy}
             onChange={(e) => void choose(e.currentTarget.files?.[0])}

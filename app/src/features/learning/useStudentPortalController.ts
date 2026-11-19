@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { jpegData } from '../../ProfilePhotoUpload';
 import type { CloudSession } from '../../CloudAuth';
 import type { InstitutionId } from '../../types';
 import type { PublishedAcademy } from './StudentAcademy';
@@ -160,7 +161,8 @@ export function useStudentPortalController({
     practiceId?: string,
   ): Promise<boolean> => {
     if (!activeId) return false;
-    const mime = practiceUploadMime(file);
+    let uploadFile: Blob = file;
+    let mime = practiceUploadMime(file);
     if (purpose === 'practice') {
       const limits: Record<string, number> = {
         'image/jpeg': 5_000_000,
@@ -186,16 +188,21 @@ export function useStudentPortalController({
     setUploadBusy(true);
     setError('');
     try {
+      if (purpose === 'profile') {
+        const compressed = await jpegData(file);
+        uploadFile = await (await fetch(compressed)).blob();
+        mime = 'image/jpeg';
+      }
       const signed = await cloud.api.beginLearnerMedia(inst, activeId, {
         mime,
-        size: file.size,
+        size: uploadFile.size,
         purpose,
         ...(practiceId ? { practiceId } : {}),
       });
       const r = await fetch(signed.uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': mime },
-        body: file,
+        body: uploadFile,
       });
       if (!r.ok)
         throw Error(`Private upload failed (${r.status}). Check bucket CORS and credentials.`);

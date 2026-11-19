@@ -147,7 +147,7 @@ export default function PhotoAvatarEditor({
               <div className="sadhana-avatar-photo-heading">
                 <div>
                   <h2 id="sadhana-photo-dialog-title">Change profile photo</h2>
-                  <p id="sadhana-photo-dialog-help">JPG, PNG or WebP · maximum 5 MB</p>
+                  <p id="sadhana-photo-dialog-help">JPG, PNG, WebP or HEIC · up to 20 MB</p>
                 </div>
                 <button
                   type="button"
@@ -174,7 +174,7 @@ export default function PhotoAvatarEditor({
                 <input
                   ref={input}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
                   disabled={busy}
                   onChange={(event) => void choose(event.currentTarget.files?.[0])}
                 />
