@@ -36,7 +36,7 @@ export default function MessagesWidget({
   }, [allowedKey, defaultInstitution]);
   if (!allowed.length) return null;
   return (
-    <div className="sadhana-messages-widget">
+    <div className={`sadhana-messages-widget${open && !minimized ? ' is-open' : ''}`}>
       {open && (
         <section
           className="sadhana-messages-widget-panel"

@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, MessageCircle, RefreshCw, Send } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle,
+  RefreshCw,
+  Send,
+} from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
 import './messagesPage.css';
@@ -199,7 +206,7 @@ export default function MessagesPage({
   };
   return (
     <section
-      className={`messages-page${compact ? ' messages-page-compact' : ''}`}
+      className={`messages-page${compact ? ' messages-page-compact' : ''}${active ? ' has-active-conversation' : ''}`}
       aria-label="Messages"
     >
       {!compact && (
@@ -339,6 +346,19 @@ export default function MessagesPage({
           {active ? (
             <>
               <header className="messages-conversation-head">
+                <button
+                  type="button"
+                  className="messages-mobile-back"
+                  onClick={() => {
+                    setActive(null);
+                    setText('');
+                    setError('');
+                  }}
+                  aria-label="Back to conversations"
+                >
+                  <ChevronLeft size={20} />
+                  <span>Chats</span>
+                </button>
                 <MessageAvatar name={active.peerName} photoUrl={active.photoUrl} />
                 <div>
                   <h3>{active.peerName}</h3>

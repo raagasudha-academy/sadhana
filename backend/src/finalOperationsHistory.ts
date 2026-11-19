@@ -96,6 +96,7 @@ export function makeM10FinalOperationsHistory(client: Client) {
             date: row.practiceDate ?? row.practiceDateKey,
             didPractice: row.didPractice ?? true,
             minutes: row.minutes ?? 0,
+            topic: row.topic ?? '',
             comments: row.comments ?? '',
             version: row.version ?? 1,
             teacherReviewed: row.teacherReviewed === true || row.teacherComments?.length > 0,
