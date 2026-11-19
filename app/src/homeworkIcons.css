@@ -429,7 +429,48 @@
   display: grid;
   gap: 0.65rem;
 }
-.sv1276-teacher-homework .sv1278-review article > button {
+.sv1276-teacher-homework .tw-submission-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.sv1276-teacher-homework .tw-submission-header strong {
+  min-width: 0;
+}
+.sv1276-teacher-homework .sv1278-review article .tw-submission-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid #d5dfeb;
+  border-radius: 9px;
+  background: #f7f9fc;
+  color: #365575;
+}
+.sv1276-teacher-homework .sv1278-review article .tw-submission-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+.sv1276-teacher-homework .sv1278-review article .tw-submission-toggle:hover {
+  border-color: #9db2cb;
+  background: #edf3f9;
+}
+.sv1276-teacher-homework .sv1278-review article .tw-submission-toggle:focus-visible {
+  outline: 3px solid #86b7f5;
+  outline-offset: 2px;
+}
+.sv1276-teacher-homework .sv1278-review .tw-submission-details {
+  display: grid;
+  gap: 0.65rem;
+}
+.sv1276-teacher-homework .sv1278-review .tw-submission-details[hidden] {
+  display: none;
+}
+.sv1276-teacher-homework .sv1278-review .tw-submission-details > button {
   justify-self: start;
   width: auto;
   min-width: 190px;
