@@ -413,14 +413,36 @@ export function useStudentPortalController({
           const latest = await cloud.api.getHomeworkSubmission(inst, activeId, selectedHomework);
           setSubmission(latest.record);
           setSubmissionEditable(latest.editable);
-          setMessage(
-            latest.editable
-              ? 'A newer version was saved elsewhere. Your text is still here; save again to keep your version.'
-              : 'This homework is now read-only because its deadline passed or a teacher reviewed it.',
-          );
+          if (!latest.editable) {
+            setMessage(
+              'This homework is now read-only because its deadline passed or a teacher reviewed it.',
+            );
+            setError('');
+            return false;
+          }
+          // Keep the learner's current edits and retry once against the latest
+          // server version. The version conflict is recoverable, so don't leave
+          // a draft unsaved while asking the learner to click Save again.
+          const retried = await cloud.api.saveHomeworkSubmission(inst, activeId, selectedHomework, {
+            text: homeworkText,
+            status,
+            expectedVersion: latest.record.version,
+            attachmentIds: submission.attachmentIds,
+          });
+          setSubmission(retried.record);
+          setHomeworkText(retried.record.text);
+          savedHomeworkDraft.current = {
+            homeworkId: selectedHomework,
+            text: retried.record.text,
+            attachmentIds: [...retried.record.attachmentIds],
+          };
+          setMessage(status === 'submitted' ? 'Homework submitted.' : 'Draft saved');
           setError('');
-        } catch {
-          setError(detail);
+          await loadHomework(activeId);
+          return true;
+        } catch (retryError) {
+          setMessage('A newer version exists and could not be replaced. Your edits are still here.');
+          setError(retryError instanceof Error ? retryError.message : detail);
         }
       } else {
         setError(detail);
