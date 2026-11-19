@@ -131,8 +131,16 @@ export default function SyllabusLibrary({
   const [form, setForm] = useState<Draft | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [editing, setEditing] = useState<Resource | null>(null);
-  const [activeTab, setActiveTab] = useState<LibraryTab>('syllabus');
+  // Admins need to see class resources shared by teachers as soon as they
+  // open the library. Keep the syllabus available in its own tab.
+  const [activeTab, setActiveTab] = useState<LibraryTab>(
+    canEditSyllabus ? 'resources' : 'syllabus',
+  );
   const admin = canEditSyllabus;
+
+  useEffect(() => {
+    setActiveTab(canEditSyllabus ? 'resources' : 'syllabus');
+  }, [canEditSyllabus]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
