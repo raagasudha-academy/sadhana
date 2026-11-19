@@ -715,7 +715,7 @@ export default function TeacherWorkspace({
                         const studentName = studentById.get(row.studentId)?.name || 'Learner';
                         const submissionKey = `${reviewId}:${row.studentId}`;
                         const detailsId = `homework-submission-details-${index}`;
-                        const isCollapsed = collapsedSubmissions[submissionKey] === true;
+                        const isCollapsed = collapsedSubmissions[submissionKey] !== false;
                         return (
                           <article key={row.studentId}>
                             <header className="tw-submission-header">
