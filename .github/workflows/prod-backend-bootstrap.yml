@@ -161,6 +161,7 @@ jobs:
               "FinalLearnerReads=enabled" \
               "FinalLearnerWrites=enabled" \
               "FinalLearnerExtrasReads=enabled" \
+              "FinalLearnerProfileWrites=enabled" \
               "FinalLearnerDirectoryReads=enabled" \
               "FinalLearnerPreferencesParity=enabled" \
               "FinalHomeworkReads=enabled" \
