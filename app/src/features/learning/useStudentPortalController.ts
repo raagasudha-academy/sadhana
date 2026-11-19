@@ -265,7 +265,7 @@ export function useStudentPortalController({
   } | null>(null);
   const [submissionEditable, setSubmissionEditable] = useState(false);
   const [submissionBusy, setSubmissionBusy] = useState(false);
-  const savedHomeworkDraft = useRef<{
+  const submissionBaseline = useRef<{
     homeworkId: string;
     text: string;
     attachmentIds: string[];
@@ -337,7 +337,7 @@ export function useStudentPortalController({
         ]);
       }
       setSubmission((old) => (old ? { ...old, attachmentIds: ids } : old));
-      setMessage('Attachments uploaded. Save your draft or submit to attach them to homework.');
+      setMessage('Attachments uploaded. Submit the homework to send them to your teacher.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Private media upload failed.');
       setSubmission((old) => (old ? { ...old, attachmentIds: ids } : old));
@@ -355,12 +355,12 @@ export function useStudentPortalController({
     setSelectedHomework(id);
     setHomeworkDrawerOpen(true);
     setSubmission(null);
-    savedHomeworkDraft.current = null;
+    submissionBaseline.current = null;
     try {
       const r = await cloud.api.getHomeworkSubmission(inst, activeId, id);
       setSubmission(r.record);
       setHomeworkText(r.record.text);
-      savedHomeworkDraft.current = {
+      submissionBaseline.current = {
         homeworkId: id,
         text: r.record.text,
         attachmentIds: [...r.record.attachmentIds],
@@ -371,12 +371,9 @@ export function useStudentPortalController({
       setError(e instanceof Error ? e.message : 'Could not load assignment');
     }
   };
-  const saveAssignment = async (status: 'draft' | 'submitted') => {
+  const saveAssignment = async () => {
     if (!activeId || !submission || !selectedHomework) return;
-    if (
-      status === 'submitted' &&
-      (confirmHomework?.studentId !== activeId || confirmHomework.homeworkId !== selectedHomework)
-    )
+    if (confirmHomework?.studentId !== activeId || confirmHomework.homeworkId !== selectedHomework)
       return;
     setConfirmHomework(null);
     setSubmissionBusy(true);
@@ -384,22 +381,18 @@ export function useStudentPortalController({
     try {
       const result = await cloud.api.saveHomeworkSubmission(inst, activeId, selectedHomework, {
         text: homeworkText,
-        status,
+        status: 'submitted',
         expectedVersion: submission.version,
         attachmentIds: submission.attachmentIds,
       });
       setSubmission(result.record);
       setHomeworkText(result.record.text);
-      savedHomeworkDraft.current = {
+      submissionBaseline.current = {
         homeworkId: selectedHomework,
         text: result.record.text,
         attachmentIds: [...result.record.attachmentIds],
       };
-      setMessage(
-        status === 'submitted'
-          ? 'Homework submitted. You may revise it until the due date.'
-          : 'Draft saved',
-      );
+      setMessage('Homework submitted. You may revise it until the due date.');
       await loadHomework(activeId);
       return true;
     } catch (e) {
@@ -420,23 +413,21 @@ export function useStudentPortalController({
             setError('');
             return false;
           }
-          // Keep the learner's current edits and retry once against the latest
-          // server version. The version conflict is recoverable, so don't leave
-          // a draft unsaved while asking the learner to click Save again.
+          // Keep the learner's current edits and retry once against the latest server version.
           const retried = await cloud.api.saveHomeworkSubmission(inst, activeId, selectedHomework, {
             text: homeworkText,
-            status,
+            status: 'submitted',
             expectedVersion: latest.record.version,
             attachmentIds: submission.attachmentIds,
           });
           setSubmission(retried.record);
           setHomeworkText(retried.record.text);
-          savedHomeworkDraft.current = {
+          submissionBaseline.current = {
             homeworkId: selectedHomework,
             text: retried.record.text,
             attachmentIds: [...retried.record.attachmentIds],
           };
-          setMessage(status === 'submitted' ? 'Homework submitted.' : 'Draft saved');
+          setMessage('Homework submitted. You may revise it until the due date.');
           setError('');
           await loadHomework(activeId);
           return true;
@@ -454,21 +445,27 @@ export function useStudentPortalController({
       setSubmissionBusy(false);
     }
   };
-  const closeHomeworkDrawer = async () => {
+  const closeHomeworkDrawer = () => {
     if (submissionBusy) return false;
-    const saved = savedHomeworkDraft.current;
-    const hasUnsavedDraft =
+    const baseline = submissionBaseline.current;
+    const hasUnsavedWork =
       submissionEditable &&
-      submission?.status === 'draft' &&
+      !!submission &&
+      submission.status !== 'submitted' &&
       !!selectedHomework &&
-      saved?.homeworkId === selectedHomework &&
-      (saved.text !== homeworkText ||
-        saved.attachmentIds.length !== submission.attachmentIds.length ||
-        saved.attachmentIds.some((id, index) => id !== submission.attachmentIds[index]));
-    if (hasUnsavedDraft && !(await saveAssignment('draft'))) return false;
+      baseline?.homeworkId === selectedHomework &&
+      (baseline.text !== homeworkText ||
+        baseline.attachmentIds.length !== submission.attachmentIds.length ||
+        baseline.attachmentIds.some((id, index) => id !== submission.attachmentIds[index]));
+    if (
+      hasUnsavedWork &&
+      !window.confirm('Close without submitting? Your unsent changes will be discarded.')
+    )
+      return false;
     setHomeworkDrawerOpen(false);
     setSelectedHomework('');
     setConfirmHomework(null);
+    submissionBaseline.current = null;
     return true;
   };
   const [homeworkBusy, setHomeworkBusy] = useState(false);
@@ -582,7 +579,7 @@ export function useStudentPortalController({
     setSubmission(null);
     setAttachments([]);
     setHomeworkText('');
-    savedHomeworkDraft.current = null;
+    submissionBaseline.current = null;
     setDetailLoading(true);
     if (id !== activeId) setDetail(null);
     let timer: ReturnType<typeof setTimeout> | undefined;

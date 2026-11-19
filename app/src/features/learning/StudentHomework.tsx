@@ -54,15 +54,9 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
               <span className="sv137-homework-card-heading">
                 <strong>{h.title}</strong>
                 <span
-                  className={`sv137-homework-status sv137-homework-status--${h.closed ? 'closed' : h.submissionStatus === 'submitted' ? 'submitted' : h.submissionStatus === 'draft' ? 'draft' : 'new'}`}
+                  className={`sv137-homework-status sv137-homework-status--${h.closed ? 'closed' : h.submissionStatus === 'submitted' ? 'submitted' : 'new'}`}
                 >
-                  {h.closed
-                    ? 'Closed'
-                    : h.submissionStatus === 'submitted'
-                      ? 'Submitted'
-                      : h.submissionStatus === 'draft'
-                        ? 'Draft'
-                        : 'New'}
+                  {h.closed ? 'Closed' : h.submissionStatus === 'submitted' ? 'Submitted' : 'New'}
                 </span>
               </span>
               <span>
@@ -72,7 +66,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                 Due {h.dueDate}
                 <span
                   className="sv1278-edit-info"
-                  title="Drafts and submissions can be edited until the due date or teacher review."
+                  title="Submit your work before the due date. Submitted work can be revised until teacher review."
                   role="img"
                   aria-label="Editing is allowed until the due date or teacher review"
                 >
@@ -267,8 +261,8 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                   </ul>
                   {submission.attachmentIds.length > attachments.length && (
                     <p>
-                      {submission.attachmentIds.length - attachments.length} new attachment(s) will
-                      be linked when you save.
+                      {submission.attachmentIds.length - attachments.length} attachment(s) will be
+                      sent when you submit.
                     </p>
                   )}
                 </div>
@@ -285,7 +279,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                 )}
                 <footer>
                   <span>
-                    {submission.status === 'submitted' ? 'Submitted' : 'Draft'}
+                    {submission.status === 'submitted' ? 'Submitted' : 'Not submitted'}
                     {submission.reviewedAt
                       ? ' · Reviewed · Read-only'
                       : !submissionEditable
@@ -293,13 +287,6 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                         : ''}
                   </span>
                   <div>
-                    <button
-                      type="button"
-                      disabled={!submissionEditable || submissionBusy}
-                      onClick={() => void saveAssignment('draft')}
-                    >
-                      Save draft
-                    </button>
                     <button
                       type="button"
                       disabled={
