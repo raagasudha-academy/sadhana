@@ -407,6 +407,10 @@ export default function PracticeReview({
               <p className="tw-hint">
                 {selected.topic || 'Practice'} · {selected.minutes || 0} minutes
               </p>
+              <section className="tw-practice-student-notes" aria-label="Student notes">
+                <strong>Student notes</strong>
+                <p>{selected.comments?.trim() || 'No notes added for this practice.'}</p>
+              </section>
               <div className="tw-practice-recordings">
                 <strong>Practice attachments</strong>
                 {recordings[open]?.length ? (
