@@ -369,7 +369,7 @@ export default function PracticeReview({
                   <tr key={p.id}>
                     <td>{p.date}</td>
                     <td>{names.get(p.studentId) || 'Student'}</td>
-                    <td>{p.topic || p.comments || 'Practice'}</td>
+                    <td>{p.topic || 'Practice'}</td>
                     <td>{p.minutes || 0}</td>
                     <td>
                       {p.teacherReviewed || p.teacherComments?.length ? (
