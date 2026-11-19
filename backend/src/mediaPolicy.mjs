@@ -7,6 +7,7 @@ export const M9_MEDIA_TYPES = Object.freeze({
   'image/heif': { kind: 'image', ext: 'heif', max: 10_000_000 },
   'audio/mpeg': { kind: 'audio', ext: 'mp3', max: 20_000_000 },
   'audio/mp4': { kind: 'audio', ext: 'm4a', max: 20_000_000 },
+  'audio/webm': { kind: 'audio', ext: 'webm', max: 20_000_000 },
   'audio/aac': { kind: 'audio', ext: 'aac', max: 20_000_000 },
   'audio/wav': { kind: 'audio', ext: 'wav', max: 20_000_000 },
   'audio/x-wav': { kind: 'audio', ext: 'wav', max: 20_000_000 },
@@ -23,15 +24,5 @@ export const m9MediaId = (id) =>
   /^MEDIA-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id);
 export function validateM9MediaSelection(mimes) {
   if (!Array.isArray(mimes) || mimes.length > 4) return false;
-  const kinds = [];
-  for (const mime of mimes) {
-    const x = M9_MEDIA_TYPES[mime];
-    if (!x) return false;
-    kinds.push(x.kind);
-  }
-  return (
-    kinds.filter((x) => x === 'image').length <= 2 &&
-    kinds.filter((x) => x === 'audio').length <= 1 &&
-    kinds.filter((x) => x === 'video').length <= 1
-  );
+  return mimes.every((mime) => Object.prototype.hasOwnProperty.call(M9_MEDIA_TYPES, mime));
 }

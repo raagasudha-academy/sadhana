@@ -87,6 +87,13 @@ test('practice audio upload must reference an existing practice entry for that l
     const receipt = write.find((x: any) => x.Put?.TableName.endsWith('-submissions')).Put.Item;
     assert.equal(receipt.practiceId, 'PRACTICE-1001');
     assert.equal(receipt.purpose, 'practice');
+    const webm = await service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
+      mime: 'audio/webm',
+      size: 32_000,
+      purpose: 'practice',
+      practiceId: 'PRACTICE-1001',
+    });
+    assert.match(webm.key, /LEARNERMEDIA-[0-9a-f-]{36}\.webm$/i);
   } finally {
     if (previousBucket === undefined) delete process.env.SADHANA_LEARNER_MEDIA_BUCKET;
     else process.env.SADHANA_LEARNER_MEDIA_BUCKET = previousBucket;
@@ -119,6 +126,15 @@ test('practice recording rejects unsupported video types and files above the aud
   await assert.rejects(
     service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
       mime: 'audio/mpeg',
+      size: 20_000_001,
+      purpose: 'practice',
+      practiceId: 'PRACTICE-1001',
+    }),
+    { status: 400 },
+  );
+  await assert.rejects(
+    service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
+      mime: 'audio/webm',
       size: 20_000_001,
       purpose: 'practice',
       practiceId: 'PRACTICE-1001',

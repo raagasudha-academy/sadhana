@@ -192,6 +192,7 @@ const mediaTypes: Record<string, { ext: string; max: number }> = {
   'image/heif': { ext: 'heif', max: 10_000_000 },
   'audio/mpeg': { ext: 'mp3', max: 20_000_000 },
   'audio/mp4': { ext: 'm4a', max: 20_000_000 },
+  'audio/webm': { ext: 'webm', max: 20_000_000 },
   'audio/aac': { ext: 'aac', max: 20_000_000 },
   'audio/wav': { ext: 'wav', max: 20_000_000 },
   'audio/x-wav': { ext: 'wav', max: 20_000_000 },
@@ -239,7 +240,7 @@ export async function completeLearnerMedia(inst: string, claims: Claims, id: str
     !body ||
     typeof body.key !== 'string' ||
     !new RegExp(
-      `^learner-private/${id}/[0-9a-f-]{36}\\.(jpg|png|webp|heic|heif|mp3|m4a|aac|wav|mp4|mov|3gp)$`,
+      `^learner-private/${id}/[0-9a-f-]{36}\\.(jpg|png|webp|heic|heif|mp3|m4a|webm|aac|wav|mp4|mov|3gp)$`,
     ).test(body.key) ||
     typeof body.purpose !== 'string'
   )

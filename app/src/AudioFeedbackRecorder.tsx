@@ -5,17 +5,24 @@ const MAX_AUDIO_BYTES = 20_000_000;
 
 export default function AudioFeedbackRecorder({
   onRecording,
+  onRecordingChange,
   disabled = false,
   label = 'Record optional audio feedback',
+  startText = 'Record',
+  stopText = 'Stop',
 }: {
   onRecording: (file: File) => void;
+  onRecordingChange?: (recording: boolean) => void;
   disabled?: boolean;
   label?: string;
+  startText?: string;
+  stopText?: string;
 }) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const onRecordingRef = useRef(onRecording);
+  const onRecordingChangeRef = useRef(onRecordingChange);
   const mountedRef = useRef(false);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +30,10 @@ export default function AudioFeedbackRecorder({
   useEffect(() => {
     onRecordingRef.current = onRecording;
   }, [onRecording]);
+
+  useEffect(() => {
+    onRecordingChangeRef.current = onRecordingChange;
+  }, [onRecordingChange]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -37,7 +48,10 @@ export default function AudioFeedbackRecorder({
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
-    if (mountedRef.current) setRecording(false);
+    if (mountedRef.current) {
+      setRecording(false);
+      onRecordingChangeRef.current?.(false);
+    }
   };
 
   const startRecording = async () => {
@@ -85,7 +99,7 @@ export default function AudioFeedbackRecorder({
           setError('The recording is over the 20 MB limit. Please record a shorter message.');
           return;
         }
-        onRecordingRef.current(new File([blob], `teacher-feedback.${extension}`, { type: mime }));
+        onRecordingRef.current(new File([blob], `audio-recording.${extension}`, { type: mime }));
       });
       recorder.addEventListener('error', () => {
         if (mountedRef.current)
@@ -94,6 +108,7 @@ export default function AudioFeedbackRecorder({
       });
       recorder.start();
       setRecording(true);
+      onRecordingChangeRef.current?.(true);
     } catch {
       stopTracks();
       if (mountedRef.current) setError('Allow microphone access to record audio feedback.');
@@ -108,15 +123,20 @@ export default function AudioFeedbackRecorder({
     <div className="tw-audio-recorder">
       <button
         type="button"
-        className={recording ? 'tw-audio-recorder-stop' : 'tw-audio-recorder-start'}
+        className={`tw-audio-recorder-button ${
+          recording ? 'tw-audio-recorder-stop' : 'tw-audio-recorder-start'
+        }`}
         aria-label={recording ? 'Stop audio feedback recording' : label}
+        title={recording ? 'Stop recording' : label}
         disabled={disabled}
         onClick={() => (recording ? stopRecording() : void startRecording())}
       >
         {recording ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
-        {recording ? 'Stop recording' : 'Record audio feedback'}
+        {recording ? stopText : startText}
       </button>
-      <span role="status">{recording ? 'Recording…' : 'Optional · microphone'}</span>
+      <span role="status" aria-live="polite">
+        {recording ? 'Recording…' : ''}
+      </span>
       {error && <small role="alert">{error}</small>}
     </div>
   );

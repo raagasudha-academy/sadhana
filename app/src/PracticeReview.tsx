@@ -168,9 +168,9 @@ export default function PracticeReview({
       setFeedbackAudio(null);
       setFeedbackAudioId('');
       setFeedbackAudioUrl('');
-      setNotice('Comment saved.');
       await inspect(id);
-      await onReload();
+      await onReload().catch(() => undefined);
+      setNotice('Feedback saved.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save comment');
     } finally {
@@ -309,12 +309,6 @@ export default function PracticeReview({
       </div>
       <h3>Practice entries & teacher feedback</h3>
 
-      {error && (
-        <p role="alert" className="sadhana-sync-error">
-          {error}
-        </p>
-      )}
-      {notice && <p role="status">{notice}</p>}
       {!entries.length ? (
         <div className="tw-practice-empty" role="status">
           <BookOpenCheck size={28} aria-hidden="true" />
@@ -414,7 +408,7 @@ export default function PracticeReview({
                 {selected.topic || 'Practice'} · {selected.minutes || 0} minutes
               </p>
               <div className="tw-practice-recordings">
-                <strong>Practice media</strong>
+                <strong>Practice attachments</strong>
                 {recordings[open]?.length ? (
                   recordings[open].map((r) => (
                     <div key={r.id}>
@@ -447,7 +441,7 @@ export default function PracticeReview({
                     </div>
                   ))
                 ) : (
-                  <p className="tw-hint">No media attached.</p>
+                  <p className="tw-hint">No attachments for this practice.</p>
                 )}
               </div>
               {feedback[open]?.map((f) => (
@@ -470,12 +464,20 @@ export default function PracticeReview({
                 </p>
               ) : (
                 <>
-                  <label htmlFor="teacher-comment">Add comment</label>
+                  <label htmlFor="teacher-comment">
+                    Add comment <span className="tw-required-label">(required)</span>
+                  </label>
                   <textarea
                     id="teacher-comment"
+                    required
+                    aria-required="true"
                     maxLength={1000}
                     value={comment}
-                    onChange={(e) => setComment(e.target.value)}
+                    onChange={(e) => {
+                      setComment(e.target.value);
+                      setNotice('');
+                      setError('');
+                    }}
                     placeholder="Feedback on the student's practice"
                   />
                   <div className="tw-feedback-audio-picker">
@@ -489,6 +491,8 @@ export default function PracticeReview({
                         setFeedbackAudio(file);
                         setFeedbackAudioId('');
                         setFeedbackAudioUrl(URL.createObjectURL(file));
+                        setNotice('');
+                        setError('');
                       }}
                     />
                   </div>
@@ -498,19 +502,34 @@ export default function PracticeReview({
                       <audio controls preload="metadata" src={feedbackAudioUrl} />
                     </div>
                   )}
-                  <div className="tw-feedback-actions">
-                    <button
-                      type="button"
-                      className="reg-primary"
-                      disabled={busy || !comment.trim()}
-                      onClick={() => void submit(open)}
-                    >
-                      {busy ? 'Saving…' : 'Save comment'}
-                    </button>
-                  </div>
                 </>
               )}
+              {error && (
+                <p role="alert" className="sadhana-sync-error">
+                  {error}
+                </p>
+              )}
+              {notice && (
+                <p className="tw-feedback-saved" role="status">
+                  {notice}
+                </p>
+              )}
               <div className="tw-feedback-actions">
+                {!selectedReviewed && (
+                  <button
+                    type="button"
+                    className={`reg-primary${notice ? ' is-saved' : ''}`}
+                    disabled={busy || Boolean(notice) || !comment.trim()}
+                    onClick={() => void submit(open)}
+                  >
+                    {busy ? 'Saving…' : notice ? 'Saved' : 'Save comment'}
+                  </button>
+                )}
+                {selectedReviewed && notice && (
+                  <button type="button" className="reg-primary is-saved" disabled>
+                    Saved
+                  </button>
+                )}
                 <button
                   type="button"
                   className="reg-secondary"

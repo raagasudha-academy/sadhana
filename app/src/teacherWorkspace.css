@@ -38,12 +38,40 @@
   font: inherit;
   color: #51617b;
   cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 .tw-tabs button.active {
   background: #eaf0fc;
   color: #344f89;
   border-color: #b9c9e9;
   font-weight: 700;
+  box-shadow: 0 1px 3px rgba(29, 49, 78, 0.08);
+}
+.tw-tab-stage {
+  min-height: clamp(560px, 70svh, 960px);
+  animation: tw-tab-stage-enter 180ms ease-out both;
+}
+@keyframes tw-tab-stage-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-tab-stage {
+    animation: none;
+  }
+  .tw-tabs button {
+    transition: none;
+  }
 }
 .tw-content {
   padding-top: 22px;
@@ -278,7 +306,9 @@
   border-radius: 12px;
   display: grid;
   gap: 10px;
-  max-width: 680px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 .tw-practice-feedback textarea {
   width: 100%;
@@ -290,18 +320,21 @@
   font: inherit;
   line-height: 1.5;
 }
+.tw-practice-feedback .tw-required-label {
+  margin-left: 4px;
+  color: #9b3434;
+  font-size: 0.88em;
+  font-weight: 600;
+}
 .tw-feedback-audio-picker {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 14px;
   flex-wrap: wrap;
-  padding: 12px 14px;
-  border: 1px solid #e4d3ae;
-  border-radius: 10px;
-  background: #fffaf0;
+  padding: 2px 0;
 }
-.tw-feedback-audio-picker span {
+.tw-feedback-audio-picker > span {
   font-weight: 650;
 }
 .tw-feedback-audio-picker small {
@@ -313,34 +346,46 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
-.tw-audio-recorder button {
+.tw-audio-recorder .tw-audio-recorder-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 8px 14px;
-  border: 1px solid #d4b36f;
-  border-radius: 10px;
-  color: #173451;
-  background: #fffaf0;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid #cbd8e8;
+  border-radius: 9px;
+  color: #284c70;
+  background: #f7f9fc;
   font: inherit;
   font-weight: 650;
   cursor: pointer;
 }
-.tw-audio-recorder button:disabled {
+.tw-audio-recorder .tw-audio-recorder-button:hover:not(:disabled) {
+  background: #edf3fa;
+  border-color: #9db2cb;
+}
+.tw-audio-recorder .tw-audio-recorder-button:focus-visible {
+  outline: 3px solid #9bbce0;
+  outline-offset: 2px;
+}
+.tw-audio-recorder .tw-audio-recorder-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
-.tw-audio-recorder .tw-audio-recorder-stop {
-  border-color: #c97770;
-  background: #fff4f2;
+.tw-audio-recorder .tw-audio-recorder-button.tw-audio-recorder-stop {
+  border-color: #dcaaa5;
+  color: #8d3a34;
+  background: #fff6f5;
 }
 .tw-audio-recorder > span,
 .tw-audio-recorder small {
   color: #697b91;
+}
+.tw-audio-recorder > span:empty {
+  display: none;
 }
 .tw-audio-recorder small {
   flex-basis: 100%;
@@ -452,4 +497,23 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+.tw-feedback-actions button.is-saved,
+.tw-feedback-actions button.is-saved:disabled {
+  border-color: #b8dbc7;
+  background: #f0f8f3;
+  color: #276548;
+  opacity: 1;
+  cursor: default;
+}
+.tw-practice-feedback .tw-feedback-saved {
+  width: fit-content;
+  margin: 0;
+  padding: 8px 11px;
+  border: 1px solid #b8dbc7;
+  border-radius: 8px;
+  background: #f0f8f3;
+  color: #276548;
+  font-size: 13px;
+  font-weight: 650;
 }

@@ -28,6 +28,7 @@ const types: Record<string, { ext: string; max: number }> = {
   'image/heif': { ext: 'heif', max: 10_000_000 },
   'audio/mpeg': { ext: 'mp3', max: 20_000_000 },
   'audio/mp4': { ext: 'm4a', max: 20_000_000 },
+  'audio/webm': { ext: 'webm', max: 20_000_000 },
   'audio/aac': { ext: 'aac', max: 20_000_000 },
   'audio/wav': { ext: 'wav', max: 20_000_000 },
   'audio/x-wav': { ext: 'wav', max: 20_000_000 },
@@ -248,7 +249,7 @@ export function makeM10FinalLearnerMedia(
       if (!body.key.startsWith(prefix)) throw httpError(403, 'Media belongs to another learner');
       const name = body.key.slice(prefix.length),
         match =
-          /^(LEARNERMEDIA-[0-9a-f-]{36})\.(jpg|png|webp|heic|heif|mp3|m4a|aac|wav|mp4|mov|3gp)$/i.exec(
+          /^(LEARNERMEDIA-[0-9a-f-]{36})\.(jpg|png|webp|heic|heif|mp3|m4a|webm|aac|wav|mp4|mov|3gp)$/i.exec(
             name,
           );
       if (!match || !recordId(match[1])) throw httpError(400, 'Invalid upload reference');

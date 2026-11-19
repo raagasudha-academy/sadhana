@@ -24,4 +24,15 @@ describe('homework completion UX', () => {
     expect(homework).toContain(compactSource("saveAssignment('draft')"));
     expect(portalView).toContain(compactSource("saveAssignment('submitted')"));
   });
+
+  it('uploads recorded audio as an attachment for draft and submission persistence', () => {
+    expect(homework).toContain(compactSource('<AudioFeedbackRecorder'));
+    expect(homework).toContain(
+      compactSource('onRecording={(file) => void uploadHomeworkFiles([file])}'),
+    );
+    expect(controller).toContain(compactSource('beginHomeworkEvidence('));
+    expect(controller).toContain(compactSource('finishHomeworkEvidence('));
+    expect(controller).toContain(compactSource('attachmentIds: ids'));
+    expect(controller).toContain(compactSource('attachmentIds: submission.attachmentIds'));
+  });
 });

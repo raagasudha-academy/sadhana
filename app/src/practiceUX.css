@@ -259,6 +259,137 @@
   font-size: 14px;
 }
 .student-portal-v119 .v1376-practice-media {
+  border: 1px solid #dbe4ef;
+  background: #f8fafc;
+}
+.student-portal-v119 .v1376-practice-media-heading {
+  margin-bottom: 12px;
+}
+.student-portal-v119 .v1376-practice-media-heading > div {
+  gap: 4px;
+}
+.student-portal-v119 .v1376-practice-media-heading strong {
+  font-size: 14px;
+}
+.student-portal-v119 .v1376-practice-attachment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.student-portal-v119 .v1376-practice-attachment-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 13px;
+  border: 1px solid #cbd8e8;
+  border-radius: 9px;
+  background: #fff;
+  color: #234061;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.student-portal-v119 .v1376-practice-attachment-button:hover {
+  border-color: #879db8;
+  background: #f1f5fa;
+}
+.student-portal-v119 .v1376-practice-attachment-button.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.student-portal-v119 .v1376-practice-attachment-actions .tw-audio-recorder {
+  margin: 0;
+}
+.student-portal-v119 .v1376-practice-attachment-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.student-portal-v119 .v1376-practice-attachment {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  background: #fff;
+}
+.student-portal-v119 .v1376-practice-attachment > :is(img, video) {
+  width: 52px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #edf2f8;
+}
+.student-portal-v119 .v1376-practice-attachment > audio {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.student-portal-v119 .v1376-practice-attachment > span {
+  overflow: hidden;
+  color: #3b506a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.student-portal-v119 .v1376-practice-attachment > button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #dbe4ef;
+  border-radius: 7px;
+  background: #fff;
+  color: #586d86;
+}
+.student-portal-v119 .v1376-practice-history-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.student-portal-v119 .v1376-practice-history-attachment {
+  width: min(100%, 320px);
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.student-portal-v119 .v1376-practice-history-attachment :is(img, video) {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 7px;
+}
+.student-portal-v119 .v1376-practice-history-attachment audio {
+  display: block;
+  width: 100%;
+}
+.student-portal-v119 .v1376-practice-no-attachments {
+  color: #71829b;
+  font-size: 13px;
+}
+.student-portal-v119 .v1376-practice-page .sv1276-practice-form > button[type='submit'] {
+  background: #19365a;
+  color: #fff;
+  border: 1px solid #19365a;
+}
+.student-portal-v119
+  .v1376-practice-page
+  .sv1276-practice-form
+  > button[type='submit']:hover:not(:disabled) {
+  background: #264b76;
+}
+.student-portal-v119 .v1376-practice-media {
   grid-column: 1/-1;
   min-width: 0;
   margin: 0;

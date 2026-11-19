@@ -1,11 +1,12 @@
 import './homeworkIcons.css';
 import { useEffect, useState } from 'react';
-import { Image, Music2, Video } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
 import {
   homeworkFileAllowed,
   homeworkMimeForFile,
+  homeworkMediaAccept,
   homeworkSelectionAllowed,
 } from './homeworkMediaPolicy';
 
@@ -20,8 +21,6 @@ export const homeworkMediaKind = (mime: string) =>
       : mime.startsWith('video/')
         ? 'Video'
         : 'Previous attachment';
-const canAdd = (mimes: string[], file: File) =>
-  homeworkFileAllowed(file) && homeworkSelectionAllowed([...mimes, homeworkMimeForFile(file)]);
 export function HomeworkMediaPreview({
   mime,
   url,
@@ -81,37 +80,49 @@ export function TeacherHomeworkMaterials({
     setVersion(initialVersion);
     setError('');
     void reload().catch((e) =>
-      setError(e instanceof Error ? e.message : 'Unable to load materials'),
+      setError(e instanceof Error ? e.message : 'Unable to load attachments'),
     );
   }, [cloud, inst, classId, homeworkId, initialVersion]);
-  const upload = async (file: File) => {
+  const upload = async (files: FileList | null) => {
+    if (!files) return;
+    const selectedFiles = Array.from(files);
     setBusy(true);
     setError('');
+    const uploaded: Array<{ id: string; mime: string }> = [];
     try {
       const mimes = [...records.map((r) => r.mime), ...pending.map((r) => r.mime)];
-      if (!canAdd(mimes, file)) throw Error('Attach up to 2 images, 1 audio file and 1 video.');
-      const mime = homeworkMimeForFile(file);
-      const signed = await cloud.api.beginTeacherHomeworkMaterial(
-        inst,
-        classId,
-        homeworkId,
-        mime,
-        file.size,
-      );
-      const response = await fetch(signed.uploadUrl, {
-        method: 'PUT',
-        headers: { ...signed.headers, 'Content-Type': mime },
-        body: file,
-      });
-      if (!response.ok) throw Error(`Upload failed (${response.status})`);
-      const saved = await cloud.api.finishTeacherHomeworkMaterial(
-        inst,
-        classId,
-        homeworkId,
-        signed.key,
-      );
-      setPending((p) => [...p, { id: saved.record.id, mime: saved.record.mime }]);
+      const nextMimes = [...mimes, ...selectedFiles.map(homeworkMimeForFile)];
+      if (
+        selectedFiles.some((file) => !homeworkFileAllowed(file)) ||
+        !homeworkSelectionAllowed(nextMimes)
+      )
+        throw Error('Choose up to 4 attachments. Check that each file type and size is supported.');
+      for (const file of selectedFiles) {
+        const mime = homeworkMimeForFile(file);
+        const signed = await cloud.api.beginTeacherHomeworkMaterial(
+          inst,
+          classId,
+          homeworkId,
+          mime,
+          file.size,
+        );
+        const response = await fetch(signed.uploadUrl, {
+          method: 'PUT',
+          headers: { ...signed.headers, 'Content-Type': mime },
+          body: file,
+        });
+        if (!response.ok) throw Error(`Upload failed (${response.status})`);
+        const saved = await cloud.api.finishTeacherHomeworkMaterial(
+          inst,
+          classId,
+          homeworkId,
+          signed.key,
+        );
+        uploaded.push({ id: saved.record.id, mime: saved.record.mime });
+      }
+      setPending((p) => [...p, ...uploaded]);
     } catch (e) {
+      if (uploaded.length) setPending((p) => [...p, ...uploaded]);
       setError(e instanceof Error ? e.message : 'Could not upload material');
     } finally {
       setBusy(false);
@@ -125,15 +136,15 @@ export function TeacherHomeworkMaterials({
       setVersion((v) => v + 1);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update materials; refresh assignment');
+      setError(e instanceof Error ? e.message : 'Could not update attachments; refresh assignment');
     } finally {
       setBusy(false);
     }
   };
   return (
     <div className="sadhana-homework-materials">
-      <h4>Assignment materials</h4>
-      <p>Optional: 2 images, 1 audio file and 1 video. Available to enrolled learners.</p>
+      <h4>Attachments</h4>
+      <p>Up to 4 attachments, including images, audio, or video. Available to enrolled learners.</p>
       {error && <p role="alert">{error}</p>}
       <ul>
         {records.map((r) => (
@@ -160,103 +171,33 @@ export function TeacherHomeworkMaterials({
       </ul>
       {pending.length > 0 && (
         <p>
-          {pending.length} new file(s) uploaded privately; click Save materials to publish them.
+          {pending.length} new attachment(s) uploaded privately; click Save attachments to publish
+          them.
         </p>
       )}
       {editable && (
         <>
-          <div className="sadhana-homework-upload-grid" aria-label="Upload teacher materials">
-            <label
-              className={
-                currentMaterialMimes.some((mime) => mime.startsWith('image/')) ? 'has-file' : ''
-              }
-            >
-              <Image size={22} />
-              Image 1
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                aria-label="Add homework image 1"
-                disabled={
-                  busy ||
-                  currentMaterialMimes.filter((mime) => mime.startsWith('image/')).length >= 1
-                }
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
-            <label
-              className={
-                currentMaterialMimes.filter((mime) => mime.startsWith('image/')).length > 1
-                  ? 'has-file'
-                  : ''
-              }
-            >
-              <Image size={22} />
-              Image 2
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                aria-label="Add homework image 2"
-                disabled={
-                  busy ||
-                  currentMaterialMimes.filter((mime) => mime.startsWith('image/')).length >= 2
-                }
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
-            <label
-              className={
-                currentMaterialMimes.some((mime) => mime.startsWith('audio/')) ? 'has-file' : ''
-              }
-            >
-              <Music2 size={22} />
-              Audio
-              <input
-                type="file"
-                accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                aria-label="Add homework audio"
-                disabled={busy || currentMaterialMimes.some((mime) => mime.startsWith('audio/'))}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
-            <label
-              className={
-                currentMaterialMimes.some((mime) => mime.startsWith('video/')) ? 'has-file' : ''
-              }
-            >
-              <Video size={22} />
-              Video
-              <input
-                type="file"
-                accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
-                aria-label="Add homework video"
-                disabled={busy || currentMaterialMimes.some((mime) => mime.startsWith('video/'))}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
-          </div>
+          <label className="sadhana-attachment-add">
+            <UploadCloud size={19} />
+            <span>Add attachments</span>
+            <input
+              type="file"
+              multiple
+              accept={homeworkMediaAccept}
+              aria-label="Add assignment attachments"
+              disabled={busy || currentMaterialMimes.length >= 4}
+              onChange={(e) => {
+                void upload(e.target.files);
+                e.target.value = '';
+              }}
+            />
+          </label>
           <button
             type="button"
             disabled={busy || !pending.length}
             onClick={() => void save([...records.map((r) => r.id), ...pending.map((r) => r.id)])}
           >
-            Save materials
+            Save attachments
           </button>
         </>
       )}
@@ -286,7 +227,7 @@ export function LearnerHomeworkMaterials({
         if (alive) setRecords(x.records);
       })
       .catch((e) => {
-        if (alive) setError(e instanceof Error ? e.message : 'Materials unavailable');
+        if (alive) setError(e instanceof Error ? e.message : 'Attachments unavailable');
       });
     return () => {
       alive = false;
@@ -294,13 +235,13 @@ export function LearnerHomeworkMaterials({
   }, [cloud, inst, studentId, homeworkId]);
   return (
     <div className="sadhana-homework-materials">
-      <h4>Teacher materials</h4>
+      <h4>Attachments</h4>
       {error && <p role="alert">{error}</p>}
-      {!records.length && !error && <p>No attached materials.</p>}
+      {!records.length && !error && <p>No attachments yet.</p>}
       <ul>
         {records.map((r) => (
           <li key={r.id}>
-            <HomeworkMediaPreview mime={r.mime} url={r.url} alt="Teacher homework image" />
+            <HomeworkMediaPreview mime={r.mime} url={r.url} alt="Assignment attachment" />
           </li>
         ))}
       </ul>

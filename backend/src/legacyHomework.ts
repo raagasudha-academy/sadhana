@@ -1013,7 +1013,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
         },
       });
     }
-    if (!validateM9MediaSelection(mimes)) throw httpError(400, 'Too many attachments of one type');
+    if (!validateM9MediaSelection(mimes)) throw httpError(400, 'Invalid attachment selection');
     const now = nowIso(),
       item = {
         submissionId: id,
@@ -1702,7 +1702,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
       });
     }
     if (!validateHomeworkMediaCounts(selectedMimes))
-      throw httpError(400, 'Too many homework attachments of one type');
+      throw httpError(400, 'Invalid homework attachment selection');
     const updated = {
       ...h,
       materialIds: body.ids,

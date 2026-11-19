@@ -9,9 +9,9 @@ import {
   homeworkMediaKind,
   HomeworkMediaPreview,
 } from './HomeworkMaterials';
-import { Image, Music2, Video } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 import './homeworkIcons.css';
-import { homeworkMimeForFile } from './homeworkMediaPolicy';
+import { homeworkMediaAccept, homeworkMimeForFile } from './homeworkMediaPolicy';
 import { RefreshCw } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
@@ -97,7 +97,7 @@ export default function TeacherWorkspace({
       ...next.map(homeworkMimeForFile),
     ];
     if (next.some((f) => !homeworkFileAllowed(f)) || !homeworkSelectionAllowed(mimes)) {
-      setError('Attach up to 2 images, 1 audio file and 1 video.');
+      setError('Choose up to 4 attachments. Check that each file type and size is supported.');
       return;
     }
     setError('');
@@ -107,15 +107,7 @@ export default function TeacherWorkspace({
     ...existingMaterials.filter((m) => !removedMaterialIds.includes(m.id)).map((m) => m.mime),
     ...homeworkFiles.map(homeworkMimeForFile),
   ];
-  const homeworkImageCount = retainedHomeworkMimes.filter((mime) =>
-    mime.startsWith('image/'),
-  ).length;
-  const homeworkAudioCount = retainedHomeworkMimes.filter((mime) =>
-    mime.startsWith('audio/'),
-  ).length;
-  const homeworkVideoCount = retainedHomeworkMimes.filter((mime) =>
-    mime.startsWith('video/'),
-  ).length;
+  const homeworkAttachmentCount = retainedHomeworkMimes.length;
   const startEdit = async (a: {
     id: string;
     title: string;
@@ -137,7 +129,7 @@ export default function TeacherWorkspace({
       setHomeworkDue(a.dueDate);
       setNotice('Editing published homework');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to load existing materials');
+      setError(e instanceof Error ? e.message : 'Unable to load existing attachments');
     } finally {
       setBusy(false);
     }
@@ -471,6 +463,7 @@ export default function TeacherWorkspace({
           </p>
         )}
         {area === 'attendance' && cloud && (
+          <div key={area} className="tw-tab-stage">
           <SessionAttendanceRegister
             cloud={cloud}
             workspace={workspace}
@@ -481,9 +474,10 @@ export default function TeacherWorkspace({
             rsvps={rsvps}
             onSaved={reload}
           />
+          </div>
         )}
         {area !== 'attendance' && (
-          <div className="tw-content">
+          <div key={area} className="tw-content tw-tab-stage">
             <div className="tw-filter">
               <label>
                 Class
@@ -524,8 +518,8 @@ export default function TeacherWorkspace({
             {area === 'students' && !enrolments.length && !busy && !error && (
               <p role="status" className="sadhana-sync-error">
                 No enrollment records were returned for this academy. The teacher roster cannot be
-                built until students have valid class enrollments. Existing teacher assignments were
-                not changed.
+                built until students have valid class enrollments. Existing teacher assignments
+                were not changed.
               </p>
             )}
             {area === 'students' && (
@@ -606,66 +600,23 @@ export default function TeacherWorkspace({
                     />
                   </label>
                   <div className="sv1276-hw-wide sadhana-form-materials">
-                    <strong>Attach homework materials</strong>
-                    <p>Attach images, audio or video to help explain the assignment.</p>
-                    <div className="sadhana-homework-upload-grid">
-                      <label className={homeworkImageCount > 0 ? 'has-file' : ''}>
-                        <Image size={22} />
-                        Image 1
-                        <input
-                          aria-label="Add homework image 1"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                          disabled={busy || homeworkImageCount >= 1}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <label className={homeworkImageCount > 1 ? 'has-file' : ''}>
-                        <Image size={22} />
-                        Image 2
-                        <input
-                          aria-label="Add homework image 2"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                          disabled={busy || homeworkImageCount >= 2}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <label className={homeworkAudioCount ? 'has-file' : ''}>
-                        <Music2 size={22} />
-                        Audio
-                        <input
-                          aria-label="Add homework audio"
-                          type="file"
-                          accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                          disabled={busy || homeworkAudioCount >= 1}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <label className={homeworkVideoCount ? 'has-file' : ''}>
-                        <Video size={22} />
-                        Video
-                        <input
-                          aria-label="Add homework video"
-                          type="file"
-                          accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
-                          disabled={busy || homeworkVideoCount >= 1}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                    </div>
+                    <strong>Attachments · {homeworkAttachmentCount}/4</strong>
+                    <p>Add up to four images, audio files, or videos for the assignment.</p>
+                    <label className="sadhana-attachment-add">
+                      <UploadCloud size={19} />
+                      <span>Add attachments</span>
+                      <input
+                        aria-label="Add assignment attachments"
+                        type="file"
+                        multiple
+                        accept={homeworkMediaAccept}
+                        disabled={busy || homeworkAttachmentCount >= 4}
+                        onChange={(e) => {
+                          chooseHomeworkFiles(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                     {existingMaterials
                       .filter((m) => !removedMaterialIds.includes(m.id))
                       .map((m) => (
@@ -740,12 +691,12 @@ export default function TeacherWorkspace({
                             Review Submissions
                           </button>
                           <button
-                            className="sadhana-hw-secondary"
+                            className="sadhana-hw-secondary sadhana-hw-danger"
                             type="button"
                             disabled={busy}
                             onClick={() => void deleteAssignment(a)}
                           >
-                            Delete homework
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -789,7 +740,7 @@ export default function TeacherWorkspace({
                                   }
                                 }}
                               >
-                                View {row.attachmentIds.length} attachment(s)
+                                View attachments · {row.attachmentIds.length}
                               </button>
                               <ul>
                                 {(teacherLinks[row.studentId] || []).map((file) => (
@@ -807,7 +758,9 @@ export default function TeacherWorkspace({
                           <section className="tw-homework-feedback" aria-label="Teacher feedback">
                             <h4>Teacher feedback</h4>
                             <label>
-                              Written feedback <span>Optional</span>
+                              <span>
+                                Written feedback <small>Optional</small>
+                              </span>
                               <textarea
                                 rows={4}
                                 maxLength={2000}
@@ -860,7 +813,9 @@ export default function TeacherWorkspace({
                                         body: file,
                                       });
                                       if (!uploaded.ok)
-                                        throw new Error(`Audio upload failed (${uploaded.status})`);
+                                        throw new Error(
+                                          `Audio upload failed (${uploaded.status})`,
+                                        );
                                       const saved =
                                         await cloud.api.finishTeacherHomeworkFeedbackAudio(
                                           workspace,

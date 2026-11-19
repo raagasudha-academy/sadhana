@@ -2,11 +2,24 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { homeworkMediaAllowed, validateHomeworkMediaCounts } from '../homeworkMediaPolicy.ts';
 
-test('homework accepts up to two images', () => {
+test('homework accepts up to four generic attachments', () => {
   assert.equal(validateHomeworkMediaCounts([]), true);
   assert.equal(validateHomeworkMediaCounts(['image/jpeg']), true);
   assert.equal(validateHomeworkMediaCounts(['image/jpeg', 'image/png']), true);
-  assert.equal(validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'image/webp']), false);
+  assert.equal(
+    validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
+    true,
+  );
+  assert.equal(
+    validateHomeworkMediaCounts([
+      'audio/mpeg',
+      'audio/mp4',
+      'audio/webm',
+      'audio/aac',
+      'audio/wav',
+    ]),
+    false,
+  );
 });
 
 test('homework allows optional audio and video while rejecting documents', () => {
@@ -22,7 +35,7 @@ test('homework allows optional audio and video while rejecting documents', () =>
     validateHomeworkMediaCounts(['image/jpeg', 'image/png', 'audio/mpeg', 'video/mp4']),
     true,
   );
-  assert.equal(validateHomeworkMediaCounts(['audio/mpeg', 'audio/mp4']), false);
+  assert.equal(validateHomeworkMediaCounts(['audio/mpeg', 'audio/mp4']), true);
 });
 
 test('each image is limited to 5 MB', () => {
