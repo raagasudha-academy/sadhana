@@ -294,21 +294,7 @@ export function makeM10TeacherPracticeRoutes(
           row.institutionId !== inst ||
           row.studentId !== practice.studentId ||
           !row.objectKey?.startsWith(`homework-private/learner/${inst}/${practice.studentId}/`) ||
-          ![
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/heic',
-            'image/heif',
-            'audio/mpeg',
-            'audio/mp4',
-            'audio/aac',
-            'audio/wav',
-            'audio/x-wav',
-            'video/mp4',
-            'video/quicktime',
-            'video/3gpp',
-          ].includes(row.mime)
+          !Object.hasOwn(homeworkMediaRules, row.mime)
         )
           continue;
         records.push({
