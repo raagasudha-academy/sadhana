@@ -1100,6 +1100,18 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
         }),
       );
     } catch (e) {
+      if (
+        e?.name === 'TransactionCanceledException' &&
+        process.env.SADHANA_ENTITY_STAGE === 'dev'
+      ) {
+        const reasons = Array.isArray(e.CancellationReasons)
+          ? e.CancellationReasons.map((reason: any, index: number) => `${index}:${reason?.Code}`)
+          : [];
+        throw httpError(
+          409,
+          `Dev homework transaction cancelled (${reasons.join(',') || 'no reasons returned'})`,
+        );
+      }
       conflict(e);
     }
     return { record: publicSubmission(item) };
