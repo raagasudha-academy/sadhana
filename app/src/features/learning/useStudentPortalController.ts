@@ -405,7 +405,7 @@ export function useStudentPortalController({
     } catch (e) {
       const detail = e instanceof Error ? e.message : 'Could not save homework';
       if (
-        /submission changed|changed\. refresh|deadline has passed|read-only|teacher-reviewed/i.test(
+        /submission changed|record or access changed|changed\. refresh|deadline has passed|read-only|teacher-reviewed/i.test(
           detail,
         )
       ) {
@@ -442,7 +442,7 @@ export function useStudentPortalController({
           return true;
         } catch (retryError) {
           setMessage(
-            'A newer version exists and could not be replaced. Your edits are still here.',
+            'The server changed while saving. Your edits are still here; try saving again.',
           );
           setError(retryError instanceof Error ? retryError.message : detail);
         }
