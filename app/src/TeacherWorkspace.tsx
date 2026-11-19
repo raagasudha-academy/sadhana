@@ -464,16 +464,16 @@ export default function TeacherWorkspace({
         )}
         {area === 'attendance' && cloud && (
           <div key={area} className="tw-tab-stage">
-          <SessionAttendanceRegister
-            cloud={cloud}
-            workspace={workspace}
-            schedule={schedule}
-            students={students}
-            enrolments={enrolments}
-            attendance={attendance}
-            rsvps={rsvps}
-            onSaved={reload}
-          />
+            <SessionAttendanceRegister
+              cloud={cloud}
+              workspace={workspace}
+              schedule={schedule}
+              students={students}
+              enrolments={enrolments}
+              attendance={attendance}
+              rsvps={rsvps}
+              onSaved={reload}
+            />
           </div>
         )}
         {area !== 'attendance' && (
@@ -518,8 +518,8 @@ export default function TeacherWorkspace({
             {area === 'students' && !enrolments.length && !busy && !error && (
               <p role="status" className="sadhana-sync-error">
                 No enrollment records were returned for this academy. The teacher roster cannot be
-                built until students have valid class enrollments. Existing teacher assignments
-                were not changed.
+                built until students have valid class enrollments. Existing teacher assignments were
+                not changed.
               </p>
             )}
             {area === 'students' && (
@@ -813,9 +813,7 @@ export default function TeacherWorkspace({
                                         body: file,
                                       });
                                       if (!uploaded.ok)
-                                        throw new Error(
-                                          `Audio upload failed (${uploaded.status})`,
-                                        );
+                                        throw new Error(`Audio upload failed (${uploaded.status})`);
                                       const saved =
                                         await cloud.api.finishTeacherHomeworkFeedbackAudio(
                                           workspace,
