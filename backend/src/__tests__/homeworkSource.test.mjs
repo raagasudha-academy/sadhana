@@ -26,3 +26,7 @@ test('M9 media receipts must be verified and media flag enabled before submissio
   assert.match(src, /mediaStatus!=='ready'/);
   assert.match(src, /validateM9MediaSelection/);
 });
+test('homework writes allow an explicit null releaseAt while checking the deadline', () => {
+  assert.equal((src.match(/attribute_type\(releaseAt,:nullType\)/g) || []).length, 2);
+  assert.ok((src.match(/':nullType':'NULL'/g) || []).length >= 2);
+});

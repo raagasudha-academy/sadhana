@@ -1042,12 +1042,13 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
                 TableName: table('homework'),
                 Key: { homeworkId },
                 ConditionExpression:
-                  'institutionId=:inst AND classId=:class AND #status<>:archived AND (attribute_not_exists(releaseAt) OR releaseAt<=:now) AND dueAt>=:now',
+                  'institutionId=:inst AND classId=:class AND #status<>:archived AND (attribute_not_exists(releaseAt) OR attribute_type(releaseAt,:nullType) OR releaseAt<=:now) AND dueAt>=:now',
                 ExpressionAttributeNames: { '#status': 'status' },
                 ExpressionAttributeValues: {
                   ':inst': inst,
                   ':class': h.classId,
                   ':archived': 'archived',
+                  ':nullType': 'NULL',
                   ':now': now,
                 },
               },
@@ -1133,9 +1134,14 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
                 TableName: table('homework'),
                 Key: { homeworkId: body.homeworkId },
                 ConditionExpression:
-                  'institutionId=:inst AND #status<>:archived AND (attribute_not_exists(releaseAt) OR releaseAt<=:now) AND dueAt>=:now',
+                  'institutionId=:inst AND #status<>:archived AND (attribute_not_exists(releaseAt) OR attribute_type(releaseAt,:nullType) OR releaseAt<=:now) AND dueAt>=:now',
                 ExpressionAttributeNames: { '#status': 'status' },
-                ExpressionAttributeValues: { ':inst': inst, ':archived': 'archived', ':now': now },
+                ExpressionAttributeValues: {
+                  ':inst': inst,
+                  ':archived': 'archived',
+                  ':nullType': 'NULL',
+                  ':now': now,
+                },
               },
             },
             {
