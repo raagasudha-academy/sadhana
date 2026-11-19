@@ -9,19 +9,22 @@ const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
 function imageType(file: File): string {
   if (file.type) return file.type;
   const ext = file.name.split('.').pop()?.toLowerCase();
-  return ({
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    webp: 'image/webp',
-    heic: 'image/heic',
-    heif: 'image/heif',
-  } as Record<string, string>)[ext || ''] || '';
+  return (
+    (
+      {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        heic: 'image/heic',
+        heif: 'image/heif',
+      } as Record<string, string>
+    )[ext || ''] || ''
+  );
 }
 
 export async function jpegData(file: File): Promise<string> {
-  if (!ALLOWED.has(imageType(file)))
-    throw new Error('Choose a JPG, PNG, WebP or HEIC photo.');
+  if (!ALLOWED.has(imageType(file))) throw new Error('Choose a JPG, PNG, WebP or HEIC photo.');
   if (file.size > MAX_SOURCE_BYTES)
     throw new Error('Choose a photo smaller than 20 MB. It will be resized before upload.');
   const source = URL.createObjectURL(file);
