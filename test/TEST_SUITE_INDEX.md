@@ -44,7 +44,9 @@ npm run test:backend:e2e
 
 Playwright tests are organized by page/feature under `test/playwrighttests/pages/<feature>/`, with role cases grouped inside each page suite. Examples include `dashboard/`, `classes-timetable/`, `families-students/`, `my-learning/` and `my-profile/`. Shared synthetic sessions and network restrictions are in `test/playwrighttests/fixtures/`. Family deletion verifies source registration history and roll reservation retention; website registration covers a second academy family for a parent with an existing Sruti login and linking that verified account.
 
-Each role/page navigation spec has a matching screenshot baseline beside it in a `page.spec.ts-snapshots/` folder. The current suite has 44 screenshot baselines across admin, teacher, student and guardian views, plus interaction, responsive and visual regression tests for the administrator family/student directory. The full current Playwright run passes 60 tests, including administrator and teacher My Profile access. All role fixtures use synthetic data and block requests outside the local Vite server.
+Each role/page navigation spec has screenshot baselines beside it in `*-snapshots/` folders. The suite now has 148 screenshots across administrator, teacher, student and guardian views, plus interaction and responsive checks. The full Playwright run passes 66 tests. All role fixtures use synthetic data and block requests outside the local Vite server.
+
+The exhaustive navigation matrix is in [`pages/navigation-matrix.spec.ts`](playwrighttests/pages/navigation-matrix.spec.ts). It opens every primary page for administrator, teacher, student and guardian views, covers the administrator tabs in both academy workspaces, and snapshots the visible ARIA, registration, operations and teacher-workspace tabs. A separate scenario supplies synthetic records to reach student and class detail tabs that are hidden in the empty-state fixture. All requests remain on the local Vite fixture.
 
 Run browser tests and compare them with the screenshots using:
 

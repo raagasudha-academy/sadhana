@@ -1,4 +1,4 @@
-/** Homework media policy. Attachments are optional; each media type is validated independently. */
+/** Homework attachment policy. Each file is validated by type and size; four files maximum. */
 export const homeworkMediaRules = {
   'image/jpeg': { kind: 'image', ext: 'jpg', max: 5_000_000 },
   'image/png': { kind: 'image', ext: 'png', max: 5_000_000 },
@@ -22,12 +22,7 @@ export function validateHomeworkMediaCounts(mimes: string[]): boolean {
     !mimes.every((m) => Object.prototype.hasOwnProperty.call(homeworkMediaRules, m))
   )
     return false;
-  const kinds = mimes.map((m) => homeworkMediaRules[m as keyof typeof homeworkMediaRules].kind);
-  return (
-    kinds.filter((kind) => kind === 'image').length <= 2 &&
-    kinds.filter((kind) => kind === 'audio').length <= 1 &&
-    kinds.filter((kind) => kind === 'video').length <= 1
-  );
+  return true;
 }
 export function homeworkMediaAllowed(mime: string, size: unknown): boolean {
   const r = homeworkMediaRules[mime as keyof typeof homeworkMediaRules];

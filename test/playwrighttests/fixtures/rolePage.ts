@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 export type PortalRole = 'admin' | 'teacher' | 'student' | 'guardian';
 
-export async function openRoleSession(page: Page, role: PortalRole) {
+export async function openRoleSession(page: Page, role: PortalRole, scenario?: string) {
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
     if (
@@ -14,7 +14,8 @@ export async function openRoleSession(page: Page, role: PortalRole) {
     throw new Error(`E2E blocked unexpected network access: ${url.origin}`);
   });
   await page.clock.install({ time: new Date('2026-11-08T12:00:00Z') });
-  await page.goto(`/e2e-fixtures/roles.html?role=${role}`);
+  const scenarioQuery = scenario ? `&scenario=${encodeURIComponent(scenario)}` : '';
+  await page.goto(`/e2e-fixtures/roles.html?role=${role}${scenarioQuery}`);
 }
 
 export async function assertRolePage(page: Page, role: PortalRole, label: string) {

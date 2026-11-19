@@ -12,13 +12,14 @@ export async function finalOperationsRoute(context, readers, access, env = proce
     )
   )
     return undefined;
-  // Feedback is independently gated; other compatibility routes remain GET-only.
+  // Feedback and attendance have explicit canonical write paths; other compatibility routes remain GET-only.
   if (
     method !== 'GET' &&
     !(
       parts[1] === 'feedback' &&
       ((method === 'POST' && parts.length === 2) || (method === 'PATCH' && parts.length === 3))
-    )
+    ) &&
+    !(parts[1] === 'attendance' && method === 'POST' && parts.length === 2)
   )
     return undefined;
   if (!claims?.sub) return undefined;
@@ -119,6 +120,44 @@ export async function finalOperationsRoute(context, readers, access, env = proce
     };
   }
   if (parts[1] === 'attendance') {
+    if (method === 'POST') {
+      const raw = context.event?.body;
+      let data;
+      try {
+        data = raw
+          ? JSON.parse(
+              context.event.isBase64Encoded ? Buffer.from(raw, 'base64').toString('utf8') : raw,
+            )
+          : {};
+      } catch {
+        return { status: 400, body: { error: 'Invalid JSON.' } };
+      }
+      if (!data || typeof data !== 'object' || Array.isArray(data))
+        return { status: 400, body: { error: 'Invalid attendance body.' } };
+      let assignedIds;
+      if (!isAdmin) {
+        const teacher = await readers.directory('teacherMe', inst, claims);
+        if (!teacher?.linked || !teacher.teacherId)
+          access.forbid('Verified academy teacher required.');
+        const classes = await readers.directory('classes', inst, claims);
+        assignedIds = new Set(
+          (classes?.records ?? [])
+            .filter(
+              (row) =>
+                row?.teacherId === teacher.teacherId &&
+                row?.lifecycleStatus !== 'archived' &&
+                row?.archived !== true,
+            )
+            .map((row) => row.id)
+            .filter((id) => typeof id === 'string' && id.length > 0),
+        );
+        if (!assignedIds.size) access.forbid('No assigned class.');
+      }
+      return {
+        status: 201,
+        body: await readers.attendanceCreate(inst, claims.sub, data, assignedIds),
+      };
+    }
     if (isAdmin) return { status: 200, body: await readers.attendance(inst) };
     const teacher = await readers.directory('teacherMe', inst, claims);
     if (!teacher?.linked || !teacher.teacherId) access.forbid('Verified academy teacher required.');

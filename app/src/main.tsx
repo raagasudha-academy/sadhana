@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import CloudAuth from './CloudAuth';
-import './styles.css';
+import './portalStyles';
 import './authPolish.css';
 
 const assetRetryKey = (assetUrl: string) => `sadhana:asset-retry:${assetUrl}`;

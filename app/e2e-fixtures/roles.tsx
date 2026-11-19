@@ -4,9 +4,11 @@ import { createRoot } from 'react-dom/client';
 import App from '../src/App';
 import type { CloudSession } from '../src/CloudAuth';
 import type { SadhanaApiClient } from '../src/api/sadhanaClient';
-import '../src/styles.css';
+import '../src/portalStyles';
 
 const requestedRole = new URLSearchParams(location.search).get('role') || 'admin';
+const scenario = new URLSearchParams(location.search).get('scenario');
+const detailScenario = scenario === 'detail-tabs';
 const role = ['admin', 'teacher', 'student', 'guardian'].includes(requestedRole)
   ? requestedRole
   : 'admin';
@@ -40,6 +42,40 @@ const linked =
         ]
       : [];
 const empty = { records: [], more: false, source: 'fixture' };
+const detailFamily = {
+  id: 'E2E-VISUAL-FAMILY',
+  parentName: 'Visual Fixture Parent',
+  phone: '+447700900000',
+  location: 'Carlisle',
+  createdIn: 'sruti',
+  version: 1,
+};
+const detailStudent = {
+  id: 'E2E-VISUAL-STUDENT',
+  name: 'Visual Fixture Student',
+  familyId: detailFamily.id,
+  phone: '+447700900001',
+  location: 'Carlisle',
+  createdIn: 'sruti',
+  registrationType: 'family',
+  adultConfirmed: false,
+  version: 1,
+};
+const detailClass = {
+  id: 'E2E-VISUAL-CLASS',
+  recordType: 'class',
+  institution: 'sruti',
+  name: 'Visual Fixture Class',
+  teacher: 'Fixture Teacher',
+  teacherId: 'e2e-teacher',
+  programme: 'Śruti Children',
+  mode: 'Online',
+  location: 'Online',
+  startTime: '10:00',
+  endTime: '11:00',
+  lifecycleStatus: 'active',
+  version: 1,
+};
 // Local-only curriculum examples let staff, teacher and learner previews show the shared journey UI.
 const fixtureSyllabus = [
   {
@@ -229,6 +265,12 @@ const myProfile = {
 };
 let pendingPhone = '';
 const apiHandlers: Record<string, (...args: any[]) => any> = {
+  listOperations: async (kind: string) => {
+    if (!detailScenario) return empty;
+    if (kind === 'family') return { records: [structuredClone(detailFamily)] };
+    if (kind === 'student') return { records: [structuredClone(detailStudent)] };
+    return empty;
+  },
   getMyProfile: async () => ({ ...myProfile }),
   updateMyProfile: async (data: { name: string; givenName: string; familyName: string }) => {
     Object.assign(myProfile, data);
@@ -305,7 +347,10 @@ const apiHandlers: Record<string, (...args: any[]) => any> = {
     teachers: [],
     venues: [],
   }),
-  listSchedule: async () => empty,
+  listSchedule: async () => ({
+    ...empty,
+    records: detailScenario ? [structuredClone(detailClass)] : [],
+  }),
   listTeachers: async () => empty,
   listAdministrators: async () => ({ records: [], canManage: role === 'admin' }),
   listManagedEvents: async () => empty,

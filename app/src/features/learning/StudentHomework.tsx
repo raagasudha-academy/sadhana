@@ -1,30 +1,34 @@
+import { useState } from 'react';
 import { Info, UploadCloud, X } from 'lucide-react';
 import type { StudentPortalContext } from './useStudentPortalController';
 import { HomeworkInstructions } from './HomeworkInstructions';
 import { LearnerHomeworkMaterials } from '../../HomeworkMaterials';
+import AudioFeedbackRecorder from '../../AudioFeedbackRecorder';
+import { homeworkMediaAccept } from '../../homeworkMediaPolicy';
 
 export function StudentHomework({ context }: { context: StudentPortalContext }) {
+  const [audioRecording, setAudioRecording] = useState(false);
   const {
     cloud,
     inst,
     homeworkDrawerOpen,
-    setHomeworkDrawerOpen,
     students,
     activeId,
     homework,
     selectedHomework,
-    setSelectedHomework,
     homeworkText,
     setHomeworkText,
     submission,
     setSubmission,
     submissionEditable,
     submissionBusy,
+    error,
     setConfirmHomework,
     attachments,
     uploadHomeworkFiles,
     openAssignment,
     saveAssignment,
+    closeHomeworkDrawer,
     homeworkBusy,
     detail,
     classId,
@@ -50,15 +54,9 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
               <span className="sv137-homework-card-heading">
                 <strong>{h.title}</strong>
                 <span
-                  className={`sv137-homework-status sv137-homework-status--${h.closed ? 'closed' : h.submissionStatus === 'submitted' ? 'submitted' : h.submissionStatus === 'draft' ? 'draft' : 'new'}`}
+                  className={`sv137-homework-status sv137-homework-status--${h.closed ? 'closed' : h.submissionStatus === 'submitted' ? 'submitted' : 'new'}`}
                 >
-                  {h.closed
-                    ? 'Closed'
-                    : h.submissionStatus === 'submitted'
-                      ? 'Submitted'
-                      : h.submissionStatus === 'draft'
-                        ? 'Draft'
-                        : 'New'}
+                  {h.closed ? 'Closed' : h.submissionStatus === 'submitted' ? 'Submitted' : 'New'}
                 </span>
               </span>
               <span>
@@ -68,7 +66,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                 Due {h.dueDate}
                 <span
                   className="sv1278-edit-info"
-                  title="Drafts and submissions can be edited until the due date or teacher review."
+                  title="Submit your work before the due date. Submitted work can be revised until teacher review."
                   role="img"
                   aria-label="Editing is allowed until the due date or teacher review"
                 >
@@ -91,10 +89,8 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
           className="sv1291-drawer-backdrop"
           role="presentation"
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !submissionBusy) {
-              setHomeworkDrawerOpen(false);
-              setSelectedHomework('');
-              setConfirmHomework(null);
+            if (e.target === e.currentTarget && !submissionBusy && !audioRecording) {
+              void closeHomeworkDrawer();
             }
           }}
         >
@@ -104,10 +100,8 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
             aria-modal="true"
             aria-label="Homework details"
             onKeyDown={(e) => {
-              if (e.key === 'Escape' && !submissionBusy) {
-                setHomeworkDrawerOpen(false);
-                setSelectedHomework('');
-                setConfirmHomework(null);
+              if (e.key === 'Escape' && !submissionBusy && !audioRecording) {
+                void closeHomeworkDrawer();
               }
             }}
           >
@@ -116,13 +110,15 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
               <button
                 type="button"
                 aria-label="Close homework details"
-                onClick={() => {
-                  if (!submissionBusy) {
-                    setHomeworkDrawerOpen(false);
-                    setSelectedHomework('');
-                    setConfirmHomework(null);
-                  }
-                }}
+                title={
+                  audioRecording
+                    ? 'Stop recording before closing'
+                    : submissionBusy
+                      ? 'Wait for the attachment upload to finish'
+                      : 'Close homework details'
+                }
+                disabled={submissionBusy || audioRecording}
+                onClick={() => void closeHomeworkDrawer()}
               >
                 <X size={20} />
               </button>
@@ -159,87 +155,114 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                   />
                 </label>
                 <div className="sv1278-upload-note">
-                  <strong>Optional media · {submission.attachmentIds.length}/4 files</strong>
-                  <label className="sv1278-media-add">
-                    <UploadCloud size={18} />
-                    <span>{submissionBusy ? 'Uploading…' : 'Add media'}</span>
-                    <input
-                      aria-label="Add homework media"
-                      type="file"
-                      multiple
-                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif,audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,video/mp4,video/quicktime,video/3gpp,.jpg,.jpeg,.png,.webp,.heic,.heif,.mp3,.m4a,.aac,.wav,.mp4,.mov,.3gp"
+                  <strong>Attachments · {submission.attachmentIds.length}/4</strong>
+                  <div className="sv1278-attachment-actions">
+                    <label className="sv1278-media-add">
+                      <UploadCloud size={18} />
+                      <span>{submissionBusy ? 'Uploading…' : 'Add attachments'}</span>
+                      <input
+                        aria-label="Add homework attachments"
+                        type="file"
+                        multiple
+                        accept={homeworkMediaAccept}
+                        disabled={
+                          !submissionEditable ||
+                          submissionBusy ||
+                          submission.attachmentIds.length >= 4
+                        }
+                        onChange={(e) => {
+                          void uploadHomeworkFiles(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    <AudioFeedbackRecorder
+                      label="Record an audio attachment"
+                      startText="Record audio"
                       disabled={
                         !submissionEditable ||
                         submissionBusy ||
                         submission.attachmentIds.length >= 4
                       }
-                      onChange={(e) => {
-                        void uploadHomeworkFiles(e.target.files);
-                        e.target.value = '';
-                      }}
+                      onRecording={(file) => void uploadHomeworkFiles([file])}
+                      onRecordingChange={setAudioRecording}
                     />
-                  </label>
+                    {submissionBusy && (
+                      <span className="sv1278-attachment-status" role="status" aria-live="polite">
+                        Uploading attachment…
+                      </span>
+                    )}
+                  </div>
+                  {error && (
+                    <p className="sv1278-attachment-error" role="alert">
+                      {error}
+                    </p>
+                  )}
                   <ul>
-                    {attachments.map((a) => (
-                      <li key={a.id}>
-                        {a.url ? (
-                          a.mime.startsWith('image/') ? (
-                            <a href={a.url} target="_blank" rel="noreferrer">
-                              <img
-                                className="sadhana-homework-image"
+                    {attachments
+                      .filter((a) => submission.attachmentIds.includes(a.id))
+                      .map((a) => (
+                        <li key={a.id}>
+                          {a.url ? (
+                            a.mime.startsWith('image/') ? (
+                              <a href={a.url} target="_blank" rel="noreferrer">
+                                <img
+                                  className="sadhana-homework-image"
+                                  src={a.url}
+                                  alt="Submitted homework image"
+                                  loading="lazy"
+                                />
+                              </a>
+                            ) : a.mime.startsWith('audio/') ? (
+                              <audio
+                                controls
+                                preload="none"
                                 src={a.url}
-                                alt="Submitted homework image"
-                                loading="lazy"
+                                aria-label="Homework audio"
                               />
-                            </a>
-                          ) : a.mime.startsWith('audio/') ? (
-                            <audio
-                              controls
-                              preload="none"
-                              src={a.url}
-                              aria-label="Homework audio"
-                            />
-                          ) : a.mime.startsWith('video/') ? (
-                            <video
-                              controls
-                              playsInline
-                              preload="metadata"
-                              src={a.url}
-                              aria-label="Homework video"
-                            />
+                            ) : a.mime.startsWith('video/') ? (
+                              <video
+                                controls
+                                playsInline
+                                preload="metadata"
+                                src={a.url}
+                                aria-label="Homework video"
+                              />
+                            ) : (
+                              <a href={a.url} target="_blank" rel="noreferrer">
+                                Previous attachment ({a.mime})
+                              </a>
+                            )
                           ) : (
-                            <a href={a.url} target="_blank" rel="noreferrer">
-                              Previous media ({a.mime})
-                            </a>
-                          )
-                        ) : (
-                          a.mime
-                        )}{' '}
-                        {submissionEditable && (
-                          <button
-                            type="button"
-                            disabled={submissionBusy}
-                            onClick={() =>
-                              setSubmission((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      attachmentIds: prev.attachmentIds.filter((id) => id !== a.id),
-                                    }
-                                  : prev,
-                              )
-                            }
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </li>
-                    ))}
+                            a.name || a.mime
+                          )}{' '}
+                          {submissionEditable && (
+                            <button
+                              type="button"
+                              disabled={submissionBusy}
+                              onClick={() =>
+                                setSubmission((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        attachmentIds: prev.attachmentIds.filter(
+                                          (id) => id !== a.id,
+                                        ),
+                                      }
+                                    : prev,
+                                )
+                              }
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </li>
+                      ))}
                   </ul>
                   {submission.attachmentIds.length > attachments.length && (
                     <p>
-                      {submission.attachmentIds.length - attachments.length} newly uploaded file(s)
-                      will be linked when you save.
+                      {submission.attachmentIds.length - attachments.length} attachment(s) will be
+                      sent when you submit.
                     </p>
                   )}
                 </div>
@@ -256,7 +279,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                 )}
                 <footer>
                   <span>
-                    {submission.status === 'submitted' ? 'Submitted' : 'Draft'}
+                    {submission.status === 'submitted' ? 'Submitted' : 'Not submitted'}
                     {submission.reviewedAt
                       ? ' · Reviewed · Read-only'
                       : !submissionEditable
@@ -264,13 +287,6 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                         : ''}
                   </span>
                   <div>
-                    <button
-                      type="button"
-                      disabled={!submissionEditable || submissionBusy}
-                      onClick={() => void saveAssignment('draft')}
-                    >
-                      Save draft
-                    </button>
                     <button
                       type="button"
                       disabled={

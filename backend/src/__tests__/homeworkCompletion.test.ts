@@ -14,6 +14,7 @@ test('reviewed submission is exposed and made read-only', () => {
 });
 test('review and submission safety guards remain', () => {
   assert.ok(source.includes('if(old?.reviewedAt)throw httpError(409'));
+  assert.ok(source.includes('if(old.reviewedAt)throw httpError(409'));
   assert.ok(source.includes("old.status!=='submitted'"));
-  assert.ok(source.includes('body.attachmentIds.length>3'));
+  assert.ok(source.includes('body.attachmentIds.length>4'));
 });

@@ -10,6 +10,12 @@ export type OperationsDependencies = CanonicalReadDependencies & {
     assignedClassIds?: ReadonlySet<string>,
     teacherId?: string,
   ) => Promise<{ records: Array<Record<string, unknown>> }>;
+  attendanceCreate: (
+    institution: 'raaga' | 'sruti',
+    actor: string,
+    data: Record<string, unknown>,
+    assignedClassIds?: ReadonlySet<string>,
+  ) => Promise<{ record: Record<string, unknown> }>;
   feedback: {
     list: (
       institution: 'raaga' | 'sruti',

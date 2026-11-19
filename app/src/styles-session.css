@@ -1,0 +1,313 @@
+/* User-provided Sadhana icon slot — transparent PNG preferred */
+.sadhana-brand-image {
+  display: block;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Cognito-only session entry and read-only AWS integration (v0.5.3) */
+.auth-landing {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background: radial-gradient(circle at 80% 10%, #eae8f1, transparent 42%), #f6f7fa;
+}
+.auth-card {
+  width: min(460px, 100%);
+  background: #fff;
+  border: 1px solid #e4e9f1;
+  border-radius: 20px;
+  padding: 36px;
+  box-shadow: 0 15px 45px #29364b12;
+  display: grid;
+  gap: 18px;
+}
+.auth-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #29364b;
+}
+.auth-identity strong {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 27px;
+}
+.auth-identity small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: #6176a8;
+}
+.auth-icon {
+  height: 45px;
+  width: 45px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #f6f7fa;
+}
+.auth-icon img {
+  width: 37px;
+  height: 37px;
+  object-fit: contain;
+}
+.auth-illustration {
+  display: grid;
+  place-items: center;
+  background: #ede8f3;
+  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  color: #9875a5;
+  margin-top: 8px;
+}
+.auth-card h1 {
+  font-size: 28px;
+}
+.auth-card p {
+  color: #617084;
+  font-size: 14px;
+}
+.auth-small {
+  font-size: 12px;
+  color: #617084;
+  text-align: center;
+}
+.auth-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 47px;
+  background: #29364b;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 700;
+}
+.auth-primary:hover {
+  background: #1f2a3e;
+}
+.auth-secondary {
+  border: 1px solid #e4e9f1;
+  padding: 11px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+}
+.auth-footnote {
+  border-top: 1px solid #e4e9f1;
+  padding-top: 15px;
+  text-align: center;
+  font-size: 11px !important;
+}
+.auth-error {
+  border-radius: 9px;
+  background: #fff4f1;
+  color: #9b3b2e;
+  display: flex;
+  gap: 8px;
+  padding: 13px;
+  font-size: 13px;
+}
+.cloud-topbar-btn,
+.cloud-logout {
+  border: 1px solid #e4e9f1;
+  background: #fff;
+  color: #29364b;
+  border-radius: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.cloud-topbar-btn:hover,
+.cloud-logout:hover {
+  background: #edf1f8;
+}
+.cloud-strip {
+  background: #f0edf6;
+  border-bottom: 1px solid #e2dbe9;
+}
+.cloud-strip > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #d9cfdf;
+  border-radius: 7px;
+  background: #fff;
+  color: #29364b;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: auto;
+}
+.cloud-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: #19243a99;
+  display: grid;
+  place-items: center;
+  padding: 15px;
+  overflow: auto;
+}
+.cloud-modal {
+  width: min(670px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 16px;
+  background: #fff;
+  padding: 25px;
+  box-shadow: 0 22px 65px #10192850;
+  display: grid;
+  gap: 19px;
+}
+.cloud-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+.cloud-modal-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  margin-top: 8px;
+}
+.cloud-modal-head p {
+  font-size: 13px;
+  color: #69778d;
+  margin-top: 6px;
+}
+.cloud-modal-head > button {
+  height: 34px;
+  min-width: 34px;
+  border: 0;
+  background: #f1f3f7;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+}
+.cloud-note {
+  background: #e9f4ef;
+  color: #275f48;
+  border-radius: 9px;
+  padding: 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+.cloud-progress {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.cloud-error {
+  background: #fff3f0;
+  color: #913d2b;
+  padding: 12px;
+  border-radius: 9px;
+}
+.cloud-results {
+  display: grid;
+  gap: 13px;
+}
+.cloud-results section {
+  border: 1px solid #e4e9f1;
+  border-radius: 12px;
+  padding: 16px;
+}
+.cloud-results h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+.cloud-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.cloud-stats > div {
+  background: #f6f7fa;
+  padding: 11px 7px;
+  border-radius: 8px;
+  text-align: center;
+  min-width: 0;
+}
+.cloud-stats strong {
+  display: block;
+  font-size: 24px;
+}
+.cloud-stats span {
+  font-size: 11px;
+  color: #69778d;
+  text-transform: capitalize;
+  word-break: break-word;
+}
+.cloud-results small {
+  display: block;
+  margin-top: 10px;
+  color: #69778d;
+}
+.cloud-disclaimer {
+  font-size: 12px;
+  color: #69778d;
+  background: #f8f9fb;
+  border-left: 3px solid #bba57a;
+  padding: 12px;
+  line-height: 1.6;
+}
+.cloud-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.cloud-actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e4e9f1;
+  border-radius: 8px;
+  background: #fff;
+  color: #29364b;
+  padding: 9px 15px;
+  font-weight: 650;
+}
+.cloud-actions button:last-child {
+  background: #29364b;
+  color: #fff;
+}
+@media (max-width: 700px) {
+  .cloud-topbar-btn {
+    font-size: 0;
+    padding: 7px;
+  }
+  .cloud-topbar-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .cloud-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .auth-card {
+    padding: 24px;
+  }
+  .cloud-modal {
+    padding: 18px;
+  }
+}

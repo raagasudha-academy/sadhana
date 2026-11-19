@@ -539,7 +539,7 @@ export async function saveHomeworkSubmission(
     !Number.isInteger(body.expectedVersion) ||
     body.expectedVersion < 0 ||
     !Array.isArray(body.attachmentIds) ||
-    body.attachmentIds.length > 3 ||
+    body.attachmentIds.length > 4 ||
     new Set(body.attachmentIds).size !== body.attachmentIds.length ||
     body.attachmentIds.some(
       (x: any) => typeof x !== 'string' || !/^MEDIA#[a-zA-Z0-9-]+#[0-9a-f-]{36}$/.test(x),
@@ -570,7 +570,7 @@ export async function saveHomeworkSubmission(
     selectedMimes.push(String(attachment.mime));
   }
   if (!validateHomeworkMediaCounts(selectedMimes))
-    throw httpError(400, 'Homework allows up to three images (5 MB each)');
+    throw httpError(400, 'Invalid homework attachment selection');
   const key = { PK: submissionPK(inst, homeworkId), SK: `STUDENT#${studentId}` };
   const old = (
     await db.send(new GetCommand({ TableName: table(), Key: key, ConsistentRead: true }))
@@ -730,6 +730,7 @@ export async function teacherHomeworkFeedback(
     await db.send(new GetCommand({ TableName: table(), Key: key, ConsistentRead: true }))
   ).Item;
   if (!old || old.status !== 'submitted') throw httpError(404, 'Submitted homework not found');
+  if (old.reviewedAt) throw httpError(409, 'This homework submission has already been reviewed');
   if (old.version !== body.expectedVersion) throw httpError(409, 'Submission has changed');
   const now = new Date().toISOString();
   await db.send(
@@ -841,7 +842,7 @@ export async function finishHomeworkEvidence(
     typeof body.key !== 'string' ||
     Object.keys(body).some((k) => k !== 'key') ||
     !body.key.startsWith(`homework-private/${inst}/${studentId}/${homeworkId}/`) ||
-    !/\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(body.key)
+    !/\/[0-9a-f-]{36}\.(jpg|png|webp|heic|heif|mp3|m4a|webm|aac|wav|mp4|mov|3gp)$/.test(body.key)
   )
     throw httpError(400, 'Invalid attachment reference');
   const head = await evidenceS3.send(
@@ -1116,7 +1117,7 @@ export async function setTeacherHomeworkMaterials(
     !Number.isInteger(body.expectedVersion) ||
     body.expectedVersion < 1 ||
     !Array.isArray(body.ids) ||
-    body.ids.length > 3 ||
+    body.ids.length > 4 ||
     new Set(body.ids).size !== body.ids.length ||
     body.ids.some((id: any) => typeof id !== 'string' || !/^MATERIAL#[0-9a-f-]{36}$/.test(id))
   )
@@ -1137,7 +1138,7 @@ export async function setTeacherHomeworkMaterials(
     selected.push(r);
   }
   if (!validateHomeworkMediaCounts(selected.map((x) => x.mime)))
-    throw httpError(400, 'Maximum three images (5 MB each)');
+    throw httpError(400, 'Invalid homework attachment selection');
   // Version-aware replacement prevents lost updates when multiple teachers edit concurrently.
   const key = { PK: pk(inst), SK: `ITEM#${homeworkId}` };
   const { UpdateCommand } = await import('@aws-sdk/lib-dynamodb');

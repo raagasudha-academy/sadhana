@@ -553,7 +553,7 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                         confirmHomework.studentId !== activeId ||
                         confirmHomework.homeworkId !== selectedHomework
                       }
-                      onClick={() => void saveAssignment('submitted')}
+                      onClick={() => void saveAssignment()}
                     >
                       {submissionBusy ? 'Submitting…' : 'Confirm submission'}
                     </button>

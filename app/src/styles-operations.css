@@ -1,0 +1,812 @@
+/* Sadhana v0.7.7 — registered teacher identity links */
+.v077-links-modal {
+  width: min(970px, calc(100vw - 28px));
+  max-width: 970px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.v077-link-body {
+  padding: 8px 24px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.v077-link-count {
+  font-size: 13px;
+  color: #63758d;
+  font-weight: 600;
+  margin: 12px 0;
+}
+.v077-link-list {
+  display: grid;
+  gap: 9px;
+  padding-bottom: 20px;
+}
+.v077-link-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e1e7ef;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.v077-link-summary {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.v077-link-summary strong {
+  color: #344662;
+}
+.v077-link-summary small {
+  color: #8090a3;
+}
+.v077-link-summary span {
+  font-size: 13px;
+  color: #62738b;
+}
+.v077-link-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.v077-link-controls select {
+  max-width: 250px;
+  min-width: 190px;
+  padding: 9px;
+  border: 1px solid #d8e0eb;
+  border-radius: 9px;
+  background: white;
+}
+.v077-linked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #286b55;
+  font-size: 13px;
+}
+.v077-confirm-shade {
+  z-index: 10010;
+}
+.v077-confirm-modal {
+  width: min(540px, calc(100vw - 32px));
+}
+.v077-confirm-details {
+  padding: 12px 24px;
+  color: #415069;
+  line-height: 1.5;
+}
+@media (max-width: 700px) {
+  .v077-link-body {
+    padding: 8px 14px;
+  }
+  .v077-link-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .v077-link-controls select {
+    flex: 1;
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+/* Sadhana v0.7.7.1 — inline teacher-edit review */
+.sadhana-scope-picker {
+  border: 0;
+  padding: 0;
+  margin: 4px 0 10px;
+  min-width: 0;
+}
+.sadhana-scope-picker legend {
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334461;
+}
+.sadhana-scope-choices {
+  display: grid;
+  gap: 9px;
+}
+.sadhana-session-editor .sadhana-scope-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid #d7dfec;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.sadhana-session-editor .sadhana-scope-choice.selected {
+  border-color: #8297c5;
+  background: #f4f6fc;
+  box-shadow: inset 0 0 0 1px #8297c5;
+}
+.sadhana-session-editor .sadhana-scope-choice:focus-within {
+  outline: 2px solid #8297c5;
+  outline-offset: 2px;
+}
+.sadhana-session-editor .sadhana-scope-choice input[type='radio'] {
+  appearance: auto !important;
+  box-sizing: border-box;
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  flex: 0 0 17px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #6179ad;
+}
+.sadhana-scope-choice span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.sadhana-scope-choice strong {
+  font-size: 13px;
+  line-height: 1.35;
+  color: #30435e;
+}
+.sadhana-scope-choice small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #71829a;
+}
+.sadhana-inline-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 13px;
+  border-radius: 11px;
+  background: #f2f5fa;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.sadhana-inline-note svg,
+.sadhana-inline-review svg {
+  flex: none;
+  margin-top: 1px;
+}
+.sadhana-inline-review {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 10px 0 2px;
+  padding: 14px;
+  border: 1px solid #ead4a3;
+  border-radius: 12px;
+  background: #fff9ec;
+  color: #5f4b26;
+}
+.sadhana-inline-review > div {
+  min-width: 0;
+}
+.sadhana-inline-review strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+.sadhana-inline-review p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.sadhana-review-back {
+  border: 0;
+  background: transparent;
+  color: #4e679b;
+  padding: 2px 0;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Sadhana v0.7.7.2 — read-only timetable integrity indicators. */
+.sadhana-record-alert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #c4314a;
+  flex: none;
+  vertical-align: middle;
+}
+.sadhana-tile-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.sadhana-attention-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #a82c40 !important;
+  font-size: 12px !important;
+  font-weight: 650;
+  margin-top: 8px;
+}
+.sadhana-attention-list-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+}
+.calendar-event {
+  position: relative;
+}
+.calendar-event .sadhana-calendar-alert {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  color: #c4314a;
+  background: #fff;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 1px 4px #11182722;
+  opacity: 1;
+}
+.sadhana-month-event .sadhana-month-alert {
+  float: right;
+  margin: 1px 0 0 4px;
+  color: #c4314a;
+}
+.sadhana-record-issues {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #9f293d;
+  background: #fff2f3;
+  border: 1px solid #efc4cb;
+  border-radius: 11px;
+  padding: 12px 13px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.sadhana-record-issues > svg {
+  flex: none;
+  margin-top: 1px;
+}
+.sadhana-record-issues strong {
+  font-size: 13px;
+}
+.sadhana-record-issues ul {
+  margin: 5px 0;
+  padding-left: 17px;
+}
+.sadhana-record-issues li {
+  margin: 2px 0;
+}
+.sadhana-record-issues small {
+  color: #875565;
+}
+.sadhana-drawer-issues {
+  margin: 13px 16px 0;
+}
+
+/* sadhana-ui-confirm-polish-20261019 */
+/* Status selector typography + chevron spacing */
+.class-roster-list .sadhana-master-filter-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  font-size: 13px !important;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #5d6980;
+}
+.class-roster-list select.sadhana-master-status-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  height: 40px !important;
+  min-width: 160px !important;
+  max-width: 190px !important;
+  padding: 8px 42px 8px 14px !important;
+  border: 1px solid #d6deeb !important;
+  border-radius: 10px !important;
+  color: #29384e !important;
+  background-color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6980' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 17px center !important;
+  background-size: 16px !important;
+}
+/* The master-delete dialog must not inherit global modal form-grid styles. */
+.sadhana-master-delete-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 11000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 18px !important;
+  background: rgba(25, 36, 56, 0.56) !important;
+}
+.sadhana-master-delete-overlay .sadhana-master-delete-dialog {
+  display: block !important;
+  width: min(100%, 500px) !important;
+  max-width: 500px !important;
+  max-height: 88vh !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  margin: auto !important;
+  padding: 0 !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: 0 20px 70px rgba(17, 29, 51, 0.23) !important;
+}
+.sadhana-master-delete-dialog .reg-modal-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 23px 24px 18px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid #edf0f5 !important;
+}
+.sadhana-master-delete-dialog .reg-modal-head h2 {
+  margin: 0 0 5px !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #28364e !important;
+}
+.sadhana-master-delete-dialog .reg-modal-head p {
+  margin: 0 !important;
+  font-size: 12px !important;
+  color: #8390a4 !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-content {
+  display: grid !important;
+  gap: 16px !important;
+  padding: 21px 24px !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-content > strong {
+  display: block !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  overflow-wrap: anywhere !important;
+  color: #28364e !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-summary {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px 16px !important;
+  padding: 16px !important;
+  background: #f4f6fa !important;
+  border-radius: 11px !important;
+  font-size: 13px !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-summary span {
+  display: block !important;
+  color: #687890 !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-summary strong {
+  display: block !important;
+  text-align: right !important;
+  color: #26364e !important;
+  font-weight: 700 !important;
+}
+.sadhana-master-delete-dialog #master-delete-message {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 9px !important;
+  color: #9b4653 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+}
+.sadhana-master-delete-dialog #master-delete-message svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.sadhana-master-delete-dialog details {
+  font-size: 13px !important;
+}
+.sadhana-master-delete-dialog details summary {
+  cursor: pointer;
+  padding: 4px 0;
+  color: #50617d;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-dates {
+  display: flex !important;
+  gap: 7px !important;
+  flex-wrap: wrap !important;
+  max-height: 130px !important;
+  overflow: auto !important;
+  margin-top: 11px !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-dates span {
+  display: inline-flex !important;
+  background: #f2f5fa !important;
+  border: 1px solid #e3e8f1 !important;
+  border-radius: 7px !important;
+  padding: 6px 9px !important;
+  color: #44556e !important;
+  font-size: 12px !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-buttons {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 18px 24px 23px !important;
+  border-top: 1px solid #edf0f5 !important;
+}
+.sadhana-master-delete-dialog .sadhana-master-delete-buttons button {
+  width: auto !important;
+  min-height: 40px !important;
+  min-width: 118px !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 9px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  font-family: inherit !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+}
+/* Shared session confirmation, used in place of window.confirm. */
+.sadhana-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(25, 36, 56, 0.56);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+.sadhana-confirm-panel {
+  width: min(100%, 460px);
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 20px 70px rgba(17, 29, 51, 0.23);
+  overflow: hidden;
+  font-family: inherit;
+}
+.sadhana-confirm-header {
+  padding: 23px 24px 17px;
+  border-bottom: 1px solid #edf0f5;
+}
+.sadhana-confirm-header h2 {
+  margin: 0 0 5px;
+  font-size: 19px;
+  line-height: 1.3;
+  color: #28364e;
+}
+.sadhana-confirm-header p {
+  margin: 0;
+  font-size: 12px;
+  color: #8390a4;
+}
+.sadhana-confirm-message {
+  padding: 20px 24px;
+  margin: 0;
+  color: #56647b;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.sadhana-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 24px 23px;
+  border-top: 1px solid #edf0f5;
+}
+.sadhana-confirm-actions button {
+  padding: 11px 16px;
+  min-height: 42px;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.sadhana-confirm-keep {
+  background: #fff;
+  border: 1px solid #d7deeb;
+  color: #29384e;
+}
+.sadhana-confirm-delete {
+  background: #fff0f1;
+  border: 1px solid #e6abb3;
+  color: #a53747;
+}
+.sadhana-confirm-actions button:focus-visible {
+  outline: 3px solid #92a5d3;
+  outline-offset: 2px;
+}
+@media (max-width: 540px) {
+  .sadhana-master-delete-dialog .sadhana-master-delete-buttons,
+  .sadhana-confirm-actions {
+    flex-wrap: wrap;
+  }
+  .sadhana-master-delete-dialog .sadhana-master-delete-buttons button,
+  .sadhana-confirm-actions button {
+    flex: 1;
+  }
+}
+
+/* v0.9.6 directory regression polish */
+.reg-module .reg-data-menu {
+  position: relative;
+  z-index: 4;
+}
+.reg-module .reg-data-menu summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reg-module .reg-data-menu summary::-webkit-details-marker {
+  display: none;
+}
+.reg-module .reg-data-menu-options {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 205px;
+  background: white;
+  border: 1px solid #e2e7ef;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px #29364b20;
+  padding: 6px;
+  z-index: 5;
+}
+.reg-module .reg-data-menu-options button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #29364b;
+  padding: 11px 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.reg-module .reg-data-menu-options button:hover {
+  background: #f3f5fa;
+}
+.reg-module .reg-table-result-count {
+  text-align: right;
+  color: #66758f;
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+@media (max-width: 640px) {
+  .reg-module .reg-data-menu-options {
+    right: auto;
+    left: 0;
+  }
+  .reg-module .reg-toolbar > div:last-child {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+  .reg-module .reg-search {
+    flex: 1;
+    min-width: 180px;
+  }
+}
+
+/* Operations acceptance: compact filters and scrollable class roster */
+.reg-combined-filters {
+  position: relative;
+  min-width: 112px;
+  z-index: 5;
+}
+.reg-combined-filters > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 11px 14px;
+  min-height: 42px;
+  border: 1px solid #dbe3ee;
+  border-radius: 11px;
+  background: #fff;
+  color: #34445e;
+  font-weight: 600;
+  list-style: none;
+}
+.reg-combined-filters > summary::-webkit-details-marker {
+  display: none;
+}
+.reg-combined-filter-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(310px, 90vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  box-shadow: 0 14px 38px #263b5a26;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px;
+  z-index: 40;
+  display: grid;
+  gap: 12px;
+}
+.reg-combined-filter-panel fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+.reg-filter-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  color: #34445e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.reg-filter-section > summary::-webkit-details-marker {
+  display: none;
+}
+.reg-filter-selection-summary {
+  color: #748199;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: auto;
+}
+.reg-filter-section > summary::after {
+  content: '⌄';
+  color: #748199;
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.reg-filter-section[open] > summary::after {
+  transform: rotate(180deg);
+}
+.reg-filter-section fieldset legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.reg-combined-filter-panel legend {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.reg-combined-filter-panel label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+}
+.reg-combined-filter-panel input {
+  accent-color: #5972a8;
+}
+.reg-combined-filter-panel > button {
+  border: 1px solid #dbe3ee;
+  background: #f5f7fb;
+  border-radius: 9px;
+  padding: 8px;
+  cursor: pointer;
+}
+.reg-show-all-fields {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #465570;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.reg-show-all-fields input {
+  width: 16px;
+  height: 16px;
+  accent-color: #5972a8;
+}
+.reg-details-error {
+  margin: 4px 0 12px;
+  color: #9b3e48;
+  font-size: 13px;
+}
+.reg-module .reg-directory-table.is-expanded {
+  min-width: 2300px;
+}
+.sadhana-class-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e4e9f1;
+}
+.sadhana-class-tabs button {
+  border: 0;
+  background: #f1f4f9;
+  color: #50627e;
+  padding: 10px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.sadhana-class-tabs button[aria-selected='true'] {
+  background: #546f9d;
+  color: white;
+}
+.sadhana-class-roster[role='tabpanel'] {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  min-height: 210px;
+}
+.sadhana-class-roster[role='tabpanel'] > input {
+  border: 1px solid #cfd8e7;
+  border-radius: 9px;
+  padding: 11px;
+}
+.sadhana-roster-scroll {
+  max-height: 420px;
+  overflow: auto;
+}
+.sadhana-roster-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.sadhana-roster-scroll th,
+.sadhana-roster-scroll td {
+  border-bottom: 1px solid #e8edf4;
+  padding: 12px;
+}
+.sadhana-master-class-filter select {
+  max-width: 220px;
+  min-width: 160px;
+  width: 200px;
+  height: 37px;
+  border: 1px solid #d5deea;
+  border-radius: 9px;
+  background: #fff;
+  padding: 7px;
+  color: #34445e;
+  font: inherit;
+}
+@media (max-width: 700px) {
+  .reg-combined-filter-panel {
+    right: auto;
+    left: 0;
+  }
+  .reg-class-select {
+    min-width: 120px;
+  }
+  .sadhana-master-class-filter select {
+    width: 100%;
+  }
+}

@@ -18,6 +18,7 @@ const practiceUploadMime = (file: File) => {
         heif: 'image/heif',
         mp3: 'audio/mpeg',
         m4a: 'audio/mp4',
+        webm: 'audio/webm',
         aac: 'audio/aac',
         wav: 'audio/wav',
         mp4: 'video/mp4',
@@ -35,8 +36,7 @@ const ukClock = () =>
     hourCycle: 'h23',
   }).format(new Date());
 const supportedHomeworkMime = (file: File) => practiceUploadMime(file);
-export type PracticeMediaSlot = 'image1' | 'image2' | 'audio' | 'video';
-export type PracticeMediaFiles = Record<PracticeMediaSlot, File | null>;
+export type PracticeMediaFiles = File[];
 export type StudentPortalProps = {
   cloud: CloudSession;
   initialInstitution?: InstitutionId;
@@ -119,15 +119,12 @@ export function useStudentPortalController({
       practiceId?: string;
     }>
   >([]);
-  const [practiceMediaFiles, setPracticeMediaFiles] = useState<PracticeMediaFiles>({
-    image1: null,
-    image2: null,
-    audio: null,
-    video: null,
-  });
+  const [practiceMediaFiles, setPracticeMediaFiles] = useState<PracticeMediaFiles>([]);
   const [pendingPracticeMediaId, setPendingPracticeMediaId] = useState('');
-  const setPracticeMediaFile = (slot: PracticeMediaSlot, file: File | null) =>
-    setPracticeMediaFiles((old) => ({ ...old, [slot]: file }));
+  const addPracticeMediaFiles = (files: File[]) =>
+    setPracticeMediaFiles((old) => [...old, ...files].slice(0, 4));
+  const removePracticeMediaFile = (index: number) =>
+    setPracticeMediaFiles((old) => old.filter((_, current) => current !== index));
   const loadExtras = async (id: string) => {
     try {
       const x = await cloud.api.learnerExtras(inst, id);
@@ -173,6 +170,7 @@ export function useStudentPortalController({
         'image/heif': 10_000_000,
         'audio/mpeg': 20_000_000,
         'audio/mp4': 20_000_000,
+        'audio/webm': 20_000_000,
         'audio/aac': 20_000_000,
         'audio/wav': 20_000_000,
         'audio/x-wav': 20_000_000,
@@ -229,7 +227,7 @@ export function useStudentPortalController({
   const showFamilyDashboard = new Set(students.map((s) => s.id)).size >= 2;
   const [activeId, setActiveId] = useState('');
   useEffect(() => {
-    setPracticeMediaFiles({ image1: null, image2: null, audio: null, video: null });
+    setPracticeMediaFiles([]);
     setPendingPracticeMediaId('');
   }, [activeId, inst]);
 
@@ -267,14 +265,31 @@ export function useStudentPortalController({
   } | null>(null);
   const [submissionEditable, setSubmissionEditable] = useState(false);
   const [submissionBusy, setSubmissionBusy] = useState(false);
+  const submissionBaseline = useRef<{
+    homeworkId: string;
+    text: string;
+    attachmentIds: string[];
+  } | null>(null);
   const [confirmHomework, setConfirmHomework] = useState<{
     studentId: string;
     homeworkId: string;
   } | null>(null);
-  const [attachments, setAttachments] = useState<Array<{ id: string; mime: string; url: string }>>(
+  const [attachments, setAttachments] = useState<
+    Array<{ id: string; mime: string; url: string; name?: string }>
+  >([]);
+  const homeworkObjectUrls = useRef(new Set<string>());
+  useEffect(
+    () => () => {
+      homeworkObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      homeworkObjectUrls.current.clear();
+    },
     [],
   );
-  const uploadHomeworkFiles = async (files: FileList | null) => {
+  const clearHomeworkObjectUrls = () => {
+    homeworkObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    homeworkObjectUrls.current.clear();
+  };
+  const uploadHomeworkFiles = async (files: FileList | File[] | null) => {
     if (!files || !activeId || !selectedHomework || !submissionEditable || !submission) return;
     const newFiles = Array.from(files);
     const ids = [...submission.attachmentIds];
@@ -285,7 +300,7 @@ export function useStudentPortalController({
       !learnerHomeworkSelectionAllowed(nextTypes) ||
       newFiles.some((file) => !homeworkFileAllowed(file))
     ) {
-      setError('Homework accepts up to 2 images, 1 audio file and 1 video.');
+      setError('Choose up to 4 attachments. Check that each file type and size is supported.');
       return;
     }
     setSubmissionBusy(true);
@@ -314,10 +329,15 @@ export function useStudentPortalController({
         );
         ids.push(confirmed.attachmentId);
         selected.push(mime);
-        setAttachments((a) => [...a, { id: confirmed.attachmentId, mime, url: '' }]);
+        const previewUrl = URL.createObjectURL(file);
+        homeworkObjectUrls.current.add(previewUrl);
+        setAttachments((a) => [
+          ...a,
+          { id: confirmed.attachmentId, mime, url: previewUrl, name: file.name },
+        ]);
       }
       setSubmission((old) => (old ? { ...old, attachmentIds: ids } : old));
-      setMessage('Files uploaded. Save your draft or submit to attach them to homework.');
+      setMessage('Attachments uploaded. Submit the homework to send them to your teacher.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Private media upload failed.');
       setSubmission((old) => (old ? { ...old, attachmentIds: ids } : old));
@@ -328,27 +348,32 @@ export function useStudentPortalController({
 
   const openAssignment = async (id: string) => {
     if (!activeId) return;
+    clearHomeworkObjectUrls();
+    setAttachments([]);
     setConfirmHomework(null);
     setError('');
     setSelectedHomework(id);
     setHomeworkDrawerOpen(true);
     setSubmission(null);
+    submissionBaseline.current = null;
     try {
       const r = await cloud.api.getHomeworkSubmission(inst, activeId, id);
       setSubmission(r.record);
       setHomeworkText(r.record.text);
+      submissionBaseline.current = {
+        homeworkId: id,
+        text: r.record.text,
+        attachmentIds: [...r.record.attachmentIds],
+      };
       setSubmissionEditable(r.editable);
       setAttachments((await cloud.api.homeworkEvidenceLinks(inst, activeId, id)).records);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load assignment');
     }
   };
-  const saveAssignment = async (status: 'draft' | 'submitted') => {
+  const saveAssignment = async () => {
     if (!activeId || !submission || !selectedHomework) return;
-    if (
-      status === 'submitted' &&
-      (confirmHomework?.studentId !== activeId || confirmHomework.homeworkId !== selectedHomework)
-    )
+    if (confirmHomework?.studentId !== activeId || confirmHomework.homeworkId !== selectedHomework)
       return;
     setConfirmHomework(null);
     setSubmissionBusy(true);
@@ -356,22 +381,92 @@ export function useStudentPortalController({
     try {
       const result = await cloud.api.saveHomeworkSubmission(inst, activeId, selectedHomework, {
         text: homeworkText,
-        status,
+        status: 'submitted',
         expectedVersion: submission.version,
         attachmentIds: submission.attachmentIds,
       });
       setSubmission(result.record);
-      setMessage(
-        status === 'submitted'
-          ? 'Homework submitted. You may revise it until the due date.'
-          : 'Draft saved',
-      );
+      setHomeworkText(result.record.text);
+      submissionBaseline.current = {
+        homeworkId: selectedHomework,
+        text: result.record.text,
+        attachmentIds: [...result.record.attachmentIds],
+      };
+      setMessage('Homework submitted. You may revise it until the due date.');
       await loadHomework(activeId);
+      return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save homework');
+      const detail = e instanceof Error ? e.message : 'Could not save homework';
+      if (
+        /submission changed|record or access changed|changed\. refresh|deadline has passed|read-only|teacher-reviewed/i.test(
+          detail,
+        )
+      ) {
+        try {
+          const latest = await cloud.api.getHomeworkSubmission(inst, activeId, selectedHomework);
+          setSubmission(latest.record);
+          setSubmissionEditable(latest.editable);
+          if (!latest.editable) {
+            setMessage(
+              'This homework is now read-only because its deadline passed or a teacher reviewed it.',
+            );
+            setError('');
+            return false;
+          }
+          // Keep the learner's current edits and retry once against the latest server version.
+          const retried = await cloud.api.saveHomeworkSubmission(inst, activeId, selectedHomework, {
+            text: homeworkText,
+            status: 'submitted',
+            expectedVersion: latest.record.version,
+            attachmentIds: submission.attachmentIds,
+          });
+          setSubmission(retried.record);
+          setHomeworkText(retried.record.text);
+          submissionBaseline.current = {
+            homeworkId: selectedHomework,
+            text: retried.record.text,
+            attachmentIds: [...retried.record.attachmentIds],
+          };
+          setMessage('Homework submitted. You may revise it until the due date.');
+          setError('');
+          await loadHomework(activeId);
+          return true;
+        } catch (retryError) {
+          setMessage(
+            'The server changed while saving. Your edits are still here; try saving again.',
+          );
+          setError(retryError instanceof Error ? retryError.message : detail);
+        }
+      } else {
+        setError(detail);
+      }
+      return false;
     } finally {
       setSubmissionBusy(false);
     }
+  };
+  const closeHomeworkDrawer = () => {
+    if (submissionBusy) return false;
+    const baseline = submissionBaseline.current;
+    const hasUnsavedWork =
+      submissionEditable &&
+      !!submission &&
+      submission.status !== 'submitted' &&
+      !!selectedHomework &&
+      baseline?.homeworkId === selectedHomework &&
+      (baseline.text !== homeworkText ||
+        baseline.attachmentIds.length !== submission.attachmentIds.length ||
+        baseline.attachmentIds.some((id, index) => id !== submission.attachmentIds[index]));
+    if (
+      hasUnsavedWork &&
+      !window.confirm('Close without submitting? Your unsent changes will be discarded.')
+    )
+      return false;
+    setHomeworkDrawerOpen(false);
+    setSelectedHomework('');
+    setConfirmHomework(null);
+    submissionBaseline.current = null;
+    return true;
   };
   const [homeworkBusy, setHomeworkBusy] = useState(false);
   const loadHomework = async (id: string) => {
@@ -477,12 +572,14 @@ export function useStudentPortalController({
     [topic, setTopic] = useState(''),
     [notes, setNotes] = useState('');
   const loadDetail = async (id: string) => {
+    clearHomeworkObjectUrls();
     setConfirmHomework(null);
     setSelectedHomework('');
     setHomeworkDrawerOpen(false);
     setSubmission(null);
     setAttachments([]);
     setHomeworkText('');
+    submissionBaseline.current = null;
     setDetailLoading(true);
     if (id !== activeId) setDetail(null);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -549,21 +646,19 @@ export function useStudentPortalController({
         practiceId = saved.record.id;
         setPendingPracticeMediaId(practiceId);
       }
-      const pending = Object.entries(practiceMediaFiles) as [PracticeMediaSlot, File | null][];
-      for (const [slot, file] of pending) {
-        if (!file) continue;
+      for (const file of practiceMediaFiles) {
         const ok = await uploadEvidence(file, 'practice', practiceId);
         if (!ok) {
-          setMessage('Practice saved. Retry to finish uploading the selected media.');
+          setMessage('Practice saved. Retry to finish uploading the attachments.');
           await loadDetail(activeId);
           return;
         }
-        setPracticeMediaFile(slot, null);
+        setPracticeMediaFiles((old) => old.filter((pendingFile) => pendingFile !== file));
       }
       setMessage('Practice saved.');
       setPendingPracticeMediaId('');
       setEdit(null);
-      setPracticeMediaFiles({ image1: null, image2: null, audio: null, video: null });
+      setPracticeMediaFiles([]);
       setTopic('');
       setNotes('');
       await loadDetail(activeId);
@@ -795,7 +890,8 @@ export function useStudentPortalController({
     media,
     setMedia,
     practiceMediaFiles,
-    setPracticeMediaFile,
+    addPracticeMediaFiles,
+    removePracticeMediaFile,
     pendingPracticeMediaId,
     loadExtras,
     updateProfile,
@@ -824,6 +920,7 @@ export function useStudentPortalController({
     uploadHomeworkFiles,
     openAssignment,
     saveAssignment,
+    closeHomeworkDrawer,
     homeworkBusy,
     setHomeworkBusy,
     loadHomework,

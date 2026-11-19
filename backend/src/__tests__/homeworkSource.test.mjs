@@ -26,3 +26,9 @@ test('M9 media receipts must be verified and media flag enabled before submissio
   assert.match(src, /mediaStatus!=='ready'/);
   assert.match(src, /validateM9MediaSelection/);
 });
+test('homework writes compare legacy deadline fields and nullable release times safely', () => {
+  assert.match(src, /attribute_type\(releaseAt,:nullType\)/);
+  assert.match(src, /attribute_type\(dueAt,:nullType\).*dueDate=:dueDate/);
+  assert.match(src, /homeworkOpenCheck\(h,now,true\)/);
+  assert.match(src, /homeworkOpenCheck\(h,now,false\)/);
+});

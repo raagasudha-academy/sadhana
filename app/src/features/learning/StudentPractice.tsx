@@ -1,171 +1,153 @@
-import { useEffect, useState } from 'react';
-import { Image as ImageIcon, Music2, Video } from 'lucide-react';
-import type {
-  PracticeMediaFiles,
-  PracticeMediaSlot,
-  StudentPortalContext,
-} from './useStudentPortalController';
+import { useEffect, useRef, useState } from 'react';
+import { Music2, Paperclip, X } from 'lucide-react';
+import AudioFeedbackRecorder from '../../AudioFeedbackRecorder';
+import {
+  homeworkFileAllowed,
+  homeworkMediaAccept,
+  homeworkMimeForFile,
+} from '../../homeworkMediaPolicy';
+import type { PracticeMediaFiles, StudentPortalContext } from './useStudentPortalController';
 
-const slots: Array<{
-  key: PracticeMediaSlot;
-  label: string;
-  accept: string;
-  icon: typeof ImageIcon;
-}> = [
-  {
-    key: 'image1',
-    label: 'Image 1',
-    accept:
-      'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif',
-    icon: ImageIcon,
-  },
-  {
-    key: 'image2',
-    label: 'Image 2',
-    accept:
-      'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif',
-    icon: ImageIcon,
-  },
-  {
-    key: 'audio',
-    label: 'Audio',
-    accept: 'audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav',
-    icon: Music2,
-  },
-  {
-    key: 'video',
-    label: 'Video',
-    accept: 'video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp',
-    icon: Video,
-  },
-];
+function PracticeHistoryAudioUpload({
+  disabled,
+  onUpload,
+}: {
+  disabled: boolean;
+  onUpload: (file: File) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input
+        ref={input}
+        className="v1376-practice-history-audio-input"
+        type="file"
+        accept="audio/mpeg,audio/mp4,audio/webm,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.webm,.aac,.wav"
+        disabled={disabled}
+        aria-label="Choose practice audio attachment"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (file) onUpload(file);
+          event.currentTarget.value = '';
+        }}
+      />
+      <button
+        className="v1376-practice-history-audio-button"
+        type="button"
+        disabled={disabled}
+        title={disabled ? 'This practice has been reviewed; attachments are locked.' : 'Add audio'}
+        onClick={() => input.current?.click()}
+      >
+        <Music2 size={17} /> Add audio
+      </button>
+    </>
+  );
+}
 
 function PracticeMediaPicker({
   files,
-  setFile,
+  addFiles,
+  removeFile,
+  existingCount,
   disabled,
   onInvalid,
 }: {
   files: PracticeMediaFiles;
-  setFile: (slot: PracticeMediaSlot, file: File | null) => void;
+  addFiles: (files: File[]) => void;
+  removeFile: (index: number) => void;
+  existingCount: number;
   disabled: boolean;
   onInvalid: (message: string) => void;
 }) {
-  const [previews, setPreviews] = useState<Partial<Record<PracticeMediaSlot, string>>>({});
-  const [unpreviewable, setUnpreviewable] = useState<Partial<Record<PracticeMediaSlot, boolean>>>(
-    {},
-  );
+  const [previews, setPreviews] = useState<string[]>([]);
   useEffect(() => {
-    const urls: Partial<Record<PracticeMediaSlot, string>> = {};
-    for (const { key } of slots) {
-      const file = files[key];
-      if (file) urls[key] = URL.createObjectURL(file);
-    }
+    const urls = files.map((file) => URL.createObjectURL(file));
     setPreviews(urls);
-    setUnpreviewable({});
-    return () => Object.values(urls).forEach((url) => url && URL.revokeObjectURL(url));
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [files]);
+  const acceptFiles = (selected: FileList | File[]) => {
+    const incoming = Array.from(selected);
+    if (existingCount + files.length + incoming.length > 4) {
+      onInvalid('Add up to four attachments. Remove one before adding more.');
+      return;
+    }
+    const invalid = incoming.find((file) => !homeworkFileAllowed(file));
+    if (invalid) {
+      onInvalid(
+        'Choose a supported image (5 MB; HEIC/HEIF 10 MB), audio (20 MB), or video (100 MB).',
+      );
+      return;
+    }
+    addFiles(incoming);
+  };
   return (
-    <section className="v1376-practice-media" aria-label="Practice media">
+    <section className="v1376-practice-media" aria-label="Practice attachments">
       <div className="v1376-practice-media-heading">
         <div>
-          <strong>Media</strong>
+          <strong>Attachments · {existingCount + files.length}/4</strong>
+          <span>Add up to four files to this practice entry.</span>
         </div>
       </div>
-      <div className="v1376-practice-media-grid">
-        {slots.map(({ key, label, accept, icon: Icon }) => {
-          const file = files[key];
-          const preview = previews[key];
-          const videoSelected = !!file && key === 'video';
-          const id = `practice-media-${key}`;
-          return (
-            <div
-              className={`v1376-practice-media-tile${file ? ' has-file' : ''}${file && key.startsWith('image') ? ' has-image' : ''}${videoSelected ? ' has-video' : ''}`}
-              key={key}
-            >
-              <input
-                id={id}
-                className="v1376-practice-media-input"
-                type="file"
-                accept={accept}
-                disabled={disabled}
-                aria-label={`${file ? 'Replace' : 'Choose'} ${label.toLowerCase()}`}
-                onChange={(event) => {
-                  const next = event.currentTarget.files?.[0] || null;
-                  if (next) {
-                    const mime = practiceMime(next);
-                    const limit = mime.startsWith('image/')
-                      ? 5_000_000
-                      : mime.startsWith('audio/')
-                        ? 20_000_000
-                        : 100_000_000;
-                    if (next.size < 1 || next.size > limit)
-                      onInvalid(`Choose ${label.toLowerCase()} media within its size limit.`);
-                    else setFile(key, next);
-                  }
-                  event.currentTarget.value = '';
-                }}
-              />
-              <label
-                htmlFor={id}
-                className={`v1376-practice-media-picker${disabled ? ' is-disabled' : ''}`}
-                title={file ? `Replace ${label.toLowerCase()}` : `Choose ${label.toLowerCase()}`}
-              >
-                {videoSelected ? (
-                  <strong>Replace video</strong>
-                ) : preview && key.startsWith('image') && !unpreviewable[key] ? (
-                  <img
-                    className="v1376-practice-media-thumbnail"
-                    src={preview}
-                    alt=""
-                    onError={() => setUnpreviewable((old) => ({ ...old, [key]: true }))}
-                  />
-                ) : (
-                  <span className="v1376-practice-media-icon">
-                    <Icon size={34} strokeWidth={1.8} />
-                  </span>
-                )}
-                {!videoSelected && <strong>{label}</strong>}
-              </label>
-              {file && key === 'audio' && (
-                <div className="v1376-practice-media-preview">
-                  <audio controls preload="none" src={preview} />
-                </div>
-              )}
-              {file && key === 'video' && (
-                <div className="v1376-practice-media-preview is-video">
-                  <video controls preload="metadata" playsInline src={preview} />
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <input
+        id="practice-attachments-picker"
+        className="v1376-practice-media-input"
+        type="file"
+        accept={homeworkMediaAccept}
+        multiple
+        disabled={disabled || existingCount + files.length >= 4}
+        aria-label="Add attachments to practice"
+        onChange={(event) => {
+          if (event.currentTarget.files) acceptFiles(event.currentTarget.files);
+          event.currentTarget.value = '';
+        }}
+      />
+      <div className="v1376-practice-attachment-actions">
+        <label
+          htmlFor="practice-attachments-picker"
+          className={`v1376-practice-attachment-button${disabled || existingCount + files.length >= 4 ? ' is-disabled' : ''}`}
+        >
+          <Paperclip size={17} /> Add attachments
+        </label>
+        <AudioFeedbackRecorder
+          label="Record an audio attachment"
+          startText="Record audio"
+          stopText="Stop recording"
+          disabled={disabled || existingCount + files.length >= 4}
+          onRecording={(file) => acceptFiles([file])}
+        />
       </div>
+      {!!files.length && (
+        <div className="v1376-practice-attachment-list">
+          {files.map((file, index) => {
+            const mime = homeworkMimeForFile(file);
+            const url = previews[index];
+            return (
+              <div
+                className="v1376-practice-attachment"
+                key={`${file.name}-${file.lastModified}-${index}`}
+              >
+                {mime.startsWith('image/') ? (
+                  <img src={url} alt={file.name} />
+                ) : mime.startsWith('audio/') ? (
+                  <audio controls preload="metadata" src={url} aria-label={file.name} />
+                ) : mime.startsWith('video/') ? (
+                  <video controls preload="metadata" playsInline src={url} aria-label={file.name} />
+                ) : null}
+                <span title={file.name}>{file.name}</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  aria-label={`Remove ${file.name}`}
+                  onClick={() => removeFile(index)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
-  );
-}
-
-function practiceMime(file: File) {
-  if (file.type) return file.type;
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  return (
-    (
-      {
-        jpg: 'image/jpeg',
-        jpeg: 'image/jpeg',
-        png: 'image/png',
-        webp: 'image/webp',
-        heic: 'image/heic',
-        heif: 'image/heif',
-        mp3: 'audio/mpeg',
-        m4a: 'audio/mp4',
-        aac: 'audio/aac',
-        wav: 'audio/wav',
-        mp4: 'video/mp4',
-        mov: 'video/quicktime',
-        '3gp': 'video/3gpp',
-      } as Record<string, string>
-    )[ext || ''] || ''
   );
 }
 
@@ -190,10 +172,12 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
     setNotes,
     savePractice,
     practiceMediaFiles,
-    setPracticeMediaFile,
+    addPracticeMediaFiles,
+    removePracticeMediaFile,
     pendingPracticeMediaId,
     setError,
   } = context;
+  const linkedPracticeId = pendingPracticeMediaId || edit?.id || '';
   return (
     <section className="v1376-practice-page">
       <div className="v1376-practice-heading">
@@ -254,13 +238,21 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
         </label>
         <PracticeMediaPicker
           files={practiceMediaFiles}
-          setFile={setPracticeMediaFile}
+          addFiles={addPracticeMediaFiles}
+          removeFile={removePracticeMediaFile}
+          existingCount={
+            linkedPracticeId
+              ? media.filter(
+                  (item) => item.purpose === 'practice' && item.practiceId === linkedPracticeId,
+                ).length
+              : 0
+          }
           disabled={uploadBusy}
           onInvalid={setError}
         />
         <button type="submit" disabled={!detail.classes.length || uploadBusy}>
           {uploadBusy
-            ? 'Uploading media…'
+            ? 'Uploading attachments…'
             : pendingPracticeMediaId
               ? 'Retry media upload'
               : edit
@@ -289,11 +281,8 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
           const practiceMedia = (media || []).filter(
             (m: any) => m.purpose === 'practice' && m.practiceId === r.id,
           );
-          const imageMedia = practiceMedia.filter((m: any) => m.mime?.startsWith('image/'));
-          const audioMedia = practiceMedia.filter((m: any) => m.mime?.startsWith('audio/'));
-          const videoMedia = practiceMedia.filter((m: any) => m.mime?.startsWith('video/'));
           const teacherComments = r.teacherComments || [];
-          const reviewed = teacherComments.length > 0;
+          const reviewed = r.teacherReviewed === true || teacherComments.length > 0;
           const editDisabled = r.date < todayUK() || reviewed;
           return (
             <article className="v1376-practice-history-entry" key={r.id}>
@@ -329,67 +318,51 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                   <span className="v1376-practice-history-media-label">Topic</span>
                   <strong>{r.topic || 'Practice session'}</strong>
                 </div>
-                {imageMedia.length > 0 && (
-                  <div className="v1376-practice-history-media-row">
-                    <span className="v1376-practice-history-media-label">Images</span>
-                    <div className="v1376-practice-history-images">
-                      {imageMedia.map((m: any) => (
-                        <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
-                          <img
-                            className="v1376-history-thumbnail"
-                            src={m.url}
-                            alt={`Practice image from ${r.date}`}
-                          />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div className="v1376-practice-history-media-row">
-                  <span className="v1376-practice-history-media-label">Audio</span>
-                  <div className="v1376-practice-history-audio">
-                    {audioMedia.map((m: any) => (
-                      <audio
-                        key={m.id}
-                        controls
-                        preload="none"
-                        aria-label={`Practice audio from ${r.date}`}
-                        src={m.url}
-                      />
-                    ))}
-                    {!audioMedia.length && (
-                      <label className="v1376-recording-upload" title="Add audio">
-                        <Music2 size={18} />
-                        <span>Add audio</span>
-                        <input
-                          type="file"
-                          accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                          disabled={uploadBusy}
-                          aria-label="Add audio to practice"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) void uploadEvidence(f, 'practice', r.id);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
+                  <span className="v1376-practice-history-media-label">Attachments</span>
+                  <div className="v1376-practice-history-attachments">
+                    {practiceMedia.length > 0 ? (
+                      practiceMedia.map((m: any) => (
+                        <div className="v1376-practice-history-attachment" key={m.id}>
+                          {m.mime?.startsWith('image/') ? (
+                            <a href={m.url} target="_blank" rel="noreferrer">
+                              <img src={m.url} alt="Practice attachment" />
+                            </a>
+                          ) : m.mime?.startsWith('audio/') ? (
+                            <audio
+                              controls
+                              preload="none"
+                              src={m.url}
+                              aria-label="Practice audio attachment"
+                            />
+                          ) : m.mime?.startsWith('video/') ? (
+                            <video
+                              controls
+                              preload="metadata"
+                              playsInline
+                              src={m.url}
+                              aria-label="Practice video attachment"
+                            />
+                          ) : (
+                            <span>
+                              <Paperclip size={16} /> Attachment
+                            </span>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="v1376-practice-no-attachments">No attachments</span>
                     )}
                   </div>
                 </div>
-                {videoMedia.length > 0 && (
+                {!practiceMedia.some((item: any) => item.mime?.startsWith('audio/')) && (
                   <div className="v1376-practice-history-media-row">
-                    <span className="v1376-practice-history-media-label">Video</span>
-                    <div className="v1376-practice-history-videos">
-                      {videoMedia.map((m: any) => (
-                        <video
-                          key={m.id}
-                          controls
-                          preload="metadata"
-                          playsInline
-                          aria-label={`Practice video from ${r.date}`}
-                          src={m.url}
-                        />
-                      ))}
+                    <span className="v1376-practice-history-media-label">Audio</span>
+                    <div>
+                      <PracticeHistoryAudioUpload
+                        disabled={uploadBusy || reviewed}
+                        onUpload={(file) => void uploadEvidence(file, 'practice', r.id)}
+                      />
                     </div>
                   </div>
                 )}

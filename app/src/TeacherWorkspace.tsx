@@ -9,9 +9,9 @@ import {
   homeworkMediaKind,
   HomeworkMediaPreview,
 } from './HomeworkMaterials';
-import { Image, Music2, Video } from 'lucide-react';
+import { ChevronDown, ChevronRight, UploadCloud } from 'lucide-react';
 import './homeworkIcons.css';
-import { homeworkMimeForFile } from './homeworkMediaPolicy';
+import { homeworkMediaAccept, homeworkMimeForFile } from './homeworkMediaPolicy';
 import { RefreshCw } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
@@ -97,7 +97,7 @@ export default function TeacherWorkspace({
       ...next.map(homeworkMimeForFile),
     ];
     if (next.some((f) => !homeworkFileAllowed(f)) || !homeworkSelectionAllowed(mimes)) {
-      setError('Attach up to 2 images, 1 audio file and 1 video.');
+      setError('Choose up to 4 attachments. Check that each file type and size is supported.');
       return;
     }
     setError('');
@@ -107,15 +107,7 @@ export default function TeacherWorkspace({
     ...existingMaterials.filter((m) => !removedMaterialIds.includes(m.id)).map((m) => m.mime),
     ...homeworkFiles.map(homeworkMimeForFile),
   ];
-  const homeworkImageCount = retainedHomeworkMimes.filter((mime) =>
-    mime.startsWith('image/'),
-  ).length;
-  const homeworkAudioCount = retainedHomeworkMimes.filter((mime) =>
-    mime.startsWith('audio/'),
-  ).length;
-  const homeworkVideoCount = retainedHomeworkMimes.filter((mime) =>
-    mime.startsWith('video/'),
-  ).length;
+  const homeworkAttachmentCount = retainedHomeworkMimes.length;
   const startEdit = async (a: {
     id: string;
     title: string;
@@ -137,7 +129,7 @@ export default function TeacherWorkspace({
       setHomeworkDue(a.dueDate);
       setNotice('Editing published homework');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to load existing materials');
+      setError(e instanceof Error ? e.message : 'Unable to load existing attachments');
     } finally {
       setBusy(false);
     }
@@ -264,6 +256,7 @@ export default function TeacherWorkspace({
       attachmentIds: string[];
       feedback?: string;
       feedbackAudioUrl?: string;
+      reviewedAt?: string | null;
     }>
   >([]);
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
@@ -273,6 +266,7 @@ export default function TeacherWorkspace({
   const [teacherLinks, setTeacherLinks] = useState<
     Record<string, Array<{ id: string; mime: string; url: string }>>
   >({});
+  const [collapsedSubmissions, setCollapsedSubmissions] = useState<Record<string, boolean>>({});
   const reviewHomework = async (id: string) => {
     if (!cloud || !effectiveClass) return;
     setReviewId(id);
@@ -471,19 +465,21 @@ export default function TeacherWorkspace({
           </p>
         )}
         {area === 'attendance' && cloud && (
-          <SessionAttendanceRegister
-            cloud={cloud}
-            workspace={workspace}
-            schedule={schedule}
-            students={students}
-            enrolments={enrolments}
-            attendance={attendance}
-            rsvps={rsvps}
-            onSaved={reload}
-          />
+          <div key={area} className="tw-tab-stage">
+            <SessionAttendanceRegister
+              cloud={cloud}
+              workspace={workspace}
+              schedule={schedule}
+              students={students}
+              enrolments={enrolments}
+              attendance={attendance}
+              rsvps={rsvps}
+              onSaved={reload}
+            />
+          </div>
         )}
         {area !== 'attendance' && (
-          <div className="tw-content">
+          <div key={area} className="tw-content tw-tab-stage">
             <div className="tw-filter">
               <label>
                 Class
@@ -606,66 +602,23 @@ export default function TeacherWorkspace({
                     />
                   </label>
                   <div className="sv1276-hw-wide sadhana-form-materials">
-                    <strong>Attach homework materials</strong>
-                    <p>Attach images, audio or video to help explain the assignment.</p>
-                    <div className="sadhana-homework-upload-grid">
-                      <label className={homeworkImageCount > 0 ? 'has-file' : ''}>
-                        <Image size={22} />
-                        Image 1
-                        <input
-                          aria-label="Add homework image 1"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                          disabled={busy || homeworkImageCount >= 1}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <label className={homeworkImageCount > 1 ? 'has-file' : ''}>
-                        <Image size={22} />
-                        Image 2
-                        <input
-                          aria-label="Add homework image 2"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                          disabled={busy || homeworkImageCount >= 2}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <label className={homeworkAudioCount ? 'has-file' : ''}>
-                        <Music2 size={22} />
-                        Audio
-                        <input
-                          aria-label="Add homework audio"
-                          type="file"
-                          accept="audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.aac,.wav"
-                          disabled={busy || homeworkAudioCount >= 1}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <label className={homeworkVideoCount ? 'has-file' : ''}>
-                        <Video size={22} />
-                        Video
-                        <input
-                          aria-label="Add homework video"
-                          type="file"
-                          accept="video/mp4,video/quicktime,video/3gpp,.mp4,.mov,.3gp"
-                          disabled={busy || homeworkVideoCount >= 1}
-                          onChange={(e) => {
-                            chooseHomeworkFiles(e.target.files);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                    </div>
+                    <strong>Attachments · {homeworkAttachmentCount}/4</strong>
+                    <p>Add up to four images, audio files, or videos for the assignment.</p>
+                    <label className="sadhana-attachment-add">
+                      <UploadCloud size={19} />
+                      <span>Add attachments</span>
+                      <input
+                        aria-label="Add assignment attachments"
+                        type="file"
+                        multiple
+                        accept={homeworkMediaAccept}
+                        disabled={busy || homeworkAttachmentCount >= 4}
+                        onChange={(e) => {
+                          chooseHomeworkFiles(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                     {existingMaterials
                       .filter((m) => !removedMaterialIds.includes(m.id))
                       .map((m) => (
@@ -740,12 +693,12 @@ export default function TeacherWorkspace({
                             Review Submissions
                           </button>
                           <button
-                            className="sadhana-hw-secondary"
+                            className="sadhana-hw-secondary sadhana-hw-danger"
                             type="button"
                             disabled={busy}
                             onClick={() => void deleteAssignment(a)}
                           >
-                            Delete homework
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -758,167 +711,227 @@ export default function TeacherWorkspace({
                   <div className="sv1278-review">
                     <h3>Submitted work</h3>
                     {submissions.length ? (
-                      submissions.map((row) => (
-                        <article key={row.studentId}>
-                          <strong>
-                            {studentById.get(row.studentId)?.name || 'Learner'} ·{' '}
-                            {studentById.get(row.studentId)?.rollNumber || ''}
-                          </strong>
-                          <p>{row.text || 'No written response'}</p>
-                          {row.attachmentIds.length > 0 && (
-                            <>
+                      submissions.map((row, index) => {
+                        const studentName = studentById.get(row.studentId)?.name || 'Learner';
+                        const submissionKey = `${reviewId}:${row.studentId}`;
+                        const detailsId = `homework-submission-details-${index}`;
+                        const isCollapsed = collapsedSubmissions[submissionKey] !== false;
+                        return (
+                          <article key={row.studentId}>
+                            <header className="tw-submission-header">
+                              <strong>
+                                {studentName} · {studentById.get(row.studentId)?.rollNumber || ''}
+                              </strong>
+                              <span
+                                className={`tw-submission-status ${row.reviewedAt ? 'is-reviewed' : 'is-pending'}`}
+                                role="status"
+                              >
+                                {row.reviewedAt ? 'Reviewed' : 'Pending review'}
+                              </span>
                               <button
                                 type="button"
-                                onClick={async () => {
-                                  if (!cloud) return;
-                                  try {
-                                    const data = await cloud.api.teacherHomeworkEvidenceLinks(
-                                      workspace,
-                                      effectiveClass,
-                                      reviewId,
-                                      row.studentId,
-                                    );
-                                    setTeacherLinks((p) => ({
-                                      ...p,
-                                      [row.studentId]: data.records,
-                                    }));
-                                  } catch (e) {
-                                    setError(
-                                      e instanceof Error ? e.message : 'Cannot load attachments',
-                                    );
-                                  }
-                                }}
-                              >
-                                View {row.attachmentIds.length} attachment(s)
-                              </button>
-                              <ul>
-                                {(teacherLinks[row.studentId] || []).map((file) => (
-                                  <li key={file.id}>
-                                    <HomeworkMediaPreview
-                                      mime={file.mime}
-                                      url={file.url}
-                                      alt="Student submitted image"
-                                    />
-                                  </li>
-                                ))}
-                              </ul>
-                            </>
-                          )}
-                          <section className="tw-homework-feedback" aria-label="Teacher feedback">
-                            <h4>Teacher feedback</h4>
-                            <label>
-                              Written feedback <span>Optional</span>
-                              <textarea
-                                rows={4}
-                                maxLength={2000}
-                                value={feedbackText[row.studentId] || ''}
-                                onChange={(e) =>
-                                  setFeedbackText((p) => ({
-                                    ...p,
-                                    [row.studentId]: e.target.value,
+                                className="tw-submission-toggle"
+                                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${studentName}'s submission`}
+                                aria-expanded={!isCollapsed}
+                                aria-controls={detailsId}
+                                onClick={() =>
+                                  setCollapsedSubmissions((current) => ({
+                                    ...current,
+                                    [submissionKey]: !isCollapsed,
                                   }))
                                 }
-                                placeholder="Share feedback about this submission…"
-                              />
-                            </label>
-                            {row.feedbackAudioUrl && !feedbackAudio[row.studentId]?.url && (
-                              <audio
-                                controls
-                                preload="none"
-                                src={row.feedbackAudioUrl}
-                                aria-label="Saved teacher audio feedback"
-                              />
-                            )}
-                            <div className="tw-feedback-audio-picker">
-                              <span>
-                                Audio feedback <small>Optional</small>
-                              </span>
-                              <AudioFeedbackRecorder
-                                label={`Record optional audio feedback for ${row.studentId}`}
-                                disabled={feedbackAudio[row.studentId]?.uploading}
-                                onRecording={(file) => {
-                                  if (!cloud || !effectiveClass) return;
-                                  const mime = file.type;
-                                  setFeedbackAudio((current) => ({
-                                    ...current,
-                                    [row.studentId]: { name: file.name, uploading: true },
-                                  }));
-                                  void (async () => {
-                                    try {
-                                      const signed =
-                                        await cloud.api.beginTeacherHomeworkFeedbackAudio(
-                                          workspace,
-                                          effectiveClass,
-                                          reviewId,
-                                          row.studentId,
-                                          mime,
-                                          file.size,
-                                        );
-                                      const uploaded = await fetch(signed.uploadUrl, {
-                                        method: 'PUT',
-                                        headers: { ...signed.headers, 'Content-Type': mime },
-                                        body: file,
-                                      });
-                                      if (!uploaded.ok)
-                                        throw new Error(`Audio upload failed (${uploaded.status})`);
-                                      const saved =
-                                        await cloud.api.finishTeacherHomeworkFeedbackAudio(
-                                          workspace,
-                                          effectiveClass,
-                                          reviewId,
-                                          row.studentId,
-                                          signed.key,
-                                        );
-                                      setFeedbackAudio((current) => ({
-                                        ...current,
-                                        [row.studentId]: {
-                                          id: saved.audioId,
-                                          name: file.name,
-                                          url: URL.createObjectURL(file),
-                                        },
-                                      }));
-                                    } catch (uploadError) {
-                                      setFeedbackAudio((current) => ({
-                                        ...current,
-                                        [row.studentId]: {},
-                                      }));
-                                      setError(
-                                        uploadError instanceof Error
-                                          ? uploadError.message
-                                          : 'Unable to upload audio feedback',
-                                      );
-                                    }
-                                  })();
-                                }}
-                              />
-                            </div>
-                            {feedbackAudio[row.studentId]?.url && (
-                              <div className="tw-feedback-audio-preview">
-                                <span>{feedbackAudio[row.studentId]?.name}</span>
-                                <audio
-                                  controls
-                                  preload="metadata"
-                                  src={feedbackAudio[row.studentId]?.url}
-                                />
-                              </div>
-                            )}
-                            <button
-                              type="button"
-                              disabled={
-                                !!feedbackAudio[row.studentId]?.uploading ||
-                                (!feedbackText[row.studentId]?.trim() &&
-                                  !feedbackAudio[row.studentId]?.id &&
-                                  !row.feedbackAudioUrl)
-                              }
-                              onClick={() => void saveFeedback(row)}
+                              >
+                                {isCollapsed ? (
+                                  <ChevronRight aria-hidden="true" />
+                                ) : (
+                                  <ChevronDown aria-hidden="true" />
+                                )}
+                              </button>
+                            </header>
+                            <div
+                              id={detailsId}
+                              className="tw-submission-details"
+                              hidden={isCollapsed}
                             >
-                              {feedbackAudio[row.studentId]?.uploading
-                                ? 'Uploading audio…'
-                                : 'Save feedback'}
-                            </button>
-                          </section>
-                        </article>
-                      ))
+                              <p>{row.text || 'No written response'}</p>
+                              {row.attachmentIds.length > 0 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!cloud) return;
+                                      try {
+                                        const data = await cloud.api.teacherHomeworkEvidenceLinks(
+                                          workspace,
+                                          effectiveClass,
+                                          reviewId,
+                                          row.studentId,
+                                        );
+                                        setTeacherLinks((p) => ({
+                                          ...p,
+                                          [row.studentId]: data.records,
+                                        }));
+                                      } catch (e) {
+                                        setError(
+                                          e instanceof Error
+                                            ? e.message
+                                            : 'Cannot load attachments',
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    View attachments · {row.attachmentIds.length}
+                                  </button>
+                                  <ul>
+                                    {(teacherLinks[row.studentId] || []).map((file) => (
+                                      <li key={file.id}>
+                                        <HomeworkMediaPreview
+                                          mime={file.mime}
+                                          url={file.url}
+                                          alt="Student submitted image"
+                                        />
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </>
+                              )}
+                              <section
+                                className="tw-homework-feedback"
+                                aria-label="Teacher feedback"
+                              >
+                                {row.reviewedAt && (
+                                  <p className="tw-homework-reviewed" role="status">
+                                    Reviewed · {row.reviewedAt.slice(0, 10)}
+                                  </p>
+                                )}
+                                <h4>Teacher feedback</h4>
+                                <label>
+                                  <span>
+                                    Written feedback <small>Optional</small>
+                                  </span>
+                                  <textarea
+                                    rows={4}
+                                    maxLength={2000}
+                                    disabled={Boolean(row.reviewedAt)}
+                                    value={feedbackText[row.studentId] || ''}
+                                    onChange={(e) =>
+                                      setFeedbackText((p) => ({
+                                        ...p,
+                                        [row.studentId]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Share feedback about this submission…"
+                                  />
+                                </label>
+                                {row.feedbackAudioUrl && !feedbackAudio[row.studentId]?.url && (
+                                  <audio
+                                    controls
+                                    preload="none"
+                                    src={row.feedbackAudioUrl}
+                                    aria-label="Saved teacher audio feedback"
+                                  />
+                                )}
+                                <div className="tw-feedback-audio-picker">
+                                  <span>
+                                    Audio feedback <small>Optional</small>
+                                  </span>
+                                  <AudioFeedbackRecorder
+                                    label={`Record optional audio feedback for ${row.studentId}`}
+                                    disabled={
+                                      Boolean(row.reviewedAt) ||
+                                      feedbackAudio[row.studentId]?.uploading
+                                    }
+                                    onRecording={(file) => {
+                                      if (!cloud || !effectiveClass) return;
+                                      const mime = file.type;
+                                      setFeedbackAudio((current) => ({
+                                        ...current,
+                                        [row.studentId]: { name: file.name, uploading: true },
+                                      }));
+                                      void (async () => {
+                                        try {
+                                          const signed =
+                                            await cloud.api.beginTeacherHomeworkFeedbackAudio(
+                                              workspace,
+                                              effectiveClass,
+                                              reviewId,
+                                              row.studentId,
+                                              mime,
+                                              file.size,
+                                            );
+                                          const uploaded = await fetch(signed.uploadUrl, {
+                                            method: 'PUT',
+                                            headers: { ...signed.headers, 'Content-Type': mime },
+                                            body: file,
+                                          });
+                                          if (!uploaded.ok)
+                                            throw new Error(
+                                              `Audio upload failed (${uploaded.status})`,
+                                            );
+                                          const saved =
+                                            await cloud.api.finishTeacherHomeworkFeedbackAudio(
+                                              workspace,
+                                              effectiveClass,
+                                              reviewId,
+                                              row.studentId,
+                                              signed.key,
+                                            );
+                                          setFeedbackAudio((current) => ({
+                                            ...current,
+                                            [row.studentId]: {
+                                              id: saved.audioId,
+                                              name: file.name,
+                                              url: URL.createObjectURL(file),
+                                            },
+                                          }));
+                                        } catch (uploadError) {
+                                          setFeedbackAudio((current) => ({
+                                            ...current,
+                                            [row.studentId]: {},
+                                          }));
+                                          setError(
+                                            uploadError instanceof Error
+                                              ? uploadError.message
+                                              : 'Unable to upload audio feedback',
+                                          );
+                                        }
+                                      })();
+                                    }}
+                                  />
+                                </div>
+                                {feedbackAudio[row.studentId]?.url && (
+                                  <div className="tw-feedback-audio-preview">
+                                    <span>{feedbackAudio[row.studentId]?.name}</span>
+                                    <audio
+                                      controls
+                                      preload="metadata"
+                                      src={feedbackAudio[row.studentId]?.url}
+                                    />
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  className={row.reviewedAt ? 'is-reviewed' : undefined}
+                                  disabled={
+                                    Boolean(row.reviewedAt) ||
+                                    !!feedbackAudio[row.studentId]?.uploading ||
+                                    (!feedbackText[row.studentId]?.trim() &&
+                                      !feedbackAudio[row.studentId]?.id &&
+                                      !row.feedbackAudioUrl)
+                                  }
+                                  onClick={() => void saveFeedback(row)}
+                                >
+                                  {row.reviewedAt
+                                    ? 'Reviewed'
+                                    : feedbackAudio[row.studentId]?.uploading
+                                      ? 'Uploading audio…'
+                                      : 'Save feedback'}
+                                </button>
+                              </section>
+                            </div>
+                          </article>
+                        );
+                      })
                     ) : (
                       <p>No submitted homework yet.</p>
                     )}

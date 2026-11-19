@@ -66,6 +66,7 @@ import { finalTeacherCreate } from './finalTeacherCreateData.ts';
 import { finalOperationsHistory } from './finalOperationsHistory.ts';
 import { finalOperationsFeedback } from './finalOperationsFeedback.ts';
 import { finalAttendance } from './finalAttendance.ts';
+import { finalAttendanceWriter } from './finalAttendanceWrite.ts';
 import { finalTeacherStudents } from './finalTeacherStudents.ts';
 import { finalTeacherEnrolments } from './finalTeacherEnrolments.ts';
 import { finalFamilyAccessRoute } from './finalFamilyAccess.mjs';
@@ -316,6 +317,7 @@ export function createHandler(
             teacherStudents: finalTeacherStudents(),
             teacherEnrolments: finalTeacherEnrolments(),
             attendance: finalAttendance(),
+            attendanceCreate: finalAttendanceWriter(),
             history: finalOperationsHistory(),
             feedback: finalOperationsFeedback(),
           },

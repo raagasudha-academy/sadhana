@@ -771,6 +771,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           version: number;
           attachmentIds: string[];
           feedback?: string;
+          reviewedAt?: string | null;
         }>;
       }>(
         'GET',
@@ -944,6 +945,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           topic: string;
           comments: string;
           version: number;
+          teacherReviewed?: boolean;
           teacherComments: Array<{
             id: string;
             comment: string;

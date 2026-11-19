@@ -15,6 +15,9 @@ const homeworkMediaTypes: Record<string, { kind: 'image' | 'audio' | 'video'; ma
   'video/3gpp': { kind: 'video', max: 100_000_000 },
 };
 
+export const homeworkMediaAccept =
+  'image/jpeg,image/png,image/webp,image/heic,image/heif,audio/mpeg,audio/mp4,audio/webm,audio/aac,audio/wav,audio/x-wav,video/mp4,video/quicktime,video/3gpp,.jpg,.jpeg,.png,.webp,.heic,.heif,.mp3,.m4a,.webm,.aac,.wav,.mp4,.mov,.3gp';
+
 export const homeworkMimeForFile = (file: File) => {
   if (file.type) return file.type;
   const extension = file.name.split('.').pop()?.toLowerCase();
@@ -44,24 +47,12 @@ export const homeworkFileAllowed = (file: File) => {
 
 export const homeworkSelectionAllowed = (mimes: string[]) => {
   if (mimes.length > 4) return false;
-  const types = mimes.map((mime) => homeworkMediaTypes[mime]?.kind);
-  return (
-    types.every(Boolean) &&
-    types.filter((kind) => kind === 'image').length <= 2 &&
-    types.filter((kind) => kind === 'audio').length <= 1 &&
-    types.filter((kind) => kind === 'video').length <= 1
-  );
+  return mimes.every((mime) => Boolean(homeworkMediaTypes[mime]));
 };
 
 export const learnerHomeworkSelectionAllowed = (mimes: string[]) => {
   if (mimes.length > 4) return false;
-  const types = mimes.map((mime) => homeworkMediaTypes[mime]?.kind);
-  return (
-    types.every(Boolean) &&
-    types.filter((kind) => kind === 'image').length <= 2 &&
-    types.filter((kind) => kind === 'audio').length <= 1 &&
-    types.filter((kind) => kind === 'video').length <= 1
-  );
+  return mimes.every((mime) => Boolean(homeworkMediaTypes[mime]));
 };
 
 export const homeworkMediaMaxBytes = (mime: string) => homeworkMediaTypes[mime]?.max || 0;

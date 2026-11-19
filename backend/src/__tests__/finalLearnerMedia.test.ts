@@ -29,7 +29,16 @@ test('practice audio upload must reference an existing practice entry for that l
     {
       send: async (command: any) => {
         calls.push(command);
-        if (command instanceof GetCommand && command.input.TableName.endsWith('-practice'))
+        if (command instanceof GetCommand && command.input.TableName.endsWith('-practice')) {
+          if (command.input.Key.practiceId === 'PRACTICE-REVIEWED')
+            return {
+              Item: {
+                practiceId: 'PRACTICE-REVIEWED',
+                institutionId: 'raaga',
+                studentId: 'STUDENT-1001',
+                teacherReviewed: true,
+              },
+            };
           return command.input.Key.practiceId === 'PRACTICE-1001'
             ? {
                 Item: {
@@ -39,6 +48,7 @@ test('practice audio upload must reference an existing practice entry for that l
                 },
               }
             : {};
+        }
         if (command instanceof TransactWriteCommand) return {};
         throw new Error(`Unexpected ${command.constructor.name}`);
       },
@@ -73,6 +83,16 @@ test('practice audio upload must reference an existing practice entry for that l
     { status: 404 },
   );
   assert.equal(calls.filter((x) => x instanceof TransactWriteCommand).length, 0);
+  await assert.rejects(
+    service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
+      mime: 'audio/webm',
+      size: 100,
+      purpose: 'practice',
+      practiceId: 'PRACTICE-REVIEWED',
+    }),
+    { status: 409 },
+  );
+  assert.equal(calls.filter((x) => x instanceof TransactWriteCommand).length, 0);
   const previousBucket = process.env.SADHANA_LEARNER_MEDIA_BUCKET;
   process.env.SADHANA_LEARNER_MEDIA_BUCKET = 'private-media';
   try {
@@ -84,9 +104,19 @@ test('practice audio upload must reference an existing practice entry for that l
     });
     assert.match(result.key, /homework-private\/learner\/raaga\/STUDENT-1001\/LEARNERMEDIA-/);
     const write = calls.find((x) => x instanceof TransactWriteCommand).input.TransactItems;
+    const practiceGuard = write.find((x: any) => x.ConditionCheck?.TableName.endsWith('-practice'));
+    assert.match(practiceGuard.ConditionCheck.ConditionExpression, /teacherReviewed/);
+    assert.match(practiceGuard.ConditionCheck.ConditionExpression, /teacherComments/);
     const receipt = write.find((x: any) => x.Put?.TableName.endsWith('-submissions')).Put.Item;
     assert.equal(receipt.practiceId, 'PRACTICE-1001');
     assert.equal(receipt.purpose, 'practice');
+    const webm = await service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
+      mime: 'audio/webm',
+      size: 32_000,
+      purpose: 'practice',
+      practiceId: 'PRACTICE-1001',
+    });
+    assert.match(webm.key, /LEARNERMEDIA-[0-9a-f-]{36}\.webm$/i);
   } finally {
     if (previousBucket === undefined) delete process.env.SADHANA_LEARNER_MEDIA_BUCKET;
     else process.env.SADHANA_LEARNER_MEDIA_BUCKET = previousBucket;
@@ -119,6 +149,15 @@ test('practice recording rejects unsupported video types and files above the aud
   await assert.rejects(
     service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
       mime: 'audio/mpeg',
+      size: 20_000_001,
+      purpose: 'practice',
+      practiceId: 'PRACTICE-1001',
+    }),
+    { status: 400 },
+  );
+  await assert.rejects(
+    service.start('raaga', { sub: 'student-sub' }, 'STUDENT-1001', {
+      mime: 'audio/webm',
       size: 20_000_001,
       purpose: 'practice',
       practiceId: 'PRACTICE-1001',

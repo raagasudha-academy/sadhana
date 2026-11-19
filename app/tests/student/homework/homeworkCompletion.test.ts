@@ -20,8 +20,22 @@ describe('homework completion UX', () => {
     expect(homework).toContain(compactSource('disabled={!submissionEditable || submissionBusy}'));
   });
 
-  it('retains draft and submit actions', () => {
-    expect(homework).toContain(compactSource("saveAssignment('draft')"));
-    expect(portalView).toContain(compactSource("saveAssignment('submitted')"));
+  it('uses a submit-only flow and confirms discarding unsent edits on close', () => {
+    expect(homework).not.toContain('Save draft');
+    expect(homework).toContain(compactSource('Submit homework'));
+    expect(portalView).toContain(compactSource('saveAssignment()'));
+    expect(controller).toContain(compactSource('Close without submitting?'));
+    expect(controller).toContain(compactSource("status: 'submitted'"));
+  });
+
+  it('uploads recorded audio as an attachment for submission', () => {
+    expect(homework).toContain(compactSource('<AudioFeedbackRecorder'));
+    expect(homework).toContain(
+      compactSource('onRecording={(file) => void uploadHomeworkFiles([file])}'),
+    );
+    expect(controller).toContain(compactSource('beginHomeworkEvidence('));
+    expect(controller).toContain(compactSource('finishHomeworkEvidence('));
+    expect(controller).toContain(compactSource('attachmentIds: ids'));
+    expect(controller).toContain(compactSource('attachmentIds: submission.attachmentIds'));
   });
 });

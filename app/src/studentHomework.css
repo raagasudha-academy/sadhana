@@ -82,6 +82,9 @@
   font: inherit;
 }
 .sv1278-upload-note {
+  width: 100%;
+  max-width: 660px;
+  box-sizing: border-box;
   background: #f7f9fc;
   border: 1px dashed #b9cce2;
   border-radius: 12px;
@@ -91,6 +94,86 @@
 .sv1278-upload-note p {
   margin: 8px 0;
   color: #60748f;
+}
+.sv1278-attachment-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.sv1278-attachment-status {
+  color: #60748f;
+  font-size: 0.9rem;
+}
+.sv1278-attachment-error {
+  margin: 0.5rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #e3bcbc;
+  border-radius: 9px;
+  background: #fff5f4;
+  color: #8b3030;
+  font-size: 0.9rem;
+}
+.sv1278-upload-note ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.sv1278-upload-note li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.sv1278-upload-note li audio,
+.sv1278-upload-note li video {
+  width: min(100%, 360px);
+  max-height: 220px;
+}
+.sv1278-attachment-actions .tw-audio-recorder {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sv1278-attachment-actions .tw-audio-recorder-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid #cbd7e7;
+  border-radius: 10px;
+  background: #fff;
+  color: #244f87;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sv1278-attachment-actions .tw-audio-recorder-button:hover:not(:disabled) {
+  background: #f1f6fc;
+  border-color: #9eb3cf;
+}
+.sv1278-attachment-actions .tw-audio-recorder-button:focus-visible {
+  outline: 3px solid #9ab9f5;
+  outline-offset: 2px;
+}
+.sv1278-attachment-actions .tw-audio-recorder-stop {
+  color: #8d3a34;
+  border-color: #dcaaa5;
+  background: #fff6f5;
+}
+.sv1278-attachment-actions .tw-audio-recorder small {
+  flex-basis: 100%;
+  color: #9b3e38;
 }
 .sv1278-editor footer {
   display: flex;
