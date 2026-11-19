@@ -78,6 +78,42 @@ const publicSubmission = (s: any) => ({
   reviewedAt: s.reviewedAt || null,
 });
 const nowIso = () => new Date().toISOString();
+const homeworkOpenCheck = (h: any, now: string, includeClass: boolean) => {
+  const values: Record<string, unknown> = {
+    ':inst': h.institutionId,
+    ':archived': 'archived',
+    ':nullType': 'NULL',
+    ':now': now,
+  };
+  const conditions = [
+    'institutionId=:inst',
+    '(attribute_not_exists(#status) OR attribute_type(#status,:nullType) OR #status<>:archived)',
+    '(attribute_not_exists(releaseAt) OR attribute_type(releaseAt,:nullType) OR releaseAt<=:now)',
+  ];
+  if (includeClass) {
+    conditions.push('classId=:class');
+    values[':class'] = h.classId;
+  }
+  if (typeof h.dueAt === 'string') {
+    conditions.push('dueAt>=:now');
+  } else {
+    conditions.push(
+      '(attribute_not_exists(dueAt) OR attribute_type(dueAt,:nullType)) AND dueDate=:dueDate AND (attribute_not_exists(dueTime) OR attribute_type(dueTime,:nullType) OR dueTime=:empty OR dueTime=:dueTime)',
+    );
+    values[':dueDate'] = h.dueDate;
+    values[':dueTime'] = h.dueTime || '23:59';
+    values[':empty'] = '';
+  }
+  return {
+    ConditionCheck: {
+      TableName: table('homework'),
+      Key: { homeworkId: h.homeworkId },
+      ConditionExpression: conditions.join(' AND '),
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: values,
+    },
+  };
+};
 export type M9MediaIO = {
   head: (bucket: string, key: string) => Promise<any>;
   signPut: (
@@ -1037,22 +1073,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
             ...checks,
             enrollmentCheck,
             ...mediaChecks,
-            {
-              ConditionCheck: {
-                TableName: table('homework'),
-                Key: { homeworkId },
-                ConditionExpression:
-                  'institutionId=:inst AND classId=:class AND #status<>:archived AND (attribute_not_exists(releaseAt) OR attribute_type(releaseAt,:nullType) OR releaseAt<=:now) AND dueAt>=:now',
-                ExpressionAttributeNames: { '#status': 'status' },
-                ExpressionAttributeValues: {
-                  ':inst': inst,
-                  ':class': h.classId,
-                  ':archived': 'archived',
-                  ':nullType': 'NULL',
-                  ':now': now,
-                },
-              },
-            },
+            homeworkOpenCheck(h, now, true),
             {
               Put: {
                 TableName: table('submissions'),
@@ -1129,21 +1150,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
           TransactItems: [
             ...checks,
             enrollmentCheck,
-            {
-              ConditionCheck: {
-                TableName: table('homework'),
-                Key: { homeworkId: body.homeworkId },
-                ConditionExpression:
-                  'institutionId=:inst AND #status<>:archived AND (attribute_not_exists(releaseAt) OR attribute_type(releaseAt,:nullType) OR releaseAt<=:now) AND dueAt>=:now',
-                ExpressionAttributeNames: { '#status': 'status' },
-                ExpressionAttributeValues: {
-                  ':inst': inst,
-                  ':archived': 'archived',
-                  ':nullType': 'NULL',
-                  ':now': now,
-                },
-              },
-            },
+            homeworkOpenCheck(h, now, false),
             {
               Put: {
                 TableName: table('submissions'),
