@@ -379,9 +379,14 @@
   font-size: 13px;
 }
 .student-portal-v119 .v1376-practice-media {
-  width: min(100%, 700px);
+  width: min(100%, 780px);
   box-sizing: border-box;
   border-style: solid;
+}
+.app-shell .sv1296-embedded-root .access-practice-form .v1376-practice-media {
+  width: min(100%, 780px);
+  max-width: 780px;
+  justify-self: start;
 }
 .student-portal-v119 .v1376-practice-attachment-actions {
   align-items: center;
@@ -406,6 +411,17 @@
   font-size: 13px;
   line-height: 1.2;
   font-weight: 650;
+}
+.student-portal-v119 .v1376-practice-attachment-button {
+  min-width: 176px;
+}
+.app-shell .sv1296-embedded-root .access-practice-form .v1376-practice-attachment-button {
+  display: inline-flex;
+  flex-direction: row;
+  width: max-content;
+  min-width: 176px;
+  grid-column: auto;
+  white-space: nowrap;
 }
 .student-portal-v119 .v1376-practice-attachment-button:hover,
 .student-portal-v119
