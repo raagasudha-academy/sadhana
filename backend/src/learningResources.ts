@@ -66,8 +66,11 @@ const table = () => {
 import { entityTable as entityTableRuntime } from './entityTables.mjs';
 const canonicalTable = (entity: string) => entityTableRuntime(entity);
 const bucket = () => {
-  const value = process.env.SADHANA_HOMEWORK_MEDIA_BUCKET;
-  if (!value) throw Error('SADHANA_HOMEWORK_MEDIA_BUCKET missing');
+  // The deployed Lambda shares the private learner-media bucket. Keep the
+  // older variable as a local/legacy fallback, but prefer the configured name.
+  const value =
+    process.env.SADHANA_LEARNER_MEDIA_BUCKET || process.env.SADHANA_HOMEWORK_MEDIA_BUCKET;
+  if (!value) throw httpError(503, 'Private learning resource bucket not configured.');
   return value;
 };
 const cleanText = (v: unknown, max: number) =>
@@ -672,7 +675,7 @@ export async function beginLearningResourceUpload(inst: InstitutionId, claims: C
       .normalize('NFKD')
       .replace(/[^a-zA-Z0-9._-]/g, '_')
       .slice(-100) || 'resource';
-  const key = `teacher-materials/${inst}/resources/${owner}/${randomUUID()}-${safeName}`;
+  const key = `homework-private/${inst}/resources/${owner}/${randomUUID()}-${safeName}`;
   const uploadUrl = await getSignedUrl(
     s3,
     new PutObjectCommand({
@@ -773,7 +776,7 @@ export async function createLearningResource(inst: InstitutionId, claims: Claims
   await validateClassScope(inst, claims, data.classIds, scope.admin);
   if (data.mediaKey) {
     const owner = createHash('sha256').update(String(claims.sub)).digest('hex');
-    if (!data.mediaKey.startsWith(`teacher-materials/${inst}/resources/${owner}/`))
+    if (!data.mediaKey.startsWith(`homework-private/${inst}/resources/${owner}/`))
       throw httpError(403, 'Uploaded resource does not belong to this account.');
     const head = await s3.send(new HeadObjectCommand({ Bucket: bucket(), Key: data.mediaKey }));
     if (
@@ -901,7 +904,7 @@ export async function updateLearningResource(
   await validateClassScope(inst, claims, data.classIds, scope.admin);
   if (data.mediaKey) {
     const owner = createHash('sha256').update(String(claims.sub)).digest('hex');
-    if (!data.mediaKey.startsWith(`teacher-materials/${inst}/resources/${owner}/`))
+    if (!data.mediaKey.startsWith(`homework-private/${inst}/resources/${owner}/`))
       throw httpError(403, 'Uploaded resource does not belong to this account.');
     const head = await s3.send(new HeadObjectCommand({ Bucket: bucket(), Key: data.mediaKey }));
     if (
