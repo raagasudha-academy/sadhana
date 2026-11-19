@@ -68,7 +68,8 @@ const canonicalTable = (entity: string) => entityTableRuntime(entity);
 const bucket = () => {
   // The deployed Lambda shares the private learner-media bucket. Keep the
   // older variable as a local/legacy fallback, but prefer the configured name.
-  const value = process.env.SADHANA_LEARNER_MEDIA_BUCKET || process.env.SADHANA_HOMEWORK_MEDIA_BUCKET;
+  const value =
+    process.env.SADHANA_LEARNER_MEDIA_BUCKET || process.env.SADHANA_HOMEWORK_MEDIA_BUCKET;
   if (!value) throw httpError(503, 'Private learning resource bucket not configured.');
   return value;
 };
