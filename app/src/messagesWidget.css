@@ -119,19 +119,35 @@
     padding: 12px 15px;
   }
   .sadhana-messages-widget-panel {
-    right: -4px;
-    bottom: 56px;
-    width: calc(100vw - 24px);
-    height: calc(100vh - 95px);
+    position: fixed;
+    inset: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .sadhana-messages-widget.is-open .sadhana-messages-widget-trigger {
+    display: none;
   }
   .sadhana-messages-widget-panel .messages-page {
     padding: 6px;
   }
   .sadhana-messages-widget-panel .messages-layout {
-    grid-template-columns: minmax(130px, 40%) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    flex: 1;
   }
   .sadhana-messages-widget-panel .messages-inbox {
     padding: 8px;
+    max-height: none;
+    border: 0;
+  }
+  .sadhana-messages-widget-panel .messages-conversation {
+    height: 100%;
+    min-height: 0;
   }
   .sadhana-messages-widget-panel .messages-history {
     padding: 10px;

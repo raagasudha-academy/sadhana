@@ -337,6 +337,9 @@
   align-items: center;
   gap: 10px;
 }
+.messages-mobile-back {
+  display: none;
+}
 .messages-conversation-head .messages-avatar {
   width: 40px;
   height: 40px;
@@ -462,5 +465,90 @@
   .messages-history {
     min-height: 0;
     max-height: none;
+  }
+}
+
+/* On phones, use a two-step inbox → conversation flow. Keeping the inbox and
+   thread stacked made the composer fall below the contact list. */
+@media (max-width: 760px) {
+  .messages-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    height: clamp(360px, calc(100dvh - 210px), 650px);
+    min-height: 0;
+  }
+  .messages-inbox {
+    height: 100%;
+    max-height: none;
+    border: 0;
+  }
+  .messages-conversation {
+    display: none;
+    height: 100%;
+    min-height: 0;
+  }
+  .messages-page.has-active-conversation .messages-inbox {
+    display: none;
+  }
+  .messages-page.has-active-conversation .messages-conversation {
+    display: flex;
+  }
+  .messages-conversation-head {
+    flex: 0 0 auto;
+    gap: 9px;
+    padding: 10px 12px;
+  }
+  .messages-mobile-back {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+    min-height: 40px;
+    padding: 0 8px 0 2px;
+    border: 0;
+    border-right: 1px solid #e4eaf1;
+    background: transparent;
+    color: #315073;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .messages-conversation-head .messages-avatar {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  .messages-conversation-head > div {
+    min-width: 0;
+  }
+  .messages-conversation-head h3,
+  .messages-conversation-head p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .messages-history {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 12px;
+  }
+  .messages-compose {
+    flex: 0 0 auto;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: #fff;
+  }
+  .messages-compose textarea {
+    min-height: 48px;
+    max-height: 120px;
+    resize: none;
+    font-size: 16px;
+  }
+  .messages-compose > div {
+    margin-top: 7px;
+  }
+  .messages-compose button {
+    min-height: 42px;
+    padding: 9px 16px;
   }
 }
