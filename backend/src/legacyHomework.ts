@@ -1057,7 +1057,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
                 TableName: table('submissions'),
                 Item: item,
                 ConditionExpression: old
-                  ? '#version=:expected AND attribute_not_exists(reviewedAt)'
+                  ? `${body.expectedVersion === 0 ? '(attribute_not_exists(#version) OR #version=:expected)' : '#version=:expected'} AND attribute_not_exists(reviewedAt)`
                   : 'attribute_not_exists(submissionId)',
                 ...(old
                   ? {
