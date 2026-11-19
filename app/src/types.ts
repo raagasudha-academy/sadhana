@@ -20,6 +20,7 @@ export interface FamilyRecord {
 export interface StudentRecord {
   id: string;
   name: string;
+  rollNumber?: string;
   familyId: string;
   phone?: E164Phone;
   location?: string;

@@ -180,14 +180,40 @@ export default function AcademyOperations({
       JSON.stringify(r).toLowerCase().includes(search.toLowerCase()),
   );
   const studentName = (id: string) => data.student.find((s) => s.id === id)?.name || id;
+  const studentRollNumber = (id: string) =>
+    data.student.find((student) => student.id === id)?.rollNumber || '';
   const className = (id: string) =>
     masters.find((c) => c.id === id)?.name || schedule.find((c) => c.id === id)?.name || id;
+  const sessionLabel = (id: string) => {
+    const session =
+      sessions.find((item) => item.id === id) || schedule.find((item) => item.id === id);
+    if (!session) return 'Session details unavailable';
+    const label = typeof session.name === 'string' ? session.name.trim() : '';
+    const isInternalId = /^(?:EVT|SESSION|CLASS)-[a-z0-9-]+$/i.test(label);
+    const title =
+      label && label !== session.id && !isInternalId
+        ? label
+        : session.classId
+          ? className(session.classId)
+          : 'Class session';
+    const date = session.date ? ` · ${session.date}` : '';
+    const time = session.startTime ? ` · ${session.startTime}` : '';
+    return `${title}${date}${time}`;
+  };
   const recordDetails = (record: any) =>
     area === 'practice' && record.classId && className(record.classId) === record.classId
       ? 'Class record'
       : record.classId
         ? className(record.classId)
-        : record.familyId || record.phone || record.sessionId || '—';
+        : area === 'rsvp' && record.sessionId
+          ? sessionLabel(String(record.sessionId))
+          : record.familyId || record.phone || '—';
+  const rsvpStatus = (intention: string) =>
+    ({
+      attending: 'Attending',
+      not_attending: 'Not attending',
+      unknown: 'No response',
+    })[intention] || 'No response';
   const open = (record: any = null) => {
     setEdit(record);
     setDraft(
@@ -515,7 +541,14 @@ export default function AcademyOperations({
                 <tr key={r.id}>
                   <td>
                     <strong>{r.name || r.parentName || studentName(r.studentId)}</strong>
-                    {!teacherMode && (
+                    {!teacherMode && area === 'practice' && (
+                      <small className="ops-record-id">
+                        {studentRollNumber(r.studentId)
+                          ? `Roll ${studentRollNumber(r.studentId)}`
+                          : 'Roll number unavailable'}
+                      </small>
+                    )}
+                    {!teacherMode && !['practice', 'rsvp'].includes(area) && (
                       <small className="ops-record-id" title={r.id}>
                         {r.id}
                       </small>
@@ -525,11 +558,13 @@ export default function AcademyOperations({
                     {recordDetails(r)}
                   </td>
                   <td>
-                    {area === 'enrolment'
-                      ? r.archived
-                        ? 'Ended'
-                        : `Active · ${r.startDate || '—'}`
-                      : r.date || r.startDate || r.status || r.updatedAt?.slice(0, 10)}
+                    {area === 'rsvp'
+                      ? rsvpStatus(r.intention || r.response || '')
+                      : area === 'enrolment'
+                        ? r.archived
+                          ? 'Ended'
+                          : `Active · ${r.startDate || '—'}`
+                        : r.date || r.startDate || r.status || r.updatedAt?.slice(0, 10)}
                   </td>
                   <td>
                     {(admin || !['enrolment', 'family', 'student'].includes(area)) &&
