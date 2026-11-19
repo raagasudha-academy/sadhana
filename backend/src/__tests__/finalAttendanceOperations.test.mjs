@@ -6,11 +6,12 @@ import { finalOperationsRoute } from '../finalOperations.mjs';
 
 const readNormalizedSource = (...args) => normalizeCodeWhitespace(readFileSync(...args));
 const env = { SADHANA_ENTITY_TABLE_SET: 'final' };
-const ctx = (inst, admin, method = 'GET') => ({
+const ctx = (inst, admin, method = 'GET', data) => ({
   parts: ['operations', 'attendance'],
   method,
   claims: { sub: 'subject', admin },
   query: { institution: inst },
+  event: { body: data ? JSON.stringify(data) : undefined },
 });
 const access = {
   view: () => {},
@@ -39,6 +40,10 @@ const readers = {
     calls.push(args);
     return { records: [{ id: 'A1' }] };
   },
+  attendanceCreate: async (...args) => {
+    calls.push(args);
+    return { record: { id: 'ATT1' } };
+  },
 };
 test('administrator receives canonical attendance for exact institution', async () => {
   calls.length = 0;
@@ -53,13 +58,45 @@ test('teacher sees attendance scoped to assigned class', async () => {
   assert.deepEqual([...calls[0][1]], ['C1']);
   assert.equal(calls[0][2], 'T1');
 });
-test('attendance is not handled on writes or in split mode', async () => {
-  assert.equal(
-    await finalOperationsRoute(ctx('raaga', true, 'POST'), readers, access, env),
-    undefined,
+test('attendance POST writes through canonical writer for administrators', async () => {
+  calls.length = 0;
+  const x = await finalOperationsRoute(
+    ctx('raaga', true, 'POST', {
+      studentId: 'STUDENT1',
+      sessionId: 'SESSION1',
+      status: 'present',
+      note: '',
+    }),
+    readers,
+    access,
+    env,
   );
+  assert.equal(x.status, 201);
+  assert.deepEqual(calls[0], [
+    'raaga',
+    'subject',
+    { studentId: 'STUDENT1', sessionId: 'SESSION1', status: 'present', note: '' },
+    undefined,
+  ]);
+});
+test('attendance POST scopes teachers to assigned classes', async () => {
+  calls.length = 0;
+  const x = await finalOperationsRoute(
+    ctx('raaga', false, 'POST', {
+      studentId: 'STUDENT1',
+      sessionId: 'SESSION1',
+      status: 'present',
+    }),
+    readers,
+    access,
+    env,
+  );
+  assert.equal(x.status, 201);
+  assert.deepEqual([...calls[0][3]], ['C1']);
+});
+test('attendance writes are not handled in split mode', async () => {
   assert.equal(
-    await finalOperationsRoute(ctx('raaga', true), readers, access, {
+    await finalOperationsRoute(ctx('raaga', true, 'POST'), readers, access, {
       SADHANA_ENTITY_TABLE_SET: 'm9',
     }),
     undefined,

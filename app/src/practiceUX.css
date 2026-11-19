@@ -378,6 +378,98 @@
   color: #71829b;
   font-size: 13px;
 }
+.student-portal-v119 .v1376-practice-media {
+  width: min(100%, 700px);
+  box-sizing: border-box;
+  border-style: solid;
+}
+.student-portal-v119 .v1376-practice-attachment-actions {
+  align-items: center;
+}
+.student-portal-v119 .v1376-practice-attachment-button,
+.student-portal-v119
+  .v1376-practice-attachment-actions
+  .tw-audio-recorder
+  .tw-audio-recorder-button {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 8px 13px;
+  border: 1px solid #cbd8e8;
+  border-radius: 9px;
+  background: #fff;
+  color: #234061;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 650;
+}
+.student-portal-v119 .v1376-practice-attachment-button:hover,
+.student-portal-v119
+  .v1376-practice-attachment-actions
+  .tw-audio-recorder
+  .tw-audio-recorder-button:hover:not(:disabled) {
+  border-color: #9db2cb;
+  background: #f1f5fa;
+}
+.student-portal-v119 .v1376-practice-attachment-actions .tw-audio-recorder .tw-audio-recorder-stop {
+  border-color: #dcaaa5;
+  background: #fff6f5;
+  color: #8d3a34;
+}
+.student-portal-v119 .v1376-practice-history-media-row {
+  grid-template-columns: 82px minmax(0, 1fr);
+}
+.student-portal-v119 .v1376-practice-history-attachments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  align-items: start;
+}
+.student-portal-v119 .v1376-practice-history-attachment {
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
+}
+.student-portal-v119 .v1376-practice-history-attachment video {
+  aspect-ratio: 16 / 9;
+  background: #eef2f7;
+  object-fit: contain;
+}
+.student-portal-v119 .v1376-practice-history-audio-input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+.student-portal-v119 .v1376-practice-history-audio-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #cbd8e8;
+  border-radius: 9px;
+  background: #fff;
+  color: #234061;
+  font-size: 13px;
+  font-weight: 650;
+}
+.student-portal-v119 .v1376-practice-history-audio-button:hover:not(:disabled) {
+  border-color: #9db2cb;
+  background: #f1f5fa;
+}
+.student-portal-v119 .v1376-practice-history-audio-button:disabled {
+  border-color: #dbe3ed;
+  background: #f1f4f8;
+  color: #8a99ab;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
 .student-portal-v119 .v1376-practice-page .sv1276-practice-form > button[type='submit'] {
   background: #19365a;
   color: #fff;

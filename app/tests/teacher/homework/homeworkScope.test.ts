@@ -29,4 +29,9 @@ describe('v13.6.1 homework scope regression', () => {
     expect(media).toContain("'audio/mp4'");
     expect(compactSource(teacher)).toContain('setEditingHomework({id,version})');
   });
+  it('locks homework feedback after review and labels the action Reviewed', () => {
+    expect(teacher).toContain('row.reviewedAt');
+    expect(teacher).toContain("'Reviewed'");
+    expect(teacher).toContain('is-reviewed');
+  });
 });

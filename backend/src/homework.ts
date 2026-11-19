@@ -730,6 +730,7 @@ export async function teacherHomeworkFeedback(
     await db.send(new GetCommand({ TableName: table(), Key: key, ConsistentRead: true }))
   ).Item;
   if (!old || old.status !== 'submitted') throw httpError(404, 'Submitted homework not found');
+  if (old.reviewedAt) throw httpError(409, 'This homework submission has already been reviewed');
   if (old.version !== body.expectedVersion) throw httpError(409, 'Submission has changed');
   const now = new Date().toISOString();
   await db.send(

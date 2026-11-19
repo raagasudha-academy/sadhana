@@ -256,6 +256,7 @@ export default function TeacherWorkspace({
       attachmentIds: string[];
       feedback?: string;
       feedbackAudioUrl?: string;
+      reviewedAt?: string | null;
     }>
   >([]);
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
@@ -756,6 +757,11 @@ export default function TeacherWorkspace({
                             </>
                           )}
                           <section className="tw-homework-feedback" aria-label="Teacher feedback">
+                            {row.reviewedAt && (
+                              <p className="tw-homework-reviewed" role="status">
+                                Reviewed · {row.reviewedAt.slice(0, 10)}
+                              </p>
+                            )}
                             <h4>Teacher feedback</h4>
                             <label>
                               <span>
@@ -764,6 +770,7 @@ export default function TeacherWorkspace({
                               <textarea
                                 rows={4}
                                 maxLength={2000}
+                                disabled={Boolean(row.reviewedAt)}
                                 value={feedbackText[row.studentId] || ''}
                                 onChange={(e) =>
                                   setFeedbackText((p) => ({
@@ -788,7 +795,9 @@ export default function TeacherWorkspace({
                               </span>
                               <AudioFeedbackRecorder
                                 label={`Record optional audio feedback for ${row.studentId}`}
-                                disabled={feedbackAudio[row.studentId]?.uploading}
+                                disabled={
+                                  Boolean(row.reviewedAt) || feedbackAudio[row.studentId]?.uploading
+                                }
                                 onRecording={(file) => {
                                   if (!cloud || !effectiveClass) return;
                                   const mime = file.type;
@@ -857,7 +866,9 @@ export default function TeacherWorkspace({
                             )}
                             <button
                               type="button"
+                              className={row.reviewedAt ? 'is-reviewed' : undefined}
                               disabled={
+                                Boolean(row.reviewedAt) ||
                                 !!feedbackAudio[row.studentId]?.uploading ||
                                 (!feedbackText[row.studentId]?.trim() &&
                                   !feedbackAudio[row.studentId]?.id &&
@@ -865,9 +876,11 @@ export default function TeacherWorkspace({
                               }
                               onClick={() => void saveFeedback(row)}
                             >
-                              {feedbackAudio[row.studentId]?.uploading
-                                ? 'Uploading audio…'
-                                : 'Save feedback'}
+                              {row.reviewedAt
+                                ? 'Reviewed'
+                                : feedbackAudio[row.studentId]?.uploading
+                                  ? 'Uploading audio…'
+                                  : 'Save feedback'}
                             </button>
                           </section>
                         </article>

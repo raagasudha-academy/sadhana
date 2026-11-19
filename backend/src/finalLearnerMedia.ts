@@ -188,10 +188,13 @@ export function makeM10FinalLearnerMedia(
         throw httpError(400, 'Unsupported media type or size');
       const access = await allowed(inst, claims, id),
         receipt = `LEARNERMEDIA-${randomUUID()}`;
+      let practice: any = null;
       if (body.purpose === 'practice') {
-        const practice = await getPractice(String(body.practiceId));
+        practice = await getPractice(String(body.practiceId));
         if (!practice || practice.institutionId !== inst || practice.studentId !== id)
           throw httpError(404, 'Practice entry not found');
+        if (practice.teacherReviewed === true || (practice.teacherComments?.length ?? 0) > 0)
+          throw httpError(409, 'This practice has been reviewed and is read-only.');
       }
       // Prefix is already covered by the deployed private homework-media S3 IAM policy.
       const key = `homework-private/learner/${inst}/${id}/${receipt}.${type.ext}`;
@@ -215,6 +218,24 @@ export function makeM10FinalLearnerMedia(
           new TransactWriteCommand({
             TransactItems: [
               ...checks(inst, claims.sub!, id, access),
+              ...(body.purpose === 'practice'
+                ? [
+                    {
+                      ConditionCheck: {
+                        TableName: entityTable('practice'),
+                        Key: { practiceId: String(body.practiceId) },
+                        ConditionExpression:
+                          'institutionId=:inst AND studentId=:student AND (attribute_not_exists(teacherReviewed) OR teacherReviewed=:no) AND (attribute_not_exists(teacherComments) OR size(teacherComments)=:empty)',
+                        ExpressionAttributeValues: {
+                          ':inst': inst,
+                          ':student': id,
+                          ':no': false,
+                          ':empty': 0,
+                        },
+                      },
+                    },
+                  ]
+                : []),
               {
                 Put: {
                   TableName: mediaTable(),
@@ -227,7 +248,12 @@ export function makeM10FinalLearnerMedia(
         );
       } catch (e: any) {
         if (e.name === 'TransactionCanceledException')
-          throw httpError(409, 'Learner access changed. Refresh before uploading');
+          throw httpError(
+            409,
+            body.purpose === 'practice'
+              ? 'Practice is read-only or learner access changed. Refresh before uploading.'
+              : 'Learner access changed. Refresh before uploading',
+          );
         throw e;
       }
       return {

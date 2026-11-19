@@ -501,6 +501,24 @@
   background: #244c76;
   border-color: #244c76;
 }
+.sv1276-teacher-homework .tw-homework-feedback .tw-homework-reviewed {
+  width: fit-content;
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #b8dbc7;
+  border-radius: 999px;
+  background: #f0f8f3;
+  color: #276548;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.sv1276-teacher-homework .tw-homework-feedback > button.is-reviewed:disabled {
+  border-color: #b8dbc7;
+  background: #e8f5ed;
+  color: #276548;
+  opacity: 1;
+  cursor: default;
+}
 .sv1276-teacher-homework .sv1278-review article > ul,
 .sv1278-homework .sv1278-upload-note ul,
 .sadhana-homework-materials ul {

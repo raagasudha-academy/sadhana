@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Paperclip, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Music2, Paperclip, X } from 'lucide-react';
 import AudioFeedbackRecorder from '../../AudioFeedbackRecorder';
 import {
   homeworkFileAllowed,
@@ -7,6 +7,42 @@ import {
   homeworkMimeForFile,
 } from '../../homeworkMediaPolicy';
 import type { PracticeMediaFiles, StudentPortalContext } from './useStudentPortalController';
+
+function PracticeHistoryAudioUpload({
+  disabled,
+  onUpload,
+}: {
+  disabled: boolean;
+  onUpload: (file: File) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input
+        ref={input}
+        className="v1376-practice-history-audio-input"
+        type="file"
+        accept="audio/mpeg,audio/mp4,audio/webm,audio/aac,audio/wav,audio/x-wav,.mp3,.m4a,.webm,.aac,.wav"
+        disabled={disabled}
+        aria-label="Choose practice audio attachment"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (file) onUpload(file);
+          event.currentTarget.value = '';
+        }}
+      />
+      <button
+        className="v1376-practice-history-audio-button"
+        type="button"
+        disabled={disabled}
+        title={disabled ? 'This practice has been reviewed; attachments are locked.' : 'Add audio'}
+        onClick={() => input.current?.click()}
+      >
+        <Music2 size={17} /> Add audio
+      </button>
+    </>
+  );
+}
 
 function PracticeMediaPicker({
   files,
@@ -118,6 +154,7 @@ function PracticeMediaPicker({
 export function StudentPractice({ context }: { context: StudentPortalContext }) {
   const {
     uploadBusy,
+    uploadEvidence,
     media,
     detail,
     edit,
@@ -245,7 +282,7 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
             (m: any) => m.purpose === 'practice' && m.practiceId === r.id,
           );
           const teacherComments = r.teacherComments || [];
-          const reviewed = teacherComments.length > 0;
+          const reviewed = r.teacherReviewed === true || teacherComments.length > 0;
           const editDisabled = r.date < todayUK() || reviewed;
           return (
             <article className="v1376-practice-history-entry" key={r.id}>
@@ -318,6 +355,17 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                     )}
                   </div>
                 </div>
+                {!practiceMedia.some((item: any) => item.mime?.startsWith('audio/')) && (
+                  <div className="v1376-practice-history-media-row">
+                    <span className="v1376-practice-history-media-label">Audio</span>
+                    <div>
+                      <PracticeHistoryAudioUpload
+                        disabled={uploadBusy || reviewed}
+                        onUpload={(file) => void uploadEvidence(file, 'practice', r.id)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="v1376-practice-history-feedback">
                 {reviewed ? (
