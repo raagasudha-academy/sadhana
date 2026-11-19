@@ -59,15 +59,19 @@ export function makeM10FinalAttendanceWriter(db: Db, now = () => new Date().toIS
     ]);
     const session = sessionResult.Item;
     const student = studentResult.Item;
+    const sessionData = session?.legacyPayload ?? session;
+    const sessionType = session?.recordType ?? sessionData?.recordType;
+    const classId = session?.classId ?? sessionData?.classId;
+    const sessionDate = session?.date ?? sessionData?.date;
     if (
       !session ||
       session.institutionId !== institution ||
-      session.recordType !== 'class-session' ||
-      !session.classId ||
-      !session.date
+      sessionType !== 'class-session' ||
+      !classId ||
+      !sessionDate
     )
       throw fail(404, 'Dated class session not found.');
-    if (assignedClassIds && !assignedClassIds.has(session.classId))
+    if (assignedClassIds && !assignedClassIds.has(classId))
       throw fail(403, 'Assigned class required.');
     if (
       !student ||
@@ -81,7 +85,7 @@ export function makeM10FinalAttendanceWriter(db: Db, now = () => new Date().toIS
       db.send(
         new GetCommand({
           TableName: entityTable('classes'),
-          Key: { classId: session.classId },
+          Key: { classId },
           ConsistentRead: true,
         }),
       ),
@@ -105,21 +109,24 @@ export function makeM10FinalAttendanceWriter(db: Db, now = () => new Date().toIS
       ),
     ]);
     const cls = classResult.Item;
+    const classData = cls?.legacyPayload ?? cls;
+    const classType = cls?.recordType ?? classData?.recordType;
+    const classLifecycle = cls?.lifecycleStatus ?? classData?.lifecycleStatus;
     if (
       !cls ||
       cls.institutionId !== institution ||
-      cls.recordType !== 'class' ||
+      classType !== 'class' ||
       cls.status === 'archived' ||
-      cls.lifecycleStatus === 'archived'
+      classLifecycle === 'archived'
     )
       throw fail(409, 'Class is not active in this academy.');
     const eligible = (enrolmentResult.Items ?? []).find(
       (row: any) =>
         row.institutionId === institution &&
-        row.classId === session.classId &&
+        row.classId === classId &&
         row.status !== 'archived' &&
-        row.startDate <= session.date &&
-        (!row.endDate || row.endDate >= session.date),
+        row.startDate <= sessionDate &&
+        (!row.endDate || row.endDate >= sessionDate),
     );
     if (!eligible) throw fail(403, 'Student is not enrolled in this class on the session date.');
     if (
@@ -188,14 +195,15 @@ export function makeM10FinalAttendanceWriter(db: Db, now = () => new Date().toIS
                 TableName: entityTable('enrolments'),
                 Key: { enrolmentId: eligible.enrolmentId },
                 ConditionExpression:
-                  'institutionId=:inst AND studentId=:student AND classId=:class AND (attribute_not_exists(#status) OR #status<>:archived) AND startDate<=:date AND (attribute_not_exists(endDate) OR endDate>=:date)',
+                  'institutionId=:inst AND studentId=:student AND classId=:class AND (attribute_not_exists(#status) OR #status<>:archived) AND startDate<=:date AND (attribute_not_exists(endDate) OR endDate=:empty OR endDate>=:date)',
                 ExpressionAttributeNames: { '#status': 'status' },
                 ExpressionAttributeValues: {
                   ':inst': institution,
                   ':student': studentId,
-                  ':class': session.classId,
+                  ':class': classId,
                   ':archived': 'archived',
-                  ':date': session.date,
+                  ':date': sessionDate,
+                  ':empty': '',
                 },
               },
             },

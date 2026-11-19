@@ -722,6 +722,12 @@ export default function TeacherWorkspace({
                               <strong>
                                 {studentName} · {studentById.get(row.studentId)?.rollNumber || ''}
                               </strong>
+                              <span
+                                className={`tw-submission-status ${row.reviewedAt ? 'is-reviewed' : 'is-pending'}`}
+                                role="status"
+                              >
+                                {row.reviewedAt ? 'Reviewed' : 'Pending review'}
+                              </span>
                               <button
                                 type="button"
                                 className="tw-submission-toggle"

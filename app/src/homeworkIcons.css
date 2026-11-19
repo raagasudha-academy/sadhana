@@ -437,6 +437,24 @@
 }
 .sv1276-teacher-homework .tw-submission-header strong {
   min-width: 0;
+  flex: 1 1 auto;
+}
+.sv1276-teacher-homework .tw-submission-status {
+  flex: 0 0 auto;
+  width: fit-content;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #e7c77f;
+  border-radius: 999px;
+  background: #fff7e5;
+  color: #896211;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.sv1276-teacher-homework .tw-submission-status.is-reviewed {
+  border-color: #b8dbc7;
+  background: #e8f5ed;
+  color: #276548;
 }
 .sv1276-teacher-homework .sv1278-review article .tw-submission-toggle {
   display: inline-grid;
