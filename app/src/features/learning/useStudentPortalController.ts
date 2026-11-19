@@ -265,6 +265,11 @@ export function useStudentPortalController({
   } | null>(null);
   const [submissionEditable, setSubmissionEditable] = useState(false);
   const [submissionBusy, setSubmissionBusy] = useState(false);
+  const savedHomeworkDraft = useRef<{
+    homeworkId: string;
+    text: string;
+    attachmentIds: string[];
+  } | null>(null);
   const [confirmHomework, setConfirmHomework] = useState<{
     studentId: string;
     homeworkId: string;
@@ -350,10 +355,16 @@ export function useStudentPortalController({
     setSelectedHomework(id);
     setHomeworkDrawerOpen(true);
     setSubmission(null);
+    savedHomeworkDraft.current = null;
     try {
       const r = await cloud.api.getHomeworkSubmission(inst, activeId, id);
       setSubmission(r.record);
       setHomeworkText(r.record.text);
+      savedHomeworkDraft.current = {
+        homeworkId: id,
+        text: r.record.text,
+        attachmentIds: [...r.record.attachmentIds],
+      };
       setSubmissionEditable(r.editable);
       setAttachments((await cloud.api.homeworkEvidenceLinks(inst, activeId, id)).records);
     } catch (e) {
@@ -378,12 +389,19 @@ export function useStudentPortalController({
         attachmentIds: submission.attachmentIds,
       });
       setSubmission(result.record);
+      setHomeworkText(result.record.text);
+      savedHomeworkDraft.current = {
+        homeworkId: selectedHomework,
+        text: result.record.text,
+        attachmentIds: [...result.record.attachmentIds],
+      };
       setMessage(
         status === 'submitted'
           ? 'Homework submitted. You may revise it until the due date.'
           : 'Draft saved',
       );
       await loadHomework(activeId);
+      return true;
     } catch (e) {
       const detail = e instanceof Error ? e.message : 'Could not save homework';
       if (
@@ -407,9 +425,27 @@ export function useStudentPortalController({
       } else {
         setError(detail);
       }
+      return false;
     } finally {
       setSubmissionBusy(false);
     }
+  };
+  const closeHomeworkDrawer = async () => {
+    if (submissionBusy) return false;
+    const saved = savedHomeworkDraft.current;
+    const hasUnsavedDraft =
+      submissionEditable &&
+      submission?.status === 'draft' &&
+      !!selectedHomework &&
+      saved?.homeworkId === selectedHomework &&
+      (saved.text !== homeworkText ||
+        saved.attachmentIds.length !== submission.attachmentIds.length ||
+        saved.attachmentIds.some((id, index) => id !== submission.attachmentIds[index]));
+    if (hasUnsavedDraft && !(await saveAssignment('draft'))) return false;
+    setHomeworkDrawerOpen(false);
+    setSelectedHomework('');
+    setConfirmHomework(null);
+    return true;
   };
   const [homeworkBusy, setHomeworkBusy] = useState(false);
   const loadHomework = async (id: string) => {
@@ -522,6 +558,7 @@ export function useStudentPortalController({
     setSubmission(null);
     setAttachments([]);
     setHomeworkText('');
+    savedHomeworkDraft.current = null;
     setDetailLoading(true);
     if (id !== activeId) setDetail(null);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -862,6 +899,7 @@ export function useStudentPortalController({
     uploadHomeworkFiles,
     openAssignment,
     saveAssignment,
+    closeHomeworkDrawer,
     homeworkBusy,
     setHomeworkBusy,
     loadHomework,

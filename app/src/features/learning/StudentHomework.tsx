@@ -12,12 +12,10 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
     cloud,
     inst,
     homeworkDrawerOpen,
-    setHomeworkDrawerOpen,
     students,
     activeId,
     homework,
     selectedHomework,
-    setSelectedHomework,
     homeworkText,
     setHomeworkText,
     submission,
@@ -30,6 +28,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
     uploadHomeworkFiles,
     openAssignment,
     saveAssignment,
+    closeHomeworkDrawer,
     homeworkBusy,
     detail,
     classId,
@@ -97,9 +96,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget && !submissionBusy && !audioRecording) {
-              setHomeworkDrawerOpen(false);
-              setSelectedHomework('');
-              setConfirmHomework(null);
+              void closeHomeworkDrawer();
             }
           }}
         >
@@ -110,9 +107,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
             aria-label="Homework details"
             onKeyDown={(e) => {
               if (e.key === 'Escape' && !submissionBusy && !audioRecording) {
-                setHomeworkDrawerOpen(false);
-                setSelectedHomework('');
-                setConfirmHomework(null);
+                void closeHomeworkDrawer();
               }
             }}
           >
@@ -129,13 +124,7 @@ export function StudentHomework({ context }: { context: StudentPortalContext }) 
                       : 'Close homework details'
                 }
                 disabled={submissionBusy || audioRecording}
-                onClick={() => {
-                  if (!submissionBusy && !audioRecording) {
-                    setHomeworkDrawerOpen(false);
-                    setSelectedHomework('');
-                    setConfirmHomework(null);
-                  }
-                }}
+                onClick={() => void closeHomeworkDrawer()}
               >
                 <X size={20} />
               </button>
