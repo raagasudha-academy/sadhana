@@ -575,6 +575,19 @@ export function makeFinalMessages(
     const registeredTeacherId = peer.personTypes?.includes('teacher')
       ? teacherIds(peer).find((id) => /^TEACHER-[0-9a-f-]{36}$/i.test(id))
       : undefined;
+    let photoUrl =
+      (registeredTeacherId ? teacherPhotos.get(registeredTeacherId) : '') || peer.photoUrl || '';
+    if (!photoUrl && typeof photoSub === 'string' && /^[a-f0-9-]{36}$/i.test(photoSub)) {
+      try {
+        photoUrl = await photoForSub(photoSub);
+      } catch (error: any) {
+        // Avatar lookup is optional. A missing or malformed photo must never
+        // prevent the conversation list or contact directory from loading.
+        console.warn('Sadhana messaging contact photo lookup failed', {
+          name: error?.name || 'Error',
+        });
+      }
+    }
     return {
       peerId: peer.personId,
       peerName: name(peer) || 'Sadhana user',
@@ -589,22 +602,26 @@ export function makeFinalMessages(
       classId: cls.classId,
       className: String(cls.name || cls.legacyPayload?.name || 'Class'),
       threadId,
-      photoUrl:
-        (registeredTeacherId ? teacherPhotos.get(registeredTeacherId) : '') ||
-        peer.photoUrl ||
-        (typeof photoSub === 'string' && /^[a-f0-9-]{36}$/i.test(photoSub)
-          ? await photoForSub(photoSub)
-          : ''),
+      photoUrl,
     };
   };
   const teacherPhotosFor = async (institution: InstitutionId, claims: Claims) => {
     if (!viewableInstitutions(claims).includes(institution)) return new Map<string, string>();
     // Registered teachers keep their Cognito link in TEACHER_REGISTRY, separate
     // from the canonical people rows used to assemble messenger contacts.
-    const directory = await teacherDirectory(institution, claims);
-    return new Map<string, string>(
-      directory.records.map((teacher): [string, string] => [teacher.id, teacher.photoUrl || '']),
-    );
+    try {
+      const directory = await teacherDirectory(institution, claims);
+      return new Map<string, string>(
+        directory.records.map((teacher): [string, string] => [teacher.id, teacher.photoUrl || '']),
+      );
+    } catch (error: any) {
+      // The teacher directory is only used to improve contact avatars. Keep
+      // messaging available when that secondary lookup is unavailable.
+      console.warn('Sadhana messaging teacher-photo directory lookup failed', {
+        name: error?.name || 'Error',
+      });
+      return new Map<string, string>();
+    }
   };
   async function contacts(
     institution: InstitutionId,
