@@ -162,7 +162,7 @@ function FamilyStudentProfile({ cloud, child }: { cloud: CloudSession; child: Fa
             Profile picture
             <input
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
               disabled={busy}
               onChange={(e) => {
                 const file = e.currentTarget.files?.[0];
@@ -170,7 +170,7 @@ function FamilyStudentProfile({ cloud, child }: { cloud: CloudSession; child: Fa
                 e.currentTarget.value = '';
               }}
             />
-            <small>JPG, PNG or WebP · up to 5 MB</small>
+            <small>JPG, PNG, WebP or HEIC · up to 20 MB. Resized before upload.</small>
           </label>
           <button type="submit" disabled={busy || !displayName.trim()}>
             {busy ? 'Saving…' : 'Save name'}
