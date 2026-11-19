@@ -80,6 +80,11 @@ Parameters:
     Default: disabled
     AllowedValues: [enabled, disabled]
     Description: Enable the identity- and family-link-scoped learner extras and class details read
+  FinalLearnerProfileWrites:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable identity- and family-link-scoped learner profile preference updates
   FinalLearnerDirectoryReads:
     Type: String
     Default: disabled
@@ -414,6 +419,8 @@ Resources:
           SADHANA_FINAL_LEARNER_WRITES: !If [UseDevFamilyReads, enabled, !Ref FinalLearnerWrites]
           SADHANA_FINAL_LEARNER_EXTRAS_READS:
             !If [UseDevFamilyReads, enabled, !Ref FinalLearnerExtrasReads]
+          SADHANA_FINAL_LEARNER_PROFILE_WRITES:
+            !If [UseDevFamilyReads, enabled, !Ref FinalLearnerProfileWrites]
           SADHANA_FINAL_LEARNER_DIRECTORY_READS:
             !If [UseDevFamilyReads, enabled, !Ref FinalLearnerDirectoryReads]
           SADHANA_FINAL_LEARNER_PREFERENCES_PARITY:
