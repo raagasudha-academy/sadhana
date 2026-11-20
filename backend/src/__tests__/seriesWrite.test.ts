@@ -3,7 +3,13 @@ import test from 'node:test';
 import { GetCommand, ScanCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { makeM95SeriesWriter } from '../seriesWrite.ts';
 import { pilotSeriesWriteRequest } from '../routes/seriesWriteRoutes.ts';
+import { todayLondon } from '../scheduleSeries.ts';
 const now = '2026-11-03T10:00:00Z';
+function londonDateAfter(days: number): string {
+  const [year, month, day] = todayLondon().split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+const effectiveFrom = londonDateAfter(7);
 const classId = 'CLASS-TEST';
 const master = {
   id: classId,
@@ -26,13 +32,13 @@ const session = {
   id: 'SESSION-TEST',
   recordType: 'class-session',
   classId,
-  date: '2026-11-20',
-  endDate: '2026-11-20',
+  date: effectiveFrom,
+  endDate: effectiveFrom,
   status: 'confirmed',
   version: 1,
 };
 const claims = { sub: 'admin-sub', 'cognito:groups': 'raagasudha-admin' };
-const input = { effectiveFrom: '2026-11-19', expectedVersion: 2, changes: { startTime: '09:30' } };
+const input = { effectiveFrom, expectedVersion: 2, changes: { startTime: '09:30' } };
 function client(options: { rule?: boolean; wrongScope?: boolean } = {}) {
   const calls: any[] = [];
   return {
@@ -70,7 +76,7 @@ function client(options: { rule?: boolean; wrongScope?: boolean } = {}) {
                     institutionId: 'raaga',
                     effectiveFrom: input.effectiveFrom,
                     changes: { startTime: '09:00' },
-                    updatedAt: '2026-11-02T10:00:00Z',
+                    updatedAt: now,
                   },
                 ]
               : []),
