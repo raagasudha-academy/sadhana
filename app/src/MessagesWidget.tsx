@@ -10,16 +10,19 @@ export default function MessagesWidget({
   institutions: allowed,
   defaultInstitution,
   studentId,
+  studentChoices = [],
   canChooseInstitution = false,
 }: {
   cloud: CloudSession;
   institutions: InstitutionId[];
   defaultInstitution?: InstitutionId;
   studentId?: string;
+  studentChoices?: Array<{ institution: InstitutionId; id: string; name: string }>;
   canChooseInstitution?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [activeStudentId, setActiveStudentId] = useState(studentId || '');
   const [institution, setInstitution] = useState<InstitutionId>(
     defaultInstitution && allowed.includes(defaultInstitution)
       ? defaultInstitution
@@ -34,7 +37,15 @@ export default function MessagesWidget({
           : allowed[0],
       );
   }, [allowedKey, defaultInstitution]);
+  useEffect(() => {
+    setActiveStudentId(studentId || '');
+  }, [studentId]);
   if (!allowed.length) return null;
+  const choicesForInstitution = studentChoices.filter(
+    (choice) => choice.institution === institution,
+  );
+  const isActingForStudent = Boolean(studentId);
+  const hasStudentContext = !isActingForStudent || Boolean(activeStudentId);
   return (
     <div className={`sadhana-messages-widget${open && !minimized ? ' is-open' : ''}`}>
       {open && (
@@ -54,7 +65,17 @@ export default function MessagesWidget({
                   <select
                     aria-label="Messages academy"
                     value={institution}
-                    onChange={(event) => setInstitution(event.target.value as InstitutionId)}
+                    onChange={(event) => {
+                      const nextInstitution = event.target.value as InstitutionId;
+                      const nextChoices = studentChoices.filter(
+                        (choice) => choice.institution === nextInstitution,
+                      );
+                      setInstitution(nextInstitution);
+                      setActiveStudentId((current) => {
+                        if (nextChoices.some((choice) => choice.id === current)) return current;
+                        return nextChoices.length === 1 ? nextChoices[0].id : '';
+                      });
+                    }}
                   >
                     {allowed.map((id) => (
                       <option key={id} value={id}>
@@ -87,13 +108,38 @@ export default function MessagesWidget({
               </button>
             </span>
           </header>
-          <MessagesPage
-            key={`${institution}:${studentId || ''}`}
-            cloud={cloud}
-            workspace={institution}
-            studentId={studentId}
-            compact
-          />
+          {isActingForStudent && choicesForInstitution.length > 1 && (
+            <label className="sadhana-messages-widget-student">
+              <span>Student</span>
+              <select
+                aria-label="Messages student"
+                value={activeStudentId}
+                onChange={(event) => setActiveStudentId(event.target.value)}
+              >
+                <option value="">Choose a student</option>
+                {choicesForInstitution.map((choice) => (
+                  <option key={choice.id} value={choice.id}>
+                    {choice.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {hasStudentContext ? (
+            <MessagesPage
+              key={`${institution}:${isActingForStudent ? activeStudentId : ''}`}
+              cloud={cloud}
+              workspace={institution}
+              studentId={isActingForStudent ? activeStudentId : undefined}
+              compact
+            />
+          ) : (
+            <p className="sadhana-messages-widget-no-student" role="status">
+              {choicesForInstitution.length
+                ? 'Choose a student to view messages for this academy.'
+                : 'No approved student access is available for this academy.'}
+            </p>
+          )}
         </section>
       )}
       <button

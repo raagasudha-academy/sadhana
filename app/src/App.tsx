@@ -1533,6 +1533,9 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                   : availableInstitutions
             }
             studentId={messageActingStudentId}
+            studentChoices={familyChoices
+              .filter((choice) => choice.kind !== 'student')
+              .map(({ institution, id, name }) => ({ institution, id, name }))}
             defaultInstitution={
               currentWorkspace === 'raaga' || currentWorkspace === 'sruti'
                 ? currentWorkspace
