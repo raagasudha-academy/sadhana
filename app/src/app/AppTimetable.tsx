@@ -324,6 +324,7 @@ export function Timetable({
       recordType: record.recordType,
       classId: record.classId,
       seriesMasterVersion: classes.find((c) => c.id === record.classId)?.version,
+      seriesRecurrence: classes.find((c) => c.id === record.classId)?.recurrence,
       name: record.name,
       programme: record.programme,
       institution: record.institution,

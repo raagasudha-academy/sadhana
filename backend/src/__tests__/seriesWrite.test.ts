@@ -39,7 +39,9 @@ const session = {
 };
 const claims = { sub: 'admin-sub', 'cognito:groups': 'raagasudha-admin' };
 const input = { effectiveFrom, expectedVersion: 2, changes: { startTime: '09:30' } };
-function client(options: { rule?: boolean; wrongScope?: boolean } = {}) {
+function client(
+  options: { rule?: boolean; wrongScope?: boolean; teacher?: boolean; assigned?: boolean } = {},
+) {
   const calls: any[] = [];
   return {
     calls,
@@ -52,11 +54,31 @@ function client(options: { rule?: boolean; wrongScope?: boolean } = {}) {
               classId,
               institutionId: options.wrongScope ? 'sruti' : 'raaga',
               version: 2,
-              legacyPayload: master,
+              legacyPayload: {
+                ...master,
+                ...(options.teacher
+                  ? { teacherId: 'TEACHER-00000000-0000-0000-0000-000000000001' }
+                  : {}),
+              },
             },
           };
         return { Item: undefined };
       }
+      if (cmd instanceof ScanCommand)
+        if (cmd.input.TableName === 'sadhana-dev-m9-people')
+          return {
+            Items: options.teacher
+              ? [
+                  {
+                    personId: 'TEACHER-00000000-0000-0000-0000-000000000001',
+                    cognitoSub: 'teacher-sub',
+                    personTypes: ['teacher'],
+                    institutionIds: ['raaga'],
+                    status: 'active',
+                  },
+                ]
+              : [],
+          };
       if (cmd instanceof ScanCommand)
         return {
           Items: [
@@ -116,18 +138,24 @@ test('preview validates affected session and performs no writes', async () =>
   pilot(async () => {
     const c = client();
     const result = await makeM95SeriesWriter(c).preview('raaga', classId, input, claims);
-    assert.equal(result.affectedSessionCount, 1);
+    assert.equal(result.totalSessions, 1);
+    assert.equal(result.changedCount, 1);
     assert.equal(result.masterVersion, 2);
     assert.deepEqual(
       Object.keys(result).sort(),
       [
-        'affectedSessionCount',
         'changes',
         'classId',
+        'changedCount',
+        'changedSessionIds',
         'effectiveFrom',
         'effectiveUntil',
         'masterVersion',
+        'overlappingRules',
+        'protectedCount',
+        'protectedSessionIds',
         'readOnly',
+        'totalSessions',
       ].sort(),
     );
     assertNoStorageOrIdentityFields(result);
@@ -217,6 +245,36 @@ test('wrong institution and stale version blocked', async () =>
           claims,
         ),
       { status: 409 },
+    );
+  }));
+test('assigned teacher may preview future series time changes but not change the class day', async () =>
+  pilot(async () => {
+    const c = client({ teacher: true });
+    const teacherClaims = { sub: 'teacher-sub' };
+    const result = await makeM95SeriesWriter(c).preview('raaga', classId, input, teacherClaims);
+    assert.equal(result.changedCount, 1);
+    await assert.rejects(
+      () =>
+        makeM95SeriesWriter(client({ teacher: true })).preview(
+          'raaga',
+          classId,
+          { ...input, changes: { name: 'Other' } },
+          teacherClaims,
+        ),
+      { status: 403 },
+    );
+  }));
+test('teacher cannot edit another teacher class recurring schedule', async () =>
+  pilot(async () => {
+    await assert.rejects(
+      () =>
+        makeM95SeriesWriter(client({ teacher: true, assigned: false })).preview(
+          'raaga',
+          classId,
+          input,
+          { sub: 'different-teacher' },
+        ),
+      { status: 403 },
     );
   }));
 test('pilot and series feature flags both required', async () => {

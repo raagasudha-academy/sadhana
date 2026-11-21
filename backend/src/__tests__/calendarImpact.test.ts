@@ -54,3 +54,24 @@ test('preview identifies protected sessions and later conflicting rules', () => 
   assert.equal(preview.overlappingRules.length, 1);
   assert.deepEqual(preview.changedSessionIds, ['SESSION-2026-11-01']);
 });
+
+test('weekday preview scopes by the currently projected weekday', () => {
+  const weekdayRule: SeriesRule = {
+    ...base,
+    effectiveFrom: '2026-11-02',
+    changes: { weekday: '3' },
+  };
+  const nextChange: SeriesRule = {
+    ...base,
+    effectiveFrom: '2026-11-12',
+    changes: { weekday: '5' },
+  };
+  const preview = calculateSeriesImpact(
+    [session('2026-11-09'), session('2026-11-16')],
+    [weekdayRule],
+    nextChange,
+  );
+  assert.equal(preview.totalSessions, 1);
+  assert.equal(preview.changedCount, 1);
+  assert.deepEqual(preview.changedSessionIds, ['SESSION-2026-11-16']);
+});

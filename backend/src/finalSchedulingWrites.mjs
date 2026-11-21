@@ -163,7 +163,7 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
       };
     }
     if (series && parts.length === 3 && method === 'PATCH' && idOK(parts[2]))
-      access.admin(claims, institution);
+      access.view(claims, institution);
     if (series && parts.length === 3 && method === 'PATCH' && idOK(parts[2]))
       return {
         status: 200,
@@ -176,7 +176,7 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
       method === 'POST' &&
       idOK(parts[2])
     )
-      access.admin(claims, institution);
+      access.view(claims, institution);
     if (
       series &&
       parts.length === 4 &&

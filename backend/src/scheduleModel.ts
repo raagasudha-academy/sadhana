@@ -21,6 +21,12 @@ export interface ScheduleRecord {
   status?: ScheduleStatus;
   classId?: string;
   teacherId?: string;
+  recurrence?: {
+    frequency?: string;
+    interval?: number;
+    weekdays?: number[];
+    [key: string]: unknown;
+  };
   venueId?: string;
   sessionOverrideFields?: string[];
   timezone: 'Europe/London';

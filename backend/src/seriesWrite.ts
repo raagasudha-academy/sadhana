@@ -8,7 +8,7 @@ import {
   ScanCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { demandInstitution, httpError } from './model.ts';
+import { httpError, permittedInstitutions } from './model.ts';
 import type { Claims } from './model.ts';
 import {
   parseSeriesChange,
@@ -19,6 +19,7 @@ import {
 import type { SeriesRule } from './scheduleSeries.ts';
 import type { ScheduleRecord } from './scheduleModel.ts';
 import { makeLearnerActivityNotifications } from './learnerActivityNotifications.ts';
+import { calculateSeriesImpact } from './calendarImpact.ts';
 
 export type M95SeriesClient = { send: (command: any) => Promise<any> };
 // Resolve lazily so a missing final-mode acknowledgement cannot fail Lambda cold start.
@@ -104,6 +105,77 @@ function asRule(item: Record<string, any>): SeriesRule | undefined {
 }
 export function makeM95SeriesWriter(client: M95SeriesClient) {
   const activity = makeLearnerActivityNotifications(client);
+  async function resolveMaster(inst: 'raaga' | 'sruti', id: string) {
+    let record = (
+      await client.send(
+        new GetCommand({ TableName: TABLE.classes, Key: { classId: id }, ConsistentRead: true }),
+      )
+    ).Item as Record<string, any> | undefined;
+    const isMaster = (row: Record<string, any> | undefined) =>
+      row?.institutionId === inst && (row.recordType ?? row.legacyPayload?.recordType) === 'class';
+    if (!isMaster(record)) {
+      const rows = await scanAll(client, TABLE.classes);
+      const matches = rows.filter(
+        (row) =>
+          isMaster(row) &&
+          (row.classId === id || row.legacyPayload?.id === id || row.legacyPayload?.classId === id),
+      );
+      if (matches.length > 1)
+        throw httpError(409, 'Class link is ambiguous and requires data reconciliation.');
+      record = matches[0];
+    }
+    if (!record) throw httpError(404, 'Master class not found in this academy.');
+    const publicId = String(record.legacyPayload?.id || record.classId || id);
+    return {
+      record,
+      publicId,
+      master: { ...(record.legacyPayload as ScheduleRecord), id: publicId },
+    };
+  }
+  async function assertCanChangeSeries(
+    inst: 'raaga' | 'sruti',
+    record: Record<string, any>,
+    master: ScheduleRecord,
+    claims: Claims,
+    changes?: Record<string, unknown>,
+  ) {
+    if (permittedInstitutions(claims).includes(inst)) return;
+    const people = await scanAll(client, TABLE.people);
+    const linked = people.filter(
+      (row) =>
+        row.personTypes?.includes('teacher') &&
+        row.status === 'active' &&
+        row.institutionIds?.includes(inst) &&
+        (row.cognitoSub === claims.sub ||
+          row.staffProfile?.cognitoSub === claims.sub ||
+          row.legacyPayload?.cognitoSub === claims.sub),
+    );
+    if (linked.length !== 1)
+      throw httpError(403, 'A verified teacher identity is required to edit this class schedule.');
+    const ids = new Set(
+      [
+        linked[0].legacyPayload?.id,
+        linked[0].staffProfile?.teacherId,
+        linked[0].teacherId,
+        linked[0].personId,
+      ]
+        .filter((value) => typeof value === 'string' && value)
+        .map(String),
+    );
+    const assignedIds = [
+      ...(Array.isArray(record.teacherPersonIds) ? record.teacherPersonIds : []),
+      record.teacherId,
+      record.legacyPayload?.teacherId,
+      (master as any).teacherId,
+    ].filter((value) => typeof value === 'string' && value);
+    if (!assignedIds.some((value) => ids.has(String(value))))
+      throw httpError(403, 'Only the assigned teacher can edit this class schedule.');
+    if (
+      changes &&
+      Object.keys(changes).some((field) => !['startTime', 'endTime', 'weekday'].includes(field))
+    )
+      throw httpError(403, 'Teachers can change future session times and weekly day only.');
+  }
   async function prepare(
     inst: 'raaga' | 'sruti',
     classId: string,
@@ -111,21 +183,15 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
     claims: Claims,
   ) {
     enabled();
-    demandInstitution(claims, inst);
     if (!idPattern.test(classId)) throw httpError(400, 'Invalid class ID.');
-    const record = (
-      await client.send(
-        new GetCommand({ TableName: TABLE.classes, Key: { classId }, ConsistentRead: true }),
-      )
-    ).Item;
-    if (!record || record.institutionId !== inst || record.legacyPayload?.recordType !== 'class')
-      throw httpError(404, 'Master class not found.');
-    const master = record.legacyPayload as ScheduleRecord;
+    const { record, master, publicId } = await resolveMaster(inst, classId);
+    await assertCanChangeSeries(inst, record, master, claims);
     const parsed = parseSeriesChange(raw, { ...master, version: record.version }, todayLondon());
+    await assertCanChangeSeries(inst, record, master, claims, parsed.changes);
     const rows = await scanAll(client, TABLE.sessions);
     const existingItems = rows.filter((item) => {
       const rule = asRule(item);
-      return !!rule && rule.institution === inst && rule.classId === classId;
+      return !!rule && rule.institution === inst && rule.classId === publicId;
     });
     const sameDateItems = existingItems.filter(
       (item) => asRule(item)?.effectiveFrom === parsed.effectiveFrom,
@@ -166,7 +232,7 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
     const now = new Date().toISOString();
     const rule: SeriesRule = {
       institution: inst,
-      classId,
+      classId: publicId,
       effectiveFrom: parsed.effectiveFrom,
       ...(parsed.effectiveUntil ? { effectiveUntil: parsed.effectiveUntil } : {}),
       changes: parsed.changes,
@@ -178,25 +244,34 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
       .filter(
         (item) =>
           item.recordType === 'class-session' &&
-          item.classId === classId &&
+          (item.classId === publicId ||
+            item.classId === record.classId ||
+            item.legacyPayload?.classId === publicId) &&
           item.institutionId === inst,
       )
       .map((item) => item.legacyPayload as ScheduleRecord)
-      .filter(
-        (x) =>
-          !!x?.date &&
-          x.date >= rule.effectiveFrom &&
-          (!rule.effectiveUntil || x.date <= rule.effectiveUntil),
-      );
+      .map((x) => ({ ...x, classId: publicId }))
+      .filter((x) => {
+        if (!x?.date) return false;
+        const visibleDate = projectSeriesRecord(x, existing).date;
+        return (
+          !!visibleDate &&
+          visibleDate >= rule.effectiveFrom &&
+          (!rule.effectiveUntil || visibleDate <= rule.effectiveUntil)
+        );
+      });
     // Verify every affected occurrence against the projected series rule.
     for (const session of affected) projectSeriesRecord(session, [...existing, rule], session.date);
+    const impact = calculateSeriesImpact(affected, existing, rule);
     return {
       record,
+      publicId,
       parsed,
       rule,
       replacedRule,
       previousChanges: replacedRule ? (asRule(replacedRule)?.changes ?? {}) : undefined,
       affectedCount: affected.length,
+      impact,
       now,
     };
   }
@@ -209,12 +284,12 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
     ) {
       const x = await prepare(inst, classId, raw, claims);
       return {
-        classId,
+        classId: x.publicId,
         effectiveFrom: x.rule.effectiveFrom,
         effectiveUntil: x.rule.effectiveUntil,
         changes: x.rule.changes,
         masterVersion: x.record.version,
-        affectedSessionCount: x.affectedCount,
+        ...x.impact,
         readOnly: true,
       };
     },
@@ -226,11 +301,11 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
     ) {
       const x = await prepare(inst, classId, raw, claims);
       const item = {
-        sessionId: x.replacedRule?.sessionId ?? ruleId(inst, classId, x.rule.effectiveFrom),
+        sessionId: x.replacedRule?.sessionId ?? ruleId(inst, x.publicId, x.rule.effectiveFrom),
         recordType: 'series-change',
         institutionId: inst,
-        classId,
-        seriesId: classId,
+        classId: x.publicId,
+        seriesId: x.publicId,
         effectiveFrom: x.rule.effectiveFrom,
         ...(x.rule.effectiveUntil ? { effectiveUntil: x.rule.effectiveUntil } : {}),
         changes: x.rule.changes,
@@ -238,7 +313,7 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
         updatedBy: String(claims.sub),
         legacyPayload: {
           PK: `SCHEDULE_SERIES#${inst}`,
-          SK: `CLASS#${classId}#FROM#${x.rule.effectiveFrom}`,
+          SK: `CLASS#${x.publicId}#FROM#${x.rule.effectiveFrom}`,
           entityType: 'scheduleSeriesRule',
           ...x.rule,
         },
@@ -250,7 +325,7 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
         actorCognitoSub: String(claims.sub),
         timestamp: x.now,
         resourceType: 'class',
-        resourceId: classId,
+        resourceId: x.publicId,
         effectiveFrom: x.rule.effectiveFrom,
         changes: x.rule.changes,
         ...(x.previousChanges ? { previousChanges: x.previousChanges } : {}),
@@ -266,7 +341,7 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
               };
             const values: Record<string, unknown> = {
               ':type': 'series-change',
-              ':class': classId,
+              ':class': x.publicId,
               ':inst': inst,
             };
             const conditions = ['#type=:type', '#class=:class', '#inst=:inst'];
@@ -326,7 +401,7 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
               {
                 Update: {
                   TableName: TABLE.classes,
-                  Key: { classId },
+                  Key: { classId: x.record.classId || classId },
                   UpdateExpression: 'SET #v=:new,#updated=:now,#legacy.#v=:new',
                   ConditionExpression: '#v=:old AND #inst=:inst',
                   ExpressionAttributeNames: {
@@ -366,15 +441,15 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
       await activity
         .notify({
           institution: inst,
-          classIds: [classId],
+          classIds: [x.publicId],
           title: 'Class schedule changed',
           detail: `Recurring timetable updated from ${x.rule.effectiveFrom}`,
           category: 'Schedule',
-          resourceId: classId,
+          resourceId: x.publicId,
         })
         .catch(() => {});
       return {
-        classId,
+        classId: x.publicId,
         effectiveFrom: x.rule.effectiveFrom,
         effectiveUntil: x.rule.effectiveUntil,
         changes: x.rule.changes,

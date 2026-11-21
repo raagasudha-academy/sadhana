@@ -94,7 +94,14 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
   };
   async function scan(
     kind:
-      'people' | 'sessions' | 'enrolments' | 'attendance' | 'rsvps' | 'homework' | 'submissions',
+      | 'people'
+      | 'classes'
+      | 'sessions'
+      | 'enrolments'
+      | 'attendance'
+      | 'rsvps'
+      | 'homework'
+      | 'submissions',
   ) {
     const records: Record<string, any>[] = [];
     let cursor: Record<string, any> | undefined;
@@ -116,10 +123,26 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
   }
   const masterFor = async (inst: InstitutionId, id: string) => {
     checkId(id);
-    const master = await get('classes', id);
-    const recordType = master?.recordType ?? master?.legacyPayload?.recordType;
-    if (!master || master.institutionId !== inst || recordType !== 'class')
-      throw httpError(404, 'Class not found in this academy.');
+    const isMaster = (master: Record<string, any> | undefined) =>
+      master?.institutionId === inst &&
+      (master.recordType ?? master.legacyPayload?.recordType) === 'class';
+    let master = await get('classes', id);
+    if (!isMaster(master)) {
+      // Some migrated sessions retain the old class ID while the canonical
+      // class row is keyed by its entity ID. Resolve that legacy alias only
+      // when it points to exactly one class in this same academy.
+      const matches = (await scan('classes')).filter(
+        (row) =>
+          isMaster(row) &&
+          (row.classId === id || row.legacyPayload?.id === id || row.legacyPayload?.classId === id),
+      );
+      if (matches.length > 1)
+        throw httpError(409, 'Class link is ambiguous and requires data reconciliation.');
+      master = matches[0];
+    }
+    if (!master) throw httpError(404, 'Class not found in this academy.');
+    if (typeof master.classId !== 'string' || !master.classId)
+      throw httpError(409, 'Class requires data reconciliation.');
     return master;
   };
   async function teacherIdentity(inst: InstitutionId, claims: Claims) {
@@ -266,6 +289,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       if (typeof body.classId !== 'string') throw httpError(400, 'Choose a master class.');
       const master = await masterFor(inst, body.classId);
       const assignment = isAdmin ? null : await assigned(inst, body.classId, claims);
+      const canonicalClassId = String(master.classId);
       if (
         ['archived', 'paused'].includes(
           master.lifecycleStatus ?? master.legacyPayload?.lifecycleStatus,
@@ -306,7 +330,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         return validateScheduleRecord({
           id: `EVT-${randomUUID()}`,
           recordType: 'class-session',
-          classId: body.classId,
+          classId: canonicalClassId,
           institution: inst,
           name: template.name ?? master.name ?? '',
           programme: template.programme ?? '',
@@ -331,7 +355,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         all.some(
           (session) =>
             session.institutionId === inst &&
-            session.classId === body.classId &&
+            session.classId === canonicalClassId &&
             session.recordType === 'class-session' &&
             session.status !== 'cancelled' &&
             records.some(
@@ -359,7 +383,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         {
           ConditionCheck: {
             TableName: table('classes'),
-            Key: { classId: body.classId },
+            Key: { classId: canonicalClassId },
             ConditionExpression: assignment
               ? '#v=:v AND #i=:i AND (contains(#teachers,:t) OR #legacy.#tid=:t)'
               : '#v=:v AND #i=:i',
@@ -384,16 +408,16 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
             ConditionExpression: 'attribute_not_exists(sessionId)',
           },
         })),
-        auditAction(inst, 'ADDITIONAL_SESSIONS_CREATED', body.classId, String(claims.sub)),
+        auditAction(inst, 'ADDITIONAL_SESSIONS_CREATED', canonicalClassId, String(claims.sub)),
       ]);
       await activity
         .notify({
           institution: inst,
-          classIds: [body.classId],
+          classIds: [canonicalClassId],
           title: 'Class schedule updated',
           detail: `${records.length} additional class session${records.length === 1 ? '' : 's'} added`,
           category: 'Schedule',
-          resourceId: body.classId,
+          resourceId: canonicalClassId,
         })
         .catch(() => {});
       return { records, count: records.length };
@@ -409,6 +433,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       const record = validateScheduleRecord({
         ...body,
         recordType: 'class-session',
+        classId: String(master.classId),
         id: `EVT-${randomUUID()}`,
         institution: inst,
         name: body.name ?? template.name ?? '',
@@ -429,7 +454,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         {
           ConditionCheck: {
             TableName: table('classes'),
-            Key: { classId: body.classId },
+            Key: { classId: master.classId },
             ConditionExpression:
               '#v=:v AND #i=:i AND (contains(#teachers,:teacher) OR #legacy.#tid=:teacher)',
             ExpressionAttributeNames: {
@@ -480,6 +505,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       const current = await get('sessions', id);
       if (!current || current.institutionId !== inst || current.recordType !== 'class-session')
         throw httpError(404, 'Class session not found.');
+      if (!current.legacyPayload) throw httpError(409, 'Session requires data reconciliation.');
       const { master, teacherId, assignedTeacherKey } = await assigned(
         inst,
         current.classId,
@@ -487,8 +513,10 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       );
       if (body.expectedVersion !== current.version)
         throw httpError(409, 'Session changed. Refresh before editing.');
-      const record = current.legacyPayload as ScheduleRecord;
-      if (!record) throw httpError(409, 'Session requires data reconciliation.');
+      const record = {
+        ...(current.legacyPayload as ScheduleRecord),
+        classId: String(master.classId),
+      };
       const updated = scheduleChanges(record, body);
       const now = new Date().toISOString();
       const changed = Object.keys(body).filter(
@@ -506,7 +534,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         {
           ConditionCheck: {
             TableName: table('classes'),
-            Key: { classId: current.classId },
+            Key: { classId: master.classId },
             ConditionExpression: '#v=:v AND (contains(#teachers,:t) OR #legacy.#tid=:t)',
             ExpressionAttributeNames: {
               '#v': 'version',
@@ -535,7 +563,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       await activity
         .notify({
           institution: inst,
-          classIds: [current.classId],
+          classIds: [String(master.classId)],
           title: 'Class schedule changed',
           detail: `Session updated · ${next.date} at ${next.startTime}`,
           category: 'Schedule',
@@ -560,6 +588,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       const current = await get('sessions', id);
       if (!current || current.institutionId !== inst || current.recordType !== 'class-session')
         throw httpError(404, 'Class session not found.');
+      if (!current.legacyPayload) throw httpError(409, 'Session requires data reconciliation.');
       const { master, teacherId, assignedTeacherKey } = await assigned(
         inst,
         current.classId,
@@ -567,8 +596,10 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       );
       if (body.expectedVersion !== current.version)
         throw httpError(409, 'Session changed. Refresh before responding.');
-      const record = current.legacyPayload as ScheduleRecord;
-      if (!record) throw httpError(409, 'Session requires data reconciliation.');
+      const record = {
+        ...(current.legacyPayload as ScheduleRecord),
+        classId: String(master.classId),
+      };
       if (current.status === 'cancelled') throw httpError(409, 'This class session was cancelled.');
       if (Date.parse(utcForWallTime(record.date!, record.startTime)) <= Date.now())
         throw httpError(409, 'Teacher confirmation is only available before the class starts.');
@@ -583,7 +614,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         {
           ConditionCheck: {
             TableName: table('classes'),
-            Key: { classId: current.classId },
+            Key: { classId: master.classId },
             ConditionExpression: '#v=:v AND (contains(#teachers,:t) OR #legacy.#tid=:t)',
             ExpressionAttributeNames: {
               '#v': 'version',
@@ -639,7 +670,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         actions.push({
           ConditionCheck: {
             TableName: table('classes'),
-            Key: { classId: session.classId },
+            Key: { classId: master.classId },
             ConditionExpression:
               '#v=:v AND #i=:i AND (contains(#teachers,:teacher) OR #legacy.#tid=:teacher)',
             ExpressionAttributeNames: {

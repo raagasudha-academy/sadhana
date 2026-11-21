@@ -7,25 +7,37 @@ export function calculateSeriesImpact(
   rules: readonly SeriesRule[],
   candidate: SeriesRule,
 ) {
-  const relevant = records.filter(
-    (r) =>
-      r.recordType === 'class-session' &&
-      r.classId === candidate.classId &&
-      r.institution === candidate.institution &&
-      !!r.date &&
-      r.date >= candidate.effectiveFrom &&
-      (!candidate.effectiveUntil || r.date <= candidate.effectiveUntil),
-  );
+  const relevant = records.filter((r) => {
+    if (
+      r.recordType !== 'class-session' ||
+      r.classId !== candidate.classId ||
+      r.institution !== candidate.institution ||
+      !r.date
+    )
+      return false;
+    // Existing weekday rules can make a session's visible date differ from its
+    // stored date. Scope a new change using the visible date teachers saw.
+    const before = projectSeriesRecord(r, rules);
+    return (
+      !!before.date &&
+      before.date >= candidate.effectiveFrom &&
+      (!candidate.effectiveUntil || before.date <= candidate.effectiveUntil)
+    );
+  });
   const changed: string[] = [];
   const protectedSessions: string[] = [];
   for (const r of relevant) {
     const before = projectSeriesRecord(r, rules);
     const after = projectSeriesRecord(r, [...rules, candidate]);
-    const differences = Object.keys(candidate.changes).filter(
-      (k) => (before as any)[k] !== (after as any)[k],
+    const differences = Object.keys(candidate.changes).filter((k) =>
+      k === 'weekday' ? before.date !== after.date : (before as any)[k] !== (after as any)[k],
     );
     if (differences.length) changed.push(r.id);
-    else if (Object.keys(candidate.changes).some((k) => r.sessionOverrideFields?.includes(k)))
+    else if (
+      Object.keys(candidate.changes).some((k) =>
+        r.sessionOverrideFields?.includes(k === 'weekday' ? 'date' : k),
+      )
+    )
       protectedSessions.push(r.id);
   }
   const conflicts = rules
