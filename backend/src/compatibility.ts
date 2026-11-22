@@ -14,6 +14,7 @@ export type CompatibleItem = {
   institutionIds?: string[];
   recordType?: string;
   classId?: string;
+  recurrence?: ScheduleRecord['recurrence'];
   calendarRecord?: Record<string, any>;
   legacyPayload?: Record<string, any>;
 };
@@ -78,7 +79,12 @@ export function assembleSchedule(
   const classMasters = regular
     .filter(({ record }) => record.recordType === 'class')
     .map(({ item, record }) => ({
-      record,
+      record: {
+        ...record,
+        ...(item.recurrence || calendarRecord(item)?.recurrence
+          ? { recurrence: item.recurrence || calendarRecord(item)?.recurrence }
+          : {}),
+      },
       ids: new Set(
         [item.classId, calendarRecord(item)?.classId, record.id, record.classId].filter(
           (id): id is string => typeof id === 'string' && id.length > 0,
