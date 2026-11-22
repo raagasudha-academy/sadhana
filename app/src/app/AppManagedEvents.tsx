@@ -1184,14 +1184,25 @@ export function ManagedEvents({
                     Teacher
                   </label>
                   {isTeacher ? (
-                    <input
-                      readOnly
-                      value={
-                        teachers.find((t) => t.cognitoSub === cloud.staff.subject)?.displayName ||
-                        editing?.teacher ||
-                        'Your linked teacher account'
-                      }
-                    />
+                    <select
+                      aria-label="Teacher"
+                      required
+                      value={teacherId}
+                      disabled={calendarIdentityLoading || !calendarTeacherIdentity?.linked}
+                      onChange={(e) => setTeacherId(e.target.value)}
+                    >
+                      <option value="">
+                        {calendarIdentityLoading
+                          ? 'Loading your teacher profile…'
+                          : 'Choose your profile'}
+                      </option>
+                      {calendarTeacherIdentity?.linked && calendarTeacherIdentity.teacherId && (
+                        <option value={calendarTeacherIdentity.teacherId}>
+                          {teachers.find((t: any) => t.id === calendarTeacherIdentity.teacherId)
+                            ?.displayName || 'Your linked teacher profile'}
+                        </option>
+                      )}
+                    </select>
                   ) : (
                     <div style={{ position: 'relative' }}>
                       <button

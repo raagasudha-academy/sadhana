@@ -145,7 +145,7 @@ export function SessionDrawer({
     (!session.seriesRecurrence ||
       (session.seriesRecurrence.frequency === 'weekly' &&
         Array.isArray(session.seriesRecurrence.weekdays) &&
-        session.seriesRecurrence.weekdays.length === 1));
+        session.seriesRecurrence.weekdays.length > 0));
   useEffect(() => {
     setFutureWeekday(new Date(`${session.dateISO}T12:00:00Z`).getUTCDay());
   }, [session.recordId, session.dateISO]);
@@ -509,9 +509,10 @@ export function SessionDrawer({
               </label>
             )}
             {scope === 'following' && canEditWeeklyDay && (
-              <label className="sadhana-edit-field">
-                <span>Weekly class day</span>
+              <div className="sadhana-edit-field">
+                <label htmlFor="sadhana-weekly-class-day">Weekly class day</label>
                 <select
+                  id="sadhana-weekly-class-day"
                   aria-label="Weekly class day"
                   value={futureWeekday}
                   onChange={(e) => {
@@ -534,7 +535,11 @@ export function SessionDrawer({
                     </option>
                   ))}
                 </select>
-              </label>
+                <p className="sadhana-series-weekday-warning" role="note">
+                  ⚠️ All future sessions from the effective date will move to this day, including
+                  sessions currently scheduled on other days. Review the preview before saving.
+                </p>
+              </div>
             )}
             {scope === 'following' && futureSelection === 'selected' && (
               <label className="sadhana-edit-field">

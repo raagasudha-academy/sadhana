@@ -234,6 +234,17 @@
   font: inherit;
   font-weight: 400;
 }
+.sadhana-series-weekday-warning {
+  margin: 2px 0 0;
+  padding: 9px 11px;
+  border: 1px solid #e8c980;
+  border-radius: 8px;
+  background: #fffaf0;
+  color: #6b5528;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
 .sadhana-edit-time-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

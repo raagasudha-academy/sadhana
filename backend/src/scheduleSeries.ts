@@ -98,10 +98,12 @@ export function parseSeriesChange(
     if (
       master.recurrence?.frequency !== 'weekly' ||
       !Array.isArray(master.recurrence.weekdays) ||
-      master.recurrence.weekdays.length !== 1 ||
-      !Number.isInteger(master.recurrence.weekdays[0])
+      master.recurrence.weekdays.length === 0 ||
+      master.recurrence.weekdays.some(
+        (day) => !Number.isInteger(day) || day < 0 || day > 6,
+      )
     )
-      throw httpError(400, 'Weekday changes are supported for single-day weekly classes only.');
+      throw httpError(400, 'Weekday changes are supported for weekly classes only.');
   }
   if (
     'teacherId' in changes &&
