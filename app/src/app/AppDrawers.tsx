@@ -535,8 +535,8 @@ export function SessionDrawer({
                     </option>
                   ))}
                 </select>
-                <p className="sadhana-series-weekday-warning" role="note">
-                  ⚠️ All future sessions from the effective date will move to this day, including
+                <p className="sadhana-series-weekday-warning" role="alert">
+                  ‼️ All future sessions from the effective date will move to this day, including
                   sessions currently scheduled on other days. Review the preview before saving.
                 </p>
               </div>
