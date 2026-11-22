@@ -140,11 +140,12 @@ export function SessionDrawer({
   const selectedTeacherId = pickedTeacherId ?? (session.original?.teacherId || '');
   const selectedTeacher = teachers.find((t) => t.id === selectedTeacherId);
   const original = session.original || {};
-  const weeklySingleDayClass =
+  const canEditWeeklyDay =
     session.recordType === 'class-session' &&
-    session.seriesRecurrence?.frequency === 'weekly' &&
-    Array.isArray(session.seriesRecurrence?.weekdays) &&
-    session.seriesRecurrence.weekdays.length === 1;
+    (!session.seriesRecurrence ||
+      (session.seriesRecurrence.frequency === 'weekly' &&
+        Array.isArray(session.seriesRecurrence.weekdays) &&
+        session.seriesRecurrence.weekdays.length === 1));
   useEffect(() => {
     setFutureWeekday(new Date(`${session.dateISO}T12:00:00Z`).getUTCDay());
   }, [session.recordId, session.dateISO]);
@@ -267,7 +268,7 @@ export function SessionDrawer({
         ])
           if (form[key] !== original[key]) changes[key] = form[key];
         if (
-          weeklySingleDayClass &&
+          canEditWeeklyDay &&
           futureWeekday !== new Date(`${session.dateISO}T12:00:00Z`).getUTCDay()
         )
           changes.weekday = String(futureWeekday);
@@ -507,7 +508,7 @@ export function SessionDrawer({
                 />
               </label>
             )}
-            {scope === 'following' && weeklySingleDayClass && (
+            {scope === 'following' && canEditWeeklyDay && (
               <label className="sadhana-edit-field">
                 <span>Weekly class day</span>
                 <select
