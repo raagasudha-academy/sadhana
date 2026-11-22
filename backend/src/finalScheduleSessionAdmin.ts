@@ -125,16 +125,28 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
     checkId(id);
     const isMaster = (master: Record<string, any> | undefined) =>
       master?.institutionId === inst &&
-      (master.recordType ?? master.legacyPayload?.recordType) === 'class';
+      (master.recordType ?? master.calendarRecord?.recordType ?? master.legacyPayload?.recordType) ===
+        'class';
     let master = await get('classes', id);
     if (!isMaster(master)) {
       // Some migrated sessions retain the old class ID while the canonical
       // class row is keyed by its entity ID. Resolve that legacy alias only
-      // when it points to exactly one class in this same academy.
+      // when it points to exactly one class in this same academy. Calendar
+      // records can be stored in either legacyPayload or calendarRecord during
+      // migration, so check both projections before reporting a missing class.
       const matches = (await scan('classes')).filter(
-        (row) =>
-          isMaster(row) &&
-          (row.classId === id || row.legacyPayload?.id === id || row.legacyPayload?.classId === id),
+        (row) => {
+          if (!isMaster(row)) return false;
+          const aliases = [
+            row.classId,
+            row.id,
+            row.calendarRecord?.id,
+            row.calendarRecord?.classId,
+            row.legacyPayload?.id,
+            row.legacyPayload?.classId,
+          ];
+          return aliases.some((alias) => alias === id);
+        },
       );
       if (matches.length > 1)
         throw httpError(409, 'Class link is ambiguous and requires data reconciliation.');
