@@ -13,6 +13,7 @@ export type CompatibleItem = {
   institutionId?: string;
   institutionIds?: string[];
   recordType?: string;
+  classId?: string;
   calendarRecord?: Record<string, any>;
   legacyPayload?: Record<string, any>;
 };
@@ -79,7 +80,7 @@ export function assembleSchedule(
     .map(({ item, record }) => ({
       record,
       ids: new Set(
-        [item.classId, item.legacyPayload?.classId, record.id, record.classId].filter(
+        [item.classId, calendarRecord(item)?.classId, record.id, record.classId].filter(
           (id): id is string => typeof id === 'string' && id.length > 0,
         ),
       ),
@@ -88,7 +89,7 @@ export function assembleSchedule(
     records: regular.map(({ item, record }) => {
       if (record.recordType !== 'class-session') return projectSeriesRecord(record, rules);
       const master = classMasters.find(({ ids }) =>
-        [record.classId, item.classId, item.legacyPayload?.classId].some(
+        [record.classId, item.classId, calendarRecord(item)?.classId].some(
           (id) => typeof id === 'string' && ids.has(id),
         ),
       );
