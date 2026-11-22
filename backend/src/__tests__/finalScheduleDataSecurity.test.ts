@@ -514,11 +514,16 @@ test('ranged session deletion requires the exact preview signature and audits in
       legacyPayload: { name: 'Vedam' },
     };
     const x = make({ sessions: [session] });
-    const preview = await x.service.previewDeleteSeries('sruti', master.classId, {
-      expectedVersion: 3,
-      effectiveFrom: '2026-11-01',
-      effectiveUntil: '2026-11-30',
-    });
+    const preview = await x.service.previewDeleteSeries(
+      'sruti',
+      master.classId,
+      {
+        expectedVersion: 3,
+        effectiveFrom: '2026-11-01',
+        effectiveUntil: '2026-11-30',
+      },
+      claims,
+    );
     assertScheduleProjection(preview, ['count', 'from', 'until', 'dates', 'signature']);
     assertScheduleProjection(preview.dates[0], ['date', 'name', 'id']);
     await assert.rejects(
@@ -534,6 +539,7 @@ test('ranged session deletion requires the exact preview signature and audits in
             signature: 'stale-signature',
           },
           { sub: 'admin-sub' } as any,
+          true,
         ),
       { status: 409 },
     );
@@ -549,6 +555,7 @@ test('ranged session deletion requires the exact preview signature and audits in
         signature: preview.signature,
       },
       { sub: 'admin-sub' } as any,
+      true,
     );
     assertScheduleProjection(result, ['deleted', 'count']);
     assert.deepEqual(result, { deleted: true, count: 1 });
@@ -562,6 +569,42 @@ test('ranged session deletion requires the exact preview signature and audits in
       actions.find((action: any) => action.Put?.Item?.action === 'CLASS_SESSION_RANGE_DELETED').Put
         .Item.resourceId,
       master.classId,
+    );
+  }));
+test('assigned teacher can delete a future session range with assignment guard and audit', async () =>
+  withFinal(async () => {
+    const session = {
+      sessionId: 'SESSION-SRUTI-TEACHER-RANGE',
+      institutionId: 'sruti',
+      recordType: 'class-session',
+      classId: master.classId,
+      version: 2,
+      localDate: '2026-11-27',
+      legacyPayload: { name: 'Vedam' },
+    };
+    const x = make({ sessions: [session] });
+    const body = {
+      expectedVersion: 3,
+      effectiveFrom: '2026-11-27',
+      effectiveUntil: '9999-12-31',
+    };
+    const preview = await x.service.previewDeleteSeries('sruti', master.classId, body, claims);
+    const result = await x.service.deleteSeries(
+      'sruti',
+      master.classId,
+      { ...body, confirm: true, signature: preview.signature },
+      claims,
+    );
+    assert.deepEqual(result, { deleted: true, count: 1 });
+    const actions = x.actions[0];
+    const guard = actions.find((action: any) => action.ConditionCheck)?.ConditionCheck;
+    assert.ok(guard);
+    assert.match(guard.ConditionExpression, /contains\(#teachers,:teacher\)/);
+    assert.equal(guard.ExpressionAttributeValues[':teacher'], teacherId);
+    assert.equal(
+      actions.find((action: any) => action.Put?.Item?.action === 'CLASS_SESSION_RANGE_DELETED')?.Put
+        .Item.actorCognitoSub,
+      claims.sub,
     );
   }));
 test('master delete includes linked sessions and class audit in one transaction', async () =>
@@ -660,11 +703,16 @@ test('ranged deletion refuses sessions with learning history before writing', as
     });
     await assert.rejects(
       () =>
-        x.service.previewDeleteSeries('sruti', master.classId, {
-          expectedVersion: 3,
-          effectiveFrom: '2026-11-01',
-          effectiveUntil: '2026-11-30',
-        }),
+        x.service.previewDeleteSeries(
+          'sruti',
+          master.classId,
+          {
+            expectedVersion: 3,
+            effectiveFrom: '2026-11-01',
+            effectiveUntil: '2026-11-30',
+          },
+          claims,
+        ),
       { status: 409 },
     );
     assert.equal(x.actions.length, 0);

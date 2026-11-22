@@ -119,6 +119,18 @@ test('weekly weekday changes move future occurrences while preserving earlier da
   );
 });
 
+test('weekday changes never move an occurrence before the effective date', () => {
+  const fridayMaster = {
+    ...master,
+    recurrence: { frequency: 'weekly', interval: 1, weekdays: [5] },
+  } as ScheduleRecord;
+  const wednesdayRule = {
+    ...rule('2026-11-27', { weekday: '3' }),
+    classId: fridayMaster.id,
+  };
+  assert.equal(projectSeriesRecord(session('2026-11-27'), [wednesdayRule]).date, '2026-12-02');
+});
+
 test('later weekday rules apply to the already shifted visible date', () => {
   const first = rule('2026-11-02', { weekday: '3' });
   const second = rule('2026-11-11', { weekday: '5' });

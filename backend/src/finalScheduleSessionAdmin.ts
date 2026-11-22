@@ -798,9 +798,16 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         ruleCount: preview.ruleCount,
       };
     },
-    async previewDeleteSeries(inst: InstitutionId, id: string, body: Record<string, any>) {
+    async previewDeleteSeries(
+      inst: InstitutionId,
+      id: string,
+      body: Record<string, any>,
+      claims: Claims,
+      isAdmin = false,
+    ) {
       checkVersion(body?.expectedVersion);
       const master = await masterFor(inst, id);
+      if (!isAdmin) await assigned(inst, id, claims);
       if (master.version !== body.expectedVersion)
         throw httpError(409, 'Class changed. Refresh first.');
       const from = body.effectiveFrom,
@@ -847,12 +854,23 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         signature,
       };
     },
-    async deleteSeries(inst: InstitutionId, id: string, body: Record<string, any>, claims: Claims) {
+    async deleteSeries(
+      inst: InstitutionId,
+      id: string,
+      body: Record<string, any>,
+      claims: Claims,
+      isAdmin = false,
+    ) {
       if (body?.confirm !== true || typeof body.signature !== 'string')
         throw httpError(400, 'Preview and confirmation required.');
-      const preview = await this.previewDeleteSeries(inst, id, body);
+      const preview = await this.previewDeleteSeries(inst, id, body, claims, isAdmin);
       if (preview.signature !== body.signature)
         throw httpError(409, 'Preview changed. Review again.');
+      const { master, assignedTeacherKey } = isAdmin
+        ? { master: await masterFor(inst, id), assignedTeacherKey: undefined }
+        : await assigned(inst, id, claims);
+      if (master.version !== body.expectedVersion)
+        throw httpError(409, 'Class changed. Refresh first.');
       const all = await scan('sessions');
       const selected = all.filter(
         (x) =>
@@ -875,7 +893,26 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         .digest('hex');
       if (actualSignature !== body.signature)
         throw httpError(409, 'Session range changed since preview. Review again.');
+      const names: Record<string, string> = { '#v': 'version', '#i': 'institutionId' };
+      const values: Record<string, unknown> = { ':v': master.version, ':i': inst };
+      let condition = '#v=:v AND #i=:i';
+      if (assignedTeacherKey) {
+        names['#teachers'] = 'teacherPersonIds';
+        names['#legacy'] = 'legacyPayload';
+        names['#tid'] = 'teacherId';
+        values[':teacher'] = assignedTeacherKey;
+        condition += ' AND (contains(#teachers,:teacher) OR #legacy.#tid=:teacher)';
+      }
       await transact([
+        {
+          ConditionCheck: {
+            TableName: table('classes'),
+            Key: { classId: master.classId },
+            ConditionExpression: condition,
+            ExpressionAttributeNames: names,
+            ExpressionAttributeValues: values,
+          },
+        },
         ...selected.map((row) => deleteAction('sessions', row.sessionId, row.version, inst)),
         auditAction(inst, 'CLASS_SESSION_RANGE_DELETED', id, String(claims.sub)),
       ]);
