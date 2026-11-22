@@ -40,7 +40,13 @@ const session = {
 const claims = { sub: 'admin-sub', 'cognito:groups': 'raagasudha-admin' };
 const input = { effectiveFrom, expectedVersion: 2, changes: { startTime: '09:30' } };
 function client(
-  options: { rule?: boolean; wrongScope?: boolean; teacher?: boolean; assigned?: boolean } = {},
+  options: {
+    rule?: boolean;
+    wrongScope?: boolean;
+    teacher?: boolean;
+    assigned?: boolean;
+    legacyWeeklyDay?: boolean;
+  } = {},
 ) {
   const calls: any[] = [];
   return {
@@ -82,13 +88,33 @@ function client(
       if (cmd instanceof ScanCommand)
         return {
           Items: [
-            {
-              sessionId: 'SESSION-TEST',
-              recordType: 'class-session',
-              classId,
-              institutionId: 'raaga',
-              legacyPayload: session,
-            },
+            ...(options.legacyWeeklyDay
+              ? [0, 1, 2].map((week) => {
+                  const date = new Date(`${effectiveFrom}T12:00:00Z`);
+                  date.setUTCDate(date.getUTCDate() + week * 7);
+                  const occurrenceDate = date.toISOString().slice(0, 10);
+                  return {
+                    sessionId: `SESSION-TEST-${week}`,
+                    recordType: 'class-session',
+                    classId,
+                    institutionId: 'raaga',
+                    legacyPayload: {
+                      ...session,
+                      id: `SESSION-TEST-${week}`,
+                      date: occurrenceDate,
+                      endDate: occurrenceDate,
+                    },
+                  };
+                })
+              : [
+                  {
+                    sessionId: 'SESSION-TEST',
+                    recordType: 'class-session',
+                    classId,
+                    institutionId: 'raaga',
+                    legacyPayload: session,
+                  },
+                ]),
             ...(options.rule
               ? [
                   {
@@ -184,6 +210,20 @@ test('change atomically increments master, creates rule, creates audit', async (
     assert.equal(tx[2].Put.TableName, 'sadhana-dev-m9-audit');
   }));
 
+test('weekday changes are valid for legacy classes with at least three same-day sessions', async () =>
+  pilot(async () => {
+    const c = client({ legacyWeeklyDay: true });
+    const result = await makeM95SeriesWriter(c).change(
+      'raaga',
+      classId,
+      { ...input, changes: { weekday: '3' } },
+      claims,
+    );
+    assert.equal(result.changes.weekday, '3');
+    const tx = c.calls.find((x) => x instanceof TransactWriteCommand).input.TransactItems;
+    assert.equal(tx[1].Put.Item.legacyPayload.changes.weekday, '3');
+  }));
+
 function assertNoStorageOrIdentityFields(value: unknown) {
   const serialized = JSON.stringify(value);
   for (const field of [
@@ -247,12 +287,17 @@ test('wrong institution and stale version blocked', async () =>
       { status: 409 },
     );
   }));
-test('assigned teacher may preview future series time changes but not change the class day', async () =>
+test('assigned teacher may preview future weekday changes but not edit other class fields', async () =>
   pilot(async () => {
-    const c = client({ teacher: true });
+    const c = client({ teacher: true, legacyWeeklyDay: true });
     const teacherClaims = { sub: 'teacher-sub' };
-    const result = await makeM95SeriesWriter(c).preview('raaga', classId, input, teacherClaims);
-    assert.equal(result.changedCount, 1);
+    const result = await makeM95SeriesWriter(c).preview(
+      'raaga',
+      classId,
+      { ...input, changes: { weekday: '3' } },
+      teacherClaims,
+    );
+    assert.equal(result.changedCount, 3);
     await assert.rejects(
       () =>
         makeM95SeriesWriter(client({ teacher: true })).preview(

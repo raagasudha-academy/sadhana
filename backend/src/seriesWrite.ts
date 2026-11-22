@@ -20,6 +20,7 @@ import type { SeriesRule } from './scheduleSeries.ts';
 import type { ScheduleRecord } from './scheduleModel.ts';
 import { makeLearnerActivityNotifications } from './learnerActivityNotifications.ts';
 import { calculateSeriesImpact } from './calendarImpact.ts';
+import { inferWeeklyRecurrence } from './weeklyRecurrenceInference.ts';
 
 export type M95SeriesClient = { send: (command: any) => Promise<any> };
 // Resolve lazily so a missing final-mode acknowledgement cannot fail Lambda cold start.
@@ -125,11 +126,36 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
       record = matches[0];
     }
     if (!record) throw httpError(404, 'Master class not found in this academy.');
-    const publicId = String(record.legacyPayload?.id || record.classId || id);
+    const payload = record.calendarRecord ?? record.legacyPayload ?? {};
+    const publicId = String(payload.id || record.classId || id);
+    const classIds = new Set(
+      [record.classId, payload.classId, record.legacyPayload?.classId, publicId, id].filter(
+        (value): value is string => typeof value === 'string' && value.length > 0,
+      ),
+    );
+    const recurrence =
+      record.recurrence ?? record.calendarRecord?.recurrence ?? record.legacyPayload?.recurrence;
+    const inferredRecurrence = recurrence
+      ? undefined
+      : inferWeeklyRecurrence(
+          (await scanAll(client, TABLE.sessions))
+            .filter((row) =>
+              [row.classId, row.legacyPayload?.classId, row.calendarRecord?.classId].some(
+                (value) => typeof value === 'string' && classIds.has(value),
+              ),
+            )
+            .map((row) => row.calendarRecord?.date ?? row.legacyPayload?.date ?? row.date),
+        );
     return {
       record,
       publicId,
-      master: { ...(record.legacyPayload as ScheduleRecord), id: publicId },
+      master: {
+        ...(payload as ScheduleRecord),
+        id: publicId,
+        ...((recurrence ?? inferredRecurrence)
+          ? { recurrence: recurrence ?? inferredRecurrence }
+          : {}),
+      },
     };
   }
   async function assertCanChangeSeries(

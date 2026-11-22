@@ -7,6 +7,7 @@ import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { projectSeriesRecord } from './scheduleSeries.ts';
 import type { SeriesRule } from './scheduleSeries.ts';
 import type { ScheduleInstitution, ScheduleRecord } from './scheduleModel.ts';
+import { inferWeeklyRecurrence } from './weeklyRecurrenceInference.ts';
 
 export type CompatibleEntity = 'classes' | 'sessions' | 'events' | 'venues' | 'people';
 export type CompatibleItem = {
@@ -78,21 +79,45 @@ export function assembleSchedule(
     });
   const classMasters = regular
     .filter(({ record }) => record.recordType === 'class')
-    .map(({ item, record }) => ({
-      record: {
-        ...record,
-        ...(item.recurrence || calendarRecord(item)?.recurrence
-          ? { recurrence: item.recurrence || calendarRecord(item)?.recurrence }
-          : {}),
-      },
-      ids: new Set(
+    .map(({ item, record }) => {
+      const ids = new Set(
         [item.classId, calendarRecord(item)?.classId, record.id, record.classId].filter(
           (id): id is string => typeof id === 'string' && id.length > 0,
         ),
-      ),
-    }));
+      );
+      const existingRecurrence =
+        item.recurrence ?? calendarRecord(item)?.recurrence ?? record.recurrence;
+      const inferredRecurrence = existingRecurrence
+        ? undefined
+        : inferWeeklyRecurrence(
+            regular
+              .filter(
+                ({ record: occurrence, item: occurrenceItem }) =>
+                  occurrence.recordType === 'class-session' &&
+                  [
+                    occurrence.classId,
+                    occurrenceItem.classId,
+                    calendarRecord(occurrenceItem)?.classId,
+                  ].some((id) => typeof id === 'string' && ids.has(id)),
+              )
+              .map(({ record: occurrence }) => occurrence.date),
+          );
+      return {
+        record: {
+          ...record,
+          ...((existingRecurrence ?? inferredRecurrence)
+            ? { recurrence: existingRecurrence ?? inferredRecurrence }
+            : {}),
+        },
+        ids,
+      };
+    });
   return {
     records: regular.map(({ item, record }) => {
+      if (record.recordType === 'class') {
+        const master = classMasters.find(({ ids }) => ids.has(record.id));
+        return projectSeriesRecord(master?.record ?? record, rules);
+      }
       if (record.recordType !== 'class-session') return projectSeriesRecord(record, rules);
       const master = classMasters.find(({ ids }) =>
         [record.classId, item.classId, calendarRecord(item)?.classId].some(
