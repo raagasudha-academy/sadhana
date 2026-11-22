@@ -124,7 +124,7 @@ export function makeFinalRecurringClassWriter(
         id: item.classId,
         name: String(item.name || item.legacyPayload?.name || '').trim(),
       }));
-    return { dates, teacher: person, duplicateNames };
+    return { dates, teacher: person, duplicateNames, selfTeacherId };
   };
 
   const preview = async (institution: InstitutionId, claims: Claims, body: Record<string, any>) => {
@@ -186,7 +186,7 @@ export function makeFinalRecurringClassWriter(
       utcForWallTime(session.date!, session.startTime);
       utcForWallTime(session.endDate!, session.endTime);
     }
-    await calendar.createRecurring(institution, master, sessions, claims, selfTeacherId);
+    await calendar.createRecurring(institution, master, sessions, claims, found.selfTeacherId);
     return {
       record: { ...master, date: found.dates[0] },
       sessionCount: sessions.length,
