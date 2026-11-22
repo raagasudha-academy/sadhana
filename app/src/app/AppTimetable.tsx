@@ -33,6 +33,7 @@ import {
   matchingRegistryTeacher,
 } from './appShared';
 import { ManagedEvents } from './AppManagedEvents';
+import { inferWeeklyWeekday } from '../inferWeeklyWeekday';
 
 export function Timetable({
   workspace,
@@ -322,6 +323,32 @@ export function Timetable({
         c.legacyPayload?.id === record.classId ||
         c.legacyPayload?.classId === record.classId,
     );
+    const classIds = new Set(
+      [
+        masterClass?.id,
+        masterClass?.classId,
+        masterClass?.legacyPayload?.id,
+        masterClass?.legacyPayload?.classId,
+      ].filter((id): id is string => typeof id === 'string' && id.length > 0),
+    );
+    const inferredRecurrence = masterClass?.recurrence
+      ? undefined
+      : inferWeeklyWeekday(
+          records
+            .filter(
+              (candidate: any) =>
+                candidate.recordType === 'class-session' &&
+                [
+                  candidate.classId,
+                  candidate.legacyPayload?.classId,
+                  candidate.calendarRecord?.classId,
+                ].some((id) => typeof id === 'string' && classIds.has(id)),
+            )
+            .map(
+              (candidate: any) =>
+                candidate.date ?? candidate.legacyPayload?.date ?? candidate.calendarRecord?.date,
+            ),
+        );
     return dates.map((day) => ({
       venueId: record.venueId,
       venueAddress: linkedVenue?.address || record.location || '',
@@ -331,7 +358,7 @@ export function Timetable({
       recordType: record.recordType,
       classId: record.classId,
       seriesMasterVersion: masterClass?.version,
-      seriesRecurrence: record.seriesRecurrence || masterClass?.recurrence,
+      seriesRecurrence: record.seriesRecurrence || masterClass?.recurrence || inferredRecurrence,
       name: record.name,
       programme: record.programme,
       institution: record.institution,
