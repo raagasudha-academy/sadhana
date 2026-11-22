@@ -157,6 +157,8 @@ jobs:
         with:
           path: ./dist
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Wait for Pages artifact indexing
+        run: sleep 10
       - id: deployment
         uses: actions/deploy-pages@v4
         with:
