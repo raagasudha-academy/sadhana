@@ -329,6 +329,7 @@ export function Timetable({
         masterClass?.classId,
         masterClass?.legacyPayload?.id,
         masterClass?.legacyPayload?.classId,
+        record.classId,
       ].filter((id): id is string => typeof id === 'string' && id.length > 0),
     );
     const inferredRecurrence = masterClass?.recurrence
@@ -338,11 +339,15 @@ export function Timetable({
             .filter(
               (candidate: any) =>
                 candidate.recordType === 'class-session' &&
-                [
+                ([
                   candidate.classId,
                   candidate.legacyPayload?.classId,
                   candidate.calendarRecord?.classId,
-                ].some((id) => typeof id === 'string' && classIds.has(id)),
+                ].some((id) => typeof id === 'string' && classIds.has(id)) ||
+                  (!!masterClass &&
+                    candidate.institution === masterClass.institution &&
+                    candidate.name === masterClass.name &&
+                    (!masterClass.programme || candidate.programme === masterClass.programme))),
             )
             .map(
               (candidate: any) =>
