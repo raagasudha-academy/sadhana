@@ -152,7 +152,11 @@ export function projectSeriesRecord(
           const target = Number(value);
           if (Number.isInteger(target) && target >= 0 && target <= 6) {
             const moved = new Date(`${projectedDate}T12:00:00Z`);
-            moved.setUTCDate(moved.getUTCDate() + target - moved.getUTCDay());
+            // A weekday change is effective from this occurrence forward. If
+            // the target weekday has already passed in this week, move to its
+            // next occurrence rather than shifting a future session backward.
+            const daysUntilTarget = (target - moved.getUTCDay() + 7) % 7;
+            moved.setUTCDate(moved.getUTCDate() + daysUntilTarget);
             projectedDate = moved.toISOString().slice(0, 10);
           }
         } else if (isMaster && applied.recurrence?.frequency === 'weekly') {
