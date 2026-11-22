@@ -8,7 +8,7 @@ import {
   ScanCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { demandInstitution, httpError } from './model.ts';
+import { demandInstitution, demandViewInstitution, httpError } from './model.ts';
 import type { Claims } from './model.ts';
 import { scheduleChanges, validateScheduleRecord } from './scheduleModel.ts';
 import type { ScheduleRecord, ScheduleInstitution } from './scheduleModel.ts';
@@ -405,10 +405,15 @@ export function makeM95CalendarWriter(client: CalendarClient) {
       master: ScheduleRecord,
       sessions: ScheduleRecord[],
       claims: Claims,
+      selfTeacherId?: string,
     ) {
       checkPilot();
       if (inst === 'shared') throw httpError(400, 'Choose an academy.');
-      demandInstitution(claims, inst);
+      if (selfTeacherId) {
+        demandViewInstitution(claims, inst);
+        if (master.teacherId !== selfTeacherId)
+          throw httpError(403, 'Teachers may create recurring classes only for themselves.');
+      } else demandInstitution(claims, inst);
       if (
         master.recordType !== 'class' ||
         master.institution !== inst ||

@@ -95,8 +95,10 @@ export function parseRecurringClassInput(
   inst: InstitutionId,
   claims: Claims,
   body: Record<string, any>,
+  selfTeacherId?: string,
 ) {
-  if (!permittedInstitutions(claims).includes(inst))
+  const isAdmin = permittedInstitutions(claims).includes(inst);
+  if (!isAdmin && (!selfTeacherId || body?.teacherId !== selfTeacherId))
     throw httpError(403, 'Academy administrator required to create recurring classes.');
   if (!body || typeof body !== 'object' || Array.isArray(body))
     throw httpError(400, 'Invalid class.');

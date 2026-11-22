@@ -351,10 +351,13 @@ export function ManagedEvents({
         } else throw Error('Choose when the recurring class ends.');
       }
       if (eventKind === 'recurring') {
-        if (isTeacher)
-          throw Error('Recurring class creation requires academy administrator access.');
-        if (!selectedInstitution || !teacherId)
+        const assignedTeacherId = isTeacher ? calendarTeacherIdentity?.teacherId : teacherId;
+        if (!selectedInstitution || !assignedTeacherId)
           throw Error('Choose an academy and registered teacher.');
+        if (isTeacher && assignedTeacherId !== teacherId)
+          throw Error('Choose your linked teacher profile.');
+        if (!isTeacher && !teachers.some((t: any) => t.id === assignedTeacherId))
+          throw Error('Choose an active teacher from the directory.');
         if (mode !== 'Online' && !chosenVenue) throw Error('Choose a venue.');
         const recurrence = {
           frequency: repeatFrequency,
@@ -367,7 +370,7 @@ export function ManagedEvents({
         const draft = {
           name,
           programme,
-          teacherId,
+          teacherId: assignedTeacherId,
           mode,
           location: mode === 'Online' ? 'Online' : chosenVenue.name,
           venueId: mode === 'Online' ? '' : chosenVenue.id,
@@ -1400,7 +1403,9 @@ export function ManagedEvents({
               disabled={
                 busy ||
                 (!sharedEvent && !selectedInstitution) ||
-                (eventKind === 'recurring' && isTeacher) ||
+                (eventKind === 'recurring' &&
+                  isTeacher &&
+                  (calendarIdentityLoading || !calendarTeacherIdentity?.linked || !teacherId)) ||
                 (eventKind === 'recurring' && !!recurringPreview?.duplicateNames?.length) ||
                 (sharedEvent &&
                   (isTeacher || !allowed.includes('raaga') || !allowed.includes('sruti')))

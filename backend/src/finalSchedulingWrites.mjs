@@ -35,7 +35,9 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
     if (institution !== 'raaga' && institution !== 'sruti') return fail('Choose an academy.', 400);
     if (env.SADHANA_FINAL_CALENDAR_WRITES !== 'enabled')
       return fail('This final-table scheduling write is disabled.');
-    access.admin(claims, institution);
+    if (access.permittedInstitutions(claims).includes(institution))
+      access.admin(claims, institution);
+    else access.view(claims, institution);
     dependencies.assertConfigured();
     const writer = dependencies.recurring();
     const body = payload();
