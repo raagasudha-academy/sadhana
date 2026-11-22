@@ -118,20 +118,18 @@ export function makeM95SeriesWriter(client: M95SeriesClient) {
         'class';
     if (!isMaster(record)) {
       const rows = await scanAll(client, TABLE.classes);
-      const matches = rows.filter(
-        (row) => {
-          if (!isMaster(row)) return false;
-          const aliases = [
-            row.classId,
-            row.id,
-            row.calendarRecord?.id,
-            row.calendarRecord?.classId,
-            row.legacyPayload?.id,
-            row.legacyPayload?.classId,
-          ];
-          return aliases.some((alias) => alias === id);
-        },
-      );
+      const matches = rows.filter((row) => {
+        if (!isMaster(row)) return false;
+        const aliases = [
+          row.classId,
+          row.id,
+          row.calendarRecord?.id,
+          row.calendarRecord?.classId,
+          row.legacyPayload?.id,
+          row.legacyPayload?.classId,
+        ];
+        return aliases.some((alias) => alias === id);
+      });
       if (matches.length > 1)
         throw httpError(409, 'Class link is ambiguous and requires data reconciliation.');
       record = matches[0];
