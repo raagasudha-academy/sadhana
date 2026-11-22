@@ -99,16 +99,29 @@ test('verified teacher is routed to canonical session create, edit and single de
   );
   assert.equal(calls[2].at(-1), false);
 });
-test('teachers cannot delete classes, edit series, or manage another academy', async () => {
+test('teachers cannot delete classes or manage another academy', async () => {
   calls.length = 0;
   for (const [path, method] of [
     ['schedule/master/CLASS-12345', 'DELETE'],
     ['schedule/master/CLASS-12345/delete-preview', 'POST'],
-    ['schedule/series/CLASS-12345', 'DELETE'],
   ])
     await assert.rejects(() => run(path, method, teacher), { status: 403 });
   await assert.rejects(() => run('schedule', 'POST', teacher, 'raaga'), { status: 403 });
   assert.equal(calls.length, 0);
+});
+test('assigned teachers may preview and delete future sessions in their class', async () => {
+  calls.length = 0;
+  assert.equal(
+    (await run('schedule/series/CLASS-12345/delete-preview', 'POST', teacher)).status,
+    200,
+  );
+  assert.equal((await run('schedule/series/CLASS-12345', 'DELETE', teacher)).status, 200);
+  assert.deepEqual(
+    calls.map((x) => x[0]),
+    ['series-preview', 'series-delete'],
+  );
+  assert.equal(calls[0].at(-2), teacher);
+  assert.equal(calls[0].at(-1), false);
 });
 test('teacher series preview and changes reach the assigned-teacher-guarded writer', async () => {
   calls.length = 0;

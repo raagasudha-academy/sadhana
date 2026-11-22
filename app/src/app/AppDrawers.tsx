@@ -28,7 +28,7 @@ export function sadhanaConfirmDialog(message: string): Promise<boolean> {
     const heading = document.createElement('h2');
     heading.textContent = 'Delete selected session(s)?';
     const subtitle = document.createElement('p');
-    subtitle.textContent = 'Administrator action · Permanent deletion';
+    subtitle.textContent = 'Staff action · Permanent deletion';
     header.append(heading, subtitle);
     const detail = document.createElement('p');
     detail.className = 'sadhana-confirm-message';
@@ -197,7 +197,7 @@ export function SessionDrawer({
   };
   const [bulkReview, setBulkReview] = useState<any>(null);
   const deleteFuture = async () => {
-    if (!cloud || !canDelete || isTeacher || !session.classId) return;
+    if (!cloud || !canDelete || !session.classId) return;
     setBusy(true);
     setError('');
     try {
@@ -773,9 +773,7 @@ export function SessionDrawer({
                   type="button"
                   className="reg-danger"
                   disabled={busy}
-                  onClick={() =>
-                    void (!isTeacher && scope === 'following' ? deleteFuture() : deleteOne())
-                  }
+                  onClick={() => void (scope === 'following' ? deleteFuture() : deleteOne())}
                 >
                   {scope === 'following'
                     ? bulkReview

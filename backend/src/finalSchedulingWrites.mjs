@@ -151,17 +151,21 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
       method === 'POST' &&
       idOK(parts[2])
     ) {
-      access.admin(claims, institution);
+      const isAdmin = access.permittedInstitutions(claims).includes(institution);
       return {
         status: 200,
-        body: await dependencies.sessions().previewDeleteSeries(institution, parts[2], payload()),
+        body: await dependencies
+          .sessions()
+          .previewDeleteSeries(institution, parts[2], payload(), claims, isAdmin),
       };
     }
     if (parts.length === 3 && parts[1] === 'series' && method === 'DELETE' && idOK(parts[2])) {
-      access.admin(claims, institution);
+      const isAdmin = access.permittedInstitutions(claims).includes(institution);
       return {
         status: 200,
-        body: await dependencies.sessions().deleteSeries(institution, parts[2], payload(), claims),
+        body: await dependencies
+          .sessions()
+          .deleteSeries(institution, parts[2], payload(), claims, isAdmin),
       };
     }
     if (series && parts.length === 3 && method === 'PATCH' && idOK(parts[2]))
