@@ -101,3 +101,55 @@ test('series rules use separate keys and preserve DST-independent UK dates', () 
   assert.equal(todayLondon(new Date('2026-10-25T00:30:00Z')), '2026-10-25');
   assert.equal(todayLondon(new Date('2026-10-25T23:30:00Z')), '2026-10-25');
 });
+
+test('weekly weekday changes move future occurrences while preserving earlier dates', () => {
+  const weeklyMaster = {
+    ...master,
+    recurrence: { frequency: 'weekly', interval: 1, weekdays: [1] },
+  } as ScheduleRecord;
+  const mondayRule = {
+    ...rule('2026-11-02', { weekday: '3' }),
+    classId: weeklyMaster.id,
+  };
+  assert.equal(projectSeriesRecord(session('2026-10-26'), [mondayRule]).date, '2026-10-26');
+  assert.equal(projectSeriesRecord(session('2026-11-02'), [mondayRule]).date, '2026-11-04');
+  assert.deepEqual(
+    projectSeriesRecord(weeklyMaster, [mondayRule], '2026-11-04').recurrence?.weekdays,
+    [3],
+  );
+});
+
+test('later weekday rules apply to the already shifted visible date', () => {
+  const first = rule('2026-11-02', { weekday: '3' });
+  const second = rule('2026-11-11', { weekday: '5' });
+  assert.equal(projectSeriesRecord(session('2026-11-09'), [first, second]).date, '2026-11-13');
+});
+
+test('weekday changes require one weekly weekday and a valid target day', () => {
+  const weeklyMaster = {
+    ...master,
+    recurrence: { frequency: 'weekly', interval: 1, weekdays: [1] },
+  } as ScheduleRecord;
+  assert.deepEqual(
+    parseSeriesChange(
+      { effectiveFrom: '2026-10-26', expectedVersion: 3, changes: { weekday: '3' } },
+      weeklyMaster,
+      '2026-10-16',
+    ).changes,
+    { weekday: '3' },
+  );
+  assert.throws(() =>
+    parseSeriesChange(
+      { effectiveFrom: '2026-10-26', expectedVersion: 3, changes: { weekday: '7' } },
+      weeklyMaster,
+      '2026-10-16',
+    ),
+  );
+  assert.throws(() =>
+    parseSeriesChange(
+      { effectiveFrom: '2026-10-26', expectedVersion: 3, changes: { weekday: '3' } },
+      master,
+      '2026-10-16',
+    ),
+  );
+});

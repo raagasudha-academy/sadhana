@@ -77,6 +77,49 @@ test('series changes project on dated sessions', () => {
   const result = assembleSchedule('raaga', [cls], [session, rule]);
   assert.equal(result.records.find((x) => x.id === 'SESSION-A')?.startTime, '09:30');
 });
+test('weekly recurrence reaches sessions when canonical and public class IDs differ', () => {
+  const cls: any = base('CLASS-PUBLIC', 'class');
+  cls.classId = 'CLASS-CANONICAL';
+  cls.recurrence = { frequency: 'weekly', interval: 1, weekdays: [1] };
+  const session: any = base('SESSION-A', 'class-session');
+  session.classId = 'CLASS-CANONICAL';
+  session.legacyPayload.classId = 'CLASS-CANONICAL';
+  session.legacyPayload.date = '2026-11-09';
+  session.legacyPayload.endDate = '2026-11-09';
+  const rule = {
+    institutionId: 'raaga',
+    recordType: 'series-change',
+    legacyPayload: {
+      institution: 'raaga',
+      classId: 'CLASS-PUBLIC',
+      effectiveFrom: '2026-11-02',
+      changes: { weekday: '3' },
+    },
+  };
+  const result = assembleSchedule('raaga', [cls], [session, rule]);
+  const projected = result.records.find((x) => x.id === 'SESSION-A');
+  assert.equal(projected?.classId, 'CLASS-PUBLIC');
+  assert.equal(projected?.date, '2026-11-11');
+  assert.deepEqual(projected?.seriesRecurrence?.weekdays, [3]);
+});
+test('legacy master without recurrence infers its weekly day from dated class sessions', () => {
+  const cls: any = base('CLASS-PUBLIC', 'class');
+  cls.classId = 'CLASS-CANONICAL';
+  const sessions = ['2026-11-02', '2026-11-09', '2026-11-16'].map((date, index) => {
+    const session: any = base(`SESSION-${index}`, 'class-session');
+    session.classId = 'CLASS-CANONICAL';
+    session.legacyPayload.classId = 'CLASS-CANONICAL';
+    session.legacyPayload.date = date;
+    session.legacyPayload.endDate = date;
+    return session;
+  });
+
+  const result = assembleSchedule('raaga', [cls], sessions);
+  const master = result.records.find((record) => record.id === 'CLASS-PUBLIC');
+  const occurrence = result.records.find((record) => record.id === 'SESSION-0');
+  assert.deepEqual(master?.recurrence?.weekdays, [1]);
+  assert.deepEqual(occurrence?.seriesRecurrence?.weekdays, [1]);
+});
 test('managed event list retains legacy endpoint payload and filters by scope', () => {
   const row = {
     ...base('E1', 'special-event'),

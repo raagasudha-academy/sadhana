@@ -165,6 +165,96 @@ test('cross-academy or unlinked teacher cannot create', async () =>
     );
     assert.equal(x.actions.length, 0);
   }));
+test('teacher can reschedule a session whose legacy class ID resolves to one canonical class', async () =>
+  withFinal(async () => {
+    const legacyClassId = 'CLASS-SRUTI-LEGACY';
+    const canonicalClass = {
+      ...master,
+      classId: 'CLASS-SRUTI-CANONICAL',
+      legacyPayload: { ...master.legacyPayload, id: legacyClassId },
+    };
+    const session = {
+      sessionId: 'EVT-SRUTI-SESSION-1',
+      classId: legacyClassId,
+      institutionId: 'sruti',
+      recordType: 'class-session',
+      version: 2,
+      legacyPayload: {
+        id: 'EVT-SRUTI-SESSION-1',
+        classId: legacyClassId,
+        institution: 'sruti',
+        recordType: 'class-session',
+        name: 'Vedam',
+        programme: 'Vedam',
+        teacher: 'Example Teacher',
+        teacherId,
+        mode: 'Online',
+        location: 'Online',
+        date: '2026-11-09',
+        endDate: '2026-11-09',
+        startTime: '18:00',
+        endTime: '19:00',
+        timezone: 'Europe/London',
+        status: 'confirmed',
+        version: 2,
+        createdAt: '2026-11-01T00:00:00.000Z',
+        updatedAt: '2026-11-01T00:00:00.000Z',
+      },
+    };
+    const x = make({
+      classes: [canonicalClass],
+      ['sessions:' + session.sessionId]: session,
+    });
+    const result = await x.service.updateTeacherSession(
+      'sruti',
+      session.sessionId,
+      { date: '2026-11-10', endDate: '2026-11-10', expectedVersion: 2 },
+      claims,
+    );
+    assert.equal(result.record.classId, canonicalClass.classId);
+    const actions = x.actions[0];
+    const classCheck = actions.find((action: any) => action.ConditionCheck);
+    const sessionPut = actions.find((action: any) => action.Put?.Item?.sessionId);
+    assert.equal(classCheck.ConditionCheck.Key.classId, canonicalClass.classId);
+    assert.equal(sessionPut.Put.Item.classId, canonicalClass.classId);
+    assert.equal(sessionPut.Put.Item.legacyPayload.classId, canonicalClass.classId);
+    assert.equal(sessionPut.Put.ConditionExpression.includes('#class=:c'), true);
+    assert.equal(sessionPut.Put.ExpressionAttributeValues[':c'], legacyClassId);
+  }));
+test('ambiguous legacy class aliases cannot be used by a teacher', async () =>
+  withFinal(async () => {
+    const legacyClassId = 'CLASS-SRUTI-LEGACY';
+    const classes = [
+      {
+        ...master,
+        classId: 'CLASS-SRUTI-CANONICAL-A',
+        legacyPayload: { ...master.legacyPayload, id: legacyClassId },
+      },
+      {
+        ...master,
+        classId: 'CLASS-SRUTI-CANONICAL-B',
+        legacyPayload: { ...master.legacyPayload, id: legacyClassId },
+      },
+    ];
+    const x = make({ classes });
+    await assert.rejects(
+      () =>
+        x.service.createTeacherSession(
+          'sruti',
+          {
+            recordType: 'class-session',
+            classId: legacyClassId,
+            date: '2026-11-09',
+            endDate: '2026-11-09',
+            startTime: '18:00',
+            endTime: '19:00',
+          },
+          claims,
+        ),
+      { status: 409 },
+    );
+    assert.equal(x.actions.length, 0);
+  }));
 test('additional sessions accept canonical classes whose class type is present in legacyPayload', async () =>
   withFinal(async () => {
     const legacyShape = { ...master };

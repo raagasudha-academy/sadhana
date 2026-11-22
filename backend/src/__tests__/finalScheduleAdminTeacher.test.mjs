@@ -34,7 +34,10 @@ const deps = {
   parse: (e) => JSON.parse(e.body || '{}'),
   sessions: () => api,
   calendar: () => ({ create: async () => ({ record: {} }), patch: async () => ({ record: {} }) }),
-  series: () => ({ change: async () => ({}), preview: async () => ({}) }),
+  series: () => ({
+    change: async (...args) => (calls.push(['series-change', ...args]), {}),
+    preview: async (...args) => (calls.push(['series-preview', ...args]), {}),
+  }),
   events: () => ({}),
 };
 const deny = () => {
@@ -102,11 +105,19 @@ test('teachers cannot delete classes, edit series, or manage another academy', a
     ['schedule/master/CLASS-12345', 'DELETE'],
     ['schedule/master/CLASS-12345/delete-preview', 'POST'],
     ['schedule/series/CLASS-12345', 'DELETE'],
-    ['schedule/series/CLASS-12345', 'PATCH'],
   ])
     await assert.rejects(() => run(path, method, teacher), { status: 403 });
   await assert.rejects(() => run('schedule', 'POST', teacher, 'raaga'), { status: 403 });
   assert.equal(calls.length, 0);
+});
+test('teacher series preview and changes reach the assigned-teacher-guarded writer', async () => {
+  calls.length = 0;
+  assert.equal((await run('schedule/series/CLASS-12345', 'PATCH', teacher)).status, 200);
+  assert.equal((await run('schedule/series/CLASS-12345/preview', 'POST', teacher)).status, 200);
+  assert.deepEqual(
+    calls.map((x) => x[0]),
+    ['series-change', 'series-preview'],
+  );
 });
 test('disabled final calendar writes fail closed, not legacy fallback', async () => {
   calls.length = 0;

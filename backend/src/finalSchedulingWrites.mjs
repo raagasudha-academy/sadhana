@@ -35,7 +35,9 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
     if (institution !== 'raaga' && institution !== 'sruti') return fail('Choose an academy.', 400);
     if (env.SADHANA_FINAL_CALENDAR_WRITES !== 'enabled')
       return fail('This final-table scheduling write is disabled.');
-    access.admin(claims, institution);
+    if (access.permittedInstitutions(claims).includes(institution))
+      access.admin(claims, institution);
+    else access.view(claims, institution);
     dependencies.assertConfigured();
     const writer = dependencies.recurring();
     const body = payload();
@@ -163,7 +165,7 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
       };
     }
     if (series && parts.length === 3 && method === 'PATCH' && idOK(parts[2]))
-      access.admin(claims, institution);
+      access.view(claims, institution);
     if (series && parts.length === 3 && method === 'PATCH' && idOK(parts[2]))
       return {
         status: 200,
@@ -176,7 +178,7 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
       method === 'POST' &&
       idOK(parts[2])
     )
-      access.admin(claims, institution);
+      access.view(claims, institution);
     if (
       series &&
       parts.length === 4 &&

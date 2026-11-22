@@ -83,6 +83,9 @@ export function SessionDrawer({
   const [futureSelection, setFutureSelection] = useState<'all' | 'selected'>('all');
   const [effectiveFrom, setEffectiveFrom] = useState(session.dateISO || '');
   const [effectiveUntil, setEffectiveUntil] = useState(session.dateISO || '');
+  const [futureWeekday, setFutureWeekday] = useState(
+    new Date(`${session.dateISO || '2026-01-05'}T12:00:00Z`).getUTCDay(),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pendingReview, setPendingReview] = useState<null | 'historical' | 'dated-link'>(null);
@@ -137,6 +140,15 @@ export function SessionDrawer({
   const selectedTeacherId = pickedTeacherId ?? (session.original?.teacherId || '');
   const selectedTeacher = teachers.find((t) => t.id === selectedTeacherId);
   const original = session.original || {};
+  const canEditWeeklyDay =
+    session.recordType === 'class-session' &&
+    (!session.seriesRecurrence ||
+      (session.seriesRecurrence.frequency === 'weekly' &&
+        Array.isArray(session.seriesRecurrence.weekdays) &&
+        session.seriesRecurrence.weekdays.length > 0));
+  useEffect(() => {
+    setFutureWeekday(new Date(`${session.dateISO}T12:00:00Z`).getUTCDay());
+  }, [session.recordId, session.dateISO]);
   const rule = links
     .filter(
       (r) =>
@@ -230,8 +242,6 @@ export function SessionDrawer({
     setBusy(true);
     setError('');
     try {
-      if (isTeacher && scope === 'following')
-        throw new Error('Teachers may edit individual sessions only.');
       if (
         scope === 'following' &&
         futureSelection === 'selected' &&
@@ -257,6 +267,11 @@ export function SessionDrawer({
           'endTime',
         ])
           if (form[key] !== original[key]) changes[key] = form[key];
+        if (
+          canEditWeeklyDay &&
+          futureWeekday !== new Date(`${session.dateISO}T12:00:00Z`).getUTCDay()
+        )
+          changes.weekday = String(futureWeekday);
         if (teacherChanged) {
           if (!selectedTeacher || selectedTeacher.displayName !== form.teacher)
             throw new Error('Choose a registered teacher.');
@@ -404,11 +419,11 @@ export function SessionDrawer({
               void save();
             }}
           >
-            {session.recordType === 'class-session' && !isTeacher && (
+            {session.recordType === 'class-session' && (
               <label className="sadhana-edit-field">
-                <span>Which sessions should change?</span>
+                <span>Apply this change to</span>
                 <select
-                  aria-label="Which sessions should change?"
+                  aria-label="Apply this change to"
                   value={scope}
                   onChange={(e) => {
                     setScope(e.target.value as 'one' | 'following');
@@ -417,8 +432,8 @@ export function SessionDrawer({
                     setPendingReview(null);
                   }}
                 >
-                  <option value="one">Just this session</option>
-                  <option value="following">Future sessions</option>
+                  <option value="one">Only this session</option>
+                  <option value="following">This and future sessions</option>
                 </select>
               </label>
             )}
@@ -493,6 +508,39 @@ export function SessionDrawer({
                 />
               </label>
             )}
+            {scope === 'following' && canEditWeeklyDay && (
+              <div className="sadhana-edit-field">
+                <label htmlFor="sadhana-weekly-class-day">Weekly class day</label>
+                <select
+                  id="sadhana-weekly-class-day"
+                  aria-label="Weekly class day"
+                  value={futureWeekday}
+                  onChange={(e) => {
+                    setFutureWeekday(Number(e.target.value));
+                    resetImpact();
+                    setError('');
+                  }}
+                >
+                  {[
+                    'Sunday',
+                    'Monday',
+                    'Tuesday',
+                    'Wednesday',
+                    'Thursday',
+                    'Friday',
+                    'Saturday',
+                  ].map((day, index) => (
+                    <option key={day} value={index}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+                <p className="sadhana-series-weekday-warning" role="alert">
+                  ‼️ All future sessions from the effective date will move to this day, including
+                  sessions currently scheduled on other days. Review the preview before saving.
+                </p>
+              </div>
+            )}
             {scope === 'following' && futureSelection === 'selected' && (
               <label className="sadhana-edit-field">
                 <span>Effective until (inclusive)</span>
@@ -538,6 +586,7 @@ export function SessionDrawer({
                   <input
                     maxLength={k === 'location' ? 300 : 180}
                     value={form[k] || ''}
+                    readOnly={isTeacher && scope === 'following'}
                     onChange={(e) => update(k, e.target.value)}
                   />
                 )}
@@ -599,7 +648,11 @@ export function SessionDrawer({
             )}
             <label className="sadhana-edit-field">
               <span>Status</span>
-              <select value={form.status} onChange={(e) => update('status', e.target.value)}>
+              <select
+                value={form.status}
+                disabled={isTeacher && scope === 'following'}
+                onChange={(e) => update('status', e.target.value)}
+              >
                 <option value="confirmed">Confirmed</option>
                 <option value="tentative">Tentative</option>
                 <option value="cancelled">Cancelled</option>
@@ -618,10 +671,11 @@ export function SessionDrawer({
                   <span>This is a past session. Edits here affect only this date.</span>
                 </div>
               )}
-            {!isTeacher && scope === 'following' && (
+            {scope === 'following' && (
               <div className="sadhana-inline-note">
                 <Info size={17} />
                 <span>
+                  {isTeacher ? 'This affects only your assigned class. ' : ''}
                   {futureSelection === 'all'
                     ? `Changes will apply from ${effectiveFrom || 'the selected date'} onwards. Earlier sessions are preserved.`
                     : `Changes would apply from ${effectiveFrom || 'the selected date'} through ${effectiveUntil || 'the end date'}, inclusive. Earlier and later sessions retain their otherwise applicable assignments.`}
@@ -757,8 +811,8 @@ export function SessionDrawer({
             <p className="reg-footnote">
               {scope === 'following'
                 ? futureSelection === 'all'
-                  ? 'Teacher and time changes apply from the chosen date until replaced by a later rule.'
-                  : 'Only sessions within the chosen inclusive date range are affected; outside it the applicable recurring schedule resumes.'
+                  ? 'Schedule changes apply from the chosen date. Past sessions and their history are preserved.'
+                  : 'Only sessions within the chosen inclusive date range are affected; outside it the prior schedule resumes.'
                 : 'Other sessions stay unchanged.'}
             </p>
           </form>

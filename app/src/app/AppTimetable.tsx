@@ -33,6 +33,7 @@ import {
   matchingRegistryTeacher,
 } from './appShared';
 import { ManagedEvents } from './AppManagedEvents';
+import { inferWeeklyWeekday } from '../inferWeeklyWeekday';
 
 export function Timetable({
   workspace,
@@ -315,6 +316,44 @@ export function Timetable({
     } else dates.push(record.date);
     const linkedVenue = venues.find((v: any) => v.id === record.venueId);
     const attentionItems = scheduleAttentionIssues(record, knownVenueIds);
+    const masterClass = classes.find(
+      (c) =>
+        c.id === record.classId ||
+        c.classId === record.classId ||
+        c.legacyPayload?.id === record.classId ||
+        c.legacyPayload?.classId === record.classId,
+    );
+    const classIds = new Set(
+      [
+        masterClass?.id,
+        masterClass?.classId,
+        masterClass?.legacyPayload?.id,
+        masterClass?.legacyPayload?.classId,
+        record.classId,
+      ].filter((id): id is string => typeof id === 'string' && id.length > 0),
+    );
+    const inferredRecurrence = masterClass?.recurrence
+      ? undefined
+      : inferWeeklyWeekday(
+          records
+            .filter(
+              (candidate: any) =>
+                candidate.recordType === 'class-session' &&
+                ([
+                  candidate.classId,
+                  candidate.legacyPayload?.classId,
+                  candidate.calendarRecord?.classId,
+                ].some((id) => typeof id === 'string' && classIds.has(id)) ||
+                  (!!masterClass &&
+                    candidate.institution === masterClass.institution &&
+                    candidate.name === masterClass.name &&
+                    (!masterClass.programme || candidate.programme === masterClass.programme))),
+            )
+            .map(
+              (candidate: any) =>
+                candidate.date ?? candidate.legacyPayload?.date ?? candidate.calendarRecord?.date,
+            ),
+        );
     return dates.map((day) => ({
       venueId: record.venueId,
       venueAddress: linkedVenue?.address || record.location || '',
@@ -323,7 +362,8 @@ export function Timetable({
       expectedVersion: record.version,
       recordType: record.recordType,
       classId: record.classId,
-      seriesMasterVersion: classes.find((c) => c.id === record.classId)?.version,
+      seriesMasterVersion: masterClass?.version,
+      seriesRecurrence: record.seriesRecurrence || masterClass?.recurrence || inferredRecurrence,
       name: record.name,
       programme: record.programme,
       institution: record.institution,

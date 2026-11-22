@@ -15,9 +15,12 @@ export const SERIES_FIELDS = [
   'mode',
   'location',
   'status',
+  'weekday',
 ] as const;
 export type SeriesField = (typeof SERIES_FIELDS)[number];
-export type SeriesChanges = Partial<Pick<ScheduleRecord, SeriesField>>;
+export type SeriesChanges = Partial<Pick<ScheduleRecord, Exclude<SeriesField, 'weekday'>>> & {
+  weekday?: string;
+};
 export interface SeriesRule {
   institution: Exclude<ScheduleInstitution, 'shared'>;
   classId: string;
@@ -90,6 +93,16 @@ export function parseSeriesChange(
     !['confirmed', 'tentative', 'cancelled'].includes(changes.status || '')
   )
     throw httpError(400, 'Invalid class status.');
+  if ('weekday' in changes) {
+    if (!/^[0-6]$/.test(changes.weekday || '')) throw httpError(400, 'Choose a valid weekday.');
+    if (
+      master.recurrence?.frequency !== 'weekly' ||
+      !Array.isArray(master.recurrence.weekdays) ||
+      master.recurrence.weekdays.length === 0 ||
+      master.recurrence.weekdays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+    )
+      throw httpError(400, 'Weekday changes are supported for weekly classes only.');
+  }
   if (
     'teacherId' in changes &&
     (!changes.teacher || !/^TEACHER-[0-9a-f-]{36}$/i.test(changes.teacherId || ''))
@@ -114,27 +127,50 @@ export function projectSeriesRecord(
   const date = isMaster ? today : record.date;
   if (!classId || !date) return record;
   const patches = rules
-    .filter(
-      (x) =>
-        x.institution === record.institution &&
-        x.classId === classId &&
-        x.effectiveFrom <= date &&
-        (!x.effectiveUntil || date <= x.effectiveUntil),
-    )
+    .filter((x) => x.institution === record.institution && x.classId === classId)
     .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
   if (!patches.length) return record;
   const exceptions = new Set(record.sessionOverrideFields || []);
-  const values: SeriesChanges = {};
-  for (const rule of patches) Object.assign(values, rule.changes);
   const applied = { ...record };
-  for (const key of SERIES_FIELDS) {
-    if (values[key] === undefined) continue;
-    if (!isMaster && (exceptions.has(key) || (key === 'teacherId' && exceptions.has('teacher'))))
+  let projectedDate = date;
+  const activePatches: SeriesRule[] = [];
+  for (const rule of patches) {
+    // Rules are evaluated against the visible, already-projected date. This lets
+    // later changes be effective after an earlier weekday move (for example,
+    // Monday -> Wednesday, followed by a later change effective on Wednesday).
+    if (
+      rule.effectiveFrom > projectedDate ||
+      (rule.effectiveUntil && projectedDate > rule.effectiveUntil)
+    )
       continue;
-    (applied as any)[key] = values[key];
+    activePatches.push(rule);
+    for (const key of SERIES_FIELDS) {
+      const value = rule.changes[key];
+      if (value === undefined) continue;
+      if (key === 'weekday') {
+        if (!isMaster && !exceptions.has('date')) {
+          const target = Number(value);
+          if (Number.isInteger(target) && target >= 0 && target <= 6) {
+            const moved = new Date(`${projectedDate}T12:00:00Z`);
+            moved.setUTCDate(moved.getUTCDate() + target - moved.getUTCDay());
+            projectedDate = moved.toISOString().slice(0, 10);
+          }
+        } else if (isMaster && applied.recurrence?.frequency === 'weekly') {
+          applied.recurrence = { ...applied.recurrence, weekdays: [Number(value)] };
+        }
+        continue;
+      }
+      if (!isMaster && (exceptions.has(key) || (key === 'teacherId' && exceptions.has('teacher'))))
+        continue;
+      (applied as any)[key] = value;
+    }
+  }
+  if (!isMaster && projectedDate !== record.date) {
+    applied.date = projectedDate;
+    applied.endDate = projectedDate;
   }
   // A legacy name-only teacher change must never inherit a stale master teacherId.
-  const lastTeacherRule = patches.filter((x) => x.changes.teacher !== undefined).at(-1);
+  const lastTeacherRule = activePatches.filter((x) => x.changes.teacher !== undefined).at(-1);
   if (lastTeacherRule && !lastTeacherRule.changes.teacherId) {
     if (isMaster || !exceptions.has('teacher')) delete applied.teacherId;
   }
