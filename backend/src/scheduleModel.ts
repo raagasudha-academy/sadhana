@@ -4,6 +4,12 @@ import { httpError, isoDate } from './model.ts';
 export type ScheduleInstitution = 'raaga' | 'sruti' | 'shared';
 export type ScheduleType = 'class' | 'class-session' | 'holiday' | 'special-event';
 export type ScheduleStatus = 'confirmed' | 'tentative' | 'cancelled';
+export interface ScheduleRecurrence {
+  frequency?: string;
+  interval?: number;
+  weekdays?: number[];
+  [key: string]: unknown;
+}
 export interface ScheduleRecord {
   id: string;
   recordType: ScheduleType;
@@ -21,12 +27,9 @@ export interface ScheduleRecord {
   status?: ScheduleStatus;
   classId?: string;
   teacherId?: string;
-  recurrence?: {
-    frequency?: string;
-    interval?: number;
-    weekdays?: number[];
-    [key: string]: unknown;
-  };
+  recurrence?: ScheduleRecurrence;
+  /** Recurrence projected for this dated occurrence, for session edit controls. */
+  seriesRecurrence?: ScheduleRecurrence;
   venueId?: string;
   sessionOverrideFields?: string[];
   timezone: 'Europe/London';

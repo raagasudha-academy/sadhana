@@ -315,6 +315,13 @@ export function Timetable({
     } else dates.push(record.date);
     const linkedVenue = venues.find((v: any) => v.id === record.venueId);
     const attentionItems = scheduleAttentionIssues(record, knownVenueIds);
+    const masterClass = classes.find(
+      (c) =>
+        c.id === record.classId ||
+        c.classId === record.classId ||
+        c.legacyPayload?.id === record.classId ||
+        c.legacyPayload?.classId === record.classId,
+    );
     return dates.map((day) => ({
       venueId: record.venueId,
       venueAddress: linkedVenue?.address || record.location || '',
@@ -323,8 +330,8 @@ export function Timetable({
       expectedVersion: record.version,
       recordType: record.recordType,
       classId: record.classId,
-      seriesMasterVersion: classes.find((c) => c.id === record.classId)?.version,
-      seriesRecurrence: classes.find((c) => c.id === record.classId)?.recurrence,
+      seriesMasterVersion: masterClass?.version,
+      seriesRecurrence: record.seriesRecurrence || masterClass?.recurrence,
       name: record.name,
       programme: record.programme,
       institution: record.institution,

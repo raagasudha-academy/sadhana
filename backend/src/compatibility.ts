@@ -42,18 +42,22 @@ export function assembleSchedule(
   events: CompatibleItem[] = [],
 ): { records: ScheduleRecord[]; more: false; source: string } {
   // The legacy SCHEDULE partition included special events. M9 stores them separately.
-  const regular = [
+  const regularItems = [
     ...classes,
     ...sessions,
     ...events.filter((item) => calendarRecord(item)?.recordType === 'special-event'),
-  ]
-    .filter((item) => item.institutionId === inst && item.recordType !== 'series-change')
-    .map((item) => legacyRecord(item) as ScheduleRecord);
+  ].filter((item) => item.institutionId === inst && item.recordType !== 'series-change');
+  const regular = regularItems.map((item) => ({
+    item,
+    record: legacyRecord(item) as ScheduleRecord,
+  }));
   if (inst === 'shared')
     return {
-      records: regular.filter(
-        (r) => r.recordType === 'holiday' || r.recordType === 'special-event',
-      ),
+      records: regular
+        .filter(
+          ({ record }) => record.recordType === 'holiday' || record.recordType === 'special-event',
+        )
+        .map(({ record }) => record),
       more: false,
       source: 'Sadhana DynamoDB',
     };
@@ -70,8 +74,36 @@ export function assembleSchedule(
         throw Error('M9_COMPAT_INVALID_SERIES_RULE');
       return raw as SeriesRule;
     });
+  const classMasters = regular
+    .filter(({ record }) => record.recordType === 'class')
+    .map(({ item, record }) => ({
+      record,
+      ids: new Set(
+        [item.classId, item.legacyPayload?.classId, record.id, record.classId].filter(
+          (id): id is string => typeof id === 'string' && id.length > 0,
+        ),
+      ),
+    }));
   return {
-    records: regular.map((r) => projectSeriesRecord(r, rules)),
+    records: regular.map(({ item, record }) => {
+      if (record.recordType !== 'class-session') return projectSeriesRecord(record, rules);
+      const master = classMasters.find(({ ids }) =>
+        [record.classId, item.classId, item.legacyPayload?.classId].some(
+          (id) => typeof id === 'string' && ids.has(id),
+        ),
+      );
+      const occurrenceRecurrence = master
+        ? projectSeriesRecord(master.record, rules, record.date).recurrence
+        : undefined;
+      return projectSeriesRecord(
+        {
+          ...record,
+          ...(master ? { classId: master.record.id } : {}),
+          ...(occurrenceRecurrence ? { seriesRecurrence: occurrenceRecurrence } : {}),
+        },
+        rules,
+      );
+    }),
     more: false,
     source: 'Sadhana DynamoDB',
   };
