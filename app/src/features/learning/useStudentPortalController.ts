@@ -581,6 +581,8 @@ export function useStudentPortalController({
     [topic, setTopic] = useState(''),
     [notes, setNotes] = useState('');
   const loadDetail = async (id: string) => {
+    const changingStudent = id !== activeId;
+    const hadPracticeDraft = !!edit || !!pendingPracticeMediaId || practiceMediaFiles.length > 0;
     clearHomeworkObjectUrls();
     setConfirmHomework(null);
     setSelectedHomework('');
@@ -590,7 +592,7 @@ export function useStudentPortalController({
     setHomeworkText('');
     submissionBaseline.current = null;
     setDetailLoading(true);
-    if (id !== activeId) setDetail(null);
+    if (changingStudent) setDetail(null);
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       setError('');
@@ -609,6 +611,20 @@ export function useStudentPortalController({
         }),
       ]);
       if (timer) clearTimeout(timer);
+      if (changingStudent) {
+        setMedia([]);
+        setEdit(null);
+        setPracticeMediaFiles([]);
+        setPendingPracticeMediaId('');
+        setTopic('');
+        setNotes('');
+        setMinutes(15);
+        setDate(todayUK());
+        if (hadPracticeDraft)
+          setMessage(
+            'Student changed. The unsaved practice draft was cleared; reopen that student’s entry before editing.',
+          );
+      }
       setDetail(result);
       activeDashboardRef.current = { institution: inst, studentId: id };
       setCalendarAnchor(
