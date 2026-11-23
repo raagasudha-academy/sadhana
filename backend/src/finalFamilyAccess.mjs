@@ -2,7 +2,7 @@
  * No PK/SK repository calls; never infers a guardian grant from family/name/email.
  * Candidates from GSIs are always re-read through consistent base-table reads.
  */
-import { matchingCognitoPerson } from './finalAccessCore.mjs';
+import { matchingCognitoActor } from './finalAccessCore.mjs';
 
 const error = (status, message) => Object.assign(new Error(message), { status });
 const refusal = (message, status = 503) => ({ status, body: { error: message } });
@@ -33,18 +33,23 @@ export async function finalLinkedStudents(institution, subject, reader) {
   if (!validInstitution(institution)) throw error(400, 'Choose a valid institution.');
   if (!validId(subject)) throw error(401, 'Verified account required.');
   const candidates = await reader.peopleForSubject(subject);
-  let matched = matchingCognitoPerson(candidates, subject, institution);
+  let matched = matchingCognitoActor(candidates, subject, institution);
   // An accepted invitation binds this exact Cognito subject to the imported
   // registration and family. Reconcile invited parents on their first login;
   // existing-account links still use the separately verified admin workflow.
   if (!matched && typeof reader.linkInvitedParent === 'function') {
     const linked = await reader.linkInvitedParent(subject, institution);
-    if (linked) matched = matchingCognitoPerson([linked], subject, institution);
+    if (linked) matched = matchingCognitoActor([linked], subject, institution);
   }
   if (!matched) return { records: [] };
   // Never authorise from an eventually consistent CognitoIdentityIndex result.
   const actor = await reader.person(matched.personId);
-  if (!activePerson(actor, institution) || actor.cognitoSub !== subject)
+  if (
+    actor?.status !== 'active' ||
+    !validId(actor.personId) ||
+    actor.cognitoSub !== subject ||
+    (!inInstitution(actor, institution) && !actor.personTypes?.includes('guardian'))
+  )
     throw error(403, 'Verified academy identity required.');
   const records = new Map();
   if (actor.personTypes?.includes('student') && studentMember(actor, institution))

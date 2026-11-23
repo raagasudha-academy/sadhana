@@ -14,6 +14,23 @@ export function matchingCognitoPerson(rows, subject, institution) {
   if (exact.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
   return exact[0] ?? null;
 }
+// A guardian's own academy membership may belong to one academy while their
+// independently verified child links span another. Resolve the unique active
+// Cognito person globally, then let the academy-scoped family link authorize
+// access to each child. A person with no membership in this academy is usable
+// only as a guardian; student self-access still requires academy membership.
+export function matchingCognitoActor(rows, subject, institution) {
+  if (typeof subject !== 'string' || !subject) return null;
+  const exact = rows.filter(
+    (p) => p.cognitoSub === subject && p.status === 'active' && Array.isArray(p.institutionIds),
+  );
+  if (exact.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
+  const actor = exact[0];
+  if (!actor) return null;
+  if (actor.institutionIds.includes(institution) || actor.personTypes?.includes('guardian'))
+    return actor;
+  return null;
+}
 export function authorisedStudent(actor, student, links, institution) {
   if (
     !actor ||

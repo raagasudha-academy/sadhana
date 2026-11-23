@@ -3,6 +3,11 @@ export function matchingCognitoPerson(
   subject: string,
   institution: string,
 ): Record<string, any> | null;
+export function matchingCognitoActor(
+  rows: Record<string, any>[],
+  subject: string,
+  institution: string,
+): Record<string, any> | null;
 export function authorisedStudent(
   actor: Record<string, any> | null,
   student: Record<string, any> | null,
