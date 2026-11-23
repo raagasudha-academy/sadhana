@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { filterPracticeEntries, practiceTotals } from '../../../src/practiceSelectors';
+import {
+  filterPracticeEntries,
+  newestPracticeFirst,
+  practiceTotals,
+} from '../../../src/practiceSelectors';
 const entries = [
   { id: 'b', studentId: 'one', date: '2026-10-20', topic: 'Raga', minutes: 20 },
   { id: 'c', studentId: 'two', date: '2026-10-21', topic: 'Chanting', minutes: 15 },
@@ -8,6 +12,13 @@ const entries = [
 describe('teacher practice review selectors', () => {
   it('sorts newest first and uses stable IDs for ties', () =>
     expect(filterPracticeEntries(entries, '', '').map((x) => x.id)).toEqual(['a', 'c', 'b']));
+  it('uses submission time to order practices recorded on the same day', () =>
+    expect(
+      newestPracticeFirst([
+        { id: 'morning', studentId: 'one', date: '2026-11-23', createdAt: '2026-11-23T09:00:00Z' },
+        { id: 'evening', studentId: 'one', date: '2026-11-23', createdAt: '2026-11-23T18:00:00Z' },
+      ]).map((x) => x.id),
+    ).toEqual(['evening', 'morning']));
   it('filters by student identity rather than duplicate names', () =>
     expect(filterPracticeEntries(entries, 'two', '').map((x) => x.id)).toEqual(['c']));
   it('matches topic and date case insensitively', () =>

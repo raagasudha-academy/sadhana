@@ -659,6 +659,17 @@ export function useStudentPortalController({
     if (!activeId) return;
     setError('');
     setMessage('');
+    if (!edit && !pendingPracticeMediaId) {
+      const duplicate = detail?.practice.find(
+        (entry) => entry.classId === classId && entry.date === date,
+      );
+      if (duplicate) {
+        setError(
+          'A practice entry already exists for this class and date. Use “Edit submission” in Practice history to correct it.',
+        );
+        return;
+      }
+    }
     try {
       let practiceId = pendingPracticeMediaId;
       if (!practiceId) {
@@ -688,7 +699,12 @@ export function useStudentPortalController({
       setNotes('');
       await loadDetail(activeId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to save practice');
+      const message = e instanceof Error ? e.message : 'Unable to save practice';
+      setError(
+        message === 'Practice already recorded for this class and date'
+          ? 'A practice entry already exists for this class and date. Use “Edit submission” in Practice history to correct it.'
+          : message,
+      );
     }
   };
   const deletePractice = async () => {

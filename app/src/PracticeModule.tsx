@@ -263,7 +263,11 @@ export default function PracticeModule({
         between(l.date, dates.from, dates.to) &&
         (studentFilter === 'all' || l.studentId === studentFilter),
     )
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) =>
+      String(b.submittedAt || b.updatedAt || b.createdAt || b.date || '').localeCompare(
+        String(a.submittedAt || a.updatedAt || a.createdAt || a.date || ''),
+      ),
+    );
   const students = members.filter((m) => involved.has(m.id));
   const save = (input, id) => {
     const other = logs.find(

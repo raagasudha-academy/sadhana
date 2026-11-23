@@ -981,6 +981,8 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           id: string;
           classId: string;
           date: string;
+          createdAt?: string;
+          updatedAt?: string;
           minutes: number;
           topic: string;
           comments: string;

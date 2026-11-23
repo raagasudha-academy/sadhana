@@ -4,7 +4,7 @@ import { BookOpenCheck } from 'lucide-react';
 import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
-import { filterPracticeEntries, practiceTotals } from './practiceSelectors';
+import { filterPracticeEntries, newestPracticeFirst, practiceTotals } from './practiceSelectors';
 
 type Feedback = { id: string; comment: string; createdAt: string; audioUrl?: string };
 export default function PracticeReview({
@@ -59,8 +59,10 @@ export default function PracticeReview({
   const start = period === 'week' ? days[0] : period === 'month' ? today.slice(0, 7) + '-01' : '';
   const scoped = useMemo(
     () =>
-      entries.filter(
-        (p) => String(p.date || '') <= today && (!start || String(p.date || '') >= start),
+      newestPracticeFirst(
+        entries.filter(
+          (p) => String(p.date || '') <= today && (!start || String(p.date || '') >= start),
+        ),
       ),
     [entries, start, today],
   );

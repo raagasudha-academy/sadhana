@@ -131,6 +131,8 @@ export function projectLearnerDashboard(
       id: p.practiceId,
       classId: p.classId,
       date: p.practiceDate,
+      createdAt: p.createdAt || '',
+      updatedAt: p.updatedAt || p.createdAt || '',
       minutes: p.minutes,
       topic: p.topic || '',
       comments: p.comments || '',

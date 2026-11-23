@@ -3,6 +3,7 @@ import { CalendarDays, Eye, FileText, Music2, Search } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
 import { visibleMasterClasses } from './operationsSelectors';
+import { newestPracticeFirst } from './practiceSelectors';
 import PracticeReview from './PracticeReview';
 import TeacherWorkspace from './TeacherWorkspace';
 import './adminStudentWork.css';
@@ -17,6 +18,9 @@ type WorkRow = {
   className: string;
   title: string;
   date: string;
+  submittedAt?: string;
+  updatedAt?: string;
+  createdAt?: string;
   dueDate?: string;
   detail: string;
   status: string;
@@ -212,6 +216,9 @@ export default function AdminStudentWork({
               className: classRecord?.name || String(record.className || 'Class'),
               title: 'Practice submission',
               date: String(record.submittedAt || record.updatedAt || record.date || ''),
+              submittedAt: record.submittedAt,
+              updatedAt: record.updatedAt,
+              createdAt: record.createdAt,
               detail: `${Number(record.minutes) || 0} min${record.comments ? ` · ${record.comments}` : record.topic ? ` · ${record.topic}` : ''}`,
               status: record.teacherReviewed ? 'Reviewed' : 'Submitted',
               feedback: [],
@@ -342,30 +349,32 @@ export default function AdminStudentWork({
     if (range === 'month') cutoff.setDate(1);
     cutoff.setHours(0, 0, 0, 0);
     const needle = query.trim().toLowerCase();
-    return rows
-      .filter((row) => !classId || row.classId === classId)
-      .filter((row) => {
-        if (kind === 'practice') {
-          const rowDate = row.date.slice(0, 10);
+    return newestPracticeFirst(
+      rows
+        .filter((row) => !classId || row.classId === classId)
+        .filter((row) => {
+          if (kind === 'practice') {
+            const rowDate = row.date.slice(0, 10);
+            if (range === 'all') return true;
+            if (range === 'last-month')
+              return rowDate >= lastMonth.start && rowDate <= lastMonth.end;
+            const weekStart = range === 'last-week' ? previousWeekStart : currentWeekStart;
+            return rowDate >= weekStart && rowDate <= addDays(weekStart, 6);
+          }
           if (range === 'all') return true;
-          if (range === 'last-month') return rowDate >= lastMonth.start && rowDate <= lastMonth.end;
-          const weekStart = range === 'last-week' ? previousWeekStart : currentWeekStart;
-          return rowDate >= weekStart && rowDate <= addDays(weekStart, 6);
-        }
-        if (range === 'all') return true;
-        const rowDate = row.date.slice(0, 10);
-        const time = Date.parse(row.date);
-        return Number.isFinite(time) && time >= cutoff.getTime() && time <= now.getTime();
-      })
-      .filter(
-        (row) => kind !== 'homework' || !homeworkTitleFilter || row.title === homeworkTitleFilter,
-      )
-      .filter(
-        (row) =>
-          !needle ||
-          `${row.studentName} ${row.className} ${row.title}`.toLowerCase().includes(needle),
-      )
-      .sort((a, b) => Date.parse(b.date || '') - Date.parse(a.date || ''));
+          const rowDate = row.date.slice(0, 10);
+          const time = Date.parse(row.date);
+          return Number.isFinite(time) && time >= cutoff.getTime() && time <= now.getTime();
+        })
+        .filter(
+          (row) => kind !== 'homework' || !homeworkTitleFilter || row.title === homeworkTitleFilter,
+        )
+        .filter(
+          (row) =>
+            !needle ||
+            `${row.studentName} ${row.className} ${row.title}`.toLowerCase().includes(needle),
+        ),
+    );
   }, [
     rows,
     classId,
