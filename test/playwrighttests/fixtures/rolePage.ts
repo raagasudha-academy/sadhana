@@ -18,10 +18,18 @@ export async function openRoleSession(page: Page, role: PortalRole, scenario?: s
   await page.goto(`/e2e-fixtures/roles.html?role=${role}${scenarioQuery}`);
 }
 
+export async function waitForEnrolledLearner(page: Page, role: PortalRole) {
+  if (role !== 'student' && role !== 'guardian') return;
+  await expect(
+    page.getByRole('heading', { name: /^(My Learning Dashboard|Family Dashboard)$/ }),
+  ).toBeVisible();
+}
+
 export async function assertRolePage(page: Page, role: PortalRole, label: string) {
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   await openRoleSession(page, role);
+  await waitForEnrolledLearner(page, role);
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   let link = navigation.getByRole('button', { name: label, exact: true });
   if ((await link.count()) === 0 && role === 'admin') {

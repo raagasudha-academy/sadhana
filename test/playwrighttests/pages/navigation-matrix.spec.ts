@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openRoleSession, type PortalRole } from '../fixtures/rolePage';
+import { openRoleSession, type PortalRole, waitForEnrolledLearner } from '../fixtures/rolePage';
 
 const adminGroups = {
   'People & Access': ['Families & Students', 'Website Registrations', 'Account Access'],
@@ -238,6 +238,7 @@ test.describe('complete role navigation and tab visual regression', () => {
     test(`${role} can open every page and tab`, async ({ page }) => {
       test.setTimeout(180_000);
       await openRoleSession(page, role);
+      await waitForEnrolledLearner(page, role);
       await visitRoleNavigation(page, role, 'sruti');
     });
   }

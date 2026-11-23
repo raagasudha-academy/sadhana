@@ -192,7 +192,7 @@ const dashboard = (id: string) => ({
       : [
           {
             classId: 'E2E-CLASS',
-            name: 'Fixture Music Class',
+            className: 'Fixture Music Class',
             institution: 'sruti',
             lifecycleStatus: 'active',
           },
