@@ -49,6 +49,13 @@ export default function PracticeReview({
       }),
     [today],
   );
+  const fullDate = (value: string, options: Intl.DateTimeFormatOptions = {}) =>
+    new Date(`${value}T12:00:00Z`).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+      ...options,
+    });
   const start = period === 'week' ? days[0] : period === 'month' ? today.slice(0, 7) + '-01' : '';
   const scoped = useMemo(
     () =>
@@ -66,17 +73,16 @@ export default function PracticeReview({
       students
         .filter((s) => entries.some((p) => p.studentId === s.id))
         .map((s) => {
-          const rows = scoped.filter((p) => p.studentId === s.id);
-          const sum = (x: any[]) => x.reduce((n, p) => n + (Number(p.minutes) || 0), 0);
           return {
             student: s,
-            rows,
-            minutes: sum(rows),
-            days: new Set(rows.filter((p) => Number(p.minutes) > 0).map((p) => p.date)).size,
-            week: days.map((d) => sum(entries.filter((p) => p.studentId === s.id && p.date === d))),
+            week: days.map((d) =>
+              entries
+                .filter((p) => p.studentId === s.id && p.date === d)
+                .reduce((minutes, p) => minutes + (Number(p.minutes) || 0), 0),
+            ),
           };
         }),
-    [students, entries, scoped, days],
+    [students, entries, days],
   );
   const scopeMinutes = scoped.reduce((n, p) => n + (Number(p.minutes) || 0), 0);
   const participantCount = new Set(
@@ -230,7 +236,9 @@ export default function PracticeReview({
       <section className="v1376-consistency" aria-label="Weekly practice consistency">
         <div className="v1376-section-top">
           <h3>Weekly practice consistency</h3>
-          <small>Daily recorded minutes · last 7 days</small>
+          <small>
+            Daily recorded minutes · {fullDate(days[0])}–{fullDate(days[6], { year: 'numeric' })}
+          </small>
         </div>
         {learnerSummary.length ? (
           <>
@@ -261,7 +269,7 @@ export default function PracticeReview({
                               : 'v1376-high'
                       }
                     >
-                      <span>{days[i].slice(5)}</span>
+                      <span>{fullDate(days[i])}</span>
                       <strong>{mins || '—'}</strong>
                     </div>
                   ))}
@@ -276,37 +284,6 @@ export default function PracticeReview({
           An empty day means no practice was logged, not necessarily that no practice occurred.
         </p>
       </section>
-      <div className="v1376-section-top">
-        <h3>Student practice summary</h3>
-        <small>Selected period</small>
-      </div>
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Days logged</th>
-              <th>Minutes</th>
-              <th>Latest entry</th>
-            </tr>
-          </thead>
-          <tbody>
-            {learnerSummary.map((row) => (
-              <tr key={row.student.id}>
-                <td>{row.student.name}</td>
-                <td>{row.days}</td>
-                <td>{row.minutes}</td>
-                <td>
-                  {row.rows
-                    .map((p) => p.date)
-                    .sort()
-                    .at(-1) || '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
       <h3>Practice entries & teacher feedback</h3>
 
       {!entries.length ? (
@@ -366,7 +343,20 @@ export default function PracticeReview({
               </thead>
               <tbody>
                 {shown.map((p) => (
-                  <tr key={p.id}>
+                  <tr
+                    key={p.id}
+                    tabIndex={0}
+                    aria-label={`Open practice review for ${names.get(p.studentId) || 'student'} on ${p.date}`}
+                    onClick={() => void inspect(p.id)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        void inspect(p.id);
+                      }
+                    }}
+                    className="practice-review-row"
+                  >
                     <td>{p.date}</td>
                     <td>{names.get(p.studentId) || 'Student'}</td>
                     <td>{p.topic || 'Practice'}</td>
@@ -378,7 +368,10 @@ export default function PracticeReview({
                           className="practice-review-status is-reviewed practice-review-action"
                           aria-label={`View reviewed practice for ${names.get(p.studentId) || 'student'} on ${p.date}`}
                           aria-pressed={open === p.id}
-                          onClick={() => void inspect(p.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void inspect(p.id);
+                          }}
                         >
                           Reviewed · View
                         </button>
@@ -387,7 +380,10 @@ export default function PracticeReview({
                           type="button"
                           className="practice-review-status is-pending practice-review-action"
                           aria-pressed={open === p.id}
-                          onClick={() => void inspect(p.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void inspect(p.id);
+                          }}
                         >
                           Review
                         </button>

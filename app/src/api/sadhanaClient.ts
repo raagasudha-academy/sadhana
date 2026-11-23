@@ -310,11 +310,27 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         body: { expectedVersion },
       }),
     listOperations: (
-      kind: 'family' | 'student' | 'enrolment' | 'attendance' | 'practice' | 'feedback' | 'rsvp',
+      kind:
+        | 'family'
+        | 'student'
+        | 'enrolment'
+        | 'attendance'
+        | 'practice'
+        | 'feedback'
+        | 'class-note'
+        | 'rsvp',
       institution: InstitutionId,
     ) => request<{ records: any[] }>('GET', `/operations/${kind}`, { institution }),
     createOperation: (
-      kind: 'family' | 'student' | 'enrolment' | 'attendance' | 'practice' | 'feedback' | 'rsvp',
+      kind:
+        | 'family'
+        | 'student'
+        | 'enrolment'
+        | 'attendance'
+        | 'practice'
+        | 'feedback'
+        | 'class-note'
+        | 'rsvp',
       institution: InstitutionId,
       data: ResourcePayload,
     ) => request<{ record: any }>('POST', `/operations/${kind}`, { institution, body: data }),
@@ -347,7 +363,15 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         { institution, body: { confirm: 'DELETE', expectedVersion } },
       ),
     updateOperation: (
-      kind: 'family' | 'student' | 'enrolment' | 'attendance' | 'practice' | 'feedback' | 'rsvp',
+      kind:
+        | 'family'
+        | 'student'
+        | 'enrolment'
+        | 'attendance'
+        | 'practice'
+        | 'feedback'
+        | 'class-note'
+        | 'rsvp',
       institution: InstitutionId,
       id: string,
       data: ResourcePayload,
@@ -600,6 +624,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           title: string;
           instructions: string;
           dueDate: string;
+          createdAt?: string;
         }>;
       }>('GET', `/homework/${encodeURIComponent(classId)}`, { institution }),
     deleteClassHomework: (institution: InstitutionId, classId: string, homeworkId: string) =>
@@ -727,6 +752,8 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           status: 'draft' | 'submitted';
           version: number;
           attachmentIds: string[];
+          updatedAt?: string;
+          submittedAt?: string | null;
           feedback?: string;
           feedbackAudioId?: string;
           feedbackAudioUrl?: string;
@@ -770,7 +797,10 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           status: string;
           version: number;
           attachmentIds: string[];
+          updatedAt?: string;
+          submittedAt?: string | null;
           feedback?: string;
+          feedbackAudioUrl?: string;
           reviewedAt?: string | null;
         }>;
       }>(
@@ -866,6 +896,16 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         venues: string[];
         classes: Array<{ classId: string; name: string; teacher: string; venue: string }>;
       }>('GET', `/learner/${encodeURIComponent(studentId)}/extras`, { institution }),
+    listLearnerClassNotes: (institution: InstitutionId, studentId: string) =>
+      request<{
+        records: Array<{
+          id: string;
+          classId: string;
+          className: string;
+          date: string;
+          note: string;
+        }>;
+      }>('GET', `/learner/${encodeURIComponent(studentId)}/class-notes`, { institution }),
     saveLearnerProfile: (
       institution: InstitutionId,
       studentId: string,
@@ -1004,6 +1044,18 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         'DELETE',
         `/learner/${encodeURIComponent(studentId)}/practice/${encodeURIComponent(edit.id)}`,
         { institution, body: { expectedVersion: edit.version } },
+      ),
+    deleteLearnerPracticeMedia: (
+      institution: InstitutionId,
+      studentId: string,
+      practiceId: string,
+      mediaId: string,
+      expectedVersion: number,
+    ) =>
+      request<{ deleted: boolean; cleanupPending?: boolean; version: number }>(
+        'DELETE',
+        `/learner/${encodeURIComponent(studentId)}/practice/${encodeURIComponent(practiceId)}/media/${encodeURIComponent(mediaId)}`,
+        { institution, body: { expectedVersion } },
       ),
     myLinkedStudents: (institution: InstitutionId) =>
       request<{

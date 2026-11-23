@@ -8,6 +8,8 @@ import {
 } from '../../homeworkMediaPolicy';
 import type { PracticeMediaFiles, StudentPortalContext } from './useStudentPortalController';
 
+type ExistingPracticeMedia = { id: string; mime: string; url: string };
+
 function PracticeHistoryAudioUpload({
   disabled,
   onUpload,
@@ -48,6 +50,9 @@ function PracticeMediaPicker({
   files,
   addFiles,
   removeFile,
+  existingMedia,
+  onRemoveExisting,
+  removingMediaId,
   existingCount,
   disabled,
   onInvalid,
@@ -55,6 +60,9 @@ function PracticeMediaPicker({
   files: PracticeMediaFiles;
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
+  existingMedia: ExistingPracticeMedia[];
+  onRemoveExisting: (mediaId: string) => void;
+  removingMediaId: string;
   existingCount: number;
   disabled: boolean;
   onInvalid: (message: string) => void;
@@ -116,6 +124,54 @@ function PracticeMediaPicker({
           onRecording={(file) => acceptFiles([file])}
         />
       </div>
+      {!!existingMedia.length && (
+        <div className="v1376-practice-attachment-list" aria-label="Existing practice attachments">
+          {existingMedia.map((media) => (
+            <div className="v1376-practice-attachment" key={media.id}>
+              {media.mime.startsWith('image/') ? (
+                <a href={media.url} target="_blank" rel="noreferrer">
+                  <img src={media.url} alt="Existing practice attachment" />
+                </a>
+              ) : media.mime.startsWith('audio/') ? (
+                <audio
+                  controls
+                  preload="none"
+                  src={media.url}
+                  aria-label="Existing practice audio attachment"
+                />
+              ) : media.mime.startsWith('video/') ? (
+                <video
+                  controls
+                  preload="metadata"
+                  playsInline
+                  src={media.url}
+                  aria-label="Existing practice video attachment"
+                />
+              ) : (
+                <span>
+                  <Paperclip size={16} /> Existing attachment
+                </span>
+              )}
+              <span>
+                {media.mime.startsWith('audio/')
+                  ? 'Existing audio'
+                  : media.mime.startsWith('video/')
+                    ? 'Existing video'
+                    : 'Existing image'}
+              </span>
+              <button
+                type="button"
+                disabled={disabled || removingMediaId === media.id}
+                aria-label="Delete existing practice attachment"
+                title="Delete existing attachment"
+                onClick={() => onRemoveExisting(media.id)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       {!!files.length && (
         <div className="v1376-practice-attachment-list">
           {files.map((file, index) => {
@@ -154,7 +210,9 @@ function PracticeMediaPicker({
 export function StudentPractice({ context }: { context: StudentPortalContext }) {
   const {
     uploadBusy,
+    removingPracticeMediaId,
     uploadEvidence,
+    removePracticeMedia,
     media,
     detail,
     edit,
@@ -242,6 +300,20 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
           files={practiceMediaFiles}
           addFiles={addPracticeMediaFiles}
           removeFile={removePracticeMediaFile}
+          existingMedia={
+            edit
+              ? media.filter((item) => item.purpose === 'practice' && item.practiceId === edit.id)
+              : []
+          }
+          onRemoveExisting={(mediaId) => {
+            if (
+              window.confirm(
+                'Delete this attachment from the practice submission? This cannot be undone.',
+              )
+            )
+              void removePracticeMedia(mediaId);
+          }}
+          removingMediaId={removingPracticeMediaId}
           existingCount={
             linkedPracticeId
               ? media.filter(
@@ -249,7 +321,7 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                 ).length
               : 0
           }
-          disabled={uploadBusy || deletingPractice}
+          disabled={uploadBusy || deletingPractice || !!removingPracticeMediaId}
           onInvalid={setError}
         />
         <button type="submit" disabled={!detail.classes.length || uploadBusy || deletingPractice}>
@@ -297,123 +369,125 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
         <span>Your recorded sessions</span>
       </div>
       <div className="v1376-practice-history-list">
-        {detail.practice.map((r) => {
-          const practiceMedia = (media || []).filter(
-            (m: any) => m.purpose === 'practice' && m.practiceId === r.id,
-          );
-          const teacherComments = r.teacherComments || [];
-          const reviewed = r.teacherReviewed === true || teacherComments.length > 0;
-          const editDisabled = r.date < todayUK() || reviewed;
-          return (
-            <article className="v1376-practice-history-entry" key={r.id}>
-              <header className="v1376-practice-history-entry-head">
-                <div className="v1376-practice-history-meta">
-                  <time dateTime={r.date}>{r.date}</time>
-                  <span>{r.minutes} min</span>
+        {[...detail.practice]
+          .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+          .map((r) => {
+            const practiceMedia = (media || []).filter(
+              (m: any) => m.purpose === 'practice' && m.practiceId === r.id,
+            );
+            const teacherComments = r.teacherComments || [];
+            const reviewed = r.teacherReviewed === true || teacherComments.length > 0;
+            const editDisabled = r.date < todayUK() || reviewed;
+            return (
+              <article className="v1376-practice-history-entry" key={r.id}>
+                <header className="v1376-practice-history-entry-head">
+                  <div className="v1376-practice-history-meta">
+                    <time dateTime={r.date}>{r.date}</time>
+                    <span>{r.minutes} min</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={editDisabled}
+                    title={
+                      reviewed
+                        ? 'Reviewed by teacher; corrections locked'
+                        : r.date < todayUK()
+                          ? 'Practice date has passed'
+                          : undefined
+                    }
+                    onClick={() => {
+                      setEdit({ id: r.id, version: r.version });
+                      setClassId(r.classId);
+                      setDate(r.date);
+                      setMinutes(r.minutes);
+                      setTopic(r.topic);
+                      setNotes(r.comments);
+                    }}
+                  >
+                    Edit submission
+                  </button>
+                </header>
+                <div className="v1376-practice-history-content">
+                  <div className="v1376-practice-history-topic">
+                    <span className="v1376-practice-history-media-label">Topic</span>
+                    <strong>{r.topic || 'Practice session'}</strong>
+                  </div>
+                  <div className="v1376-practice-history-media-row">
+                    <span className="v1376-practice-history-media-label">Attachments</span>
+                    <div className="v1376-practice-history-attachments">
+                      {practiceMedia.length > 0 ? (
+                        practiceMedia.map((m: any) => (
+                          <div className="v1376-practice-history-attachment" key={m.id}>
+                            {m.mime?.startsWith('image/') ? (
+                              <a href={m.url} target="_blank" rel="noreferrer">
+                                <img src={m.url} alt="Practice attachment" />
+                              </a>
+                            ) : m.mime?.startsWith('audio/') ? (
+                              <audio
+                                controls
+                                preload="none"
+                                src={m.url}
+                                aria-label="Practice audio attachment"
+                              />
+                            ) : m.mime?.startsWith('video/') ? (
+                              <video
+                                controls
+                                preload="metadata"
+                                playsInline
+                                src={m.url}
+                                aria-label="Practice video attachment"
+                              />
+                            ) : (
+                              <span>
+                                <Paperclip size={16} /> Attachment
+                              </span>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <span className="v1376-practice-no-attachments">No attachments</span>
+                      )}
+                    </div>
+                  </div>
+                  {!practiceMedia.some((item: any) => item.mime?.startsWith('audio/')) && (
+                    <div className="v1376-practice-history-media-row">
+                      <span className="v1376-practice-history-media-label">Audio</span>
+                      <div>
+                        <PracticeHistoryAudioUpload
+                          disabled={uploadBusy || reviewed}
+                          onUpload={(file) => void uploadEvidence(file, 'practice', r.id)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  disabled={editDisabled}
-                  title={
-                    reviewed
-                      ? 'Reviewed by teacher; corrections locked'
-                      : r.date < todayUK()
-                        ? 'Practice date has passed'
-                        : undefined
-                  }
-                  onClick={() => {
-                    setEdit({ id: r.id, version: r.version });
-                    setClassId(r.classId);
-                    setDate(r.date);
-                    setMinutes(r.minutes);
-                    setTopic(r.topic);
-                    setNotes(r.comments);
-                  }}
-                >
-                  Edit submission
-                </button>
-              </header>
-              <div className="v1376-practice-history-content">
-                <div className="v1376-practice-history-topic">
-                  <span className="v1376-practice-history-media-label">Topic</span>
-                  <strong>{r.topic || 'Practice session'}</strong>
-                </div>
-                <div className="v1376-practice-history-media-row">
-                  <span className="v1376-practice-history-media-label">Attachments</span>
-                  <div className="v1376-practice-history-attachments">
-                    {practiceMedia.length > 0 ? (
-                      practiceMedia.map((m: any) => (
-                        <div className="v1376-practice-history-attachment" key={m.id}>
-                          {m.mime?.startsWith('image/') ? (
-                            <a href={m.url} target="_blank" rel="noreferrer">
-                              <img src={m.url} alt="Practice attachment" />
-                            </a>
-                          ) : m.mime?.startsWith('audio/') ? (
+                <div className="v1376-practice-history-feedback">
+                  {reviewed ? (
+                    <>
+                      <span className="practice-review-status is-reviewed">Reviewed</span>
+                      {teacherComments.map((comment) => (
+                        <div key={comment.id}>
+                          {comment.comment && <p>{comment.comment}</p>}
+                          {comment.audioUrl && (
                             <audio
                               controls
                               preload="none"
-                              src={m.url}
-                              aria-label="Practice audio attachment"
+                              src={comment.audioUrl}
+                              aria-label="Teacher audio feedback"
                             />
-                          ) : m.mime?.startsWith('video/') ? (
-                            <video
-                              controls
-                              preload="metadata"
-                              playsInline
-                              src={m.url}
-                              aria-label="Practice video attachment"
-                            />
-                          ) : (
-                            <span>
-                              <Paperclip size={16} /> Attachment
-                            </span>
                           )}
                         </div>
-                      ))
-                    ) : (
-                      <span className="v1376-practice-no-attachments">No attachments</span>
-                    )}
-                  </div>
+                      ))}
+                    </>
+                  ) : (
+                    <span className="practice-review-status is-pending">
+                      Awaiting teacher feedback
+                    </span>
+                  )}
                 </div>
-                {!practiceMedia.some((item: any) => item.mime?.startsWith('audio/')) && (
-                  <div className="v1376-practice-history-media-row">
-                    <span className="v1376-practice-history-media-label">Audio</span>
-                    <div>
-                      <PracticeHistoryAudioUpload
-                        disabled={uploadBusy || reviewed}
-                        onUpload={(file) => void uploadEvidence(file, 'practice', r.id)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="v1376-practice-history-feedback">
-                {reviewed ? (
-                  <>
-                    <span className="practice-review-status is-reviewed">Reviewed</span>
-                    {teacherComments.map((comment) => (
-                      <div key={comment.id}>
-                        {comment.comment && <p>{comment.comment}</p>}
-                        {comment.audioUrl && (
-                          <audio
-                            controls
-                            preload="none"
-                            src={comment.audioUrl}
-                            aria-label="Teacher audio feedback"
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <span className="practice-review-status is-pending">
-                    Awaiting teacher feedback
-                  </span>
-                )}
-              </div>
-            </article>
-          );
-        })}
+              </article>
+            );
+          })}
         {!detail.practice.length && (
           <div className="v1376-practice-history-empty">
             <strong>No practice sessions recorded yet</strong>

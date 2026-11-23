@@ -1,7 +1,12 @@
 /** Pure, read-only directory selectors. Never mutate persisted records. */
-export type SortColumn = 'roll' | 'name';
+export type SortColumn = 'roll' | 'name' | 'created';
 export type SortDirection = 'asc' | 'desc';
-export type DirectoryStudent = { id: string; name?: string; [key: string]: unknown };
+export type DirectoryStudent = {
+  id: string;
+  name?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+};
 
 export function filterStudentsByLocation<T>(
   rows: readonly T[],
@@ -26,14 +31,17 @@ export function sortDirectoryStudents<T extends DirectoryStudent>(
   const factor = direction === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
     const compared =
-      column === 'roll'
-        ? String(getRoll(a)).localeCompare(String(getRoll(b)), undefined, {
-            numeric: true,
-            sensitivity: 'base',
-          })
-        : String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, {
-            sensitivity: 'base',
-          });
+      column === 'created'
+        ? (Date.parse(String(a.createdAt || '')) || 0) -
+          (Date.parse(String(b.createdAt || '')) || 0)
+        : column === 'roll'
+          ? String(getRoll(a)).localeCompare(String(getRoll(b)), undefined, {
+              numeric: true,
+              sensitivity: 'base',
+            })
+          : String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, {
+              sensitivity: 'base',
+            });
     return (compared || String(a.id).localeCompare(String(b.id))) * factor;
   });
 }

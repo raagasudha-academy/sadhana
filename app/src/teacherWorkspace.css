@@ -1,6 +1,6 @@
 .teacher-workspace .tw-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -535,4 +535,10 @@
   color: #276548;
   font-size: 13px;
   font-weight: 650;
+}
+.teacher-workspace--work-only > .page-heading,
+.teacher-workspace--work-only > .tw-stats,
+.teacher-workspace--work-only .tw-tabs,
+.teacher-workspace--work-only .tw-filter {
+  display: none;
 }

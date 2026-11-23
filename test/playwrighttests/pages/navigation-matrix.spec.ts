@@ -3,7 +3,7 @@ import { openRoleSession, type PortalRole } from '../fixtures/rolePage';
 
 const adminGroups = {
   'People & Access': ['Families & Students', 'Website Registrations', 'Account Access'],
-  'Academy Workspace': ['Classes & Timetable', 'Practice & Reports', 'Communications', 'Settings'],
+  'Academy Workspace': ['Classes & Timetable', 'Communications', 'Settings'],
 } as const;
 
 const roleNavigation: Record<PortalRole, string[]> = {
@@ -11,6 +11,7 @@ const roleNavigation: Record<PortalRole, string[]> = {
     'Dashboard',
     'People & Access',
     'Academy Workspace',
+    'Student Work',
     'Syllabus & Resources',
     'Messages',
     'Teachers',
@@ -22,7 +23,7 @@ const roleNavigation: Record<PortalRole, string[]> = {
     'Dashboard',
     'My Classes',
     'My Students',
-    'Practice & Reports',
+    'Student Work',
     'Syllabus & Resources',
     'Messages',
     'Teachers',
@@ -164,6 +165,7 @@ async function visitRoleNavigation(page: Page, role: PortalRole, workspace: stri
     await visitAdminGroup(page, workspace, 'People & Access');
     await visitAdminGroup(page, workspace, 'Academy Workspace');
     for (const label of [
+      'Student Work',
       'Syllabus & Resources',
       'Messages',
       'Teachers',

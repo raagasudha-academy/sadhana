@@ -18,6 +18,7 @@ export const learnerSectionMap: Record<LearnerPage, string> = {
   venues: 'Venues',
   homework: 'My learning',
   practice: 'My learning',
+  classNotes: 'My learning',
   resources: 'My Syllabus',
   teachers: 'My academy',
   profile: 'My profile',

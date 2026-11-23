@@ -60,6 +60,8 @@ const PersistentRegistration = lazy(() => import('./PersistentRegistration'));
 const LiveDashboard = lazy(() => import('./LiveDashboard'));
 const WebsiteRegistrations = lazy(() => import('./WebsiteRegistrations'));
 const SrutiWebsiteRegistrations = lazy(() => import('./SrutiWebsiteRegistrations'));
+const AdminStudentWork = lazy(() => import('./AdminStudentWork'));
+const TeacherWorkspace = lazy(() => import('./TeacherWorkspace'));
 
 function registrationRows(value: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(value)) return value.filter((row) => !!row && typeof row === 'object');
@@ -440,8 +442,9 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
         ? [
             'Dashboard',
             'My Classes',
+            'My Timetable',
             'My Students',
-            'Practice & Reports',
+            'Student Work',
             'Syllabus & Resources',
             'Messages',
             'Teachers',
@@ -597,7 +600,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
       );
       if (notification.category === 'Practice' && (teacherMode || person.admin)) {
         setNotifsOpen(false);
-        goPage('Practice & Reports');
+        goPage('Student Work');
       }
       return;
     }
@@ -1210,6 +1213,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       venues: 'My classes',
                       homework: 'My learning',
                       practice: 'My learning',
+                      classNotes: 'My learning',
                       resources: 'My Syllabus',
                       teachers: 'My academy',
                       profile: 'My profile',
@@ -1340,7 +1344,11 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                         initialView="list"
                       />
                     )
-                  ) : activePage === 'Classes & Timetable' || activePage === 'My Classes' ? (
+                  ) : activePage === 'My Classes' && teacherMode && cloud ? (
+                    <TeacherWorkspace cloud={cloud} workspace={currentWorkspace as InstitutionId} />
+                  ) : activePage === 'Classes & Timetable' ||
+                    activePage === 'My Timetable' ||
+                    activePage === 'My Classes' ? (
                     <Timetable
                       workspace={currentWorkspace}
                       isTeacher={teacherMode}
@@ -1366,12 +1374,11 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       canManageResources={(person.admin && !teacherMode) || teacherMode}
                       showHeading
                     />
-                  ) : activePage === 'Practice & Reports' ? (
-                    <AcademyOperations
+                  ) : activePage === 'Student Work' && cloud && (person.admin || teacherMode) ? (
+                    <AdminStudentWork
                       cloud={cloud}
-                      workspace={currentWorkspace as InstitutionId}
+                      institution={currentWorkspace as InstitutionId}
                       teacherMode={teacherMode}
-                      initialArea="practice"
                     />
                   ) : activePage === 'Communications' ? (
                     <CommsPage workspace={currentWorkspace} />

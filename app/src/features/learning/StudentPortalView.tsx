@@ -26,6 +26,7 @@ import { StudentProfile } from './StudentProfile';
 import { StudentPrivacy } from './StudentPrivacy';
 import { StudentHomework } from './StudentHomework';
 import { StudentPractice } from './StudentPractice';
+import { StudentClassNotes } from './StudentClassNotes';
 import SyllabusLibrary from './SyllabusLibrary';
 import { StudentAttendance } from './StudentAttendance';
 import MessagesPage from '../../MessagesPage';
@@ -182,7 +183,7 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                     (link.id === 'classes'
                       ? ['classes', 'calendar', 'attendance', 'venues']
                       : link.id === 'homework'
-                        ? ['homework', 'practice']
+                        ? ['homework', 'practice', 'classNotes']
                         : link.id === 'resources'
                           ? ['resources']
                           : link.id === 'teachers'
@@ -323,6 +324,7 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                             calendar: 'Your approved class timetable.',
                             homework: 'Assignments and due dates for your classes.',
                             practice: 'Practice records and feedback from your teachers.',
+                            classNotes: 'Takeaways shared by your teachers after class.',
                             resources: 'Syllabus and learning resources for this academy.',
                             attendance: 'Attendance recorded for your active classes.',
                             teachers: 'Teachers and administrators from your approved academies.',
@@ -350,10 +352,11 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                             { id: 'attendance', label: 'Attendance' },
                             { id: 'venues', label: 'Venues' },
                           ]
-                        : tab === 'homework' || tab === 'practice'
+                        : tab === 'homework' || tab === 'practice' || tab === 'classNotes'
                           ? [
                               { id: 'homework', label: 'Homework' },
                               { id: 'practice', label: 'Practice & feedback' },
+                              { id: 'classNotes', label: 'Class Notes' },
                             ]
                           : [
                               { id: 'profile', label: 'Profile' },
@@ -386,6 +389,7 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                     {tab === 'privacy' && <StudentPrivacy context={context} />}
                     {tab === 'homework' && <StudentHomework context={context} />}
                     {tab === 'practice' && <StudentPractice context={context} />}
+                    {tab === 'classNotes' && <StudentClassNotes context={context} />}
                     {tab === 'resources' && (
                       <SyllabusLibrary
                         cloud={cloud}

@@ -1,6 +1,6 @@
 # Sadhana Academy & Learning Portal
 ## Master Roadmap & Requirements Register
-**Baseline:** 2 November 2026 | **Updated:** 8 November 2026 | **Scope:** Raagasudha and Śruti Vedam | **Status:** Working baseline; not a complete recovered historical specification
+**Baseline:** 2 November 2026 | **Updated:** 20 November 2026 | **Scope:** Raagasudha and Śruti Vedam | **Status:** Working baseline; not a complete recovered historical specification
 
 ### How to use this register
 - **Evidence:** `Confirmed` = explicitly discussed, demonstrated, or found in supplied source; `Historical context` = recorded in project conversation but not currently source-verified; `Needs source` = original requirement or contract has not yet been recovered.
@@ -8,7 +8,20 @@
 - **Do not invent requirements:** Charu's purpose and high-level user policies are now captured from [the Charu requirements baseline](docs/Sadhana_Charu_Requirements_v1.7.md). Its API, runtime, Sheets dependencies, and technical architecture are not verified against source. The document records requirements but does not authorize migration or integration.
 - Update the **Decision log** whenever a requirement or priority changes. Never delete a requirement silently; mark `Superseded` and link the replacement.
 
-## Current delivery snapshot — 8 November 2026
+## Current priority queue — 20 November 2026
+
+This ordered queue captures the user's latest priorities. It supplements the historical delivery snapshot and workstream register below; it does not mean implementation or deployment has started.
+
+| Order | Priority | Work item | Why this order / next step | Done when |
+|---|---|---|---|---|
+| 1 | P0 — Security readiness | **Make the source repository private safely.** The organization is on GitHub Free. Do not flip visibility yet: GitHub Pages would be unpublished and private-repository environment protection is unavailable on this plan. | Decide whether to move the dev portal from Pages and redesign the production approval gate, or move to a plan that supports both. Review the public repository/history for credentials and sensitive data before changing visibility. | The dev portal remains available; production approval remains mandatory; repository, deploy, and AWS access have been verified after the change. |
+| 2 | P1 — Learning workflow | **Teacher session notes.** Let teachers record what was taught for each dated class session, visible to enrolled students in that class and to administrators. | Define the session note fields, edit rules, whether notes need attachments, and how existing student notes/topics relate. Then implement class-scoped reads and teacher/admin permissions. | Teachers can create/update the correct session note; only students enrolled in that class and authorized administrators can read it; cross-class and cross-academy access is denied. |
+| 3 | P1 — Communications integration | **Integrate Sadhana with WhatsApp through Charu.** The policy baseline exists; current Charu runtime, Google Sheets dependencies, and transport/API contract still need discovery. | Inventory live Sheets, jobs, triggers, reply/write-back paths, provider/API, recipient consent and safeguarding. Preserve existing workflows until parity and rollback are accepted. | Approved workflows are migrated and verified end to end, with authorized recipients, truthful delivery status, retries, audit history, and rollback; in-app notifications remain independent. |
+| 4 | P2 — Mobile access | **Assess a mobile app for Sadhana.** | Compare improving the responsive portal/PWA, a native wrapper, and native iOS/Android. Base the recommendation on offline needs, notifications, recording/upload, app-store requirements, cost and maintenance. | A short recommendation and prototype establish the best route before committing to an app build. |
+
+The priority order is: reduce avoidable source/deployment exposure first; deliver the concrete teaching workflow next; complete Charu/WhatsApp after its live dependencies are understood; then choose a mobile-app approach based on user needs and the portal's capabilities.
+
+## Historical delivery snapshot — 8 November 2026
 
 ### Completed or verified
 
@@ -127,6 +140,7 @@ No new role grants, direct Cognito group changes, parent link creation, record m
 | 2026-11-02 | Keep Charu and earlier requirement gathering in master roadmap | User decision; confirmed |
 | 2026-11-08 | Adopt `docs/Sadhana_Charu_Requirements_v1.7.md` as the recovered conversation-requirements baseline; distinguish confirmed policy from proposed technical design | User-supplied document copied with trailing-whitespace normalization; migration/integration explicitly not authorized by the document |
 | 2026-11-08 | Add administrator and teacher user guides with screenshots as a required pre-production task; defer site-versus-document format decision | User decision |
+| 2026-11-20 | Prioritize safe repository privacy readiness, per-session teacher notes for students/admins, Charu WhatsApp integration, then mobile-app assessment | User request; ordered by security/deployment dependency, direct learning value, integration discovery and platform-decision cost |
 
 ## G. Progress update — 8 November 2026
 

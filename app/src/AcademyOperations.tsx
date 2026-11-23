@@ -376,7 +376,7 @@ export default function AcademyOperations({
             {workspace === 'raaga' ? 'RAAGASUDHA' : 'ŚRUTI VEDAM'} ·{' '}
             {teacherMode ? 'TEACHER' : 'ADMINISTRATOR'}
           </div>
-          <h1>{teacherMode ? 'My teaching records' : 'Practice & Reports'}</h1>
+          <h1>{teacherMode ? 'My teaching records' : 'Student Work'}</h1>
           <p>Attendance, practice, teacher feedback and class RSVPs.</p>
         </div>
         <button className="reg-secondary" disabled={busy} onClick={() => void reload()}>

@@ -7,7 +7,7 @@ export const adminPages = [
   'Website Registrations',
   'Families & Students',
   'Classes & Timetable',
-  'Practice & Reports',
+  'Student Work',
   'Communications',
   'Teachers',
   'Venues',
@@ -20,16 +20,12 @@ export const adminPeopleTabs = [
   'Website Registrations',
   'Account Access',
 ] as const;
-export const adminWorkspaceTabs = [
-  'Classes & Timetable',
-  'Practice & Reports',
-  'Communications',
-  'Settings',
-] as const;
+export const adminWorkspaceTabs = ['Classes & Timetable', 'Communications', 'Settings'] as const;
 export const adminSidebarPages = [
   'Dashboard',
   'People & Access',
   'Academy Workspace',
+  'Student Work',
   'Syllabus & Resources',
   'Messages',
   'Teachers',
@@ -50,7 +46,7 @@ export function needsAcademySelection(workspace: string, page: string): boolean 
     [
       'Website Registrations',
       'Families & Students',
-      'Practice & Reports',
+      'Student Work',
       'Syllabus & Resources',
       'Communications',
       'Settings',

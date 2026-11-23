@@ -51,6 +51,7 @@ const allowedFields = {
   attendance: ['studentId', 'sessionId', 'status', 'note'],
   practice: ['studentId', 'classId', 'date', 'didPractice', 'minutes', 'comments'],
   feedback: ['studentId', 'classId', 'date', 'note'],
+  'class-note': ['classId', 'date', 'note'],
   rsvp: ['studentId', 'sessionId', 'intention', 'note'],
 } as const;
 type Kind = keyof typeof allowedFields;
@@ -278,6 +279,15 @@ const validate = (kind: Kind, d: any) => {
     throw httpError(400, 'Valid practice date, student, class and minutes required.');
   if (kind === 'feedback' && (!d.studentId || !d.classId || !dateOK(d.date) || !d.note))
     throw httpError(400, 'Student, class, date and feedback required.');
+  if (
+    kind === 'class-note' &&
+    (!d.classId ||
+      !dateOK(d.date) ||
+      typeof d.note !== 'string' ||
+      !d.note.trim() ||
+      d.note.length > 2000)
+  )
+    throw httpError(400, 'Class, date and a note of up to 2,000 characters are required.');
 };
 export async function operations(
   instRaw: string,
@@ -295,7 +305,17 @@ export async function operations(
   demandViewInstitution(claims, inst);
   if (method === 'GET') {
     if (!admin) {
-      if (!['student', 'enrolment', 'attendance', 'practice', 'feedback', 'rsvp'].includes(kind))
+      if (
+        ![
+          'student',
+          'enrolment',
+          'attendance',
+          'practice',
+          'feedback',
+          'class-note',
+          'rsvp',
+        ].includes(kind)
+      )
         throw httpError(403, 'Family contact details require administrator access.'); // Return only records belonging to a verified teaching assignment.
       const safe: any[] = [];
       const teacherEnrolments = kind === 'student' ? await rows(inst, 'enrolment') : [];
@@ -689,7 +709,11 @@ export async function operations(
     throw httpError(409, 'Record changed; refresh before saving.');
   // A teacher may edit only a record that was already theirs, even if a PATCH
   // attempts to replace its class or linked student with one they can access.
-  if (old && !admin && ['attendance', 'practice', 'feedback', 'rsvp'].includes(kind)) {
+  if (
+    old &&
+    !admin &&
+    ['attendance', 'practice', 'feedback', 'class-note', 'rsvp'].includes(kind)
+  ) {
     const priorSession =
       kind === 'attendance' || kind === 'rsvp' ? await session(inst, old.sessionId) : null;
     const priorClass =
@@ -742,6 +766,23 @@ export async function operations(
     ...changes,
   };
   validate(kind, draft);
+  if (kind === 'class-note') {
+    const classRecord = await master(inst, draft.classId);
+    if (classRecord.lifecycleStatus === 'archived')
+      throw httpError(409, 'Archived classes cannot receive new class notes.');
+    if (!admin) await teacher(inst, claims, draft.classId);
+    const prior = await rows(inst, 'class-note');
+    if (
+      prior.some(
+        (record) =>
+          record.id !== id && record.classId === draft.classId && record.date === draft.date,
+      )
+    )
+      throw httpError(
+        409,
+        'A class note already exists for this class and date. Edit the existing note.',
+      );
+  }
   if (
     old &&
     kind === 'enrolment' &&

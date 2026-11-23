@@ -350,12 +350,14 @@ export default function WebsiteRegistrations({ cloud }: { cloud: CloudSession })
       setAccessBusy(false);
     }
   };
-  const shown = items.filter((r) =>
-    [r.registrationId, r.preferredLocationId, ...(r.people || []).map((p) => p.fullName || '')]
-      .join(' ')
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+  const shown = items
+    .filter((r) =>
+      [r.registrationId, r.preferredLocationId, ...(r.people || []).map((p) => p.fullName || '')]
+        .join(' ')
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    )
+    .sort((a, b) => String(b.submittedAt || '').localeCompare(String(a.submittedAt || '')));
   const review = async (status: 'approved' | 'discarded') => {
     if (!detail || reviewBusy) return;
     setConfirmReview(null);

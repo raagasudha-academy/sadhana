@@ -71,11 +71,31 @@ export async function finalLearningRoute(context, dependencies, env = process.en
       (parts.length === 4 &&
         parts[2] === 'media' &&
         method === 'POST' &&
-        ['start', 'finish'].includes(parts[3])))
+        ['start', 'finish'].includes(parts[3])) ||
+      (parts.length === 6 &&
+        parts[2] === 'practice' &&
+        parts[4] === 'media' &&
+        method === 'DELETE'))
   ) {
-    if (env.SADHANA_FINAL_LEARNER_MEDIA !== 'enabled')
-      return refuse('Final learner media disabled.');
+    const removePracticeMedia = parts[2] === 'practice' && method === 'DELETE';
+    if (
+      env[removePracticeMedia ? 'SADHANA_FINAL_LEARNER_WRITES' : 'SADHANA_FINAL_LEARNER_MEDIA'] !==
+      'enabled'
+    )
+      return refuse(
+        removePracticeMedia ? 'Final learner writes disabled.' : 'Final learner media disabled.',
+      );
     dependencies.assertConfigured();
+    if (removePracticeMedia) {
+      if (!idOk(parts[3]) || !idOk(parts[5]))
+        return refuse('Invalid practice attachment identifier.', 400);
+      return {
+        status: 200,
+        body: await dependencies
+          .learnerWrites()
+          .deletePracticeMedia(institution, claims, id, parts[3], parts[5], body()),
+      };
+    }
     const media = dependencies.learnerMedia();
     if (method === 'GET') return { status: 200, body: await media.list(institution, claims, id) };
     return { status: 200, body: await media[parts[3]](institution, claims, id, body()) };

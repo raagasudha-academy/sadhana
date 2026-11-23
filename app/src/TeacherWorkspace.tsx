@@ -24,13 +24,19 @@ import SessionAttendanceRegister from './SessionAttendanceRegister';
 import './teacherWorkspace.css';
 import './learningExperience.css';
 import './unifiedLayout.css';
+import './classNotes.css';
 
-type Area = 'attendance' | 'students' | 'practice' | 'history' | 'homework';
+type Area = 'attendance' | 'students' | 'practice' | 'history' | 'homework' | 'classNotes';
+const initialTeachingArea = (value: string): Area =>
+  value === 'practice' || value === 'attendance' || value === 'homework' || value === 'classNotes'
+    ? value
+    : 'students';
 const tabs: { id: Area; label: string }[] = [
   { id: 'students', label: 'My Students' },
   { id: 'attendance', label: 'Attendance' },
-  { id: 'practice', label: 'Practice' },
-  { id: 'homework', label: 'Homework' },
+  { id: 'practice', label: 'Review Practice' },
+  { id: 'homework', label: 'Assign Homework' },
+  { id: 'classNotes', label: 'Class Notes' },
   { id: 'history', label: 'History' },
 ];
 const studentLabel = (s: any) =>
@@ -39,33 +45,36 @@ export default function TeacherWorkspace({
   cloud,
   workspace,
   initialArea = 'enrolment',
+  initialClass = '',
+  workOnly = false,
 }: {
   cloud?: CloudSession;
   workspace: InstitutionId;
   initialArea?: string;
+  initialClass?: string;
+  workOnly?: boolean;
 }) {
-  const [area, setArea] = useState<Area>(
-    initialArea === 'practice'
-      ? 'practice'
-      : initialArea === 'attendance'
-        ? 'attendance'
-        : 'students',
-  );
+  const [area, setArea] = useState<Area>(() => initialTeachingArea(initialArea));
   useEffect(() => {
-    setArea(
-      initialArea === 'practice'
-        ? 'practice'
-        : initialArea === 'attendance'
-          ? 'attendance'
-          : 'students',
-    );
+    setArea(initialTeachingArea(initialArea));
   }, [initialArea]);
   const [students, setStudents] = useState<any[]>([]),
     [enrolments, setEnrolments] = useState<any[]>([]),
     [attendance, setAttendance] = useState<any[]>([]),
     [rsvps, setRsvps] = useState<any[]>([]),
     [practice, setPractice] = useState<any[]>([]),
-    [schedule, setSchedule] = useState<any[]>([]);
+    [schedule, setSchedule] = useState<any[]>([]),
+    [classNotes, setClassNotes] = useState<any[]>([]);
+  const [classNoteDate, setClassNoteDate] = useState(() =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date()),
+  );
+  const [classNoteText, setClassNoteText] = useState('');
+  const [editingClassNote, setEditingClassNote] = useState<any>(null);
   const [homeworkTitle, setHomeworkTitle] = useState(''),
     [homeworkInstructions, setHomeworkInstructions] = useState(''),
     [homeworkDue, setHomeworkDue] = useState('');
@@ -78,7 +87,14 @@ export default function TeacherWorkspace({
     null,
   );
   const [assignments, setAssignments] = useState<
-    Array<{ id: string; title: string; instructions: string; dueDate: string; version?: number }>
+    Array<{
+      id: string;
+      title: string;
+      instructions: string;
+      dueDate: string;
+      createdAt?: string;
+      version?: number;
+    }>
   >([]);
   const loadAssignments = async (id: string) => {
     if (!cloud || !id) return;
@@ -238,11 +254,14 @@ export default function TeacherWorkspace({
       setBusy(false);
     }
   };
-  const [classId, setClassId] = useState(''),
+  const [classId, setClassId] = useState(initialClass),
     [search, setSearch] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (initialClass) setClassId(initialClass);
+  }, [initialClass]);
   const [reviewId, setReviewId] = useState('');
   const [historyPeriod, setHistoryPeriod] = useState('all'),
     [historyFrom, setHistoryFrom] = useState(''),
@@ -254,6 +273,8 @@ export default function TeacherWorkspace({
       text: string;
       version: number;
       attachmentIds: string[];
+      submittedAt?: string | null;
+      updatedAt?: string;
       feedback?: string;
       feedbackAudioUrl?: string;
       reviewedAt?: string | null;
@@ -343,6 +364,100 @@ export default function TeacherWorkspace({
   );
   const selectedClass = classes.find((c) => c.id === classId);
   const effectiveClass = selectedClass?.id || classes[0]?.id || '';
+  useEffect(() => {
+    if (area === 'homework' && effectiveClass) void loadAssignments(effectiveClass);
+  }, [area, effectiveClass, cloud?.api, workspace]);
+  useEffect(() => {
+    setEditingClassNote(null);
+    setClassNoteText('');
+    setClassNoteDate(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/London',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()),
+    );
+  }, [effectiveClass]);
+  useEffect(() => {
+    let active = true;
+    if (!cloud || area !== 'classNotes' || !effectiveClass) return;
+    setClassNotes([]);
+    void cloud.api
+      .listOperations('class-note', workspace)
+      .then((result) => {
+        if (active)
+          setClassNotes(
+            result.records
+              .filter((record) => record.classId === effectiveClass)
+              .sort(
+                (a, b) =>
+                  String(b.date).localeCompare(String(a.date)) ||
+                  String(b.updatedAt || b.createdAt).localeCompare(
+                    String(a.updatedAt || a.createdAt),
+                  ),
+              ),
+          );
+      })
+      .catch((loadError) => {
+        if (active)
+          setError(loadError instanceof Error ? loadError.message : 'Unable to load class notes.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [area, effectiveClass, cloud?.api, workspace]);
+  const saveClassNote = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!cloud || !effectiveClass || !classNoteText.trim()) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const existing =
+        editingClassNote ||
+        classNotes.find((note) => note.date === classNoteDate && note.classId === effectiveClass);
+      if (existing) {
+        await cloud.api.updateOperation(
+          'class-note',
+          workspace,
+          existing.id,
+          { classId: effectiveClass, date: classNoteDate, note: classNoteText.trim() },
+          existing.version || 0,
+        );
+      } else {
+        await cloud.api.createOperation('class-note', workspace, {
+          classId: effectiveClass,
+          date: classNoteDate,
+          note: classNoteText.trim(),
+        });
+      }
+      const result = await cloud.api.listOperations('class-note', workspace);
+      const next = result.records
+        .filter((record) => record.classId === effectiveClass)
+        .sort(
+          (a, b) =>
+            String(b.date).localeCompare(String(a.date)) ||
+            String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)),
+        );
+      setClassNotes(next);
+      setEditingClassNote(null);
+      setClassNoteDate(
+        new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Europe/London',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date()),
+      );
+      setClassNoteText('');
+      setNotice(existing ? 'Class note updated.' : 'Class note saved.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save class note.');
+    } finally {
+      setBusy(false);
+    }
+  };
   const ids = useMemo(
     () => eligibleStudentIds(enrolments, effectiveClass),
     [enrolments, effectiveClass],
@@ -351,8 +466,10 @@ export default function TeacherWorkspace({
     () =>
       students
         .filter((s) => ids.has(s.id))
-        .sort((a, b) =>
-          String(a.rollNumber || a.name).localeCompare(String(b.rollNumber || b.name)),
+        .sort(
+          (a, b) =>
+            String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
+            String(a.rollNumber || a.name).localeCompare(String(b.rollNumber || b.name)),
         ),
     [students, ids],
   );
@@ -396,7 +513,7 @@ export default function TeacherWorkspace({
   const studentById = new Map(students.map((s) => [s.id, s]));
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
   return (
-    <div className="teacher-workspace">
+    <div className={`teacher-workspace${workOnly ? ' teacher-workspace--work-only' : ''}`}>
       <div className="page-heading">
         <div>
           <div className="eyebrow">TEACHER WORKSPACE</div>
@@ -428,10 +545,6 @@ export default function TeacherWorkspace({
         <div>
           <span>Attendance marks</span>
           <strong>{attendance.length}</strong>
-        </div>
-        <div>
-          <span>Practice entries</span>
-          <strong>{practice.length}</strong>
         </div>
       </div>
       <section className="surface tw-panel">
@@ -670,39 +783,45 @@ export default function TeacherWorkspace({
                 <h3>Published assignments</h3>
                 {assignments.length ? (
                   <div className="sv1276-hw-records">
-                    {assignments.map((a) => (
-                      <article key={a.id}>
-                        <strong>{a.title}</strong>
-                        <span>Due {a.dueDate}</span>
-                        <p>{a.instructions}</p>
-                        <div className="homework-card-actions">
-                          <button
-                            className="sadhana-hw-secondary"
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void startEdit(a)}
-                          >
-                            Edit & republish
-                          </button>
-                          <button
-                            className="sadhana-hw-secondary"
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void reviewHomework(a.id)}
-                          >
-                            Review Submissions
-                          </button>
-                          <button
-                            className="sadhana-hw-secondary sadhana-hw-danger"
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void deleteAssignment(a)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                    {[...assignments]
+                      .sort((a, b) =>
+                        String(b.createdAt || b.dueDate).localeCompare(
+                          String(a.createdAt || a.dueDate),
+                        ),
+                      )
+                      .map((a) => (
+                        <article key={a.id}>
+                          <strong>{a.title}</strong>
+                          <span>Due {a.dueDate}</span>
+                          <p>{a.instructions}</p>
+                          <div className="homework-card-actions">
+                            <button
+                              className="sadhana-hw-secondary"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void startEdit(a)}
+                            >
+                              Edit & republish
+                            </button>
+                            <button
+                              className="sadhana-hw-secondary"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void reviewHomework(a.id)}
+                            >
+                              Review Submissions
+                            </button>
+                            <button
+                              className="sadhana-hw-secondary sadhana-hw-danger"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void deleteAssignment(a)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </article>
+                      ))}
                   </div>
                 ) : (
                   <p>No assignments published for this class.</p>
@@ -711,227 +830,233 @@ export default function TeacherWorkspace({
                   <div className="sv1278-review">
                     <h3>Submitted work</h3>
                     {submissions.length ? (
-                      submissions.map((row, index) => {
-                        const studentName = studentById.get(row.studentId)?.name || 'Learner';
-                        const submissionKey = `${reviewId}:${row.studentId}`;
-                        const detailsId = `homework-submission-details-${index}`;
-                        const isCollapsed = collapsedSubmissions[submissionKey] !== false;
-                        return (
-                          <article key={row.studentId}>
-                            <header className="tw-submission-header">
-                              <strong>
-                                {studentName} · {studentById.get(row.studentId)?.rollNumber || ''}
-                              </strong>
-                              <span
-                                className={`tw-submission-status ${row.reviewedAt ? 'is-reviewed' : 'is-pending'}`}
-                                role="status"
-                              >
-                                {row.reviewedAt ? 'Reviewed' : 'Pending review'}
-                              </span>
-                              <button
-                                type="button"
-                                className="tw-submission-toggle"
-                                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${studentName}'s submission`}
-                                aria-expanded={!isCollapsed}
-                                aria-controls={detailsId}
-                                onClick={() =>
-                                  setCollapsedSubmissions((current) => ({
-                                    ...current,
-                                    [submissionKey]: !isCollapsed,
-                                  }))
-                                }
-                              >
-                                {isCollapsed ? (
-                                  <ChevronRight aria-hidden="true" />
-                                ) : (
-                                  <ChevronDown aria-hidden="true" />
-                                )}
-                              </button>
-                            </header>
-                            <div
-                              id={detailsId}
-                              className="tw-submission-details"
-                              hidden={isCollapsed}
-                            >
-                              <p>{row.text || 'No written response'}</p>
-                              {row.attachmentIds.length > 0 && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      if (!cloud) return;
-                                      try {
-                                        const data = await cloud.api.teacherHomeworkEvidenceLinks(
-                                          workspace,
-                                          effectiveClass,
-                                          reviewId,
-                                          row.studentId,
-                                        );
-                                        setTeacherLinks((p) => ({
-                                          ...p,
-                                          [row.studentId]: data.records,
-                                        }));
-                                      } catch (e) {
-                                        setError(
-                                          e instanceof Error
-                                            ? e.message
-                                            : 'Cannot load attachments',
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    View attachments · {row.attachmentIds.length}
-                                  </button>
-                                  <ul>
-                                    {(teacherLinks[row.studentId] || []).map((file) => (
-                                      <li key={file.id}>
-                                        <HomeworkMediaPreview
-                                          mime={file.mime}
-                                          url={file.url}
-                                          alt="Student submitted image"
-                                        />
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </>
-                              )}
-                              <section
-                                className="tw-homework-feedback"
-                                aria-label="Teacher feedback"
-                              >
-                                {row.reviewedAt && (
-                                  <p className="tw-homework-reviewed" role="status">
-                                    Reviewed · {row.reviewedAt.slice(0, 10)}
-                                  </p>
-                                )}
-                                <h4>Teacher feedback</h4>
-                                <label>
-                                  <span>
-                                    Written feedback <small>Optional</small>
-                                  </span>
-                                  <textarea
-                                    rows={4}
-                                    maxLength={2000}
-                                    disabled={Boolean(row.reviewedAt)}
-                                    value={feedbackText[row.studentId] || ''}
-                                    onChange={(e) =>
-                                      setFeedbackText((p) => ({
-                                        ...p,
-                                        [row.studentId]: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Share feedback about this submission…"
-                                  />
-                                </label>
-                                {row.feedbackAudioUrl && !feedbackAudio[row.studentId]?.url && (
-                                  <audio
-                                    controls
-                                    preload="none"
-                                    src={row.feedbackAudioUrl}
-                                    aria-label="Saved teacher audio feedback"
-                                  />
-                                )}
-                                <div className="tw-feedback-audio-picker">
-                                  <span>
-                                    Audio feedback <small>Optional</small>
-                                  </span>
-                                  <AudioFeedbackRecorder
-                                    label={`Record optional audio feedback for ${row.studentId}`}
-                                    disabled={
-                                      Boolean(row.reviewedAt) ||
-                                      feedbackAudio[row.studentId]?.uploading
-                                    }
-                                    onRecording={(file) => {
-                                      if (!cloud || !effectiveClass) return;
-                                      const mime = file.type;
-                                      setFeedbackAudio((current) => ({
-                                        ...current,
-                                        [row.studentId]: { name: file.name, uploading: true },
-                                      }));
-                                      void (async () => {
-                                        try {
-                                          const signed =
-                                            await cloud.api.beginTeacherHomeworkFeedbackAudio(
-                                              workspace,
-                                              effectiveClass,
-                                              reviewId,
-                                              row.studentId,
-                                              mime,
-                                              file.size,
-                                            );
-                                          const uploaded = await fetch(signed.uploadUrl, {
-                                            method: 'PUT',
-                                            headers: { ...signed.headers, 'Content-Type': mime },
-                                            body: file,
-                                          });
-                                          if (!uploaded.ok)
-                                            throw new Error(
-                                              `Audio upload failed (${uploaded.status})`,
-                                            );
-                                          const saved =
-                                            await cloud.api.finishTeacherHomeworkFeedbackAudio(
-                                              workspace,
-                                              effectiveClass,
-                                              reviewId,
-                                              row.studentId,
-                                              signed.key,
-                                            );
-                                          setFeedbackAudio((current) => ({
-                                            ...current,
-                                            [row.studentId]: {
-                                              id: saved.audioId,
-                                              name: file.name,
-                                              url: URL.createObjectURL(file),
-                                            },
-                                          }));
-                                        } catch (uploadError) {
-                                          setFeedbackAudio((current) => ({
-                                            ...current,
-                                            [row.studentId]: {},
-                                          }));
-                                          setError(
-                                            uploadError instanceof Error
-                                              ? uploadError.message
-                                              : 'Unable to upload audio feedback',
-                                          );
-                                        }
-                                      })();
-                                    }}
-                                  />
-                                </div>
-                                {feedbackAudio[row.studentId]?.url && (
-                                  <div className="tw-feedback-audio-preview">
-                                    <span>{feedbackAudio[row.studentId]?.name}</span>
-                                    <audio
-                                      controls
-                                      preload="metadata"
-                                      src={feedbackAudio[row.studentId]?.url}
-                                    />
-                                  </div>
-                                )}
+                      [...submissions]
+                        .sort((a, b) =>
+                          String(b.submittedAt || b.updatedAt || '').localeCompare(
+                            String(a.submittedAt || a.updatedAt || ''),
+                          ),
+                        )
+                        .map((row, index) => {
+                          const studentName = studentById.get(row.studentId)?.name || 'Learner';
+                          const submissionKey = `${reviewId}:${row.studentId}`;
+                          const detailsId = `homework-submission-details-${index}`;
+                          const isCollapsed = collapsedSubmissions[submissionKey] !== false;
+                          return (
+                            <article key={row.studentId}>
+                              <header className="tw-submission-header">
+                                <strong>
+                                  {studentName} · {studentById.get(row.studentId)?.rollNumber || ''}
+                                </strong>
+                                <span
+                                  className={`tw-submission-status ${row.reviewedAt ? 'is-reviewed' : 'is-pending'}`}
+                                  role="status"
+                                >
+                                  {row.reviewedAt ? 'Reviewed' : 'Pending review'}
+                                </span>
                                 <button
                                   type="button"
-                                  className={row.reviewedAt ? 'is-reviewed' : undefined}
-                                  disabled={
-                                    Boolean(row.reviewedAt) ||
-                                    !!feedbackAudio[row.studentId]?.uploading ||
-                                    (!feedbackText[row.studentId]?.trim() &&
-                                      !feedbackAudio[row.studentId]?.id &&
-                                      !row.feedbackAudioUrl)
+                                  className="tw-submission-toggle"
+                                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${studentName}'s submission`}
+                                  aria-expanded={!isCollapsed}
+                                  aria-controls={detailsId}
+                                  onClick={() =>
+                                    setCollapsedSubmissions((current) => ({
+                                      ...current,
+                                      [submissionKey]: !isCollapsed,
+                                    }))
                                   }
-                                  onClick={() => void saveFeedback(row)}
                                 >
-                                  {row.reviewedAt
-                                    ? 'Reviewed'
-                                    : feedbackAudio[row.studentId]?.uploading
-                                      ? 'Uploading audio…'
-                                      : 'Save feedback'}
+                                  {isCollapsed ? (
+                                    <ChevronRight aria-hidden="true" />
+                                  ) : (
+                                    <ChevronDown aria-hidden="true" />
+                                  )}
                                 </button>
-                              </section>
-                            </div>
-                          </article>
-                        );
-                      })
+                              </header>
+                              <div
+                                id={detailsId}
+                                className="tw-submission-details"
+                                hidden={isCollapsed}
+                              >
+                                <p>{row.text || 'No written response'}</p>
+                                {row.attachmentIds.length > 0 && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!cloud) return;
+                                        try {
+                                          const data = await cloud.api.teacherHomeworkEvidenceLinks(
+                                            workspace,
+                                            effectiveClass,
+                                            reviewId,
+                                            row.studentId,
+                                          );
+                                          setTeacherLinks((p) => ({
+                                            ...p,
+                                            [row.studentId]: data.records,
+                                          }));
+                                        } catch (e) {
+                                          setError(
+                                            e instanceof Error
+                                              ? e.message
+                                              : 'Cannot load attachments',
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      View attachments · {row.attachmentIds.length}
+                                    </button>
+                                    <ul>
+                                      {(teacherLinks[row.studentId] || []).map((file) => (
+                                        <li key={file.id}>
+                                          <HomeworkMediaPreview
+                                            mime={file.mime}
+                                            url={file.url}
+                                            alt="Student submitted image"
+                                          />
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                )}
+                                <section
+                                  className="tw-homework-feedback"
+                                  aria-label="Teacher feedback"
+                                >
+                                  {row.reviewedAt && (
+                                    <p className="tw-homework-reviewed" role="status">
+                                      Reviewed · {row.reviewedAt.slice(0, 10)}
+                                    </p>
+                                  )}
+                                  <h4>Teacher feedback</h4>
+                                  <label>
+                                    <span>
+                                      Written feedback <small>Optional</small>
+                                    </span>
+                                    <textarea
+                                      rows={4}
+                                      maxLength={2000}
+                                      disabled={Boolean(row.reviewedAt)}
+                                      value={feedbackText[row.studentId] || ''}
+                                      onChange={(e) =>
+                                        setFeedbackText((p) => ({
+                                          ...p,
+                                          [row.studentId]: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Share feedback about this submission…"
+                                    />
+                                  </label>
+                                  {row.feedbackAudioUrl && !feedbackAudio[row.studentId]?.url && (
+                                    <audio
+                                      controls
+                                      preload="none"
+                                      src={row.feedbackAudioUrl}
+                                      aria-label="Saved teacher audio feedback"
+                                    />
+                                  )}
+                                  <div className="tw-feedback-audio-picker">
+                                    <span>
+                                      Audio feedback <small>Optional</small>
+                                    </span>
+                                    <AudioFeedbackRecorder
+                                      label={`Record optional audio feedback for ${row.studentId}`}
+                                      disabled={
+                                        Boolean(row.reviewedAt) ||
+                                        feedbackAudio[row.studentId]?.uploading
+                                      }
+                                      onRecording={(file) => {
+                                        if (!cloud || !effectiveClass) return;
+                                        const mime = file.type;
+                                        setFeedbackAudio((current) => ({
+                                          ...current,
+                                          [row.studentId]: { name: file.name, uploading: true },
+                                        }));
+                                        void (async () => {
+                                          try {
+                                            const signed =
+                                              await cloud.api.beginTeacherHomeworkFeedbackAudio(
+                                                workspace,
+                                                effectiveClass,
+                                                reviewId,
+                                                row.studentId,
+                                                mime,
+                                                file.size,
+                                              );
+                                            const uploaded = await fetch(signed.uploadUrl, {
+                                              method: 'PUT',
+                                              headers: { ...signed.headers, 'Content-Type': mime },
+                                              body: file,
+                                            });
+                                            if (!uploaded.ok)
+                                              throw new Error(
+                                                `Audio upload failed (${uploaded.status})`,
+                                              );
+                                            const saved =
+                                              await cloud.api.finishTeacherHomeworkFeedbackAudio(
+                                                workspace,
+                                                effectiveClass,
+                                                reviewId,
+                                                row.studentId,
+                                                signed.key,
+                                              );
+                                            setFeedbackAudio((current) => ({
+                                              ...current,
+                                              [row.studentId]: {
+                                                id: saved.audioId,
+                                                name: file.name,
+                                                url: URL.createObjectURL(file),
+                                              },
+                                            }));
+                                          } catch (uploadError) {
+                                            setFeedbackAudio((current) => ({
+                                              ...current,
+                                              [row.studentId]: {},
+                                            }));
+                                            setError(
+                                              uploadError instanceof Error
+                                                ? uploadError.message
+                                                : 'Unable to upload audio feedback',
+                                            );
+                                          }
+                                        })();
+                                      }}
+                                    />
+                                  </div>
+                                  {feedbackAudio[row.studentId]?.url && (
+                                    <div className="tw-feedback-audio-preview">
+                                      <span>{feedbackAudio[row.studentId]?.name}</span>
+                                      <audio
+                                        controls
+                                        preload="metadata"
+                                        src={feedbackAudio[row.studentId]?.url}
+                                      />
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className={row.reviewedAt ? 'is-reviewed' : undefined}
+                                    disabled={
+                                      Boolean(row.reviewedAt) ||
+                                      !!feedbackAudio[row.studentId]?.uploading ||
+                                      (!feedbackText[row.studentId]?.trim() &&
+                                        !feedbackAudio[row.studentId]?.id &&
+                                        !row.feedbackAudioUrl)
+                                    }
+                                    onClick={() => void saveFeedback(row)}
+                                  >
+                                    {row.reviewedAt
+                                      ? 'Reviewed'
+                                      : feedbackAudio[row.studentId]?.uploading
+                                        ? 'Uploading audio…'
+                                        : 'Save feedback'}
+                                  </button>
+                                </section>
+                              </div>
+                            </article>
+                          );
+                        })
                     ) : (
                       <p>No submitted homework yet.</p>
                     )}
@@ -947,6 +1072,113 @@ export default function TeacherWorkspace({
                 students={students}
                 onReload={reload}
               />
+            )}
+            {area === 'classNotes' && cloud && (
+              <section className="tw-class-notes" aria-label="Class notes">
+                <div className="tw-section-head">
+                  <h2>
+                    Class Notes ·{' '}
+                    {classes.find((item) => item.id === effectiveClass)?.name || 'Selected class'}
+                  </h2>
+                  <span>Takeaways for enrolled students</span>
+                </div>
+                <form
+                  className="tw-class-note-form"
+                  onSubmit={(event) => void saveClassNote(event)}
+                >
+                  <label>
+                    Date
+                    <input
+                      type="date"
+                      value={classNoteDate}
+                      required
+                      disabled={busy}
+                      onChange={(event) => setClassNoteDate(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Notes
+                    <textarea
+                      value={classNoteText}
+                      required
+                      maxLength={2000}
+                      rows={3}
+                      disabled={busy}
+                      placeholder="Share a short takeaway from this session…"
+                      onChange={(event) => setClassNoteText(event.target.value)}
+                    />
+                  </label>
+                  <div className="tw-class-note-actions">
+                    <button
+                      type="submit"
+                      disabled={busy || !effectiveClass || !classNoteText.trim()}
+                    >
+                      {busy ? 'Saving…' : editingClassNote ? 'Update note' : 'Save class note'}
+                    </button>
+                    {editingClassNote && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => {
+                          setEditingClassNote(null);
+                          setClassNoteText('');
+                        }}
+                      >
+                        Cancel edit
+                      </button>
+                    )}
+                  </div>
+                </form>
+                {notice && (
+                  <p className="tw-class-note-notice" role="status">
+                    {notice}
+                  </p>
+                )}
+                {classNotes.length ? (
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classNotes.map((note) => (
+                          <tr key={note.id}>
+                            <td>
+                              {new Date(`${note.date}T12:00:00Z`).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                timeZone: 'UTC',
+                              })}
+                            </td>
+                            <td>
+                              <div className="tw-class-note-cell">
+                                <span>{note.note}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingClassNote(note);
+                                    setClassNoteDate(note.date);
+                                    setClassNoteText(note.note);
+                                    setNotice('');
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="tw-hint">No class notes for this class yet.</p>
+                )}
+              </section>
             )}
             {area === 'history' && (
               <>

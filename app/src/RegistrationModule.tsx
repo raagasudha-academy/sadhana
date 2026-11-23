@@ -289,8 +289,8 @@ export default function RegistrationModule({
     }
   });
   // v096-table-sort-marker: presentation-only controls, never modify persisted records.
-  const [tableSort, setTableSort] = useState<'roll' | 'name'>('roll');
-  const [tableDirection, setTableDirection] = useState<'asc' | 'desc'>('asc');
+  const [tableSort, setTableSort] = useState<'roll' | 'name' | 'created'>('created');
+  const [tableDirection, setTableDirection] = useState<'asc' | 'desc'>('desc');
   const [tableLocation, setTableLocation] = useState<string[]>([]);
   const [directoryClass, setDirectoryClass] = useState<string[]>([]);
   const [showAllFields, setShowAllFields] = useState(false);
@@ -671,17 +671,19 @@ export default function RegistrationModule({
   };
   const isLegacyAdultFamily = (f: any) =>
     members.some((m) => m.familyId === f.id && isIndependentAdult(m));
-  const visibleStudents = studentsInWorkspace.filter((m) => {
-    if (area === 'individuals' && !isIndependentAdult(m)) return false;
-    const matches = clean(
-      `${m.name} ${m.id} ${studentLabel(m)} ${locationFor(m)} ${families.find((f) => f.id === m.familyId)?.parentName}`,
-    )
-      .toLowerCase()
-      .includes(query.toLowerCase());
-    const statuses = scoped.filter((e) => e.studentId === m.id).map(getEnrolmentStatus);
-    const status = studentStatus(m);
-    return matches && (!filter.length || filter.includes(status));
-  });
+  const visibleStudents = studentsInWorkspace
+    .filter((m) => {
+      if (area === 'individuals' && !isIndependentAdult(m)) return false;
+      const matches = clean(
+        `${m.name} ${m.id} ${studentLabel(m)} ${locationFor(m)} ${families.find((f) => f.id === m.familyId)?.parentName}`,
+      )
+        .toLowerCase()
+        .includes(query.toLowerCase());
+      const statuses = scoped.filter((e) => e.studentId === m.id).map(getEnrolmentStatus);
+      const status = studentStatus(m);
+      return matches && (!filter.length || filter.includes(status));
+    })
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   const tableLocations = Array.from(
     new Set<string>(
       studentsInWorkspace
@@ -783,7 +785,8 @@ export default function RegistrationModule({
           .toLowerCase()
           .includes(query.toLowerCase()) &&
         (!filter.length || filter.includes(familyStatus(f))),
-    );
+    )
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   const openEnrol = (studentId = '', classId = '') => {
     setNewEnrolStudents([]);
     setNewEnrolFamilies([]);

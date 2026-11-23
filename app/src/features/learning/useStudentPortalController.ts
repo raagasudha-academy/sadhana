@@ -73,7 +73,7 @@ export function useStudentPortalController({
     if (!embedded || !page) return;
     const section = (value: LearnerPage): string => {
       if (['classes', 'calendar', 'attendance', 'venues'].includes(value)) return 'classes';
-      if (['homework', 'practice'].includes(value)) return 'learning';
+      if (['homework', 'practice', 'classNotes'].includes(value)) return 'learning';
       if (value === 'resources') return 'resources';
       if (['profile', 'privacy'].includes(value)) return 'profile';
       return value;
@@ -111,6 +111,7 @@ export function useStudentPortalController({
     [about, setAbout] = useState('');
   const [uploadBusy, setUploadBusy] = useState(false);
   const [deletingPractice, setDeletingPractice] = useState(false);
+  const [removingPracticeMediaId, setRemovingPracticeMediaId] = useState('');
   const [media, setMedia] = useState<
     Array<{
       id: string;
@@ -698,6 +699,44 @@ export function useStudentPortalController({
       setDeletingPractice(false);
     }
   };
+  const removePracticeMedia = async (mediaId: string) => {
+    if (!activeId || !edit || removingPracticeMediaId) return;
+    setError('');
+    setMessage('');
+    setRemovingPracticeMediaId(mediaId);
+    try {
+      const result = await cloud.api.deleteLearnerPracticeMedia(
+        inst,
+        activeId,
+        edit.id,
+        mediaId,
+        edit.version,
+      );
+      setEdit((current) =>
+        current?.id === edit.id ? { ...current, version: result.version } : current,
+      );
+      setDetail((current) =>
+        current
+          ? {
+              ...current,
+              practice: current.practice.map((entry) =>
+                entry.id === edit.id ? { ...entry, version: result.version } : entry,
+              ),
+            }
+          : current,
+      );
+      setMedia((current) => current.filter((item) => item.id !== mediaId));
+      setMessage(
+        result.cleanupPending
+          ? 'Attachment removed. Its stored file still needs cleanup.'
+          : 'Attachment removed from the practice submission.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to remove practice attachment');
+    } finally {
+      setRemovingPracticeMediaId('');
+    }
+  };
   const [rollNumber, setRollNumber] = useState('');
   const [kind, setKind] = useState<'student' | 'guardian'>('guardian');
   const [requestBusy, setRequestBusy] = useState(false);
@@ -918,6 +957,7 @@ export function useStudentPortalController({
     about,
     setAbout,
     uploadBusy,
+    removingPracticeMediaId,
     setUploadBusy,
     media,
     setMedia,
@@ -982,6 +1022,7 @@ export function useStudentPortalController({
     loadDetail,
     savePractice,
     deletePractice,
+    removePracticeMedia,
     deletingPractice,
     rollNumber,
     setRollNumber,

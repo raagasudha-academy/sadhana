@@ -15,7 +15,7 @@ import {
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { httpError } from '../model.ts';
+import { httpError, permittedInstitutions } from '../model.ts';
 import { homeworkMediaAllowed, homeworkMediaRules } from '../homeworkMediaPolicy.ts';
 import type { Claims, InstitutionId } from '../model.ts';
 import { json, readJSON } from './http.ts';
@@ -65,7 +65,12 @@ export function makeM10TeacherPracticeRoutes(
         new GetCommand({ TableName: table(entity), Key: { [key]: id }, ConsistentRead: true }),
       )
     ).Item;
-  async function assignment(inst: InstitutionId, claims: Claims, practiceId: string) {
+  async function assignment(
+    inst: InstitutionId,
+    claims: Claims,
+    practiceId: string,
+    allowAdminReadOnly = false,
+  ) {
     if (!allowedId(practiceId)) throw httpError(400, 'Invalid practice identifier.');
     if (!claims.sub) throw httpError(401, 'Authentication required.');
     const practice = await get('practice', 'practiceId', practiceId);
@@ -74,6 +79,8 @@ export function makeM10TeacherPracticeRoutes(
     const cls = await get('classes', 'classId', practice.classId);
     if (!cls || cls.institutionId !== inst || cls.status === 'archived')
       throw httpError(403, 'Verified teaching assignment required.');
+    if (allowAdminReadOnly && permittedInstitutions(claims).includes(inst))
+      return { practice, cls, person: { personId: '' } };
     const identity = await client.send(
       new QueryCommand({
         TableName: table('people'),
@@ -138,7 +145,7 @@ export function makeM10TeacherPracticeRoutes(
     if (inst !== 'raaga' && inst !== 'sruti') throw httpError(400, 'Select a valid institution.');
     if (!media && !feedbackAudio && method !== 'GET' && method !== 'POST')
       return json(405, { error: 'Unsupported comment action.' });
-    const { practice, cls, person } = await assignment(inst, claims, parts[1]);
+    const { practice, cls, person } = await assignment(inst, claims, parts[1], method === 'GET');
     if (feedbackAudio) {
       if (practice.teacherReviewed === true || (practice.teacherComments?.length ?? 0) > 0)
         throw httpError(409, 'This practice has already been reviewed and is read-only.');

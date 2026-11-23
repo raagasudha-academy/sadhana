@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { institutions } from '../../institutions';
 import { getEnrolmentStatus, maskPhone, newId, ukISODate } from '../../registry';
-import { lastFourWeeks, reportForStudent } from '../../practiceMath';
+import { lastFourWeeks, reportForStudent, weeksWindow } from '../../practiceMath';
 import {
   familyLabel,
   readableLocation,
@@ -40,14 +40,26 @@ export function StudentRecord({
   operationsApi,
 }: any) {
   const [tab, setTab] = useState('Overview');
+  const [overviewRange, setOverviewRange] = useState<'4weeks' | '12weeks' | 'year'>('4weeks');
   const [attendanceRsvps, setAttendanceRsvps] = useState<any[]>([]);
   const [attendanceBusy, setAttendanceBusy] = useState(false);
   const [attendanceError, setAttendanceError] = useState('');
+  const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
+  const [homeworkRate, setHomeworkRate] = useState<number | null>(null);
+  const [homeworkRows, setHomeworkRows] = useState<any[]>([]);
+  const [homeworkBusy, setHomeworkBusy] = useState(false);
+  const [homeworkError, setHomeworkError] = useState('');
   const [studentPracticeLogs, setStudentPracticeLogs] = useState<any[]>(practiceLogs);
   const [practiceBusy, setPracticeBusy] = useState(false);
   const [practiceError, setPracticeError] = useState('');
   const list = enrollments.filter((e) => e.studentId === person.id && e.institution === workspace);
-  const period = lastFourWeeks();
+  const today = ukISODate();
+  const period =
+    overviewRange === '4weeks'
+      ? lastFourWeeks()
+      : overviewRange === '12weeks'
+        ? weeksWindow(12, today)
+        : { from: `${today.slice(0, 4)}-01-01`, to: today };
   const calculated = reportForStudent(
     person.id,
     workspace,
@@ -65,20 +77,28 @@ export function StudentRecord({
         record.date >= period.from &&
         record.date <= period.to,
     )
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    .sort(
+      (a, b) =>
+        String(b.date).localeCompare(String(a.date)) ||
+        String(b.createdAt || b.updatedAt || '').localeCompare(
+          String(a.createdAt || a.updatedAt || ''),
+        ),
+    );
   const activeEnrolments = list.filter((e) => getEnrolmentStatus(e) === 'Active');
   const upcomingEnrolments = list.filter((e) => getEnrolmentStatus(e) === 'Upcoming');
   useEffect(() => {
-    if (tab !== 'Attendance' || !operationsApi) return;
+    if (!['Overview', 'Attendance', 'Homework'].includes(tab) || !operationsApi) return;
     let active = true;
     setAttendanceBusy(true);
+    setHomeworkBusy(true);
     setAttendanceError('');
+    setHomeworkError('');
     Promise.all([
       operationsApi.listOperations('rsvp', workspace),
       operationsApi.listOperations('attendance', workspace),
       operationsApi.listSchedule(workspace),
     ])
-      .then(([rsvpResult, attendanceResult, scheduleResult]: any[]) => {
+      .then(async ([rsvpResult, attendanceResult, scheduleResult]: any[]) => {
         if (!active) return;
         const rsvps = (rsvpResult.records || []).filter(
           (record: any) => String(record.studentId) === String(person.id),
@@ -127,20 +147,110 @@ export function StudentRecord({
                 String(b.startTime).localeCompare(String(a.startTime)),
             ),
         );
+        const currentDay = ukISODate();
+        const pastSessions = schedule.filter(
+          (record: any) =>
+            record.recordType === 'class-session' &&
+            list.some((enrolment) => enrolment.classId === record.classId) &&
+            record.date >= period.from &&
+            record.date <= currentDay &&
+            list.some(
+              (enrolment) =>
+                enrolment.classId === record.classId &&
+                enrolment.startDate <= record.date &&
+                (!enrolment.endDate || enrolment.endDate >= record.date),
+            ),
+        );
+        const pastSessionIds = new Set(pastSessions.map((session: any) => String(session.id)));
+        const recordedMarks = attendance.filter((record: any) =>
+          pastSessionIds.has(String(record.sessionId)),
+        );
+        const attendedCount = recordedMarks.filter((mark: any) =>
+          ['present', 'late', 'attended', 'yes'].includes(String(mark.status || '').toLowerCase()),
+        ).length;
+        setAttendanceRate(
+          recordedMarks.length ? Math.round((attendedCount / recordedMarks.length) * 100) : null,
+        );
+
+        const classIds = Array.from(new Set(list.map((enrolment) => enrolment.classId)));
+        const assignments = (
+          await Promise.all(
+            classIds.map(async (classId) => {
+              const result = await operationsApi.listClassHomework(workspace, classId);
+              return (result.records || []).map((homework: any) => ({ ...homework, classId }));
+            }),
+          )
+        ).flat();
+        const submissions = (
+          await Promise.all(
+            assignments.map(async (homework: any) => {
+              const result = await operationsApi.teacherHomeworkSubmissions(
+                workspace,
+                homework.classId,
+                homework.id,
+              );
+              return (result.records || [])
+                .filter((record: any) => String(record.studentId) === String(person.id))
+                .map((record: any) => ({ ...record, homework }));
+            }),
+          )
+        ).flat();
+        const submittedByHomework = new Map(
+          submissions.map((record: any) => [record.homeworkId, record]),
+        );
+        const datedAssignments = assignments.filter((homework: any) => {
+          const assigned = String(homework.createdAt || homework.dueDate || '').slice(0, 10);
+          return assigned >= period.from && assigned <= currentDay;
+        });
+        const submittedInPeriod = datedAssignments.filter((homework: any) =>
+          Boolean(submittedByHomework.get(homework.id)),
+        ).length;
+        setHomeworkRate(
+          datedAssignments.length
+            ? Math.round((submittedInPeriod / datedAssignments.length) * 100)
+            : null,
+        );
+        setHomeworkRows(
+          assignments
+            .map((homework: any) => ({
+              ...homework,
+              submission: submittedByHomework.get(homework.id),
+            }))
+            .sort((a: any, b: any) =>
+              String(b.submission?.submittedAt || b.createdAt || b.dueDate || '').localeCompare(
+                String(a.submission?.submittedAt || a.createdAt || a.dueDate || ''),
+              ),
+            ),
+        );
       })
       .catch((error: any) => {
         if (active)
           setAttendanceError(
             error instanceof Error ? error.message : 'Unable to load attendance and RSVPs.',
           );
+        if (active)
+          setHomeworkError(
+            error instanceof Error ? error.message : 'Unable to load homework history.',
+          );
       })
       .finally(() => {
         if (active) setAttendanceBusy(false);
+        if (active) setHomeworkBusy(false);
       });
     return () => {
       active = false;
     };
-  }, [operationsApi, person.id, tab, workspace]);
+  }, [
+    operationsApi,
+    person.id,
+    tab,
+    workspace,
+    list
+      .map((enrolment) => `${enrolment.classId}:${enrolment.startDate}:${enrolment.endDate}`)
+      .join('|'),
+    period.from,
+    period.to,
+  ]);
   useEffect(() => {
     if (!operationsApi) return;
     let active = true;
@@ -212,7 +322,7 @@ export function StudentRecord({
       </div>
       <section className="surface reg-section">
         <div className="reg-tabs">
-          {['Overview', 'Classes', 'Practice', 'Attendance', 'Notes'].map((t) => (
+          {['Overview', 'Classes', 'Attendance', 'Practice', 'Homework', 'Notes'].map((t) => (
             <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
               {t}
             </button>
@@ -347,32 +457,46 @@ export function StudentRecord({
               </div>
             </div>
             <div className="reg-feature">
-              <h3>Practice snapshot</h3>
-              <div className="reg-metrics">
+              <div className="reg-overview-heading">
+                <h3>Learning overview</h3>
+                <label>
+                  <span className="sr-only">Learning date range</span>
+                  <select
+                    value={overviewRange}
+                    onChange={(event) =>
+                      setOverviewRange(event.target.value as typeof overviewRange)
+                    }
+                  >
+                    <option value="4weeks">Last 4 weeks</option>
+                    <option value="12weeks">Last 12 weeks</option>
+                    <option value="year">This year</option>
+                  </select>
+                </label>
+              </div>
+              <div className="reg-overview-rates">
                 <div>
+                  <span>Attendance rate</span>
+                  <strong>{attendanceRate == null ? 'No data' : `${attendanceRate}%`}</strong>
+                </div>
+                <div>
+                  <span>Practice rate</span>
                   <strong>
                     {calculated.practiceRate == null ? 'No data' : `${calculated.practiceRate}%`}
                   </strong>
-                  <span>Practice Rate</span>
                 </div>
                 <div>
-                  <strong>
-                    {calculated.submissionRate == null
-                      ? 'No data'
-                      : `${calculated.submissionRate}%`}
-                  </strong>
-                  <span>Submission Rate</span>
+                  <span>Homework submission rate</span>
+                  <strong>{homeworkRate == null ? 'No data' : `${homeworkRate}%`}</strong>
                 </div>
               </div>
-              <small>
-                Based on this student’s live practice submissions from the last four weeks.
-              </small>
+              <small>Based on this student’s activity for the selected date range.</small>
               {practiceBusy && <p role="status">Loading live practice history…</p>}
               {practiceError && (
                 <p className="reg-error" role="alert">
                   {practiceError}
                 </p>
               )}
+              {attendanceBusy && <p role="status">Loading attendance and homework…</p>}
             </div>
           </div>
         )}
@@ -418,7 +542,15 @@ export function StudentRecord({
         )}
         {tab === 'Practice' && (
           <>
-            <h2>Practice records (last four weeks)</h2>
+            <h2>
+              Practice records (
+              {overviewRange === '4weeks'
+                ? 'last four weeks'
+                : overviewRange === '12weeks'
+                  ? 'last twelve weeks'
+                  : 'this year'}
+              )
+            </h2>
             <div className="reg-metrics">
               <div>
                 <strong>
@@ -437,7 +569,7 @@ export function StudentRecord({
                 <span>Total minutes</span>
               </div>
             </div>
-            <p className="reg-muted">Student submitted practice for the last four weeks.</p>
+            <p className="reg-muted">Student submitted practice for the selected date range.</p>
             {practiceBusy && <p role="status">Refreshing practice records…</p>}
             {practiceError && (
               <p className="reg-error" role="alert">
@@ -465,6 +597,50 @@ export function StudentRecord({
                 />
               )}
             </div>
+          </>
+        )}
+        {tab === 'Homework' && (
+          <>
+            <h2>Homework assigned and submitted</h2>
+            <p className="reg-muted">
+              Read-only history for this student’s enrolled classes, newest first.
+            </p>
+            {homeworkBusy && <p role="status">Loading homework…</p>}
+            {homeworkError && (
+              <p className="reg-error" role="alert">
+                {homeworkError}
+              </p>
+            )}
+            {!homeworkBusy && !homeworkError && (
+              <div className="reg-stack">
+                {homeworkRows.map((homework) => (
+                  <div className="reg-enrol-row" key={homework.id}>
+                    <CalendarDays size={16} />
+                    <div>
+                      <strong>
+                        {homework.title || 'Homework'} ·{' '}
+                        {homework.submission ? 'Submitted' : 'Assigned'}
+                      </strong>
+                      <small>
+                        {classes.find((classRecord: any) => classRecord.id === homework.classId)
+                          ?.name || 'Class'}{' '}
+                        ·{' '}
+                        {homework.submission?.submittedAt
+                          ? fmtDate(String(homework.submission.submittedAt).slice(0, 10))
+                          : `Due ${fmtDate(homework.dueDate)}`}
+                      </small>
+                      {homework.submission?.text && <small>{homework.submission.text}</small>}
+                    </div>
+                  </div>
+                ))}
+                {!homeworkRows.length && (
+                  <NoResults
+                    title="No homework assigned"
+                    detail="Homework for this student’s enrolled classes will appear here."
+                  />
+                )}
+              </div>
+            )}
           </>
         )}
         {tab === 'Attendance' && (

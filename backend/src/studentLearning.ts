@@ -77,6 +77,42 @@ async function enrolled(inst: InstitutionId, studentId: string) {
   const all = await records(`OPS#${inst}#ENROLMENT`);
   return all.filter((e) => e.studentId === studentId && !e.archived);
 }
+export async function learnerClassNotes(instRaw: string, claims: Claims, studentId: string) {
+  const inst = validInst(instRaw);
+  await authorised(inst, claims, studentId);
+  const memberships = await enrolled(inst, studentId);
+  const classIds = new Set(memberships.map((enrolment) => String(enrolment.classId)));
+  const notes = (await records(`OPS#${inst}#CLASS-NOTE`)).filter((note) =>
+    classIds.has(String(note.classId)),
+  );
+  const classes = new Map<string, string>();
+  await Promise.all(
+    [...new Set(notes.map((note) => String(note.classId)))].map(async (classId) => {
+      const record = (
+        await db.send(
+          new GetCommand({
+            TableName: table(),
+            Key: { PK: schedulePK(inst), SK: scheduleSK(classId) },
+            ConsistentRead: true,
+          }),
+        )
+      ).Item;
+      classes.set(classId, String(record?.name || 'Class'));
+    }),
+  );
+  return {
+    records: notes
+      .map((note) => ({
+        id: String(note.id),
+        classId: String(note.classId),
+        className: classes.get(String(note.classId)) || 'Class',
+        date: String(note.date),
+        note: String(note.note || ''),
+        createdAt: String(note.createdAt || ''),
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+  };
+}
 export async function learnerDashboard(instRaw: string, claims: Claims, studentId: string) {
   const inst = validInst(instRaw);
   const student = await authorised(inst, claims, studentId);

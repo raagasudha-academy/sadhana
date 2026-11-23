@@ -34,6 +34,7 @@ export type LearnerPage =
   | 'calendar'
   | 'homework'
   | 'practice'
+  | 'classNotes'
   | 'resources'
   | 'attendance'
   | 'teachers'

@@ -377,7 +377,7 @@ export default function LiveDashboard({
               : workspace === 'raaga'
                 ? 'Raagasudha'
                 : 'Sruti'}{' '}
-            · live DynamoDB records {teacherMode ? '· assigned classes only' : ''}
+            · live DynamoDB records
           </p>
         </div>
         <button
@@ -680,9 +680,9 @@ export default function LiveDashboard({
               <button
                 className="reg-secondary"
                 type="button"
-                onClick={() => onChangePage('Practice & Reports')}
+                onClick={() => onChangePage('Student Work')}
               >
-                <ClipboardCheck size={16} /> Practice & reports
+                <ClipboardCheck size={16} /> Student work
               </button>
             </div>
           </section>

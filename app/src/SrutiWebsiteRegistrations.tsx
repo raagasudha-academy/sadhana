@@ -317,14 +317,16 @@ export default function SrutiWebsiteRegistrations({ cloud }: { cloud: CloudSessi
     setReviewMessage('');
     setImportMessage('');
   }, [selected]);
-  const displayed = records.filter(
-    (r) =>
-      (filter === 'all' || (r.reviewStatus || 'pending') === filter) &&
-      [r.registrationId, r.primaryName || '', ...(r.studentNames || [])]
-        .join(' ')
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
-  );
+  const displayed = records
+    .filter(
+      (r) =>
+        (filter === 'all' || (r.reviewStatus || 'pending') === filter) &&
+        [r.registrationId, r.primaryName || '', ...(r.studentNames || [])]
+          .join(' ')
+          .toLowerCase()
+          .includes(search.trim().toLowerCase()),
+    )
+    .sort((a, b) => String(b.submittedAt || '').localeCompare(String(a.submittedAt || '')));
   const g = detail?.submission?.guardian;
   const learnerCount = detail?.submission?.students?.length || 0;
   const primaryName = value([g?.firstName, g?.lastName].filter(Boolean).join(' '));

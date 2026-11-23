@@ -1,0 +1,110 @@
+.tw-class-notes,
+.sv-class-notes {
+  display: grid;
+  gap: 16px;
+}
+.tw-class-note-form {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(300px, 1.7fr) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #d8e2f0;
+  border-radius: 14px;
+  background: #f8f9fc;
+}
+.tw-class-note-form label {
+  display: grid;
+  gap: 6px;
+  color: #52627c;
+  font-size: 13px;
+  font-weight: 650;
+}
+.tw-class-note-form :is(input, textarea) {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cfdaeb;
+  border-radius: 10px;
+  background: #fff;
+  color: #29364c;
+  font: inherit;
+  padding: 10px 12px;
+}
+.tw-class-note-form textarea {
+  resize: vertical;
+}
+.tw-class-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tw-class-note-actions button,
+.tw-class-note-cell button {
+  border: 1px solid #cfdaeb;
+  border-radius: 9px;
+  background: #1d3d65;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tw-class-note-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.tw-class-note-actions button.secondary {
+  background: #fff;
+  color: #31517f;
+}
+.tw-class-note-notice {
+  margin: 0;
+  color: #24744e;
+}
+.tw-class-note-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.tw-class-note-cell span,
+.sv-class-notes td p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tw-class-note-cell button {
+  background: #fff;
+  color: #31517f;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.sv-class-notes > header h2 {
+  margin: 0;
+  color: #29364c;
+}
+.sv-class-notes > header p,
+.sv-class-notes-empty {
+  margin: 5px 0 0;
+  color: #71819b;
+}
+.sv-class-note-class {
+  display: block;
+  margin-bottom: 4px;
+  color: #71819b;
+}
+.sv-class-notes td p {
+  margin: 0;
+  color: #29364c;
+}
+@media (max-width: 760px) {
+  .tw-class-note-form {
+    grid-template-columns: 1fr;
+  }
+  .tw-class-note-cell {
+    display: grid;
+  }
+  .tw-class-note-cell button {
+    justify-self: start;
+  }
+}

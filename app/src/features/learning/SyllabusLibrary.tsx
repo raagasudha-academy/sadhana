@@ -310,7 +310,7 @@ export default function SyllabusLibrary({
         ? a.programme.localeCompare(b.programme) ||
           (a.levelNumber ?? 999) - (b.levelNumber ?? 999) ||
           a.title.localeCompare(b.title)
-        : a.title.localeCompare(b.title),
+        : String(b.createdAt || '').localeCompare(String(a.createdAt || '')),
     );
   const canAdd = activeTab === 'syllabus' ? canEditSyllabus : canManageResources;
   const toggleClass = (id: string) =>
