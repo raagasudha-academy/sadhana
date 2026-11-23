@@ -91,6 +91,7 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     root === 'learner' &&
     ((parts.length === 3 && parts[2] === 'practice' && method === 'POST') ||
       (parts.length === 4 && parts[2] === 'practice' && method === 'PATCH') ||
+      (parts.length === 4 && parts[2] === 'practice' && method === 'DELETE') ||
       (parts.length === 3 && parts[2] === 'rsvp' && method === 'PUT'))
   ) {
     if (env.SADHANA_FINAL_LEARNER_WRITES !== 'enabled')
@@ -101,6 +102,11 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     const service = dependencies.learnerWrites();
     if (parts[2] === 'rsvp')
       return { status: 200, body: await service.saveRsvp(institution, claims, id, body()) };
+    if (method === 'DELETE')
+      return {
+        status: 200,
+        body: await service.deletePractice(institution, claims, id, parts[3], body()),
+      };
     const update = method === 'PATCH';
     return {
       status: update ? 200 : 201,

@@ -995,6 +995,16 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         `/learner/${encodeURIComponent(studentId)}/practice${edit ? `/${encodeURIComponent(edit.id)}` : ''}`,
         { institution, body: { ...data, ...(edit ? { expectedVersion: edit.version } : {}) } },
       ),
+    deleteLearnerPractice: (
+      institution: InstitutionId,
+      studentId: string,
+      edit: { id: string; version: number },
+    ) =>
+      request<{ deleted: boolean; cleanupPending?: boolean }>(
+        'DELETE',
+        `/learner/${encodeURIComponent(studentId)}/practice/${encodeURIComponent(edit.id)}`,
+        { institution, body: { expectedVersion: edit.version } },
+      ),
     myLinkedStudents: (institution: InstitutionId) =>
       request<{
         records: Array<{

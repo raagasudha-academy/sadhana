@@ -171,6 +171,8 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
     notes,
     setNotes,
     savePractice,
+    deletePractice,
+    deletingPractice,
     practiceMediaFiles,
     addPracticeMediaFiles,
     removePracticeMediaFile,
@@ -247,10 +249,10 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                 ).length
               : 0
           }
-          disabled={uploadBusy}
+          disabled={uploadBusy || deletingPractice}
           onInvalid={setError}
         />
-        <button type="submit" disabled={!detail.classes.length || uploadBusy}>
+        <button type="submit" disabled={!detail.classes.length || uploadBusy || deletingPractice}>
           {uploadBusy
             ? 'Uploading attachments…'
             : pendingPracticeMediaId
@@ -260,16 +262,34 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                 : 'Record practice'}
         </button>
         {edit && (
-          <button
-            type="button"
-            onClick={() => {
-              setEdit(null);
-              setTopic('');
-              setNotes('');
-            }}
-          >
-            Cancel correction
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setEdit(null);
+                setTopic('');
+                setNotes('');
+              }}
+              disabled={deletingPractice || uploadBusy}
+            >
+              Cancel correction
+            </button>
+            <button
+              type="button"
+              className="v1376-practice-delete-button"
+              disabled={deletingPractice || uploadBusy}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'Delete this practice submission and its attachments? This cannot be undone.',
+                  )
+                )
+                  void deletePractice();
+              }}
+            >
+              {deletingPractice ? 'Deleting…' : 'Delete submission'}
+            </button>
+          </>
         )}
       </form>
       <div className="v1376-practice-history-head">

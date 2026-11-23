@@ -110,6 +110,7 @@ export function useStudentPortalController({
     [contactPhone, setContactPhone] = useState(''),
     [about, setAbout] = useState('');
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [deletingPractice, setDeletingPractice] = useState(false);
   const [media, setMedia] = useState<
     Array<{
       id: string;
@@ -673,6 +674,30 @@ export function useStudentPortalController({
       setError(e instanceof Error ? e.message : 'Unable to save practice');
     }
   };
+  const deletePractice = async () => {
+    if (!activeId || !edit) return;
+    setError('');
+    setMessage('');
+    setDeletingPractice(true);
+    try {
+      const result = await cloud.api.deleteLearnerPractice(inst, activeId, edit);
+      setEdit(null);
+      setPracticeMediaFiles([]);
+      setPendingPracticeMediaId('');
+      setTopic('');
+      setNotes('');
+      setMessage(
+        result.cleanupPending
+          ? 'Practice submission deleted. Some stored attachments still need cleanup.'
+          : 'Practice submission and attachments deleted.',
+      );
+      await loadDetail(activeId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to delete practice submission');
+    } finally {
+      setDeletingPractice(false);
+    }
+  };
   const [rollNumber, setRollNumber] = useState('');
   const [kind, setKind] = useState<'student' | 'guardian'>('guardian');
   const [requestBusy, setRequestBusy] = useState(false);
@@ -956,6 +981,8 @@ export function useStudentPortalController({
     setNotes,
     loadDetail,
     savePractice,
+    deletePractice,
+    deletingPractice,
     rollNumber,
     setRollNumber,
     kind,

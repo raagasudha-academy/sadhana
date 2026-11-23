@@ -32,6 +32,17 @@ export const m9FinalLearnerRoutes: DomainRoute = async ({ event, parts, method, 
         parts[3],
       ),
     );
+  if (method === 'DELETE' && parts.length === 4 && parts[2] === 'practice')
+    return json(
+      200,
+      await m9LearnerWrites().deletePractice(
+        inst,
+        claims,
+        parts[1],
+        parts[3],
+        readJSON(event.body || ''),
+      ),
+    );
   if (method === 'PUT' && parts.length === 3 && parts[2] === 'rsvp')
     return json(
       200,

@@ -549,6 +549,9 @@ Resources:
                 - s3:GetObject
               Resource: !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/*'
             - Effect: Allow
+              Action: [s3:DeleteObject]
+              Resource: !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/learner/*'
+            - Effect: Allow
               Action:
                 - s3:ListBucket
               Resource: !GetAtt SadhanaProfilePhotos.Arn
