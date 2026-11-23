@@ -17,5 +17,7 @@ test('family dashboard auto-selects an approved student and renders accessible l
 });
 
 test('practice logging is disabled before class enrollment', () => {
-  expect(practice).toContain(compactSource('disabled={!detail.classes.length || uploadBusy}'));
+  expect(practice).toContain(
+    compactSource('disabled={!detail.classes.length || uploadBusy || deletingPractice}'),
+  );
 });
