@@ -488,7 +488,6 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
                 - dynamodb:ConditionCheckItem
-                - dynamodb:TransactWriteItems
               Resource:
                 - !If
                   - CreateAggregateTable
