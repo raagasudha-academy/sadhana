@@ -14,22 +14,25 @@ export function matchingCognitoPerson(rows, subject, institution) {
   if (exact.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
   return exact[0] ?? null;
 }
-// A guardian's own academy membership may belong to one academy while their
-// independently verified child links span another. Resolve the unique active
-// Cognito person globally, then let the academy-scoped family link authorize
-// access to each child. A person with no membership in this academy is usable
-// only as a guardian; student self-access still requires academy membership.
+// Resolve a unique active Cognito person in the requested academy first. A
+// guardian may have separate academy profiles, while independently verified
+// child links are scoped to the selected profile. If no local profile exists,
+// retain cross-academy access through a single unambiguous guardian profile.
+// Student self-access still requires an academy-specific student membership.
 export function matchingCognitoActor(rows, subject, institution) {
   if (typeof subject !== 'string' || !subject) return null;
   const exact = rows.filter(
     (p) => p.cognitoSub === subject && p.status === 'active' && Array.isArray(p.institutionIds),
   );
-  if (exact.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
-  const actor = exact[0];
+  const local = exact.filter((p) => p.institutionIds.includes(institution));
+  if (local.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
+  if (local.length === 1) return local[0];
+  const guardians = exact.filter((p) => p.personTypes?.includes('guardian'));
+  if (guardians.length > 1)
+    deny(409, 'Ambiguous Cognito identity; administrator review required.');
+  const actor = guardians[0];
   if (!actor) return null;
-  if (actor.institutionIds.includes(institution) || actor.personTypes?.includes('guardian'))
-    return actor;
-  return null;
+  return actor;
 }
 export function authorisedStudent(actor, student, links, institution) {
   if (

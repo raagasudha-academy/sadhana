@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   matchingCognitoPerson,
+  matchingCognitoActor,
   authorisedStudent,
   projectLearnerDashboard,
   buildReadinessReport,
@@ -35,6 +36,37 @@ test('subject must resolve to exact active academy person', () => {
   assert.equal(matchingCognitoPerson([guardian], 'verified-sub', 'sruti'), null);
   assert.throws(
     () => matchingCognitoPerson([guardian, guardian], 'verified-sub', 'raaga'),
+    /Ambiguous/,
+  );
+});
+test('Cognito actor selection prefers the requested academy and preserves guardian fallback', () => {
+  const raagaGuardian = guardian;
+  const srutiGuardian = {
+    ...guardian,
+    personId: 'per_parent_sruti',
+    institutionIds: ['sruti'],
+  };
+  assert.equal(
+    matchingCognitoActor([raagaGuardian, srutiGuardian], 'verified-sub', 'raaga').personId,
+    'per_parent',
+  );
+  assert.equal(
+    matchingCognitoActor([raagaGuardian, srutiGuardian], 'verified-sub', 'sruti').personId,
+    'per_parent_sruti',
+  );
+  // A guardian with one profile can still use independently approved links
+  // to children in another academy.
+  assert.equal(
+    matchingCognitoActor([raagaGuardian], 'verified-sub', 'sruti').personId,
+    'per_parent',
+  );
+  assert.throws(
+    () =>
+      matchingCognitoActor(
+        [raagaGuardian, { ...raagaGuardian, personId: 'per_parent_duplicate' }],
+        'verified-sub',
+        'raaga',
+      ),
     /Ambiguous/,
   );
 });
