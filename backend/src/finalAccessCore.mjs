@@ -28,8 +28,7 @@ export function matchingCognitoActor(rows, subject, institution) {
   if (local.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
   if (local.length === 1) return local[0];
   const guardians = exact.filter((p) => p.personTypes?.includes('guardian'));
-  if (guardians.length > 1)
-    deny(409, 'Ambiguous Cognito identity; administrator review required.');
+  if (guardians.length > 1) deny(409, 'Ambiguous Cognito identity; administrator review required.');
   const actor = guardians[0];
   if (!actor) return null;
   return actor;
