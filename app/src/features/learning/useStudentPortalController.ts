@@ -46,6 +46,7 @@ export type StudentPortalProps = {
   selectedStudentId?: string;
   onStudentChange?: (id: string) => void;
   onNavigate?: (page: LearnerPage) => void;
+  onEnrollmentStateChange?: (hasActiveEnrollment: boolean | null) => void;
 };
 export function useStudentPortalController({
   cloud,
@@ -55,6 +56,7 @@ export function useStudentPortalController({
   selectedStudentId,
   onStudentChange,
   onNavigate,
+  onEnrollmentStateChange,
 }: {
   cloud: CloudSession;
   initialInstitution?: InstitutionId;
@@ -63,6 +65,7 @@ export function useStudentPortalController({
   selectedStudentId?: string;
   onStudentChange?: (id: string) => void;
   onNavigate?: (page: LearnerPage) => void;
+  onEnrollmentStateChange?: (hasActiveEnrollment: boolean | null) => void;
 }) {
   const [inst, setInst] = useState<InstitutionId>(initialInstitution);
   useEffect(() => {
@@ -936,6 +939,7 @@ export function useStudentPortalController({
   };
 
   return {
+    onEnrollmentStateChange,
     cloud,
     initialInstitution,
     embedded,

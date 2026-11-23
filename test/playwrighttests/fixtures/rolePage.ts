@@ -27,7 +27,7 @@ export async function assertRolePage(page: Page, role: PortalRole, label: string
   if ((await link.count()) === 0 && role === 'admin') {
     const group = ['Families & Students', 'Website Registrations', 'Account Access'].includes(label)
       ? 'People & Access'
-      : ['Classes & Timetable', 'Practice & Reports', 'Communications', 'Settings'].includes(label)
+      : ['Classes & Timetable', 'Communications', 'Settings'].includes(label)
         ? 'Academy Workspace'
         : undefined;
     if (group) {

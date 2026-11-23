@@ -22,6 +22,7 @@ const roleNavigation: Record<PortalRole, string[]> = {
   teacher: [
     'Dashboard',
     'My Classes',
+    'My Timetable',
     'My Students',
     'Student Work',
     'Syllabus & Resources',

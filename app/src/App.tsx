@@ -134,6 +134,9 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     }
   });
   const [learnerInstitutions, setLearnerInstitutions] = useState<InstitutionId[]>([]);
+  const [studentHasActiveEnrollment, setStudentHasActiveEnrollment] = useState<boolean | null>(
+    null,
+  );
   const [familyChoices, setFamilyChoices] = useState<
     Array<{
       institution: InstitutionId;
@@ -402,6 +405,13 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
             ? 'student'
             : 'teacher';
   const studentMode = currentRole === 'student';
+  useEffect(() => {
+    if (studentMode && studentHasActiveEnrollment === false && page !== 'Dashboard') {
+      setPage('Dashboard');
+      setStudent(null);
+      setClassProfile(null);
+    }
+  }, [page, studentHasActiveEnrollment, studentMode]);
   const teacherMode = currentRole === 'teacher';
   const allowedWorkspaces = studentMode
     ? learnerInstitutions
@@ -633,6 +643,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
   // Keep View As scoped to the academy; preserve the selected student only
   // when that same student has an authorised membership in the new academy.
   const switchWorkspace = (w) => {
+    setStudentHasActiveEnrollment(null);
     if (studentMode && (w === 'raaga' || w === 'sruti')) {
       const choices = familyChoices.filter((c) => c.institution === w);
       const next = choices.find((c) => c.id === chosenStudent) || choices[0];
@@ -655,6 +666,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     if (r === 'admin' && !person.admin) return;
     if (r === 'teacher' && !verifiedTeachingInstitutions.length) return;
     setRole(r);
+    setStudentHasActiveEnrollment(null);
     try {
       sessionStorage.setItem('sadhana:view-as', r);
     } catch {
@@ -672,6 +684,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     if (!familyChoices.some((c) => c.institution === choice.institution && c.id === choice.id))
       return;
     setChosenStudent(choice.id);
+    setStudentHasActiveEnrollment(null);
     setWorkspace(choice.institution);
     setRole('student');
     try {
@@ -1005,6 +1018,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                 <button
                   key={p}
                   onClick={() => goPage(p)}
+                  disabled={studentMode && studentHasActiveEnrollment === false}
                   className={`nav-link ${activeNavPage === p ? 'nav-active' : ''}`}
                   aria-label={
                     p === 'Messages' && unreadMessageCount > 0
@@ -1204,6 +1218,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                         id,
                       });
                   }}
+                  onEnrollmentStateChange={setStudentHasActiveEnrollment}
                   onNavigate={(destination) => {
                     const section: Record<import('./StudentHome').LearnerPage, string> = {
                       overview: 'Dashboard',

@@ -186,7 +186,17 @@ const dashboard = (id: string) => ({
     name: role === 'guardian' ? 'Fixture Child One' : 'Fixture Student',
     rollNumber: 'E2E-101',
   },
-  classes: [],
+  classes:
+    scenario === 'no-enrollments'
+      ? []
+      : [
+          {
+            classId: 'E2E-CLASS',
+            name: 'Fixture Music Class',
+            institution: 'sruti',
+            lifecycleStatus: 'active',
+          },
+        ],
   nextSessions: [],
   calendarSessions: [],
   practice: [],

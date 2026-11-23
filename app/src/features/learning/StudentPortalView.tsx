@@ -30,6 +30,7 @@ import { StudentClassNotes } from './StudentClassNotes';
 import SyllabusLibrary from './SyllabusLibrary';
 import { StudentAttendance } from './StudentAttendance';
 import MessagesPage from '../../MessagesPage';
+import { useEffect } from 'react';
 export function StudentPortalView({ context }: { context: StudentPortalContext }) {
   const {
     cloud,
@@ -70,6 +71,7 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
     setError,
     loading,
     submit,
+    onEnrollmentStateChange,
   } = context;
   const hasActiveEnrollment = Boolean(detail?.classes.length);
   const noActiveEnrollments =
@@ -78,6 +80,23 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
     !error &&
     (!students.length || (!!detail && detail.classes.length === 0));
   const sidebarDisabled = loading || detailLoading || !hasActiveEnrollment;
+  useEffect(() => {
+    if (loading || detailLoading || error) {
+      onEnrollmentStateChange?.(null);
+      return;
+    }
+    if (detail) onEnrollmentStateChange?.(hasActiveEnrollment);
+    else if (noActiveEnrollments) onEnrollmentStateChange?.(false);
+    else onEnrollmentStateChange?.(null);
+  }, [
+    detail,
+    detailLoading,
+    error,
+    hasActiveEnrollment,
+    loading,
+    noActiveEnrollments,
+    onEnrollmentStateChange,
+  ]);
   return (
     <div
       className={

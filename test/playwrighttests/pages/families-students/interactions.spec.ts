@@ -42,6 +42,8 @@ test('real student table sorts roll numbers and names without changing identitie
 }) => {
   await table(page);
   await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page).first()).toContainText('RS-3');
+  await page.getByRole('button', { name: /Sort by roll number/ }).click();
   await expect(rows(page).first()).toContainText('RS-2');
   await page.getByRole('button', { name: /Sort by roll number/ }).click();
   await expect(rows(page).first()).toContainText('RS-10');
