@@ -71,6 +71,13 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
     loading,
     submit,
   } = context;
+  const hasActiveEnrollment = Boolean(detail?.classes.length);
+  const noActiveEnrollments =
+    !loading &&
+    !detailLoading &&
+    !error &&
+    (!students.length || (!!detail && detail.classes.length === 0));
+  const sidebarDisabled = loading || detailLoading || !hasActiveEnrollment;
   return (
     <div
       className={
@@ -179,6 +186,12 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                 <button
                   key={link.id}
                   type="button"
+                  disabled={sidebarDisabled}
+                  title={
+                    sidebarDisabled
+                      ? 'Available when there is an active class enrollment.'
+                      : undefined
+                  }
                   className={
                     (link.id === 'classes'
                       ? ['classes', 'calendar', 'attendance', 'venues']
@@ -291,9 +304,25 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
             </header>
           )}
           <div className="sv116-body">
-            {tab === 'overview' && <StudentDashboardIntro context={context} />}
+            {noActiveEnrollments ? (
+              <section className="sv1295-no-enrolments" role="status">
+                <span className="sv1295-no-enrolments-icon" aria-hidden="true">
+                  <CalendarDays size={22} />
+                </span>
+                <div>
+                  <h1>No active enrollments</h1>
+                  <p>
+                    Your student dashboard and learning pages will be available when an active class
+                    enrollment is in place. Please contact your academy if you think this is a
+                    mistake.
+                  </p>
+                </div>
+              </section>
+            ) : (
+              tab === 'overview' && <StudentDashboardIntro context={context} />
+            )}
 
-            {students.length > 0 && (
+            {students.length > 0 && !noActiveEnrollments && (
               <div className="student-portal-learning">
                 {tab !== 'overview' && tab !== 'messages' && (
                   <header className="sv1277-page-heading">
@@ -420,72 +449,75 @@ export function StudentPortalView({ context }: { context: StudentPortalContext }
                 )}
               </div>
             )}
-            {tab === 'overview' && <FamilyMembers context={context} />}
-            {tab === 'overview' && (accessModalOpen || (!loading && !students.length)) && (
-              <div
-                className="svfd-modal-backdrop"
-                role="presentation"
-                onMouseDown={(e) => {
-                  if (e.target === e.currentTarget && !requestBusy) setAccessModalOpen(false);
-                }}
-              >
-                <section
-                  className="svfd-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="svfd-modal-heading"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape' && !requestBusy && students.length)
-                      setAccessModalOpen(false);
+            {tab === 'overview' && !noActiveEnrollments && <FamilyMembers context={context} />}
+            {tab === 'overview' &&
+              !noActiveEnrollments &&
+              (accessModalOpen || (!loading && !error && !students.length)) && (
+                <div
+                  className="svfd-modal-backdrop"
+                  role="presentation"
+                  onMouseDown={(e) => {
+                    if (e.target === e.currentTarget && !requestBusy) setAccessModalOpen(false);
                   }}
                 >
-                  <div className="svfd-modal-head">
-                    <h2 id="svfd-modal-heading">Request student access</h2>
-                    {students.length > 0 && (
-                      <button
-                        type="button"
-                        aria-label="Close request access"
-                        onClick={() => setAccessModalOpen(false)}
-                        disabled={requestBusy}
-                      >
-                        <X size={20} />
+                  <section
+                    className="svfd-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="svfd-modal-heading"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape' && !requestBusy && students.length)
+                        setAccessModalOpen(false);
+                    }}
+                  >
+                    <div className="svfd-modal-head">
+                      <h2 id="svfd-modal-heading">Request student access</h2>
+                      {students.length > 0 && (
+                        <button
+                          type="button"
+                          aria-label="Close request access"
+                          onClick={() => setAccessModalOpen(false)}
+                          disabled={requestBusy}
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
+                    </div>
+                    <p>
+                      Enter the student’s academy roll number. An administrator reviews each
+                      request.
+                    </p>
+                    <form className="sv1275-request-form" onSubmit={(e) => void submit(e)}>
+                      <label>
+                        Request as{' '}
+                        <select
+                          value={kind}
+                          onChange={(e) => setKind(e.target.value as 'student' | 'guardian')}
+                        >
+                          <option value="guardian">Parent / guardian</option>
+                          <option value="student">Student (self)</option>
+                        </select>
+                      </label>
+                      <label>
+                        Student roll number{' '}
+                        <input
+                          required
+                          value={rollNumber}
+                          onChange={(e) => setRollNumber(e.target.value.toUpperCase())}
+                          placeholder="e.g. RS-006 or 001-002"
+                          pattern="[0-9]{3}-[0-9]{3}|(RS|SR)-[0-9]{3,}"
+                          title="Enter an academy roll number, e.g. RS-006 or 001-002"
+                          autoCapitalize="characters"
+                        />
+                      </label>
+                      <button type="submit" disabled={requestBusy}>
+                        {requestBusy ? 'Submitting…' : 'Submit access request'}
                       </button>
-                    )}
-                  </div>
-                  <p>
-                    Enter the student’s academy roll number. An administrator reviews each request.
-                  </p>
-                  <form className="sv1275-request-form" onSubmit={(e) => void submit(e)}>
-                    <label>
-                      Request as{' '}
-                      <select
-                        value={kind}
-                        onChange={(e) => setKind(e.target.value as 'student' | 'guardian')}
-                      >
-                        <option value="guardian">Parent / guardian</option>
-                        <option value="student">Student (self)</option>
-                      </select>
-                    </label>
-                    <label>
-                      Student roll number{' '}
-                      <input
-                        required
-                        value={rollNumber}
-                        onChange={(e) => setRollNumber(e.target.value.toUpperCase())}
-                        placeholder="e.g. RS-006 or 001-002"
-                        pattern="[0-9]{3}-[0-9]{3}|(RS|SR)-[0-9]{3,}"
-                        title="Enter an academy roll number, e.g. RS-006 or 001-002"
-                        autoCapitalize="characters"
-                      />
-                    </label>
-                    <button type="submit" disabled={requestBusy}>
-                      {requestBusy ? 'Submitting…' : 'Submit access request'}
-                    </button>
-                  </form>
-                  {error && <p role="alert">{error}</p>}
-                </section>
-              </div>
-            )}
+                    </form>
+                    {error && <p role="alert">{error}</p>}
+                  </section>
+                </div>
+              )}
             {confirmHomework && (
               <div
                 className="sv1283-backdrop"
