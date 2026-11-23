@@ -9,13 +9,14 @@ export type PracticeEntry = {
   comments?: string;
   minutes?: number;
 };
+const activityDate = (entry: PracticeEntry) => String(entry.date || '');
 const submissionTime = (entry: PracticeEntry) =>
-  String(entry.submittedAt || entry.updatedAt || entry.createdAt || entry.date || '');
+  String(entry.submittedAt || entry.createdAt || entry.updatedAt || '');
 export function newestPracticeFirst<T extends PracticeEntry>(entries: readonly T[]): T[] {
   return [...entries].sort(
     (a, b) =>
+      activityDate(b).localeCompare(activityDate(a)) ||
       submissionTime(b).localeCompare(submissionTime(a)) ||
-      String(b.date || '').localeCompare(String(a.date || '')) ||
       a.id.localeCompare(b.id),
   );
 }

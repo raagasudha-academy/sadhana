@@ -12,13 +12,13 @@ const entries = [
 describe('teacher practice review selectors', () => {
   it('sorts newest first and uses stable IDs for ties', () =>
     expect(filterPracticeEntries(entries, '', '').map((x) => x.id)).toEqual(['a', 'c', 'b']));
-  it('uses submission time to order practices recorded on the same day', () =>
+  it('orders by practice date before update time', () =>
     expect(
       newestPracticeFirst([
-        { id: 'morning', studentId: 'one', date: '2026-11-23', createdAt: '2026-11-23T09:00:00Z' },
-        { id: 'evening', studentId: 'one', date: '2026-11-23', createdAt: '2026-11-23T18:00:00Z' },
+        { id: 'older', studentId: 'one', date: '2026-11-19', updatedAt: '2026-11-23T20:00:00Z' },
+        { id: 'newer', studentId: 'one', date: '2026-11-23', updatedAt: '2026-11-23T09:00:00Z' },
       ]).map((x) => x.id),
-    ).toEqual(['evening', 'morning']));
+    ).toEqual(['newer', 'older']));
   it('filters by student identity rather than duplicate names', () =>
     expect(filterPracticeEntries(entries, 'two', '').map((x) => x.id)).toEqual(['c']));
   it('matches topic and date case insensitively', () =>
