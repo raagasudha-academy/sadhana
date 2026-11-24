@@ -70,12 +70,7 @@ test('final mode own-photo POST uses JWT subject and no caller-provided target',
 });
 test('disallows changing someone else identity or teacher photos', async () => {
   calls.length = 0;
-  for (const path of [
-    ['me', 'other'],
-    ['photos', 'teacher'],
-    ['identities', 'search'],
-    ['me'],
-  ])
+  for (const path of [['me', 'other'], ['photos', 'teacher'], ['identities', 'search'], ['me']])
     assert.equal(
       await finalCognitoSelfRoute(req(path, 'POST'), services, codecs, final),
       undefined,
