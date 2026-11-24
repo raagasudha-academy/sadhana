@@ -5,10 +5,10 @@
 }
 .tw-class-note-form {
   display: grid;
-  grid-template-columns: minmax(190px, 0.7fr) minmax(300px, 1.7fr) auto;
+  grid-template-columns: minmax(190px, 0.55fr) minmax(300px, 1.45fr);
   align-items: end;
   gap: 14px;
-  padding: 16px;
+  padding: 20px;
   border: 1px solid #d8e2f0;
   border-radius: 14px;
   background: #f8f9fc;
@@ -32,10 +32,13 @@
 }
 .tw-class-note-form textarea {
   resize: vertical;
+  min-height: 104px;
 }
 .tw-class-note-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  grid-column: 2;
   gap: 8px;
 }
 .tw-class-note-actions button,
@@ -61,6 +64,41 @@
 .tw-class-note-notice {
   margin: 0;
   color: #24744e;
+}
+.tw-class-note-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 20px;
+  padding: 18px 20px;
+  border: 2px solid #d7b56d;
+  border-radius: 14px;
+  background: #fffaf0;
+}
+.tw-class-note-reminder > div {
+  display: grid;
+  gap: 4px;
+}
+.tw-class-note-reminder strong {
+  color: #29364c;
+  font-size: 16px;
+  font-weight: 800;
+}
+.tw-class-note-reminder span {
+  color: #667791;
+  font-size: 14px;
+}
+.tw-class-note-reminder button {
+  border: 0;
+  border-radius: 10px;
+  background: #1d3d65;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  padding: 12px 16px;
+  cursor: pointer;
+  white-space: nowrap;
 }
 .tw-class-note-cell {
   display: flex;
@@ -100,6 +138,17 @@
 @media (max-width: 760px) {
   .tw-class-note-form {
     grid-template-columns: 1fr;
+  }
+  .tw-class-note-actions {
+    grid-column: 1;
+    justify-content: flex-start;
+  }
+  .tw-class-note-reminder {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tw-class-note-reminder button {
+    align-self: flex-start;
   }
   .tw-class-note-cell {
     display: grid;

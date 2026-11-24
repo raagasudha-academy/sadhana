@@ -647,9 +647,9 @@ export default function PracticeModule({
         )}
       </section>
       <div className="info-inline">
-        No practice history has been imported. These forms are not connected to DynamoDB; any
-        entries you add are temporary. Do not enter real student information until persistence,
-        consent and audit safeguards are in place.
+        No practice history has been imported. These forms are not connected to saved academy
+        records; any entries you add are temporary. Do not enter real student information until
+        persistence, consent and audit safeguards are in place.
       </div>
       {dialog?.type === 'add' && (
         <PracticeDialog

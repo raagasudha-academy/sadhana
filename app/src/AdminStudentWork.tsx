@@ -138,14 +138,25 @@ export default function AdminStudentWork({
       cloud.api.listSchedule(institution),
       cloud.api.listOperations('enrolment', institution),
       cloud.api.listOperations('student', institution),
+      teacherMode ? cloud.api.myTeacherIdentity(institution) : Promise.resolve(null),
     ])
-      .then(([scheduleResult, enrolmentResult, studentResult]) => {
+      .then(([scheduleResult, enrolmentResult, studentResult, teacherIdentity]) => {
         if (!active) return;
         const scopedEnrolments = enrolmentResult.records || [];
-        const schedule = scheduleResult.records || [];
+        let schedule = scheduleResult.records || [];
+        if (teacherMode) {
+          if (!teacherIdentity?.linked || !teacherIdentity.teacherId)
+            throw new Error('Verified teacher profile required to view assigned student work.');
+          schedule = schedule.filter(
+            (record) =>
+              record.recordType === 'class' &&
+              record.lifecycleStatus !== 'archived' &&
+              String(record.teacherId || '') === teacherIdentity.teacherId,
+          );
+        }
         setScopeData({
           classes: teacherMode
-            ? visibleMasterClasses(schedule, scopedEnrolments, true)
+            ? schedule
             : schedule.filter(
                 (record) => record.recordType === 'class' && record.lifecycleStatus !== 'archived',
               ),
@@ -259,7 +270,7 @@ export default function AdminStudentWork({
                     .filter(
                       (enrolment) =>
                         enrolment.classId === classRecord.id &&
-                        enrolment.institution === institution &&
+                        (!enrolment.institution || enrolment.institution === institution) &&
                         enrolment.startDate <= assignedDate &&
                         (!enrolment.endDate || enrolment.endDate >= assignedDate),
                     )
@@ -387,6 +398,21 @@ export default function AdminStudentWork({
     lastMonth,
   ]);
   const shownRows = visibleRows.slice(0, limit);
+  const practiceReviewEntries = useMemo(
+    () =>
+      practiceEntries.filter((entry) => {
+        const date = String(entry.date || entry.practiceDate || entry.practiceDateKey || '').slice(
+          0,
+          10,
+        );
+        if (classId && String(entry.classId || '') !== classId) return false;
+        if (range === 'all') return true;
+        if (range === 'last-month') return date >= lastMonth.start && date <= lastMonth.end;
+        const weekStart = range === 'last-week' ? previousWeekStart : currentWeekStart;
+        return date >= weekStart && date <= addDays(weekStart, 6);
+      }),
+    [practiceEntries, classId, range, lastMonth, previousWeekStart, currentWeekStart],
+  );
   const homeworkTitles = useMemo(
     () =>
       [...new Set(rows.map((row) => row.title).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
@@ -420,7 +446,7 @@ export default function AdminStudentWork({
             !studentId ||
             !activeClassIds.has(enrolledClass) ||
             (classId && enrolledClass !== classId) ||
-            enrolment.institution !== institution ||
+            (enrolment.institution && enrolment.institution !== institution) ||
             enrolment.archived === true ||
             enrolment.status === 'archived' ||
             (enrolment.startDate && enrolment.startDate > mapWeekEnd) ||
@@ -455,6 +481,19 @@ export default function AdminStudentWork({
             entry.didPractice === false
           )
             continue;
+          // Practice submissions are authoritative activity. Older or imported
+          // enrolment records can be missing while the submission is still
+          // visible in the review list, so include that learner in the map too.
+          if (!students.has(studentId)) {
+            const student = studentById.get(studentId);
+            students.set(studentId, {
+              name: String(
+                student?.name || studentNames.get(studentId) || entry.studentName || 'Student',
+              ),
+              rollNumber: String(student?.rollNumber || entry.rollNumber || ''),
+              minutes: Array.from({ length: 7 }, () => 0),
+            });
+          }
           const dayIndex = Math.round(
             (Date.parse(`${date}T12:00:00Z`) - Date.parse(`${mapWeekStart}T12:00:00Z`)) / 86400000,
           );
@@ -782,7 +821,7 @@ export default function AdminStudentWork({
       {!busy && !error && visibleRows.length === 0 && (
         <p className="asw-empty">No student work matches these filters.</p>
       )}
-      <div className="asw-list">
+      {!(teacherMode && kind === 'practice') && <div className="asw-list">
         {shownRows.map((row) => {
           const attachments = mediaByRow[row.id] || row.media || [];
           const feedback = feedbackByRow[row.id] || row.feedback || [];
@@ -866,7 +905,17 @@ export default function AdminStudentWork({
                 </div>
                 <div className="asw-admin-status">
                   <span>Status</span>
-                  <strong>{row.status}</strong>
+                  <strong
+                    className={
+                      row.status === 'Reviewed'
+                        ? 'is-reviewed'
+                        : row.status === 'Awaiting submission'
+                          ? 'is-awaiting'
+                          : 'is-submitted'
+                    }
+                  >
+                    {row.status}
+                  </strong>
                 </div>
                 <div className="asw-admin-feedback">
                   <span>Teacher feedback</span>
@@ -901,7 +950,15 @@ export default function AdminStudentWork({
                     {row.className} · {row.title}
                   </p>
                 </div>
-                <span className={row.status === 'Awaiting submission' ? 'is-awaiting' : ''}>
+                <span
+                  className={
+                    row.status === 'Reviewed'
+                      ? 'is-reviewed'
+                      : row.status === 'Awaiting submission'
+                        ? 'is-awaiting'
+                        : 'is-submitted'
+                  }
+                >
                   {row.status}
                 </span>
               </div>
@@ -918,7 +975,7 @@ export default function AdminStudentWork({
             </article>
           );
         })}
-      </div>
+      </div>}
       {shownRows.length < visibleRows.length && (
         <button
           type="button"
@@ -932,9 +989,10 @@ export default function AdminStudentWork({
         <PracticeReview
           cloud={cloud}
           workspace={institution}
-          entries={practiceEntries.filter((entry) => !classId || String(entry.classId) === classId)}
+          entries={practiceReviewEntries}
           students={sourceStudents}
           onReload={reloadWork}
+          showSummary={false}
         />
       )}
     </section>

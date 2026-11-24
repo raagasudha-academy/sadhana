@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openFamiliesAndStudents } from '../../fixtures/registrationPortal';
 
 // Local synthetic fixture only: never contacts live Sadhana, Cognito or AWS.
 const sizes = [
@@ -21,6 +22,7 @@ for (const size of sizes) {
       throw new Error(`Blocked network request to ${url.origin}`);
     });
     await page.goto('/e2e-fixtures/portal.html');
+    await openFamiliesAndStudents(page);
     await expect(page.getByText('Test Meera').first()).toBeVisible();
     const overflow = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,

@@ -15,7 +15,7 @@ test('teacher can open all assigned read-only and teaching sections in dev', asy
   await signInAs(page, 'teacher', requireRoleCredentials('teacher'));
 
   const pages: Array<[string, RegExp]> = [
-    ['Dashboard', /My teaching dashboard/i],
+    ['Dashboard', /Teachers Dashboard/i],
     ['My Classes', /^Academy Calendar$/i],
     ['My Students', /My Teaching|My teaching records|All Students|My Students/i],
     ['Practice & Reports', /^My Teaching$/i],

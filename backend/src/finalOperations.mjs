@@ -6,12 +6,13 @@ export async function finalOperationsRoute(context, readers, access, env = proce
   const { parts, method, claims, query = {} } = context;
   if (
     parts?.[0] !== 'operations' ||
-    (parts.length !== 2 && !(parts[1] === 'feedback' && parts.length === 3)) ||
-    !['family', 'student', 'attendance', 'enrolment', 'rsvp', 'practice', 'feedback'].includes(
+    (parts.length !== 2 && !(['feedback', 'class-note'].includes(parts[1]) && parts.length === 3)) ||
+    !['family', 'student', 'attendance', 'enrolment', 'rsvp', 'practice', 'feedback', 'class-note'].includes(
       parts[1],
     )
   )
     return undefined;
+  if (parts[1] === 'class-note' && parts.length === 3 && method !== 'PATCH') return undefined;
   // Feedback and attendance have explicit canonical write paths; other compatibility routes remain GET-only.
   if (
     method !== 'GET' &&
@@ -19,6 +20,7 @@ export async function finalOperationsRoute(context, readers, access, env = proce
       parts[1] === 'feedback' &&
       ((method === 'POST' && parts.length === 2) || (method === 'PATCH' && parts.length === 3))
     ) &&
+    !(parts[1] === 'class-note' && ((method === 'POST' && parts.length === 2) || (method === 'PATCH' && parts.length === 3))) &&
     !(parts[1] === 'attendance' && method === 'POST' && parts.length === 2)
   )
     return undefined;
@@ -28,6 +30,44 @@ export async function finalOperationsRoute(context, readers, access, env = proce
   if (inst !== 'raaga' && inst !== 'sruti') access.badInstitution();
   access.view(claims, inst);
   const isAdmin = access.permittedInstitutions(claims).includes(inst);
+  if (parts[1] === 'class-note') {
+    const classIdsForTeacher = async () => {
+      const teacher = await readers.directory('teacherMe', inst, claims);
+      if (!teacher?.linked || !teacher.teacherId) access.forbid('Verified academy teacher required.');
+      const classes = await readers.directory('classes', inst, claims);
+      return new Set(
+        (classes?.records ?? [])
+          .filter((row) => row?.teacherId === teacher.teacherId && row?.lifecycleStatus !== 'archived' && row?.archived !== true)
+          .map((row) => row.id)
+          .filter((id) => typeof id === 'string' && id.length > 0),
+      );
+    };
+    if (method === 'GET') {
+      const assignedIds = isAdmin ? undefined : await classIdsForTeacher();
+      return { status: 200, body: await readers.classNotes.list(inst, assignedIds) };
+    }
+    const raw = context.event?.body;
+    let data;
+    try {
+      data = raw ? JSON.parse(context.event.isBase64Encoded ? Buffer.from(raw, 'base64').toString('utf8') : raw) : {};
+    } catch {
+      return { status: 400, body: { error: 'Invalid JSON.' } };
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data))
+      return { status: 400, body: { error: 'Invalid class note.' } };
+    const existingId = method === 'PATCH' ? parts[2] : undefined;
+    const previous = existingId ? await readers.classNotes.get(inst, existingId) : null;
+    if (existingId && !previous) return { status: 404, body: { error: 'Class note not found.' } };
+    const classId = previous?.classId ?? data.classId;
+    if (!isAdmin) {
+      const assignedIds = await classIdsForTeacher();
+      if (!assignedIds.has(classId)) access.forbid('Assigned class required.');
+    }
+    return {
+      status: method === 'POST' ? 201 : 200,
+      body: await readers.classNotes.save(inst, claims.sub, data, existingId),
+    };
+  }
   if (parts[1] === 'feedback') {
     if (method === 'GET' && parts.length !== 2) return undefined;
     let teacher = null;

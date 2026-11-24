@@ -26,7 +26,6 @@ export const ICONS = {
   'Academy Workspace': LayoutDashboard,
   'Classes & Timetable': CalendarDays,
   'My Classes': CalendarDays,
-  'My Timetable': CalendarDays,
   'My Students': UsersRound,
   'Student Work': ClipboardList,
   Communications: MessageCircle,

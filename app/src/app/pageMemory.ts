@@ -33,6 +33,7 @@ export function pageForView(current: string, role: ViewRole, saved: string | nul
       ? (
           {
             'Classes & Timetable': 'My Classes',
+            'My Timetable': 'My Classes',
             'Families & Students': 'My Students',
             'Practice & Reports': 'Student Work',
           } as Record<string, string>

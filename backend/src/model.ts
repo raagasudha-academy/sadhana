@@ -48,6 +48,12 @@ export const VIEWER_GROUPS: Readonly<Record<InstitutionId, string>> = Object.fre
   raaga: 'raagasudha-viewer',
   sruti: 'sruti-viewer',
 });
+// The deployed Raaga pool also has this shorter group name. Keep the original
+// template name supported while accepting the live Cognito group.
+const VIEWER_GROUP_ALIASES: Readonly<Record<InstitutionId, readonly string[]>> = Object.freeze({
+  raaga: ['raaga-viewer'],
+  sruti: [],
+});
 export const SUPER_ADMIN_GROUP = 'sadhana-super-admin';
 export const PROD_SUPER_ADMIN_GROUP = 'prod-super-admin';
 export const SUPER_ADMIN_GROUPS: readonly string[] = Object.freeze([
@@ -67,7 +73,10 @@ export function viewableInstitutions(claims: Claims): InstitutionId[] {
   const groups = groupsFromClaims(claims);
   if (groups.some((group) => SUPER_ADMIN_GROUPS.includes(group))) return [...INSTITUTIONS];
   return INSTITUTIONS.filter(
-    (inst) => groups.includes(ADMIN_GROUPS[inst]) || groups.includes(VIEWER_GROUPS[inst]),
+    (inst) =>
+      groups.includes(ADMIN_GROUPS[inst]) ||
+      groups.includes(VIEWER_GROUPS[inst]) ||
+      VIEWER_GROUP_ALIASES[inst].some((group) => groups.includes(group)),
   );
 }
 export function demandViewInstitution(claims: Claims, requested: InstitutionId): InstitutionId {
@@ -101,7 +110,7 @@ export function fieldsOnly(body: unknown, keys: readonly string[]): Draft {
   return structuredClone(body) as Draft;
 }
 export const ALLOWED_FIELDS: Record<ResourceName, readonly string[]> = {
-  families: ['parentName', 'phone', 'gender', 'createdIn'],
+  families: ['parentName', 'phone', 'gender', 'createdIn', 'email', 'location'],
   students: [
     'name',
     'email',
@@ -141,6 +150,12 @@ export function validate(
     d.parentName = str(d.parentName, 100);
     d.phone = str(d.phone, 32);
     d.gender = str(d.gender, 40);
+    if (d.email !== undefined) {
+      d.email = str(d.email, 180).toLowerCase();
+      if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email))
+        throw httpError(400, 'Invalid parent email.');
+    }
+    if (d.location !== undefined) d.location = str(d.location, 120);
     if (!d.parentName || !/^\+[1-9]\d{7,14}$/.test(d.phone))
       throw httpError(400, 'A parent name and valid international phone number are required.');
     if (!INSTITUTIONS.includes(d.createdIn))

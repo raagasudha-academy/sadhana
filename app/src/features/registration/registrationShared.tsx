@@ -4,7 +4,7 @@ export const clean = (s) =>
   String(s || '')
     .trim()
     .replace(/\s+/g, ' ');
-// Public identifiers are immutable DynamoDB attributes; UUIDs remain internal keys.
+// Public identifiers are immutable record attributes; UUIDs remain internal keys.
 export const familyLabel = (family: any) => family?.familyNumber || 'Pending family number';
 export const readableLocation = (value: unknown) => {
   const raw = String(value || '')

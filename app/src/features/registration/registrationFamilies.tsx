@@ -38,6 +38,7 @@ export function FamilyDetail({
   onArchive,
   onRestore,
   onOpenStudent,
+  onEditStudent,
   onArchiveStudent,
   onRestoreStudent,
   onRemoveEnrol,
@@ -208,7 +209,7 @@ export function FamilyDetail({
                         title={`Edit profile: ${m.name}`}
                         aria-label={`Edit profile for ${m.name}`}
                         data-hint="Edit profile"
-                        onClick={() => onOpenStudent(m.id)}
+                        onClick={() => onEditStudent(m.id)}
                       >
                         <Pencil size={16} />
                       </button>
@@ -371,7 +372,7 @@ export function UpdateFamily({ family, onClose, onSave }: any) {
             placeholder="e.g. Middlesbrough"
           />
         </Field>
-        <p className="reg-footnote">Changes are saved to the shared family record in DynamoDB.</p>
+        <p className="reg-footnote">Changes are saved to the shared family record.</p>
         {error && (
           <p className="reg-error" role="alert">
             {error}
@@ -431,7 +432,7 @@ export function ConvertToFamily({ student, onClose, onSave }: any) {
           <ShieldCheck size={16} />
           <span>
             Your student roll number remains {studentLabel(student)}. Family creation and linking
-            are performed together in DynamoDB. Add children from the new family profile afterward.
+            are saved together. Add children from the new family profile afterward.
           </span>
         </div>
         {error && (

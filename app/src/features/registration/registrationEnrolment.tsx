@@ -210,12 +210,12 @@ export function EnrolModal({
     </Modal>
   );
 }
-export function EditName({ kind, record, family, onSave, onClose }: any) {
+export function EditName({ kind, record, family, saveError, onSave, onClose }: any) {
   const [email, setEmail] = useState(record.email || '');
   const [name, setName] = useState(kind === 'family' ? record.parentName : record.name);
   const [location, setLocation] = useState(record.location || family?.location || '');
   const [phone, setPhone] = useState(record.phone || '');
-  const [relationship, setRelationship] = useState(record.relationship || 'child');
+  const relationship = record.relationship || 'child';
   const [error, setError] = useState('');
   return (
     <Modal
@@ -240,7 +240,6 @@ export function EditName({ kind, record, family, onSave, onClose }: any) {
               email: email.trim().toLowerCase(),
               location: clean(location),
               phone: n,
-              ...(record.familyId ? { relationship } : {}),
             });
           }
         }}
@@ -273,16 +272,17 @@ export function EditName({ kind, record, family, onSave, onClose }: any) {
         <PhoneField label="Student WhatsApp" value={phone} onChange={setPhone} optional />
         {record.familyId && (
           <Field label="Family classification">
-            <select value={relationship} onChange={(e) => setRelationship(e.target.value)}>
+            <select value={relationship} disabled>
+              {relationship === 'self' && <option value="self">Independent student</option>}
               <option value="child">Child + Student</option>
               <option value="parent_guardian">Parent / Guardian + Student</option>
               <option value="other">Other Family Member + Student</option>
             </select>
           </Field>
         )}
-        {error && (
+        {(error || saveError) && (
           <p className="reg-error" role="alert">
-            {error}
+            {error || saveError}
           </p>
         )}
         <div className="reg-modal-actions">
@@ -330,7 +330,8 @@ export function ConfirmRemove({
             <div className="reg-form-section">Discard local records</div>
             <p className="reg-muted">
               To test full Delete, type DELETE. This clears linked local enrolments and practice
-              records. It does not affect DynamoDB. Live deletion will require separate safeguards.
+              records. It does not affect saved academy data. Deleting saved records will require
+              separate safeguards.
             </p>
             <Field label="Type DELETE to confirm">
               <input

@@ -22,7 +22,6 @@ const roleNavigation: Record<PortalRole, string[]> = {
   teacher: [
     'Dashboard',
     'My Classes',
-    'My Timetable',
     'My Students',
     'Student Work',
     'Syllabus & Resources',
@@ -154,6 +153,17 @@ async function visitDirectPage(page: Page, role: PortalRole, workspace: string, 
   await captureAndVisitTabs(page, role, workspace, label);
 }
 
+async function selectAcademy(page: Page, institution: 'raaga' | 'sruti') {
+  await page.getByRole('button', { name: 'Choose workspace' }).click();
+  const label = institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam';
+  await page
+    .getByRole('group', { name: 'Select an institution' })
+    .getByRole('button')
+    .filter({ hasText: label })
+    .click();
+  await expect(page.getByRole('button', { name: 'Choose workspace' })).toContainText(label);
+}
+
 async function visitRoleNavigation(page: Page, role: PortalRole, workspace: string) {
   const expected =
     role === 'admin' && workspace === 'raagasudha'
@@ -183,27 +193,34 @@ async function visitRoleNavigation(page: Page, role: PortalRole, workspace: stri
 }
 
 test.describe('complete role navigation and tab visual regression', () => {
-  test('administrator can open every Śruti page and tab', async ({ page }) => {
+  test('Śruti-only administrator can open every page and tab', async ({ page }) => {
     test.setTimeout(180_000);
-    await openRoleSession(page, 'admin');
+    await openRoleSession(page, 'admin', undefined, 'sruti');
     await visitRoleNavigation(page, 'admin', 'sruti');
   });
 
-  test('administrator can open every Raagasudha page and tab', async ({ page }) => {
+  test('Raagasudha-only administrator can open every page and tab', async ({ page }) => {
     test.setTimeout(180_000);
-    await openRoleSession(page, 'admin');
-    await page.getByRole('button', { name: 'Choose workspace' }).click();
-    await page
-      .getByRole('group', { name: 'Select an institution' })
-      .getByRole('button')
-      .filter({ hasText: 'Raagasudha' })
-      .click();
+    await openRoleSession(page, 'admin', undefined, 'raaga');
+    await visitRoleNavigation(page, 'admin', 'raagasudha');
+  });
+
+  test('dual-academy administrator can open every page and tab in both workspaces', async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await openRoleSession(page, 'admin', undefined, 'both');
+    await visitDirectPage(page, 'admin', 'combined', 'Dashboard');
+    await selectAcademy(page, 'sruti');
+    await visitRoleNavigation(page, 'admin', 'sruti');
+    await selectAcademy(page, 'raaga');
     await visitRoleNavigation(page, 'admin', 'raagasudha');
   });
 
   test('data-backed student and class detail tabs are reachable', async ({ page }) => {
     test.setTimeout(90_000);
     await openRoleSession(page, 'admin', 'detail-tabs');
+    await selectAcademy(page, 'sruti');
 
     await (await navButton(page, 'People & Access')).click();
     const peopleTabs = page.getByRole('tablist', { name: 'People & Access' });
@@ -234,12 +251,17 @@ test.describe('complete role navigation and tab visual regression', () => {
     );
   });
 
-  for (const role of ['teacher', 'student', 'guardian'] as const) {
-    test(`${role} can open every page and tab`, async ({ page }) => {
-      test.setTimeout(180_000);
-      await openRoleSession(page, role);
+  for (const role of ['teacher', 'student'] as const) {
+    test(`${role} with both academies can open every page and tab in Śruti then Raagasudha`, async ({
+      page,
+    }) => {
+      test.setTimeout(300_000);
+      await openRoleSession(page, role, undefined, 'both');
       await waitForEnrolledLearner(page, role);
+      await selectAcademy(page, 'sruti');
       await visitRoleNavigation(page, role, 'sruti');
+      await selectAcademy(page, 'raaga');
+      await visitRoleNavigation(page, role, 'raagasudha');
     });
   }
 });

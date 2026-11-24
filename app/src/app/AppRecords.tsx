@@ -442,7 +442,7 @@ export function StudentTab({
           </div>
         </div>
         <p className="muted">
-          The detailed daily practice log will be connected after DynamoDB is ready.
+          Detailed daily practice logs are not available yet.
         </p>
       </>
     );

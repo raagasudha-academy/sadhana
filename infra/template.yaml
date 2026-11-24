@@ -472,6 +472,7 @@ Resources:
               enabled,
               !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue],
             ]
+          SADHANA_FINAL_GUARDIAN_DECISIONS: !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue]
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:

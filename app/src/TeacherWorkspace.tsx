@@ -1,6 +1,5 @@
 import './practiceInsights.css';
 import './homeworkCardActions.css';
-import PracticeReview from './PracticeReview';
 import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,17 +25,16 @@ import './learningExperience.css';
 import './unifiedLayout.css';
 import './classNotes.css';
 
-type Area = 'attendance' | 'students' | 'practice' | 'history' | 'homework' | 'classNotes';
+type Area = 'attendance' | 'students' | 'history' | 'homework' | 'classNotes';
 const initialTeachingArea = (value: string): Area =>
-  value === 'practice' || value === 'attendance' || value === 'homework' || value === 'classNotes'
+  value === 'attendance' || value === 'homework' || value === 'classNotes'
     ? value
     : 'students';
 const tabs: { id: Area; label: string }[] = [
   { id: 'students', label: 'My Students' },
-  { id: 'attendance', label: 'Attendance' },
-  { id: 'practice', label: 'Review Practice' },
-  { id: 'homework', label: 'Assign Homework' },
   { id: 'classNotes', label: 'Class Notes' },
+  { id: 'attendance', label: 'Attendance' },
+  { id: 'homework', label: 'Assign Homework' },
   { id: 'history', label: 'History' },
 ];
 const studentLabel = (s: any) =>
@@ -62,7 +60,6 @@ export default function TeacherWorkspace({
     [enrolments, setEnrolments] = useState<any[]>([]),
     [attendance, setAttendance] = useState<any[]>([]),
     [rsvps, setRsvps] = useState<any[]>([]),
-    [practice, setPractice] = useState<any[]>([]),
     [schedule, setSchedule] = useState<any[]>([]),
     [classNotes, setClassNotes] = useState<any[]>([]);
   const [classNoteDate, setClassNoteDate] = useState(() =>
@@ -326,11 +323,10 @@ export default function TeacherWorkspace({
     setBusy(true);
     setError('');
     try {
-      const [st, en, at, pr, sc, rv] = await Promise.all([
+      const [st, en, at, sc, rv] = await Promise.all([
         cloud.api.listOperations('student', workspace),
         cloud.api.listOperations('enrolment', workspace),
         cloud.api.listOperations('attendance', workspace),
-        cloud.api.listOperations('practice', workspace),
         cloud.api.listSchedule(workspace),
         cloud.api.listOperations('rsvp', workspace),
       ]);
@@ -339,7 +335,6 @@ export default function TeacherWorkspace({
       setEnrolments(en.records || []);
       setAttendance(at.records || []);
       setRsvps(rv.records || []);
-      setPractice(pr.records || []);
       setSchedule(sc.records || []);
     } catch (e) {
       if (id === request.current)
@@ -589,6 +584,22 @@ export default function TeacherWorkspace({
               rsvps={rsvps}
               onSaved={reload}
             />
+            <aside className="tw-class-note-reminder">
+              <div>
+                <strong>Next step after every class: add Class Notes</strong>
+                <span>Share the key takeaway while the session is fresh for students.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setArea('classNotes');
+                  setError('');
+                  setNotice('');
+                }}
+              >
+                Add class notes
+              </button>
+            </aside>
           </div>
         )}
         {area !== 'attendance' && (
@@ -626,17 +637,22 @@ export default function TeacherWorkspace({
             </div>
             {!classes.length && (
               <p role="status">
-                No verified assigned classes are available. Ask an administrator to check your
-                teacher identity and class assignments.
+                {cloud?.staff.role === 'viewer'
+                  ? 'No class assigned.'
+                  : 'No verified assigned classes are available. Ask an administrator to check your teacher identity and class assignments.'}
               </p>
             )}
-            {area === 'students' && !enrolments.length && !busy && !error && (
-              <p role="status" className="sadhana-sync-error">
-                No enrollment records were returned for this academy. The teacher roster cannot be
-                built until students have valid class enrollments. Existing teacher assignments were
-                not changed.
-              </p>
-            )}
+            {area === 'students' &&
+              !enrolments.length &&
+              !busy &&
+              !error &&
+              !(cloud?.staff.role === 'viewer' && !classes.length) && (
+                <p role="status" className="sadhana-sync-error">
+                  No enrollment records were returned for this academy. The teacher roster cannot
+                  be built until students have valid class enrollments. Existing teacher assignments
+                  were not changed.
+                </p>
+              )}
             {area === 'students' && (
               <>
                 <div className="tw-section-head">
@@ -674,15 +690,19 @@ export default function TeacherWorkspace({
             )}
             {area === 'homework' && cloud && (
               <section className="sv1276-teacher-homework">
-                <div className="tw-section-head">
-                  <h2>Class homework</h2>
-                  <span>Only the selected class</span>
-                </div>
-                <p>
-                  Create assignments for your verified class. Enrolled students will see them in
-                  their portal.
-                </p>
-                <form className="sv1276-hw-form" onSubmit={(e) => void publishAssignment(e)}>
+                <details className="tw-homework-composer" open>
+                  <summary>
+                    <span>
+                      <strong>Class homework</strong>
+                      <small>Only the selected class · Create or update an assignment</small>
+                    </span>
+                    <ChevronDown aria-hidden="true" size={20} />
+                  </summary>
+                  <p>
+                    Create assignments for your verified class. Enrolled students will see them in
+                    their portal.
+                  </p>
+                  <form className="sv1276-hw-form" onSubmit={(e) => void publishAssignment(e)}>
                   <label>
                     Assignment title
                     <input
@@ -779,7 +799,8 @@ export default function TeacherWorkspace({
                       Cancel edit
                     </button>
                   )}
-                </form>
+                  </form>
+                </details>
                 <h3>Published assignments</h3>
                 {assignments.length ? (
                   <div className="sv1276-hw-records">
@@ -1063,15 +1084,6 @@ export default function TeacherWorkspace({
                   </div>
                 )}
               </section>
-            )}
-            {area === 'practice' && cloud && (
-              <PracticeReview
-                cloud={cloud}
-                workspace={workspace}
-                entries={practice.filter((p) => p.classId === effectiveClass)}
-                students={students}
-                onReload={reload}
-              />
             )}
             {area === 'classNotes' && cloud && (
               <section className="tw-class-notes" aria-label="Class notes">

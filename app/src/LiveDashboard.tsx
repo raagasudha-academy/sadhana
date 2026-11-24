@@ -6,12 +6,12 @@ import {
   RefreshCw,
   UsersRound,
   BookOpen,
-  Inbox,
   Check,
   CalendarClock,
   X,
   MapPin,
   Clock3,
+  GraduationCap,
 } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
@@ -25,6 +25,8 @@ type Snapshot = {
   attendance: any[];
   schedule: any[];
 };
+type HomeworkMetric = { submitted: number; assigned: number; loading?: boolean; error?: boolean };
+type RegistrationMetric = { count: number | null; more: boolean; error: boolean };
 /** Live dashboard: counts are derived from persisted operations, not the old demo registry. */
 export default function LiveDashboard({
   cloud,
@@ -41,9 +43,13 @@ export default function LiveDashboard({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
-  const [pending, setPending] = useState<number | null>(null);
-  const [pendingError, setPendingError] = useState(false);
-  const [pendingMore, setPendingMore] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<'current' | 'past'>('current');
+  const [pendingByInstitution, setPendingByInstitution] = useState<
+    Partial<Record<InstitutionId, RegistrationMetric>>
+  >({});
+  const [homeworkByInstitution, setHomeworkByInstitution] = useState<
+    Partial<Record<InstitutionId, HomeworkMetric>>
+  >({});
   const [teacherIds, setTeacherIds] = useState<Record<string, string[]>>({});
   const [nextActionBusy, setNextActionBusy] = useState(false);
   const [nextActionError, setNextActionError] = useState('');
@@ -52,78 +58,96 @@ export default function LiveDashboard({
   const [nextDate, setNextDate] = useState('');
   const [nextStart, setNextStart] = useState('');
   const [nextEnd, setNextEnd] = useState('');
-  const canReviewIntake =
-    !teacherMode &&
-    (workspace === 'raaga' || workspace === 'sruti') &&
-    cloud.staff.institutions.includes(workspace as InstitutionId);
+  const scopes = useMemo(
+    () =>
+      (workspace === 'combined' ? cloud.staff.institutions : [workspace]).filter(
+        (value): value is InstitutionId =>
+          (value === 'raaga' || value === 'sruti') && cloud.staff.institutions.includes(value),
+      ),
+    [workspace, cloud.staff.institutions.join(',')],
+  );
   useEffect(() => {
     let alive = true;
-    setPending(null);
-    setPendingError(false);
-    setPendingMore(false);
-    if (!canReviewIntake)
+    if (teacherMode) {
+      setPendingByInstitution({});
       return () => {
         alive = false;
       };
-    // Sruti uses the M9 institution-scoped directory; Raagasudha remains on
-    // its existing website registration API until the controlled migration.
-    const request =
-      workspace === 'sruti'
-        ? cloud.api.listSrutiWebsiteRegistrations()
-        : cloud.api.listWebsiteRegistrations({ status: 'pending', limit: '100' });
-    request
-      .then((result) => {
-        if (!alive) return;
-        const value = result as {
-          registrations?: unknown[];
-          records?: unknown[];
-          items?: unknown[];
-          data?: { registrations?: unknown[] };
-          more?: boolean;
-        };
-        if (workspace === 'sruti') {
-          // Never show a misleading zero when the old Raagasudha handler responds.
-          if (
-            !Array.isArray(value?.records) ||
-            value.records.some((row) => {
-              const record = row as { institutionId?: unknown; registrationId?: unknown };
-              return record?.institutionId !== 'sruti' || typeof record.registrationId !== 'string';
-            })
-          )
-            throw new Error('Unexpected Sruti registration response');
-          setPending(
-            value.records.filter(
-              (row) => (row as { reviewStatus?: string }).reviewStatus === 'pending',
-            ).length,
-          );
-          setPendingMore(Boolean(value.more));
-          return;
+    }
+    setPendingByInstitution(
+      Object.fromEntries(
+        scopes.map((institution) => [institution, { count: null, more: false, error: false }]),
+      ),
+    );
+    Promise.all(
+      scopes.map(async (institution) => {
+        try {
+          // Sruti uses the M9 institution-scoped directory; Raagasudha remains on
+          // its existing website registration API until the controlled migration.
+          const result =
+            institution === 'sruti'
+              ? await cloud.api.listSrutiWebsiteRegistrations()
+              : await cloud.api.listWebsiteRegistrations({ status: 'pending', limit: '100' });
+          const value = result as {
+            registrations?: unknown[];
+            records?: unknown[];
+            items?: unknown[];
+            data?: { registrations?: unknown[] };
+            more?: boolean;
+          };
+          if (institution === 'sruti') {
+            // Never show a misleading zero when the old Raagasudha handler responds.
+            if (
+              !Array.isArray(value?.records) ||
+              value.records.some((row) => {
+                const record = row as { institutionId?: unknown; registrationId?: unknown };
+                return (
+                  record?.institutionId !== 'sruti' || typeof record.registrationId !== 'string'
+                );
+              })
+            )
+              throw new Error('Unexpected Sruti registration response');
+            return {
+              institution,
+              metric: {
+                count: value.records.filter(
+                  (row) => (row as { reviewStatus?: string }).reviewStatus === 'pending',
+                ).length,
+                more: Boolean(value.more),
+                error: false,
+              },
+            };
+          }
+          const rows = Array.isArray(result)
+            ? result
+            : Array.isArray(value?.registrations)
+              ? value.registrations
+              : Array.isArray(value?.records)
+                ? value.records
+                : Array.isArray(value?.items)
+                  ? value.items
+                  : value?.data?.registrations;
+          if (!Array.isArray(rows)) throw new Error('Unexpected registration response');
+          return {
+            institution,
+            metric: { count: rows.length, more: rows.length === 100, error: false },
+          };
+        } catch {
+          return { institution, metric: { count: null, more: false, error: true } };
         }
-        const rows = Array.isArray(result)
-          ? result
-          : Array.isArray(value?.registrations)
-            ? value.registrations
-            : Array.isArray(value?.records)
-              ? value.records
-              : Array.isArray(value?.items)
-                ? value.items
-                : value?.data?.registrations;
-        if (!Array.isArray(rows)) throw new Error('Unexpected registration response');
-        setPending(rows.length);
-      })
-      .catch(() => {
-        if (alive) setPendingError(true);
-      });
+      }),
+    ).then((results) => {
+      if (alive)
+        setPendingByInstitution(
+          Object.fromEntries(results.map(({ institution, metric }) => [institution, metric])),
+        );
+    });
     return () => {
       alive = false;
     };
-  }, [cloud.api, canReviewIntake, workspace, refresh]);
+  }, [cloud.api, scopes, teacherMode, refresh]);
   useEffect(() => {
     let live = true;
-    const scopes = (workspace === 'combined' ? cloud.staff.institutions : [workspace]).filter(
-      (x): x is InstitutionId =>
-        (x === 'raaga' || x === 'sruti') && cloud.staff.institutions.includes(x),
-    );
     setBusy(true);
     setError('');
     Promise.all(
@@ -155,13 +179,9 @@ export default function LiveDashboard({
     return () => {
       live = false;
     };
-  }, [cloud.api, cloud.staff.institutions.join(','), workspace, refresh]);
+  }, [cloud.api, scopes, refresh]);
   useEffect(() => {
     let live = true;
-    const scopes = (workspace === 'combined' ? cloud.staff.institutions : [workspace]).filter(
-      (x): x is InstitutionId =>
-        (x === 'raaga' || x === 'sruti') && cloud.staff.institutions.includes(x),
-    );
     if (!teacherMode) {
       setTeacherIds({});
       return () => {
@@ -191,14 +211,113 @@ export default function LiveDashboard({
     return () => {
       live = false;
     };
-  }, [cloud.api, cloud.staff.institutions.join(','), workspace, teacherMode]);
-  const currentKey = (workspace === 'combined' ? cloud.staff.institutions : [workspace])
-    .filter(
-      (x) =>
-        (x === 'raaga' || x === 'sruti') && cloud.staff.institutions.includes(x as InstitutionId),
-    )
-    .join('|');
+  }, [cloud.api, scopes, teacherMode]);
+  const currentKey = scopes.join('|');
   const data = loaded?.key === currentKey ? loaded.rows : [];
+  useEffect(() => {
+    let alive = true;
+    if (teacherMode || data.length === 0) {
+      setHomeworkByInstitution((current) => (Object.keys(current).length ? {} : current));
+      return () => {
+        alive = false;
+      };
+    }
+    setHomeworkByInstitution(
+      Object.fromEntries(
+        scopes.map((institution) => [institution, { submitted: 0, assigned: 0, loading: true }]),
+      ),
+    );
+    const now = new Date(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/London',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()) + 'T12:00:00Z',
+    );
+    now.setUTCDate(1);
+    now.setUTCMonth(now.getUTCMonth() + (selectedMonth === 'current' ? 0 : -1));
+    const prefix = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    Promise.all(
+      data.map(async (scope) => {
+        try {
+          const classes = scope.schedule.filter(
+            (record) => record.recordType === 'class' && record.lifecycleStatus !== 'archived',
+          );
+          const classAssignments = await Promise.all(
+            classes.map(async (classRecord) => ({
+              classRecord,
+              records: (
+                await cloud.api.listClassHomework(scope.institution, String(classRecord.id))
+              ).records,
+            })),
+          );
+          const assignments = classAssignments.flatMap(({ classRecord, records }) =>
+            records
+              .filter((assignment) => {
+                const assignedDate = String(assignment.createdAt || assignment.dueDate || '').slice(
+                  0,
+                  10,
+                );
+                return assignedDate.startsWith(prefix);
+              })
+              .map((assignment) => ({ classRecord, assignment })),
+          );
+          const counts = await Promise.all(
+            assignments.map(async ({ classRecord, assignment }) => {
+              const assignedDate = String(assignment.createdAt || assignment.dueDate || '').slice(
+                0,
+                10,
+              );
+              const assignedStudents = new Set(
+                scope.enrolments
+                  .filter(
+                    (enrolment) =>
+                      enrolment.classId === classRecord.id &&
+                      enrolment.institution === scope.institution &&
+                      typeof enrolment.startDate === 'string' &&
+                      enrolment.startDate <= assignedDate &&
+                      (!enrolment.endDate || enrolment.endDate >= assignedDate),
+                  )
+                  .map((enrolment) => String(enrolment.studentId)),
+              );
+              const result = await cloud.api.teacherHomeworkSubmissions(
+                scope.institution,
+                String(classRecord.id),
+                assignment.id,
+              );
+              const submittedStudents = new Set(
+                result.records
+                  .filter((submission) => assignedStudents.has(String(submission.studentId)))
+                  .map((submission) => String(submission.studentId)),
+              );
+              return { assigned: assignedStudents.size, submitted: submittedStudents.size };
+            }),
+          );
+          return {
+            institution: scope.institution,
+            metric: {
+              assigned: counts.reduce((total, count) => total + count.assigned, 0),
+              submitted: counts.reduce((total, count) => total + count.submitted, 0),
+            },
+          };
+        } catch {
+          return {
+            institution: scope.institution,
+            metric: { submitted: 0, assigned: 0, error: true },
+          };
+        }
+      }),
+    ).then((results) => {
+      if (alive)
+        setHomeworkByInstitution(
+          Object.fromEntries(results.map(({ institution, metric }) => [institution, metric])),
+        );
+    });
+    return () => {
+      alive = false;
+    };
+  }, [cloud.api, data, scopes, selectedMonth, teacherMode]);
   const teacherNextSession = useMemo(() => {
     if (!teacherMode) return null;
     const today = new Intl.DateTimeFormat('en-CA', {
@@ -322,18 +441,25 @@ export default function LiveDashboard({
     (n, d) => n + d.enrolments.filter((e) => !e.archived).length,
     0,
   );
-  const attendance = data.flatMap((d) => d.attendance);
-  const present = attendance.filter((r) => r.status === 'present' || r.status === 'late').length;
-  const sadhanaMonthlyAttendance = (offset: number) => {
-    const now = new Date();
-    const year = now.getFullYear(),
-      month = now.getMonth() + offset;
-    const target = new Date(year, month, 1);
-    const label = target.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-    const prefix = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`;
+  const sadhanaMonthlyAttendance = (offset: number, scopesToCount = data) => {
+    const londonDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const target = new Date(`${londonDate}T12:00:00Z`);
+    target.setUTCDate(1);
+    target.setUTCMonth(target.getUTCMonth() + offset);
+    const label = target.toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+    const prefix = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, '0')}`;
     // Attendance events carry sessionId, and the dated schedule is the source of session date.
     const sessionDays = new Map<string, string>();
-    for (const scope of data)
+    for (const scope of scopesToCount)
       for (const s of scope.schedule) {
         if (
           s.recordType === 'class-session' &&
@@ -342,7 +468,7 @@ export default function LiveDashboard({
         )
           sessionDays.set(`${scope.institution}:${s.id}`, s.date);
       }
-    const entries = data.flatMap((scope) =>
+    const entries = scopesToCount.flatMap((scope) =>
       scope.attendance.filter((r) => {
         const day =
           typeof r.date === 'string'
@@ -362,22 +488,28 @@ export default function LiveDashboard({
       count: entries.length,
     };
   };
-  const lastMonth = sadhanaMonthlyAttendance(-1);
+  const selectedMonthOffset = selectedMonth === 'current' ? 0 : -1;
   const thisMonth = sadhanaMonthlyAttendance(0);
+  const lastMonth = sadhanaMonthlyAttendance(-1);
+  const selectedMonthlyAttendance = (institution: InstitutionId) =>
+    sadhanaMonthlyAttendance(
+      selectedMonthOffset,
+      data.filter((scope) => scope.institution === institution),
+    );
 
   return (
     <>
       <div className="page-heading">
         <div>
           <div className="eyebrow">LIVE ACADEMY OVERVIEW</div>
-          <h1>{teacherMode ? 'My teaching dashboard' : 'Academy dashboard'}</h1>
+          <h1>{teacherMode ? 'Teachers Dashboard' : 'Admin Dashboard'}</h1>
           <p>
             {workspace === 'combined'
               ? 'All authorised academies'
               : workspace === 'raaga'
                 ? 'Raagasudha'
                 : 'Sruti'}{' '}
-            · live DynamoDB records
+            · live records
           </p>
         </div>
         <button
@@ -609,57 +741,144 @@ export default function LiveDashboard({
               )}
             </section>
           )}
-          <div className="ops-summary" aria-label="Persisted academy statistics">
-            {canReviewIntake && (
+          {teacherMode ? (
+            <div className="ops-summary" aria-label="Persisted academy statistics">
               <div>
-                <span>Pending website registrations</span>
-                <strong>
-                  {pendingError
-                    ? '—'
-                    : pending === null
-                      ? '…'
-                      : pendingMore || pending === 100
-                        ? `${pending}+`
-                        : pending}
-                </strong>
+                <span>Active enrolments</span>
+                <strong>{activeEnrolments}</strong>
+              </div>
+              <div>
+                <span>Students</span>
+                <strong>{students}</strong>
+              </div>
+              <div>
+                <span>Attendance rate</span>
+                <strong>{thisMonth.value}</strong>
                 <small>
-                  {pendingError
-                    ? 'Unable to load · refresh to retry'
-                    : pendingMore
-                      ? 'Pending count may be higher · open inbox'
-                      : pending === 100
-                        ? 'At least 100 pending · open inbox'
-                        : 'Awaiting administrator review'}
+                  Current month · {thisMonth.label} · {thisMonth.count} recorded
                 </small>
+                <strong style={{ fontSize: '1.25rem', marginTop: 8 }}>{lastMonth.value}</strong>
+                <small>
+                  Last month · {lastMonth.label} · {lastMonth.count} recorded
+                </small>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div
+                className="admin-home-period"
+                role="group"
+                aria-label="Activity reporting period"
+              >
+                <span>Activity period</span>
                 <button
                   type="button"
-                  className="reg-secondary"
-                  onClick={() => onChangePage('Website Registrations')}
+                  aria-pressed={selectedMonth === 'current'}
+                  className={selectedMonth === 'current' ? 'is-active' : ''}
+                  onClick={() => setSelectedMonth('current')}
                 >
-                  <Inbox size={15} /> Review applications
+                  Current month
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={selectedMonth === 'past'}
+                  className={selectedMonth === 'past' ? 'is-active' : ''}
+                  onClick={() => setSelectedMonth('past')}
+                >
+                  Past month
                 </button>
               </div>
-            )}
-            <div>
-              <span>Active enrolments</span>
-              <strong>{activeEnrolments}</strong>
-            </div>
-            <div>
-              <span>Students</span>
-              <strong>{students}</strong>
-            </div>
-            <div>
-              <span>Attendance rate</span>
-              <strong>{thisMonth.value}</strong>
-              <small>
-                Current month · {thisMonth.label} · {thisMonth.count} recorded
-              </small>
-              <strong style={{ fontSize: '1.25rem', marginTop: 8 }}>{lastMonth.value}</strong>
-              <small>
-                Last month · {lastMonth.label} · {lastMonth.count} recorded
-              </small>
-            </div>
-          </div>
+              <section className="admin-home-metrics" aria-label="Academy overview metrics">
+                <article className="admin-home-metric">
+                  <h2>Active enrolments</h2>
+                  <div className="admin-home-metric-values">
+                    {data.map((scope) => (
+                      <div className="admin-home-metric-value" key={scope.institution}>
+                        <span>{scope.institution === 'raaga' ? 'Raagasudha' : 'Śruti'}</span>
+                        <strong>
+                          {scope.enrolments.filter((record) => !record.archived).length}
+                        </strong>
+                        <small>active enrolments</small>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+                <article className="admin-home-metric">
+                  <h2>Attendance rate</h2>
+                  <div className="admin-home-metric-values">
+                    {data.map((scope) => {
+                      const metric = selectedMonthlyAttendance(scope.institution);
+                      return (
+                        <div className="admin-home-metric-value" key={scope.institution}>
+                          <span>{scope.institution === 'raaga' ? 'Raagasudha' : 'Śruti'}</span>
+                          <strong>{metric.value}</strong>
+                          <small>
+                            {metric.label} · {metric.count} recorded
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+                <article className="admin-home-metric">
+                  <h2>Homework submission</h2>
+                  <div className="admin-home-metric-values">
+                    {data.map((scope) => {
+                      const metric = homeworkByInstitution[scope.institution];
+                      const value = metric?.loading
+                        ? '…'
+                        : metric?.error
+                          ? '—'
+                          : metric?.assigned
+                            ? `${metric.submitted}/${metric.assigned}`
+                            : '—';
+                      return (
+                        <div className="admin-home-metric-value" key={scope.institution}>
+                          <span>{scope.institution === 'raaga' ? 'Raagasudha' : 'Śruti'}</span>
+                          <strong>{value}</strong>
+                          <small>
+                            {metric?.error
+                              ? 'Unable to load assignments'
+                              : metric?.assigned
+                                ? `${metric.submitted} submitted · ${metric.assigned} assigned`
+                                : metric?.loading
+                                  ? 'Loading submissions…'
+                                  : `No assignments in ${selectedMonth === 'current' ? 'current' : 'past'} month`}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+                <article className="admin-home-metric">
+                  <h2>Pending web registrations</h2>
+                  <div className="admin-home-metric-values">
+                    {data.map((scope) => {
+                      const metric = pendingByInstitution[scope.institution];
+                      const value = !metric
+                        ? '…'
+                        : metric.error
+                          ? '—'
+                          : metric.more || metric.count === 100
+                            ? `${metric.count}+`
+                            : (metric.count ?? '…');
+                      return (
+                        <div className="admin-home-metric-value" key={scope.institution}>
+                          <span>{scope.institution === 'raaga' ? 'Raagasudha' : 'Śruti'}</span>
+                          <strong>{value}</strong>
+                          <small>
+                            {metric?.error
+                              ? 'Unable to load · refresh to retry'
+                              : 'Awaiting administrator review'}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              </section>
+            </>
+          )}
           <section className="surface" style={{ padding: 20, marginTop: 20 }}>
             <h2>Quick actions</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
@@ -686,22 +905,80 @@ export default function LiveDashboard({
               </button>
             </div>
           </section>
-          {data.map((d) => (
-            <section key={d.institution} className="surface" style={{ padding: 20, marginTop: 16 }}>
-              <h2>
-                <BookOpen
-                  size={17}
-                  style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }}
-                />
-                {d.institution === 'raaga' ? 'Raagasudha' : 'Sruti'}
-              </h2>
-              <p>
-                {new Set(d.students.filter((s) => !s.archived).map((s) => s.id)).size} active
-                students · {d.enrolments.filter((e) => !e.archived).length} active enrolments ·{' '}
-                {d.schedule.filter((s) => s.recordType === 'class').length} master classes
-              </p>
+          {teacherMode ? (
+            data.map((d) => (
+              <section
+                key={d.institution}
+                className="surface"
+                style={{ padding: 20, marginTop: 16 }}
+              >
+                <h2>
+                  <BookOpen
+                    size={17}
+                    style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }}
+                  />
+                  {d.institution === 'raaga' ? 'Raagasudha' : 'Sruti'}
+                </h2>
+                <p>
+                  {new Set(d.students.filter((s) => !s.archived).map((s) => s.id)).size} active
+                  students · {d.enrolments.filter((e) => !e.archived).length} active enrolments ·{' '}
+                  {d.schedule.filter((s) => s.recordType === 'class').length} master classes
+                </p>
+              </section>
+            ))
+          ) : (
+            <section className="surface admin-home-snapshot">
+              <header>
+                <div>
+                  <span className="admin-home-snapshot-eyebrow">Your academy at a glance</span>
+                  <h2>Academy snapshot</h2>
+                </div>
+                <GraduationCap size={23} aria-hidden="true" />
+              </header>
+              <div className="admin-home-snapshot-grid">
+                {data.map((scope) => {
+                  const name = scope.institution === 'raaga' ? 'Raagasudha' : 'Śruti';
+                  const activeStudents = new Set(
+                    scope.students
+                      .filter((student) => !student.archived)
+                      .map((student) => student.id),
+                  ).size;
+                  const classCount = scope.schedule.filter(
+                    (record) =>
+                      record.recordType === 'class' && record.lifecycleStatus !== 'archived',
+                  ).length;
+                  const homework = homeworkByInstitution[scope.institution];
+                  return (
+                    <article className="admin-home-snapshot-academy" key={scope.institution}>
+                      <h3>{name}</h3>
+                      <div className="admin-home-snapshot-stats">
+                        <div>
+                          <strong>{activeStudents}</strong>
+                          <span>active students</span>
+                        </div>
+                        <div>
+                          <strong>{classCount}</strong>
+                          <span>master classes</span>
+                        </div>
+                        <div>
+                          <strong>
+                            {homework?.loading
+                              ? '…'
+                              : homework?.error
+                                ? '—'
+                                : homework?.assigned
+                                  ? `${homework.submitted}/${homework.assigned}`
+                                  : '—'}
+                          </strong>
+                          <span>homework submitted</span>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </section>
-          ))}
+          )}
         </>
       )}
     </>

@@ -242,7 +242,7 @@ export default function AcademyOperations({
       if (edit) await cloud.api.updateOperation(area, workspace, edit.id, payload, edit.version);
       else await cloud.api.createOperation(area, workspace, payload);
       setShowForm(false);
-      setNotice(`${labels[area].slice(0, -1)} saved to DynamoDB.`);
+      setNotice(`${labels[area].slice(0, -1)} saved.`);
       await reload();
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Save failed.';
@@ -521,7 +521,7 @@ export default function AcademyOperations({
                 Cancel
               </button>
               <button className="reg-primary" disabled={busy}>
-                {busy ? 'Saving…' : 'Save to DynamoDB'}
+                {busy ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>

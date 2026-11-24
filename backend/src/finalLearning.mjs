@@ -62,6 +62,14 @@ export async function finalLearningRoute(context, dependencies, env = process.en
       return { status: 200, body: await service.saveProfile(institution, claims, id, body()) };
     return { status: 200, body: await service.extras(institution, claims, id) };
   }
+  if (root === 'learner' && parts.length === 3 && parts[2] === 'class-notes' && method === 'GET') {
+    if (env.SADHANA_FINAL_LEARNER_READS !== 'enabled')
+      return refuse('Final learner class notes are disabled.');
+    if (!idOk(id)) return refuse('Invalid student identifier.', 400);
+    dependencies.assertConfigured();
+    if (!dependencies.classNotes) return refuse('Canonical class notes service unavailable.');
+    return { status: 200, body: await dependencies.classNotes().forLearner(institution, claims, id) };
+  }
   // Private learner media is stored as canonical submission receipts; no
   // legacy profile/media PK/SK rows are read or written in final mode.
   if (

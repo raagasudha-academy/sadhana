@@ -28,7 +28,7 @@ export function StudentCardBadges({
   );
 }
 
-/** Directory data menu: actions are injected so rendering tests never touch CSV or DynamoDB. */
+/** Directory data menu: actions are injected so rendering tests never touch CSV or storage. */
 export function DirectoryDataMenu({
   onImport,
   onExportCurrent,

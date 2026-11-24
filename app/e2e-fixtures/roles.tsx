@@ -8,10 +8,17 @@ import '../src/portalStyles';
 
 const requestedRole = new URLSearchParams(location.search).get('role') || 'admin';
 const scenario = new URLSearchParams(location.search).get('scenario');
+const requestedScope = new URLSearchParams(location.search).get('scope');
 const detailScenario = scenario === 'detail-tabs';
 const role = ['admin', 'teacher', 'student', 'guardian'].includes(requestedRole)
   ? requestedRole
   : 'admin';
+const defaultScope = role === 'admin' ? 'both' : 'sruti';
+const scope = ['raaga', 'sruti', 'both'].includes(requestedScope || '')
+  ? requestedScope
+  : defaultScope;
+const scopedInstitutions: Array<'raaga' | 'sruti'> =
+  scope === 'both' ? ['raaga', 'sruti'] : [scope as 'raaga' | 'sruti'];
 const linked =
   role === 'guardian'
     ? [
@@ -180,7 +187,7 @@ const fixtureSyllabus = [
     canManage: role === 'admin',
   },
 ];
-const dashboard = (id: string) => ({
+const dashboard = (id: string, institution: string) => ({
   student: {
     id,
     name: role === 'guardian' ? 'Fixture Child One' : 'Fixture Student',
@@ -191,9 +198,9 @@ const dashboard = (id: string) => ({
       ? []
       : [
           {
-            classId: 'E2E-CLASS',
-            className: 'Fixture Music Class',
-            institution: 'sruti',
+            classId: `E2E-${institution.toUpperCase()}-CLASS`,
+            className: `${institution === 'raaga' ? 'Raagasudha' : 'Śruti'} Fixture Music Class`,
+            institution,
             lifecycleStatus: 'active',
           },
         ],
@@ -289,9 +296,9 @@ const apiHandlers: Record<string, (...args: any[]) => any> = {
   },
   uploadMyPhoto: async () => ({ photoUrl: 'data:image/png;base64,fixture', updated: true }),
   myLinkedStudents: async (institution: string) => ({
-    records: institution === 'sruti' ? linked : [],
+    records: scopedInstitutions.includes(institution) ? linked : [],
   }),
-  learnerDashboard: async (_institution: string, id: string) => dashboard(id),
+  learnerDashboard: async (institution: string, id: string) => dashboard(id, institution),
   learnerHomework: async () => empty,
   learnerExtras: async (_institution: string, id: string) => ({
     student: {
@@ -364,7 +371,12 @@ const apiHandlers: Record<string, (...args: any[]) => any> = {
   listTeachers: async () => empty,
   listAdministrators: async () => ({ records: [], canManage: role === 'admin' }),
   listManagedEvents: async () => empty,
-  listTeacherLinks: async () => ({ institution: 'sruti', teachers: [], rows: [], more: false }),
+  listTeacherLinks: async (institution: string) => ({
+    institution,
+    teachers: [],
+    rows: [],
+    more: false,
+  }),
   listLearningResources: async (_institution: string, studentId?: string) => ({
     records: fixtureSyllabus.filter((record) => !studentId || record.status === 'published'),
     stages: fixtureSyllabus.map((record) => ({
@@ -427,23 +439,23 @@ const staff: CloudSession['staff'] =
         subject: 'e2e-admin',
         role: 'admin',
         displayName: 'Fixture Administrator',
-        institutions: ['raaga', 'sruti'],
-        adminInstitutions: ['raaga', 'sruti'],
-        teacherInstitutions: ['raaga', 'sruti'],
+        institutions: scopedInstitutions,
+        adminInstitutions: scopedInstitutions,
+        teacherInstitutions: scopedInstitutions,
       }
     : role === 'teacher'
       ? {
           subject: 'e2e-teacher',
           role: 'viewer',
           displayName: 'Fixture Teacher',
-          institutions: ['sruti'],
-          teacherInstitutions: ['sruti'],
+          institutions: scopedInstitutions,
+          teacherInstitutions: scopedInstitutions,
         }
       : {
           subject: `e2e-${role}`,
           role: 'learner',
           displayName: role === 'guardian' ? 'Fixture Guardian' : 'Fixture Student',
-          institutions: ['sruti'],
+          institutions: scopedInstitutions,
         };
 const cloud: CloudSession = {
   staff,

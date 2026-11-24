@@ -2,7 +2,12 @@ import { expect, type Page } from '@playwright/test';
 
 export type PortalRole = 'admin' | 'teacher' | 'student' | 'guardian';
 
-export async function openRoleSession(page: Page, role: PortalRole, scenario?: string) {
+export async function openRoleSession(
+  page: Page,
+  role: PortalRole,
+  scenario?: string,
+  academyScope?: 'raaga' | 'sruti' | 'both',
+) {
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
     if (
@@ -15,7 +20,8 @@ export async function openRoleSession(page: Page, role: PortalRole, scenario?: s
   });
   await page.clock.install({ time: new Date('2026-11-08T12:00:00Z') });
   const scenarioQuery = scenario ? `&scenario=${encodeURIComponent(scenario)}` : '';
-  await page.goto(`/e2e-fixtures/roles.html?role=${role}${scenarioQuery}`);
+  const scopeQuery = academyScope ? `&scope=${academyScope}` : '';
+  await page.goto(`/e2e-fixtures/roles.html?role=${role}${scenarioQuery}${scopeQuery}`);
 }
 
 export async function waitForEnrolledLearner(page: Page, role: PortalRole) {

@@ -335,7 +335,7 @@ export default function RegistrationModule({
     try {
       await work();
     } catch (e) {
-      setWriteError(e instanceof Error ? e.message : 'Could not save to DynamoDB.');
+      setWriteError(e instanceof Error ? e.message : 'Could not save your changes.');
       setWriting(false);
       return;
     }
@@ -627,10 +627,10 @@ export default function RegistrationModule({
       await reload();
       setImportRows([]);
       setDialog(null);
-      setFlash('CSV students imported and saved to DynamoDB.');
+      setFlash('CSV students imported and saved.');
     } catch (e) {
       setWriteError(
-        `Import stopped: ${e instanceof Error ? e.message : 'DynamoDB error'}. Earlier rows may have been saved. Refresh and review before retrying.`,
+        `Import stopped: ${e instanceof Error ? e.message : 'The import failed'}. Earlier rows may have been saved. Refresh and review before retrying.`,
       );
       await reload();
       setDialog(null);
@@ -835,7 +835,7 @@ export default function RegistrationModule({
       async () => {
         await operationsApi.createOperation('family', workspace, values);
       },
-      'Family and all selected learners saved together to DynamoDB.',
+      'Family and selected learners saved together.',
       () => {
         setArea('families');
         setQuery('');
@@ -854,7 +854,7 @@ export default function RegistrationModule({
           adultConfirmed: true,
         });
       },
-      'Independent Student saved to DynamoDB.',
+      'Independent student saved.',
       () => {
         setArea('students');
         setQuery('');
@@ -891,7 +891,7 @@ export default function RegistrationModule({
           endDate: '',
         });
       },
-      'Enrolment saved to DynamoDB.',
+      'Enrolment saved.',
       () => {
         setStudentFocus(values.studentId);
         setFamilyFocus(null);
@@ -947,8 +947,8 @@ export default function RegistrationModule({
         await persistArchiveState(operationsApi.updateOperation, kind, workspace, record, restore);
       },
       restore
-        ? 'Record restored in DynamoDB.'
-        : 'Record archived in DynamoDB; IDs and history preserved.',
+        ? 'Record restored.'
+        : 'Record archived; IDs and history preserved.',
     );
   };
   const family = families.find((f) => f.id === familyFocus);
@@ -993,7 +993,7 @@ export default function RegistrationModule({
       )}
       {writing && (
         <p role="status" className="reg-footnote">
-          Saving to DynamoDB…
+          Saving…
         </p>
       )}
       {family ? (
@@ -1008,6 +1008,12 @@ export default function RegistrationModule({
           onEnrol={(id) => openEnrol(id)}
           classes={classes}
           onUpdate={() => setDialog('update-family')}
+          onEditStudent={(id) => {
+            setWriteError('');
+            setFamilyFocus(null);
+            setStudentFocus(id);
+            setDialog('student-name');
+          }}
           onOpenStudent={(id) => {
             setFamilyFocus(null);
             setStudentFocus(id);
@@ -1035,7 +1041,10 @@ export default function RegistrationModule({
           onBack={() => setStudentFocus(null)}
           onEnrol={(id) => openEnrol(id)}
           classes={classes}
-          onEditName={() => setDialog('student-name')}
+          onEditName={() => {
+            setWriteError('');
+            setDialog('student-name');
+          }}
           onConvert={() => setDialog('convert-family')}
           onRemove={() => setArchiveTarget({ kind: 'student', record: person, restore: false })}
           onRestore={() => setArchiveTarget({ kind: 'student', record: person, restore: true })}
@@ -1611,6 +1620,7 @@ export default function RegistrationModule({
                             aria-label={`Edit profile for ${m.name}`}
                             data-hint="Edit profile"
                             onClick={() => {
+                              setWriteError('');
                               setStudentFocus(m.id);
                               setDialog('student-name');
                             }}
@@ -2023,18 +2033,19 @@ export default function RegistrationModule({
           family={family}
           onClose={() => setDialog(null)}
           onSave={(changes) =>
-            updateRecord('family', family, changes, 'Family details saved to DynamoDB.')
+            updateRecord('family', family, changes, 'Family details saved.')
           }
         />
       )}
       {dialog === 'student-name' && person && (
         <EditName
           kind="student"
+          saveError={writeError}
           record={person}
           family={families.find((f) => f.id === person.familyId)}
           onClose={() => setDialog(null)}
           onSave={(changes) =>
-            updateRecord('student', person, changes, 'Student details saved to DynamoDB.')
+            updateRecord('student', person, changes, 'Student details saved.')
           }
         />
       )}
@@ -2043,7 +2054,7 @@ export default function RegistrationModule({
           entry={editEnrol}
           onClose={() => setDialog(null)}
           onSave={(v) =>
-            updateRecord('enrolment', editEnrol, v, 'Enrolment dates saved to DynamoDB.')
+            updateRecord('enrolment', editEnrol, v, 'Enrolment dates saved.')
           }
         />
       )}

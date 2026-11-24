@@ -121,7 +121,14 @@ test('SAM enables administrator and guardian queue reads in dev and production',
   );
   assert.doesNotMatch(
     template,
-    /SADHANA_FINAL_(?:ADMIN_(?:INVITES|ACCESS_CHANGES|PROFILE_WRITES)|GUARDIAN_(?:REQUESTS|DECISIONS)):/,
+    /SADHANA_FINAL_(?:ADMIN_(?:INVITES|ACCESS_CHANGES|PROFILE_WRITES)|GUARDIAN_REQUESTS):/,
+  );
+});
+test('SAM enables guardian decisions in Dev only', () => {
+  const template = readFileSync(new URL('../../../infra/template.yaml', import.meta.url), 'utf8');
+  assert.match(
+    template,
+    /SADHANA_FINAL_GUARDIAN_DECISIONS:\s*!If\s*\[\s*UseDevFamilyReads,\s*enabled,\s*!Ref AWS::NoValue\]/,
   );
 });
 test('read denies unauthorised staff, missing JWT and invalid academy', async () => {

@@ -65,6 +65,7 @@ import { finalTeacherCreateRoute } from './finalTeacherCreate.mjs';
 import { finalTeacherCreate } from './finalTeacherCreateData.ts';
 import { finalOperationsHistory } from './finalOperationsHistory.ts';
 import { finalOperationsFeedback } from './finalOperationsFeedback.ts';
+import { finalClassNotes } from './finalClassNotes.ts';
 import { finalAttendance } from './finalAttendance.ts';
 import { finalAttendanceWriter } from './finalAttendanceWrite.ts';
 import { finalTeacherStudents } from './finalTeacherStudents.ts';
@@ -323,6 +324,7 @@ export function createHandler(
             attendanceCreate: finalAttendanceWriter(),
             history: finalOperationsHistory(),
             feedback: finalOperationsFeedback(),
+            classNotes: finalClassNotes(),
           },
           finalAccess,
         );
@@ -615,6 +617,7 @@ export function createHandler(
           learnerProfiles: m10FinalLearnerProfiles,
           learnerMedia: m10FinalLearnerMedia,
           teacherPractice: m10TeacherPracticeRoutes,
+          classNotes: finalClassNotes,
         } satisfies Parameters<typeof finalLearningRoute>[1] & {
           learnerProfiles: typeof m10FinalLearnerProfiles;
           learnerMedia: typeof m10FinalLearnerMedia;

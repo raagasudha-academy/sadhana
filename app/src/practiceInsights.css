@@ -119,6 +119,33 @@
 .practice-review-row {
   cursor: pointer;
 }
+.practice-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.practice-sort-button svg {
+  flex: 0 0 auto;
+  opacity: 0.65;
+}
+.practice-sort-button:hover svg,
+.practice-sort-button:focus-visible svg {
+  opacity: 1;
+}
+.practice-sort-button:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid #6b83af;
+  outline-offset: 3px;
+}
 .practice-review-row:hover td,
 .practice-review-row:focus td {
   background: #f3f6fb;

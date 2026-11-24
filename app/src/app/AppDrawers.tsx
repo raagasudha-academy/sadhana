@@ -840,7 +840,7 @@ export function SessionDrawer({
               <Info size={17} />
               <span>
                 {session.sadhana
-                  ? 'Stored in Sadhana DynamoDB. Individual sessions can be corrected without changing the rest of the timetable.'
+                  ? 'Stored in Sadhana. Individual sessions can be corrected without changing the rest of the timetable.'
                   : 'Local-only record. Use the Sadhana-owned timetable for persistent edits.'}
               </span>
             </div>

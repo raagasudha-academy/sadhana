@@ -399,13 +399,15 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
   const currentRole =
     cloud?.staff.role === 'learner'
       ? 'student'
-      : person.admin
-        ? role
-        : verifiedTeachingInstitutions.length
-          ? 'teacher'
-          : learnerInstitutions.length
-            ? 'student'
-            : 'teacher';
+      : cloud?.staff.role === 'viewer'
+        ? 'teacher'
+        : person.admin
+          ? role
+          : verifiedTeachingInstitutions.length
+            ? 'teacher'
+            : learnerInstitutions.length
+              ? 'student'
+              : 'teacher';
   const studentMode = currentRole === 'student';
   useEffect(() => {
     if (studentMode && studentHasActiveEnrollment === false && page !== 'Dashboard') {
@@ -454,7 +456,6 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
         ? [
             'Dashboard',
             'My Classes',
-            'My Timetable',
             'My Students',
             'Student Work',
             'Syllabus & Resources',
@@ -790,8 +791,8 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
       setVenueDialog(null);
       setVenueSuccess(
         id
-          ? 'Venue details saved to DynamoDB. Linked calendar sessions now show the updated details.'
-          : 'New venue saved to DynamoDB.',
+          ? 'Venue details saved. Linked calendar sessions now show the updated details.'
+          : 'New venue saved.',
       );
     } catch (error) {
       if (error instanceof Error && /changed|refresh/i.test(error.message)) {
@@ -1342,6 +1343,12 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       initialThread={initialMessageThread}
                       onInitialThreadOpened={() => setInitialMessageThread(null)}
                     />
+                  ) : activePage === 'My Students' && teacherMode && cloud ? (
+                    <TeacherWorkspace
+                      cloud={cloud}
+                      workspace={currentWorkspace as InstitutionId}
+                      initialArea="students"
+                    />
                   ) : activePage === 'Families & Students' || activePage === 'My Students' ? (
                     teacherMode ? (
                       <AcademyOperations
@@ -1361,10 +1368,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                         initialView="list"
                       />
                     )
-                  ) : activePage === 'My Classes' && teacherMode && cloud ? (
-                    <TeacherWorkspace cloud={cloud} workspace={currentWorkspace as InstitutionId} />
                   ) : activePage === 'Classes & Timetable' ||
-                    activePage === 'My Timetable' ||
                     activePage === 'My Classes' ? (
                     <Timetable
                       workspace={currentWorkspace}

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openFamiliesAndStudents } from '../../fixtures/registrationPortal';
 
 // Defense in depth: all requests must stay on the dedicated local Vite test server.
 test.beforeEach(async ({ page }) => {
@@ -13,6 +14,7 @@ test.beforeEach(async ({ page }) => {
     throw new Error(`E2E blocked unexpected network access: ${url.origin}`);
   });
   await page.goto('/e2e-fixtures/portal.html');
+  await openFamiliesAndStudents(page);
 });
 
 test('real portal renders synthetic students in registration directory', async ({ page }) => {
