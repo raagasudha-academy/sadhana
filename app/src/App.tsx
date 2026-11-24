@@ -116,7 +116,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
       const saved = sessionStorage.getItem('sadhana:v095:workspace');
       const savedView = sessionStorage.getItem('sadhana:view-as');
       if (cloud?.staff.role === 'admin' && savedView !== 'teacher' && savedView !== 'student') {
-        if (saved && saved !== 'combined') return saved;
+        if (cloud.staff.institutions.length > 1) return 'combined';
         return cloud.staff.institutions[0] || 'raaga';
       }
       return saved || 'combined';
@@ -211,13 +211,15 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
     };
   }, [cloud?.api, familyAccessRetry]);
   const [page, setPage] = useState(() =>
-    savedPage(
-      cloud?.staff.role === 'learner'
-        ? 'student'
-        : cloud?.staff.role === 'viewer'
-          ? 'teacher'
-          : role,
-    ),
+    cloud?.staff.role === 'admin' && role === 'admin'
+      ? 'Dashboard'
+      : savedPage(
+          cloud?.staff.role === 'learner'
+            ? 'student'
+            : cloud?.staff.role === 'viewer'
+              ? 'teacher'
+              : role,
+        ),
   );
   const historyPopRef = useRef(false);
   useEffect(() => {
