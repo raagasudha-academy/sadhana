@@ -27,9 +27,7 @@ import './classNotes.css';
 
 type Area = 'attendance' | 'students' | 'history' | 'homework' | 'classNotes';
 const initialTeachingArea = (value: string): Area =>
-  value === 'attendance' || value === 'homework' || value === 'classNotes'
-    ? value
-    : 'students';
+  value === 'attendance' || value === 'homework' || value === 'classNotes' ? value : 'students';
 const tabs: { id: Area; label: string }[] = [
   { id: 'students', label: 'My Students' },
   { id: 'classNotes', label: 'Class Notes' },
@@ -648,8 +646,8 @@ export default function TeacherWorkspace({
               !error &&
               !(cloud?.staff.role === 'viewer' && !classes.length) && (
                 <p role="status" className="sadhana-sync-error">
-                  No enrollment records were returned for this academy. The teacher roster cannot
-                  be built until students have valid class enrollments. Existing teacher assignments
+                  No enrollment records were returned for this academy. The teacher roster cannot be
+                  built until students have valid class enrollments. Existing teacher assignments
                   were not changed.
                 </p>
               )}
@@ -703,102 +701,102 @@ export default function TeacherWorkspace({
                     their portal.
                   </p>
                   <form className="sv1276-hw-form" onSubmit={(e) => void publishAssignment(e)}>
-                  <label>
-                    Assignment title
-                    <input
-                      value={homeworkTitle}
-                      disabled={busy}
-                      maxLength={120}
-                      required
-                      onChange={(e) => setHomeworkTitle(e.target.value)}
-                      placeholder="e.g. Practice lesson 4"
-                    />
-                  </label>
-                  <label>
-                    Due date
-                    <input
-                      type="date"
-                      disabled={busy}
-                      required
-                      value={homeworkDue}
-                      onChange={(e) => setHomeworkDue(e.target.value)}
-                    />
-                  </label>
-                  <label className="sv1276-hw-wide">
-                    Instructions
-                    <textarea
-                      value={homeworkInstructions}
-                      disabled={busy}
-                      maxLength={3000}
-                      required
-                      onChange={(e) => setHomeworkInstructions(e.target.value)}
-                    />
-                  </label>
-                  <div className="sv1276-hw-wide sadhana-form-materials">
-                    <strong>Attachments · {homeworkAttachmentCount}/4</strong>
-                    <p>Add up to four images, audio files, or videos for the assignment.</p>
-                    <label className="sadhana-attachment-add">
-                      <UploadCloud size={19} />
-                      <span>Add attachments</span>
+                    <label>
+                      Assignment title
                       <input
-                        aria-label="Add assignment attachments"
-                        type="file"
-                        multiple
-                        accept={homeworkMediaAccept}
-                        disabled={busy || homeworkAttachmentCount >= 4}
-                        onChange={(e) => {
-                          chooseHomeworkFiles(e.target.files);
-                          e.target.value = '';
-                        }}
+                        value={homeworkTitle}
+                        disabled={busy}
+                        maxLength={120}
+                        required
+                        onChange={(e) => setHomeworkTitle(e.target.value)}
+                        placeholder="e.g. Practice lesson 4"
                       />
                     </label>
-                    {existingMaterials
-                      .filter((m) => !removedMaterialIds.includes(m.id))
-                      .map((m) => (
-                        <div key={m.id} className="sadhana-material-file">
-                          <HomeworkMediaPreview
-                            mime={m.mime}
-                            url={m.url}
-                            alt={`Existing homework ${homeworkMediaKind(m.mime).toLowerCase()}`}
-                          />
+                    <label>
+                      Due date
+                      <input
+                        type="date"
+                        disabled={busy}
+                        required
+                        value={homeworkDue}
+                        onChange={(e) => setHomeworkDue(e.target.value)}
+                      />
+                    </label>
+                    <label className="sv1276-hw-wide">
+                      Instructions
+                      <textarea
+                        value={homeworkInstructions}
+                        disabled={busy}
+                        maxLength={3000}
+                        required
+                        onChange={(e) => setHomeworkInstructions(e.target.value)}
+                      />
+                    </label>
+                    <div className="sv1276-hw-wide sadhana-form-materials">
+                      <strong>Attachments · {homeworkAttachmentCount}/4</strong>
+                      <p>Add up to four images, audio files, or videos for the assignment.</p>
+                      <label className="sadhana-attachment-add">
+                        <UploadCloud size={19} />
+                        <span>Add attachments</span>
+                        <input
+                          aria-label="Add assignment attachments"
+                          type="file"
+                          multiple
+                          accept={homeworkMediaAccept}
+                          disabled={busy || homeworkAttachmentCount >= 4}
+                          onChange={(e) => {
+                            chooseHomeworkFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      {existingMaterials
+                        .filter((m) => !removedMaterialIds.includes(m.id))
+                        .map((m) => (
+                          <div key={m.id} className="sadhana-material-file">
+                            <HomeworkMediaPreview
+                              mime={m.mime}
+                              url={m.url}
+                              alt={`Existing homework ${homeworkMediaKind(m.mime).toLowerCase()}`}
+                            />
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => setRemovedMaterialIds((x) => [...x, m.id])}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      {homeworkFiles.map((file, i) => (
+                        <div key={`${file.name}-${i}`} className="sadhana-material-file">
+                          <span>{file.name}</span>
                           <button
                             type="button"
                             disabled={busy}
-                            onClick={() => setRemovedMaterialIds((x) => [...x, m.id])}
+                            onClick={() => setHomeworkFiles((x) => x.filter((_, j) => j !== i))}
                           >
                             Remove
                           </button>
                         </div>
                       ))}
-                    {homeworkFiles.map((file, i) => (
-                      <div key={`${file.name}-${i}`} className="sadhana-material-file">
-                        <span>{file.name}</span>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => setHomeworkFiles((x) => x.filter((_, j) => j !== i))}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    className="sadhana-hw-primary"
-                    type="submit"
-                    disabled={busy || !effectiveClass}
-                  >
-                    {editingHomework ? 'Save & republish' : 'Publish homework'}
-                  </button>
-                  {editingHomework && (
+                    </div>
                     <button
-                      className="sadhana-hw-secondary"
-                      type="button"
-                      onClick={resetHomeworkForm}
+                      className="sadhana-hw-primary"
+                      type="submit"
+                      disabled={busy || !effectiveClass}
                     >
-                      Cancel edit
+                      {editingHomework ? 'Save & republish' : 'Publish homework'}
                     </button>
-                  )}
+                    {editingHomework && (
+                      <button
+                        className="sadhana-hw-secondary"
+                        type="button"
+                        onClick={resetHomeworkForm}
+                      >
+                        Cancel edit
+                      </button>
+                    )}
                   </form>
                 </details>
                 <h3>Published assignments</h3>

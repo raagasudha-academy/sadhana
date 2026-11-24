@@ -2,9 +2,17 @@ import type { RouteContext } from './routes/http.ts';
 import type { CanonicalReadDependencies, CanonicalAccess } from './finalReadRoutes.mjs';
 export type OperationsDependencies = CanonicalReadDependencies & {
   classNotes: {
-    list: (institution: 'raaga' | 'sruti', assignedClassIds?: ReadonlySet<string>) => Promise<{ records: Array<Record<string, unknown>> }>;
+    list: (
+      institution: 'raaga' | 'sruti',
+      assignedClassIds?: ReadonlySet<string>,
+    ) => Promise<{ records: Array<Record<string, unknown>> }>;
     get: (institution: 'raaga' | 'sruti', id: string) => Promise<Record<string, unknown> | null>;
-    save: (institution: 'raaga' | 'sruti', actor: string, data: Record<string, unknown>, existingId?: string) => Promise<{ record: Record<string, unknown> }>;
+    save: (
+      institution: 'raaga' | 'sruti',
+      actor: string,
+      data: Record<string, unknown>,
+      existingId?: string,
+    ) => Promise<{ record: Record<string, unknown> }>;
   };
   teacherEnrolments: (
     institution: 'raaga' | 'sruti',

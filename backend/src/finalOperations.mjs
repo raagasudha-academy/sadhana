@@ -6,10 +6,18 @@ export async function finalOperationsRoute(context, readers, access, env = proce
   const { parts, method, claims, query = {} } = context;
   if (
     parts?.[0] !== 'operations' ||
-    (parts.length !== 2 && !(['feedback', 'class-note'].includes(parts[1]) && parts.length === 3)) ||
-    !['family', 'student', 'attendance', 'enrolment', 'rsvp', 'practice', 'feedback', 'class-note'].includes(
-      parts[1],
-    )
+    (parts.length !== 2 &&
+      !(['feedback', 'class-note'].includes(parts[1]) && parts.length === 3)) ||
+    ![
+      'family',
+      'student',
+      'attendance',
+      'enrolment',
+      'rsvp',
+      'practice',
+      'feedback',
+      'class-note',
+    ].includes(parts[1])
   )
     return undefined;
   if (parts[1] === 'class-note' && parts.length === 3 && method !== 'PATCH') return undefined;
@@ -20,7 +28,10 @@ export async function finalOperationsRoute(context, readers, access, env = proce
       parts[1] === 'feedback' &&
       ((method === 'POST' && parts.length === 2) || (method === 'PATCH' && parts.length === 3))
     ) &&
-    !(parts[1] === 'class-note' && ((method === 'POST' && parts.length === 2) || (method === 'PATCH' && parts.length === 3))) &&
+    !(
+      parts[1] === 'class-note' &&
+      ((method === 'POST' && parts.length === 2) || (method === 'PATCH' && parts.length === 3))
+    ) &&
     !(parts[1] === 'attendance' && method === 'POST' && parts.length === 2)
   )
     return undefined;
@@ -33,11 +44,17 @@ export async function finalOperationsRoute(context, readers, access, env = proce
   if (parts[1] === 'class-note') {
     const classIdsForTeacher = async () => {
       const teacher = await readers.directory('teacherMe', inst, claims);
-      if (!teacher?.linked || !teacher.teacherId) access.forbid('Verified academy teacher required.');
+      if (!teacher?.linked || !teacher.teacherId)
+        access.forbid('Verified academy teacher required.');
       const classes = await readers.directory('classes', inst, claims);
       return new Set(
         (classes?.records ?? [])
-          .filter((row) => row?.teacherId === teacher.teacherId && row?.lifecycleStatus !== 'archived' && row?.archived !== true)
+          .filter(
+            (row) =>
+              row?.teacherId === teacher.teacherId &&
+              row?.lifecycleStatus !== 'archived' &&
+              row?.archived !== true,
+          )
           .map((row) => row.id)
           .filter((id) => typeof id === 'string' && id.length > 0),
       );
@@ -49,7 +66,11 @@ export async function finalOperationsRoute(context, readers, access, env = proce
     const raw = context.event?.body;
     let data;
     try {
-      data = raw ? JSON.parse(context.event.isBase64Encoded ? Buffer.from(raw, 'base64').toString('utf8') : raw) : {};
+      data = raw
+        ? JSON.parse(
+            context.event.isBase64Encoded ? Buffer.from(raw, 'base64').toString('utf8') : raw,
+          )
+        : {};
     } catch {
       return { status: 400, body: { error: 'Invalid JSON.' } };
     }

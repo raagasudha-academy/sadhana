@@ -946,9 +946,7 @@ export default function RegistrationModule({
       async () => {
         await persistArchiveState(operationsApi.updateOperation, kind, workspace, record, restore);
       },
-      restore
-        ? 'Record restored.'
-        : 'Record archived; IDs and history preserved.',
+      restore ? 'Record restored.' : 'Record archived; IDs and history preserved.',
     );
   };
   const family = families.find((f) => f.id === familyFocus);
@@ -2032,9 +2030,7 @@ export default function RegistrationModule({
         <UpdateFamily
           family={family}
           onClose={() => setDialog(null)}
-          onSave={(changes) =>
-            updateRecord('family', family, changes, 'Family details saved.')
-          }
+          onSave={(changes) => updateRecord('family', family, changes, 'Family details saved.')}
         />
       )}
       {dialog === 'student-name' && person && (
@@ -2044,18 +2040,14 @@ export default function RegistrationModule({
           record={person}
           family={families.find((f) => f.id === person.familyId)}
           onClose={() => setDialog(null)}
-          onSave={(changes) =>
-            updateRecord('student', person, changes, 'Student details saved.')
-          }
+          onSave={(changes) => updateRecord('student', person, changes, 'Student details saved.')}
         />
       )}
       {dialog === 'edit-enrol' && editEnrol && (
         <EditEnrolment
           entry={editEnrol}
           onClose={() => setDialog(null)}
-          onSave={(v) =>
-            updateRecord('enrolment', editEnrol, v, 'Enrolment dates saved.')
-          }
+          onSave={(v) => updateRecord('enrolment', editEnrol, v, 'Enrolment dates saved.')}
         />
       )}
     </div>

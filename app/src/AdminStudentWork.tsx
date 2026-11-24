@@ -821,91 +821,137 @@ export default function AdminStudentWork({
       {!busy && !error && visibleRows.length === 0 && (
         <p className="asw-empty">No student work matches these filters.</p>
       )}
-      {!(teacherMode && kind === 'practice') && <div className="asw-list">
-        {shownRows.map((row) => {
-          const attachments = mediaByRow[row.id] || row.media || [];
-          const feedback = feedbackByRow[row.id] || row.feedback || [];
-          const renderMedia = (media: { id: string; mime: string; url: string }) => {
-            if (media.mime.startsWith('audio/'))
-              return (
-                <div className="asw-media-preview asw-audio" key={media.id}>
-                  <Music2 size={18} />
-                  <audio
+      {!(teacherMode && kind === 'practice') && (
+        <div className="asw-list">
+          {shownRows.map((row) => {
+            const attachments = mediaByRow[row.id] || row.media || [];
+            const feedback = feedbackByRow[row.id] || row.feedback || [];
+            const renderMedia = (media: { id: string; mime: string; url: string }) => {
+              if (media.mime.startsWith('audio/'))
+                return (
+                  <div className="asw-media-preview asw-audio" key={media.id}>
+                    <Music2 size={18} />
+                    <audio
+                      controls
+                      preload="none"
+                      src={media.url}
+                      aria-label={`Audio submission from ${row.studentName}`}
+                    />
+                  </div>
+                );
+              if (media.mime.startsWith('video/'))
+                return (
+                  <video
+                    className="asw-video-preview"
+                    key={media.id}
                     controls
-                    preload="none"
-                    src={media.url}
-                    aria-label={`Audio submission from ${row.studentName}`}
-                  />
-                </div>
-              );
-            if (media.mime.startsWith('video/'))
-              return (
-                <video
-                  className="asw-video-preview"
-                  key={media.id}
-                  controls
-                  preload="metadata"
-                  aria-label={`Video submission from ${row.studentName}`}
-                >
-                  <source src={media.url} type={media.mime} />
-                  Your browser cannot play this video.
-                </video>
-              );
-            if (media.mime.startsWith('image/'))
+                    preload="metadata"
+                    aria-label={`Video submission from ${row.studentName}`}
+                  >
+                    <source src={media.url} type={media.mime} />
+                    Your browser cannot play this video.
+                  </video>
+                );
+              if (media.mime.startsWith('image/'))
+                return (
+                  <a
+                    className="asw-image-preview-link"
+                    key={media.id}
+                    href={media.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open image submission from ${row.studentName}`}
+                  >
+                    <img
+                      className="asw-image-preview"
+                      src={media.url}
+                      alt={`Submission from ${row.studentName}`}
+                      loading="lazy"
+                    />
+                  </a>
+                );
               return (
                 <a
-                  className="asw-image-preview-link"
+                  className="asw-file"
                   key={media.id}
                   href={media.url}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label={`Open image submission from ${row.studentName}`}
                 >
-                  <img
-                    className="asw-image-preview"
-                    src={media.url}
-                    alt={`Submission from ${row.studentName}`}
-                    loading="lazy"
-                  />
+                  <FileText size={15} /> Open attachment
                 </a>
               );
-            return (
-              <a
-                className="asw-file"
-                key={media.id}
-                href={media.url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <FileText size={15} /> Open attachment
-              </a>
-            );
-          };
+            };
 
-          if (!teacherMode)
+            if (!teacherMode)
+              return (
+                <article className="asw-card asw-card--admin" key={row.id}>
+                  <div className="asw-admin-student">
+                    <h2>{row.studentName}</h2>
+                    <p>{row.className}</p>
+                    <small>{row.title}</small>
+                  </div>
+                  <div className="asw-admin-date">
+                    <span>Date</span>
+                    <time>{row.date ? formatWorkDate(row.date) : 'Date unavailable'}</time>
+                  </div>
+                  <div className="asw-admin-submitted-media">
+                    <span>Submitted media</span>
+                    {attachments.length ? (
+                      <div className="asw-admin-media-grid">{attachments.map(renderMedia)}</div>
+                    ) : (
+                      <p className="asw-admin-no-media">No media uploaded</p>
+                    )}
+                    {row.detail && <p className="asw-detail">{row.detail}</p>}
+                  </div>
+                  <div className="asw-admin-status">
+                    <span>Status</span>
+                    <strong
+                      className={
+                        row.status === 'Reviewed'
+                          ? 'is-reviewed'
+                          : row.status === 'Awaiting submission'
+                            ? 'is-awaiting'
+                            : 'is-submitted'
+                      }
+                    >
+                      {row.status}
+                    </strong>
+                  </div>
+                  <div className="asw-admin-feedback">
+                    <span>Teacher feedback</span>
+                    {feedback.length ? (
+                      feedback.map((item) => (
+                        <div className="asw-admin-feedback-item" key={item.id}>
+                          {item.comment && <p>{item.comment}</p>}
+                          {item.audioUrl && (
+                            <audio
+                              controls
+                              preload="none"
+                              src={item.audioUrl}
+                              aria-label="Teacher audio feedback"
+                            />
+                          )}
+                          {item.createdAt && <small>{formatWorkDate(item.createdAt)}</small>}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="asw-admin-no-media">No feedback yet</p>
+                    )}
+                  </div>
+                </article>
+              );
+
             return (
-              <article className="asw-card asw-card--admin" key={row.id}>
-                <div className="asw-admin-student">
-                  <h2>{row.studentName}</h2>
-                  <p>{row.className}</p>
-                  <small>{row.title}</small>
-                </div>
-                <div className="asw-admin-date">
-                  <span>Date</span>
-                  <time>{row.date ? formatWorkDate(row.date) : 'Date unavailable'}</time>
-                </div>
-                <div className="asw-admin-submitted-media">
-                  <span>Submitted media</span>
-                  {attachments.length ? (
-                    <div className="asw-admin-media-grid">{attachments.map(renderMedia)}</div>
-                  ) : (
-                    <p className="asw-admin-no-media">No media uploaded</p>
-                  )}
-                  {row.detail && <p className="asw-detail">{row.detail}</p>}
-                </div>
-                <div className="asw-admin-status">
-                  <span>Status</span>
-                  <strong
+              <article className="asw-card" key={row.id}>
+                <div className="asw-card-heading">
+                  <div>
+                    <h2>{row.studentName}</h2>
+                    <p>
+                      {row.className} · {row.title}
+                    </p>
+                  </div>
+                  <span
                     className={
                       row.status === 'Reviewed'
                         ? 'is-reviewed'
@@ -915,67 +961,23 @@ export default function AdminStudentWork({
                     }
                   >
                     {row.status}
-                  </strong>
+                  </span>
                 </div>
-                <div className="asw-admin-feedback">
-                  <span>Teacher feedback</span>
-                  {feedback.length ? (
-                    feedback.map((item) => (
-                      <div className="asw-admin-feedback-item" key={item.id}>
-                        {item.comment && <p>{item.comment}</p>}
-                        {item.audioUrl && (
-                          <audio
-                            controls
-                            preload="none"
-                            src={item.audioUrl}
-                            aria-label="Teacher audio feedback"
-                          />
-                        )}
-                        {item.createdAt && <small>{formatWorkDate(item.createdAt)}</small>}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="asw-admin-no-media">No feedback yet</p>
-                  )}
-                </div>
+                <p className="asw-date">
+                  <CalendarDays size={15} />{' '}
+                  {row.status === 'Awaiting submission' ? 'Assigned' : 'Submitted'}{' '}
+                  {row.date ? formatWorkDate(row.date) : 'date unavailable'}
+                  {row.dueDate
+                    ? ` · Due ${new Date(`${row.dueDate}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
+                    : ''}
+                </p>
+                {row.detail && <p className="asw-detail">{row.detail}</p>}
+                {attachments.map(renderMedia)}
               </article>
             );
-
-          return (
-            <article className="asw-card" key={row.id}>
-              <div className="asw-card-heading">
-                <div>
-                  <h2>{row.studentName}</h2>
-                  <p>
-                    {row.className} · {row.title}
-                  </p>
-                </div>
-                <span
-                  className={
-                    row.status === 'Reviewed'
-                      ? 'is-reviewed'
-                      : row.status === 'Awaiting submission'
-                        ? 'is-awaiting'
-                        : 'is-submitted'
-                  }
-                >
-                  {row.status}
-                </span>
-              </div>
-              <p className="asw-date">
-                <CalendarDays size={15} />{' '}
-                {row.status === 'Awaiting submission' ? 'Assigned' : 'Submitted'}{' '}
-                {row.date ? formatWorkDate(row.date) : 'date unavailable'}
-                {row.dueDate
-                  ? ` · Due ${new Date(`${row.dueDate}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
-                  : ''}
-              </p>
-              {row.detail && <p className="asw-detail">{row.detail}</p>}
-              {attachments.map(renderMedia)}
-            </article>
-          );
-        })}
-      </div>}
+          })}
+        </div>
+      )}
       {shownRows.length < visibleRows.length && (
         <button
           type="button"

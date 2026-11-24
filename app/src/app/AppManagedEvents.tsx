@@ -397,11 +397,7 @@ export function ManagedEvents({
         endTime,
         mode: eventKind === 'event' ? 'Event' : mode,
         location:
-          eventKind === 'event'
-            ? ''
-            : mode === 'Online'
-              ? 'Online'
-              : chosenVenue?.name || '',
+          eventKind === 'event' ? '' : mode === 'Online' ? 'Online' : chosenVenue?.name || '',
         venueId: eventKind === 'event' || mode === 'Online' ? '' : chosenVenue?.id || '',
         ...(eventKind === 'event' || isTeacher ? {} : { teacherId }),
       };

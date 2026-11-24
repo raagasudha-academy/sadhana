@@ -39,7 +39,11 @@ export function makeFinalClassNotes(client: Client) {
   const get = async (entity: string, key: string, value: string) =>
     (
       await client.send(
-        new GetCommand({ TableName: entityTable(entity), Key: { [key]: value }, ConsistentRead: true }),
+        new GetCommand({
+          TableName: entityTable(entity),
+          Key: { [key]: value },
+          ConsistentRead: true,
+        }),
       )
     ).Item ?? null;
 
@@ -64,9 +68,14 @@ export function makeFinalClassNotes(client: Client) {
 
   async function notes(inst: InstitutionId, classIds?: ReadonlySet<string>) {
     const rows = (await scan('practice')).filter(
-      (row) => isClassNote(row) && row.institutionId === inst && (!classIds || classIds.has(row.classId)),
+      (row) =>
+        isClassNote(row) && row.institutionId === inst && (!classIds || classIds.has(row.classId)),
     );
-    return { records: rows.map(project).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)) };
+    return {
+      records: rows
+        .map(project)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+    };
   }
 
   async function getNote(inst: InstitutionId, id: string) {
@@ -77,19 +86,27 @@ export function makeFinalClassNotes(client: Client) {
 
   async function save(inst: InstitutionId, actor: string, data: Row, existingId?: string) {
     if (!actor) throw failure(401, 'Authentication required.');
-    if (!data || typeof data !== 'object' || Array.isArray(data)) throw failure(400, 'Invalid class note.');
+    if (!data || typeof data !== 'object' || Array.isArray(data))
+      throw failure(400, 'Invalid class note.');
     const allowed = existingId
       ? new Set(['note', 'expectedVersion', 'classId', 'date'])
       : new Set(['classId', 'date', 'note']);
-    if (Object.keys(data).some((field) => !allowed.has(field))) throw failure(400, 'Unsupported class note field.');
+    if (Object.keys(data).some((field) => !allowed.has(field)))
+      throw failure(400, 'Unsupported class note field.');
     if (typeof data.classId !== 'string' || !data.classId || !validDate(data.date))
       throw failure(400, 'Choose a class and valid date.');
     if (typeof data.note !== 'string' || !data.note.trim() || data.note.trim().length > 2000)
       throw failure(400, 'Add a class note of up to 2000 characters.');
-    if (existingId && !/^CLASSNOTE-[a-f\d-]{36}$/i.test(existingId)) throw failure(400, 'Invalid class note ID.');
+    if (existingId && !/^CLASSNOTE-[a-f\d-]{36}$/i.test(existingId))
+      throw failure(400, 'Invalid class note ID.');
 
     const cls = await get('classes', 'classId', data.classId);
-    if (!cls || cls.institutionId !== inst || cls.lifecycleStatus === 'archived' || cls.archived === true)
+    if (
+      !cls ||
+      cls.institutionId !== inst ||
+      cls.lifecycleStatus === 'archived' ||
+      cls.archived === true
+    )
       throw failure(404, 'Active class not found.');
     const prior = existingId ? await get('practice', 'practiceId', existingId) : null;
     if (existingId && (!prior || !isClassNote(prior) || prior.institutionId !== inst))
@@ -103,7 +120,8 @@ export function makeFinalClassNotes(client: Client) {
       const sameDate = (await notes(inst)).records.some(
         (row) => row.classId === data.classId && row.date === data.date,
       );
-      if (sameDate) throw failure(409, 'A class note already exists for this class and date. Edit it instead.');
+      if (sameDate)
+        throw failure(409, 'A class note already exists for this class and date. Edit it instead.');
     }
     const now = new Date().toISOString();
     const id = existingId ?? `CLASSNOTE-${randomUUID()}`;
@@ -138,9 +156,14 @@ export function makeFinalClassNotes(client: Client) {
                 Item: item,
                 ...(prior
                   ? {
-                      ConditionExpression: '#v=:version AND institutionId=:inst AND recordType=:kind',
+                      ConditionExpression:
+                        '#v=:version AND institutionId=:inst AND recordType=:kind',
                       ExpressionAttributeNames: { '#v': 'version' },
-                      ExpressionAttributeValues: { ':version': prior.version, ':inst': inst, ':kind': 'class-note' },
+                      ExpressionAttributeValues: {
+                        ':version': prior.version,
+                        ':inst': inst,
+                        ':kind': 'class-note',
+                      },
                     }
                   : { ConditionExpression: 'attribute_not_exists(practiceId)' }),
               },
@@ -156,7 +179,8 @@ export function makeFinalClassNotes(client: Client) {
         }),
       );
     } catch (error: any) {
-      if (error.name === 'TransactionCanceledException') throw failure(409, 'Class note changed; refresh and retry.');
+      if (error.name === 'TransactionCanceledException')
+        throw failure(409, 'Class note changed; refresh and retry.');
       throw error;
     }
     return { record: project(item) };
@@ -196,25 +220,40 @@ export function makeFinalClassNotes(client: Client) {
       links = links.filter(Boolean);
     }
     if (
-      !currentActor || currentActor.cognitoSub !== claims.sub || currentActor.status !== 'active' ||
-      (!currentActor.institutionIds?.includes(inst) && !currentActor.personTypes?.includes('guardian'))
-    ) throw failure(403, 'A verified portal identity is required.');
+      !currentActor ||
+      currentActor.cognitoSub !== claims.sub ||
+      currentActor.status !== 'active' ||
+      (!currentActor.institutionIds?.includes(inst) &&
+        !currentActor.personTypes?.includes('guardian'))
+    )
+      throw failure(403, 'A verified portal identity is required.');
     authorisedStudent(currentActor, student, links, inst);
     const enrolments = (await scan('enrolments')).filter(
-      (row) => row.institutionId === inst && row.studentId === studentId && row.status === 'active' && row.archived !== true,
+      (row) =>
+        row.institutionId === inst &&
+        row.studentId === studentId &&
+        row.status === 'active' &&
+        row.archived !== true,
     );
     const allowedClasses = new Set<string>();
     const names = new Map<string, string>();
     for (const id of new Set(enrolments.map((row) => row.classId).filter(Boolean))) {
       const cls = await get('classes', 'classId', id);
-      if (cls?.institutionId === inst && cls.lifecycleStatus !== 'archived' && cls.archived !== true) {
+      if (
+        cls?.institutionId === inst &&
+        cls.lifecycleStatus !== 'archived' &&
+        cls.archived !== true
+      ) {
         allowedClasses.add(id);
         names.set(id, String(cls.name || 'Class'));
       }
     }
     const result = await notes(inst, allowedClasses);
     return {
-      records: result.records.map((row) => ({ ...row, className: names.get(row.classId) || 'Class' })),
+      records: result.records.map((row) => ({
+        ...row,
+        className: names.get(row.classId) || 'Class',
+      })),
     };
   }
 
@@ -224,6 +263,8 @@ export function makeFinalClassNotes(client: Client) {
 let cached: ReturnType<typeof makeFinalClassNotes> | undefined;
 export function finalClassNotes() {
   return (cached ??= makeFinalClassNotes(
-    DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' })),
+    DynamoDBDocumentClient.from(
+      new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }),
+    ),
   ));
 }

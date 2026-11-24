@@ -94,8 +94,10 @@ export default function PracticeReview({
       else if (sortKey === 'minutes')
         comparison = (Number(a.minutes) || 0) - (Number(b.minutes) || 0);
       else {
-        const aFeedback = a.teacherReviewed || a.teacherComments?.length ? 'Reviewed' : 'Needs review';
-        const bFeedback = b.teacherReviewed || b.teacherComments?.length ? 'Reviewed' : 'Needs review';
+        const aFeedback =
+          a.teacherReviewed || a.teacherComments?.length ? 'Reviewed' : 'Needs review';
+        const bFeedback =
+          b.teacherReviewed || b.teacherComments?.length ? 'Reviewed' : 'Needs review';
         comparison = collator.compare(aFeedback, bFeedback);
       }
       if (comparison) return comparison * direction;
@@ -269,7 +271,11 @@ export default function PracticeReview({
           <div className="v1376-period">
             <span>Practice period</span>
             <div>
-              <button type="button" aria-pressed={period === 'week'} onClick={() => setPeriod('week')}>
+              <button
+                type="button"
+                aria-pressed={period === 'week'}
+                onClick={() => setPeriod('week')}
+              >
                 Last 7 days
               </button>
               <button
@@ -279,7 +285,11 @@ export default function PracticeReview({
               >
                 This month
               </button>
-              <button type="button" aria-pressed={period === 'all'} onClick={() => setPeriod('all')}>
+              <button
+                type="button"
+                aria-pressed={period === 'all'}
+                onClick={() => setPeriod('all')}
+              >
                 All time
               </button>
             </div>
@@ -301,55 +311,56 @@ export default function PracticeReview({
             </div>
           </div>
           <section className="v1376-consistency" aria-label="Weekly practice consistency">
-        <div className="v1376-section-top">
-          <h3>Weekly practice consistency</h3>
-          <small>
-            Daily recorded minutes · {fullDate(days[0])}–{fullDate(days[6], { year: 'numeric' })}
-          </small>
-        </div>
-        {learnerSummary.length ? (
-          <>
-            {learnerSummary.map((row) => (
-              <div className="v1376-learner-row" key={row.student.id}>
-                <div className="v1376-learner-head">
-                  <strong>
-                    {row.student.name}
-                    {row.student.rollNumber ? ` · ${row.student.rollNumber}` : ''}
-                  </strong>
-                  <small>
-                    {row.week.filter((v) => v > 0).length}/7 days ·{' '}
-                    {row.week.reduce((a, b) => a + b, 0)} min
-                  </small>
-                </div>
-                <div className="v1376-week">
-                  {row.week.map((mins, i) => (
-                    <div
-                      key={days[i]}
-                      title={`${days[i]} · ${mins} minutes`}
-                      className={
-                        mins === 0
-                          ? 'v1376-none'
-                          : mins < 15
-                            ? 'v1376-low'
-                            : mins < 30
-                              ? 'v1376-medium'
-                              : 'v1376-high'
-                      }
-                    >
-                      <span>{fullDate(days[i])}</span>
-                      <strong>{mins || '—'}</strong>
+            <div className="v1376-section-top">
+              <h3>Weekly practice consistency</h3>
+              <small>
+                Daily recorded minutes · {fullDate(days[0])}–
+                {fullDate(days[6], { year: 'numeric' })}
+              </small>
+            </div>
+            {learnerSummary.length ? (
+              <>
+                {learnerSummary.map((row) => (
+                  <div className="v1376-learner-row" key={row.student.id}>
+                    <div className="v1376-learner-head">
+                      <strong>
+                        {row.student.name}
+                        {row.student.rollNumber ? ` · ${row.student.rollNumber}` : ''}
+                      </strong>
+                      <small>
+                        {row.week.filter((v) => v > 0).length}/7 days ·{' '}
+                        {row.week.reduce((a, b) => a + b, 0)} min
+                      </small>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </>
-        ) : (
-          <p className="tw-hint">No recorded practice for this class.</p>
-        )}
-        <p className="tw-hint">
-          An empty day means no practice was logged, not necessarily that no practice occurred.
-        </p>
+                    <div className="v1376-week">
+                      {row.week.map((mins, i) => (
+                        <div
+                          key={days[i]}
+                          title={`${days[i]} · ${mins} minutes`}
+                          className={
+                            mins === 0
+                              ? 'v1376-none'
+                              : mins < 15
+                                ? 'v1376-low'
+                                : mins < 30
+                                  ? 'v1376-medium'
+                                  : 'v1376-high'
+                          }
+                        >
+                          <span>{fullDate(days[i])}</span>
+                          <strong>{mins || '—'}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p className="tw-hint">No recorded practice for this class.</p>
+            )}
+            <p className="tw-hint">
+              An empty day means no practice was logged, not necessarily that no practice occurred.
+            </p>
           </section>
         </>
       )}

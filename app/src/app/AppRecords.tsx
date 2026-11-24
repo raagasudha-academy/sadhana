@@ -441,9 +441,7 @@ export function StudentTab({
             <span>Logged time</span>
           </div>
         </div>
-        <p className="muted">
-          Detailed daily practice logs are not available yet.
-        </p>
+        <p className="muted">Detailed daily practice logs are not available yet.</p>
       </>
     );
   if (tab === 'Attendance')

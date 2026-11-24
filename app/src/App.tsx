@@ -1368,8 +1368,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                         initialView="list"
                       />
                     )
-                  ) : activePage === 'Classes & Timetable' ||
-                    activePage === 'My Classes' ? (
+                  ) : activePage === 'Classes & Timetable' || activePage === 'My Classes' ? (
                     <Timetable
                       workspace={currentWorkspace}
                       isTeacher={teacherMode}

@@ -1119,7 +1119,8 @@ export function makeM10CoreWriteService(db: CoreDb) {
               return {
                 id,
                 parentName:
-                  contact.displayName || [contact.firstName, contact.lastName].filter(Boolean).join(' '),
+                  contact.displayName ||
+                  [contact.firstName, contact.lastName].filter(Boolean).join(' '),
                 email: current.email || contact.email || '',
                 phone: current.phone || contact.phone || '',
                 gender: current.gender || contact.gender || '',
@@ -1178,10 +1179,14 @@ export function makeM10CoreWriteService(db: CoreDb) {
             'Shared identity updates require administrator access to every linked academy.',
           );
         const requestedEmail = updated.email || '';
-        const currentEmail = String(old.email || contact.email || '').trim().toLowerCase();
+        const currentEmail = String(old.email || contact.email || '')
+          .trim()
+          .toLowerCase();
         if (
           requestedEmail !== currentEmail &&
-          (contact.cognitoSub || contact.legacyPayload?.cognitoSub || contact.staffProfile?.cognitoSub)
+          (contact.cognitoSub ||
+            contact.legacyPayload?.cognitoSub ||
+            contact.staffProfile?.cognitoSub)
         )
           throw httpError(
             409,
