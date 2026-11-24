@@ -255,7 +255,8 @@ export function createHandler(
         const finalCognitoSelfWrite =
           process.env.SADHANA_ENTITY_TABLE_SET === 'final' &&
           ((requestMethod === 'PATCH' && p.length === 2 && p[0] === 'me' && p[1] === 'profile') ||
-            (requestMethod === 'POST' && p.length === 2 && p[0] === 'photos' && p[1] === 'me'));
+            (requestMethod === 'POST' && p.length === 2 && p[0] === 'photos' &&
+              (p[1] === 'me' || p[1] === 'administrator')));
         const srutiRegistrationReview =
           process.env.M10_REGISTRATION_M9_READS === 'enabled' &&
           process.env.M95_ONBOARDING_MODE === 'enabled' &&
@@ -670,6 +671,8 @@ export function createHandler(
             getProfile: getOwnProfile,
             saveProfile: saveOwnProfile,
             uploadOwnPhoto: (value, identity) => uploadProfilePhoto(value, identity, 'me'),
+            uploadAdministratorPhoto: (value, identity) =>
+              uploadProfilePhoto(value, identity, 'administrator'),
           },
           { readJSON, readPhotoJSON },
         );

@@ -26,5 +26,12 @@ export async function finalCognitoSelfRoute(context, services, codecs, env = pro
       body: await services.uploadOwnPhoto(codecs.readPhotoJSON(body()), claims),
     };
   }
+  if (parts.length === 2 && parts[0] === 'photos' && parts[1] === 'administrator') {
+    if (method !== 'POST') return { status: 405, body: { error: 'Unsupported photo action.' } };
+    return {
+      status: 200,
+      body: await services.uploadAdministratorPhoto(codecs.readPhotoJSON(body()), claims),
+    };
+  }
   return undefined;
 }
