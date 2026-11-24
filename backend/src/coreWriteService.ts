@@ -325,6 +325,206 @@ export function makeM10CoreWriteService(db: CoreDb) {
         alreadyRegistered: false,
       };
     },
+    async registerFamily(inst: InstitutionId, claims: Claims, raw: RecordValue) {
+      if (!text(claims.sub)) throw httpError(401, 'Verified administrator required.');
+      only(raw, ['parentName', 'phone', 'gender', 'location', 'email', 'members']);
+      const details = validate('families', {
+        parentName: raw.parentName,
+        phone: raw.phone,
+        gender: raw.gender || '',
+        createdIn: inst,
+      });
+      const email = String(raw.email || '')
+        .trim()
+        .toLowerCase();
+      if (!validEmail(email)) throw httpError(400, 'Guardian email required.');
+      if (!Array.isArray(raw.members) || !raw.members.length || raw.members.length > 20)
+        throw httpError(400, 'Choose 1–20 learners per family.');
+
+      const familyId = newId('FAMILY');
+      const guardianId = newId('PERSON');
+      const now = new Date().toISOString();
+      const common = {
+        familyId,
+        institutionIds: [inst],
+        status: 'active',
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const location = String(raw.location || '')
+        .trim()
+        .slice(0, 120);
+      const guardian: RecordValue = {
+        ...common,
+        personId: guardianId,
+        ...names(details.parentName),
+        phone: details.phone,
+        gender: details.gender,
+        email,
+        location,
+        personTypes: ['guardian'],
+      };
+      const [familySeq, rollSeq] = await Promise.all([
+        counter(db, inst, 'FAMILY_NUMBER'),
+        counter(db, inst, 'STUDENT_ROLL'),
+      ]);
+      const familyNumber = String(familySeq.previous + 1).padStart(3, '0');
+      const record = {
+        ...details,
+        id: familyId,
+        email,
+        location,
+        familyNumber,
+        archived: false,
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const family = {
+        ...common,
+        familyNumber,
+        primaryContactPersonId: guardianId,
+        legacyPayload: record,
+      };
+      const actions: any[] = [familySeq.write, rollSeq.write, put('families', family, 'familyId')];
+      const guard = (counterId: string, personId: string, sequenceType: string) =>
+        put(
+          'counters',
+          { counterId, institutionId: inst, familyId, personId, sequenceType, createdAt: now },
+          'counterId',
+        );
+      actions.push(
+        guard(`FAMILY_PHONE#${inst}#${details.phone}`, guardianId, 'FAMILY_PHONE_GUARD'),
+      );
+      const emails = new Set([email]);
+      const learnerNames = new Set<string>();
+      const students: RecordValue[] = [];
+      for (const member of raw.members) {
+        only(member, ['name', 'phone', 'email', 'relationship', 'gender']);
+        const learner = validate('students', {
+          name: member.name,
+          phone: member.phone || '',
+          email: member.email || '',
+          location,
+          familyId,
+          createdIn: inst,
+          registrationType: 'family',
+        });
+        const relationship = member.relationship || 'child';
+        if (!['other', 'child', 'parent_guardian'].includes(relationship))
+          throw httpError(400, 'Invalid family relationship.');
+        const key = learner.name.trim().replace(/\s+/g, ' ').toLowerCase();
+        if (learnerNames.has(key)) throw httpError(400, 'Duplicate learner name in family.');
+        learnerNames.add(key);
+        const isGuardian = relationship === 'parent_guardian' && learner.email === email;
+        if (relationship === 'parent_guardian' && (!learner.email || !learner.phone))
+          throw httpError(400, 'Adult family learners require email and phone.');
+        if (
+          isGuardian &&
+          (learner.phone !== guardian.phone ||
+            key !== details.parentName.trim().replace(/\s+/g, ' ').toLowerCase())
+        )
+          throw httpError(409, 'Guardian details do not match.');
+        const personId = isGuardian ? guardianId : newId('PERSON');
+        if (!isGuardian && learner.email) {
+          if (emails.has(learner.email)) throw httpError(409, 'Duplicate email in family.');
+          emails.add(learner.email);
+          actions.push(guard(`STUDENT_EMAIL#${learner.email}`, personId, 'STUDENT_EMAIL_GUARD'));
+        }
+        const rollNumber = academyRoll(inst, rollSeq.previous + students.length + 1);
+        const studentProfile = { rollNumber, rollNumbers: { [inst]: rollNumber } };
+        const row = {
+          ...learner,
+          id: personId,
+          relationship,
+          rollNumber,
+          version: 1,
+          createdAt: now,
+          updatedAt: now,
+          archived: false,
+        };
+        students.push(row);
+        actions.push(guard(`ROLL_GLOBAL#${rollNumber}`, personId, 'ROLL_UNIQUE'));
+        if (isGuardian)
+          Object.assign(guardian, {
+            studentProfile,
+            personTypes: ['guardian', 'student'],
+            legacyPayload: row,
+          });
+        else {
+          actions.push(
+            put(
+              'people',
+              {
+                ...common,
+                personId,
+                ...names(learner.name),
+                email: learner.email,
+                phone: learner.phone,
+                location,
+                studentProfile,
+                personTypes: ['student'],
+                legacyPayload: row,
+              },
+              'personId',
+            ),
+          );
+          actions.push(
+            put(
+              'family-links',
+              {
+                linkId: guardianLinkId(inst, guardianId, personId),
+                institutionId: inst,
+                familyId,
+                recordType: 'guardian-access',
+                guardianPersonId: guardianId,
+                personId: guardianId,
+                studentId: personId,
+                relationship: 'unverified',
+                relationshipVerified: false,
+                accessStatus: 'pending',
+                version: 1,
+                createdAt: now,
+                updatedAt: now,
+              },
+              'linkId',
+            ),
+          );
+        }
+      }
+      let cursor;
+      do {
+        const page = await db.send(
+          new ScanCommand({
+            TableName: table('people'),
+            ProjectionExpression: 'email',
+            ConsistentRead: true,
+            ExclusiveStartKey: cursor,
+          }),
+        );
+        if (
+          page.Items?.some(
+            (person) =>
+              typeof person.email === 'string' && emails.has(person.email.trim().toLowerCase()),
+          )
+        )
+          throw httpError(409, 'An existing person uses this email. Review the family directory.');
+        cursor = page.LastEvaluatedKey;
+      } while (cursor);
+      rollSeq.write.Update.ExpressionAttributeValues[':next'] = rollSeq.previous + students.length;
+      actions.push(
+        guard(`STUDENT_EMAIL#${email}`, guardianId, 'PERSON_EMAIL_GUARD'),
+        put('people', guardian, 'personId'),
+        put(
+          'audit',
+          audit(inst, claims.sub!, 'ACADEMY_FAMILY_CREATED', 'family', familyId, now),
+          'auditId',
+        ),
+      );
+      await tx(actions);
+      return { record, students };
+    },
     async create(entity: CoreEntity, inst: InstitutionId, claims: Claims, raw: RecordValue) {
       const actor = claims.sub;
       if (!text(actor)) throw httpError(401, 'Verified administrator required.');

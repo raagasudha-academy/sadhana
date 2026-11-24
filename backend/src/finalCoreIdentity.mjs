@@ -8,6 +8,8 @@
 const fail = (message, status = 503) => ({ status, body: { error: message } });
 const coreRoots = new Set(['families', 'students', 'enrolments']);
 const validId = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{4,150}$/.test(value);
+const familyRegistration = (parts, method) =>
+  method === 'POST' && parts?.length === 2 && parts[0] === 'operations' && parts[1] === 'family';
 const legacyStudentPost = (parts) =>
   parts?.length === 2 && parts[0] === 'operations' && parts[1] === 'student';
 const legacyStudentPatch = (parts) =>
@@ -29,6 +31,7 @@ export async function finalCoreIdentityRoute(context, dependencies, access, env 
     !(
       coreRoots.has(parts[0]) ||
       parts[0] === 'family-access' ||
+      familyRegistration(parts, method) ||
       legacyStudentPost(parts) ||
       legacyStudentPatch(parts)
     )
@@ -42,6 +45,18 @@ export async function finalCoreIdentityRoute(context, dependencies, access, env 
   const institution = query.institution ?? context.inst;
   if (!validInstitution(institution)) return fail('Choose a valid institution.', 400);
 
+  if (familyRegistration(parts, method)) {
+    if (env.SADHANA_FINAL_CORE_WRITES !== 'enabled') return fail('Final core writes are disabled.');
+    access.admin(claims, institution);
+    dependencies.assertConfigured();
+    const body = dependencies.parse(event);
+    if (!Array.isArray(body?.members))
+      return fail('Family registration requires a list of learners.', 400);
+    return {
+      status: 201,
+      body: await dependencies.core().registerFamily(institution, claims, body),
+    };
+  }
   if (legacyStudentPost(parts)) {
     if (method !== 'POST') return undefined;
     if (env.SADHANA_FINAL_CORE_WRITES !== 'enabled') return fail('Final core writes are disabled.');
