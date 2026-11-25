@@ -135,13 +135,11 @@ export default function AccountAccess({
       .then((r) => {
         if (active)
           setStudents(
-            (r.records || []).filter(
-              (s: Student) =>
-                !s.archived &&
-                (Array.isArray(s.visibleIn)
-                  ? s.visibleIn.includes(institution)
-                  : (s.createdIn || s.institution) === institution),
-            ),
+            // The API already scopes this directory to the selected academy.
+            // A student created in Raaga can also be enrolled in Śruti, so
+            // filtering again by createdIn hides the canonical ID needed by
+            // the cross-academy guardian review modal.
+            (r.records || []).filter((s: Student) => !s.archived),
           );
       })
       .catch(() => {
