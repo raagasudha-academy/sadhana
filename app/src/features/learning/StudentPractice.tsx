@@ -411,6 +411,17 @@ export function StudentPractice({ context }: { context: StudentPortalContext }) 
                   <span className="v1376-practice-history-media-label">Topic</span>
                   <strong>{r.topic || 'Practice session'}</strong>
                 </div>
+                {typeof r.comments === 'string' && r.comments.trim() && (
+                  <div className="v1376-practice-history-notes">
+                    <span className="v1376-practice-history-media-label">Your notes</span>
+                    <textarea
+                      aria-label="Your practice notes"
+                      readOnly
+                      rows={4}
+                      value={r.comments}
+                    />
+                  </div>
+                )}
                 <div className="v1376-practice-history-media-row">
                   <span className="v1376-practice-history-media-label">Attachments</span>
                   <div className="v1376-practice-history-attachments">

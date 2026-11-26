@@ -1,6 +1,6 @@
 import './practiceInsights.css';
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, BookOpenCheck } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, BookOpenCheck, X } from 'lucide-react';
 import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
@@ -41,6 +41,7 @@ export default function PracticeReview({
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState('');
+  const closeReviewButton = useRef<HTMLButtonElement>(null);
   const names = useMemo(
     () => new Map<string, string>(students.map((s) => [s.id, s.name])),
     [students],
@@ -224,7 +225,32 @@ export default function PracticeReview({
       setBusy(false);
     }
   };
+  const closeReview = useCallback(() => {
+    if (busy) return;
+    setOpen('');
+    setComment('');
+    setFeedbackAudio(null);
+    setFeedbackAudioId('');
+    setFeedbackAudioUrl('');
+  }, [busy]);
   const selected = entries.find((p) => p.id === open);
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busy) closeReview();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, closeReview]);
+  useEffect(() => {
+    if (!open) return;
+    closeReviewButton.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
   const changeSort = (key: PracticeSortKey) => {
     if (key === sortKey) setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
     else {
@@ -476,155 +502,184 @@ export default function PracticeReview({
           </div>
           {!shown.length && <p className="tw-hint">No practice matches these filters.</p>}
           {open && selected && (
-            <section className="tw-practice-feedback" aria-label="Practice feedback">
-              <h3>
-                Practice review · {names.get(selected.studentId) || 'student'} · {selected.date}
-              </h3>
-              <p className="tw-hint">
-                {selected.topic || 'Practice'} · {selected.minutes || 0} minutes
-              </p>
-              <section className="tw-practice-student-notes" aria-label="Student notes">
-                <strong>Student notes</strong>
-                <p>{selected.comments?.trim() || 'No notes added for this practice.'}</p>
-              </section>
-              <div className="tw-practice-recordings">
-                <strong>Practice attachments</strong>
-                {recordings[open]?.length ? (
-                  recordings[open].map((r) => (
-                    <div key={r.id}>
-                      <small>{new Date(r.createdAt).toLocaleString()}</small>
-                      {r.mime.startsWith('image/') ? (
-                        <a href={r.url} target="_blank" rel="noreferrer">
-                          <img src={r.url} alt={`Student practice image from ${selected.date}`} />
-                        </a>
-                      ) : r.mime.startsWith('audio/') ? (
-                        <audio
-                          controls
-                          preload="none"
-                          aria-label={`Practice audio for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
-                          src={r.url}
-                        />
-                      ) : r.mime.startsWith('video/') ? (
-                        <video
-                          controls
-                          playsInline
-                          preload="metadata"
-                          aria-label={`Practice video for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
-                        >
-                          <source src={r.url} type={r.mime} />
-                          Your browser cannot play this video.{' '}
-                          <a href={r.url} target="_blank" rel="noreferrer">
-                            Open video
-                          </a>
-                        </video>
-                      ) : null}
-                    </div>
-                  ))
-                ) : (
-                  <p className="tw-hint">No attachments for this practice.</p>
-                )}
-              </div>
-              {feedback[open]?.map((f) => (
-                <p key={f.id}>
-                  {f.comment} <small>· {f.createdAt.slice(0, 10)}</small>
-                  {f.audioUrl && (
-                    <audio
-                      controls
-                      preload="none"
-                      src={f.audioUrl}
-                      aria-label="Teacher audio feedback"
-                    />
-                  )}
-                </p>
-              ))}
-              {feedback[open]?.length === 0 && <p>No teacher comments yet.</p>}
-              {selectedReviewed ? (
-                <p className="tw-hint" role="status">
-                  This practice has been reviewed and is read-only.
-                </p>
-              ) : (
-                <>
-                  <label htmlFor="teacher-comment">
-                    Add comment <span className="tw-required-label">(required)</span>
-                  </label>
+            <div
+              className="tw-practice-modal-backdrop"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) closeReview();
+              }}
+            >
+              <section
+                className="tw-practice-feedback"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="tw-practice-review-title"
+              >
+                <header className="tw-practice-feedback-head">
+                  <div>
+                    <h3 id="tw-practice-review-title">
+                      Practice review · {names.get(selected.studentId) || 'student'} ·{' '}
+                      {selected.date}
+                    </h3>
+                    <p className="tw-hint">
+                      {selected.topic || 'Practice'} · {selected.minutes || 0} minutes
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="tw-practice-modal-close"
+                    aria-label="Close practice review"
+                    title="Close review"
+                    ref={closeReviewButton}
+                    disabled={busy}
+                    onClick={closeReview}
+                  >
+                    <X size={20} aria-hidden="true" />
+                  </button>
+                </header>
+                <section className="tw-practice-student-notes" aria-label="Student notes">
+                  <strong>Student notes</strong>
                   <textarea
-                    id="teacher-comment"
-                    required
-                    aria-required="true"
-                    maxLength={1000}
-                    value={comment}
-                    onChange={(e) => {
-                      setComment(e.target.value);
-                      setNotice('');
-                      setError('');
-                    }}
-                    placeholder="Feedback on the student's practice"
+                    className="tw-practice-notes-box"
+                    aria-label="Student practice notes"
+                    readOnly
+                    rows={4}
+                    value={selected.comments?.trim() || 'No notes added for this practice.'}
                   />
-                  <div className="tw-feedback-audio-picker">
-                    <span>
-                      Audio feedback <small>Optional</small>
-                    </span>
-                    <AudioFeedbackRecorder
-                      disabled={busy}
-                      onRecording={(file) => {
-                        if (feedbackAudioUrl) URL.revokeObjectURL(feedbackAudioUrl);
-                        setFeedbackAudio(file);
-                        setFeedbackAudioId('');
-                        setFeedbackAudioUrl(URL.createObjectURL(file));
+                </section>
+                <div className="tw-practice-recordings">
+                  <strong>Practice attachments</strong>
+                  {recordings[open]?.length ? (
+                    recordings[open].map((r) => (
+                      <div key={r.id}>
+                        <small>{new Date(r.createdAt).toLocaleString()}</small>
+                        {r.mime.startsWith('image/') ? (
+                          <a href={r.url} target="_blank" rel="noreferrer">
+                            <img src={r.url} alt={`Student practice image from ${selected.date}`} />
+                          </a>
+                        ) : r.mime.startsWith('audio/') ? (
+                          <audio
+                            controls
+                            preload="none"
+                            aria-label={`Practice audio for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
+                            src={r.url}
+                          />
+                        ) : r.mime.startsWith('video/') ? (
+                          <video
+                            controls
+                            playsInline
+                            preload="metadata"
+                            aria-label={`Practice video for ${names.get(selected.studentId) || 'student'} on ${selected.date}`}
+                          >
+                            <source src={r.url} type={r.mime} />
+                            Your browser cannot play this video.{' '}
+                            <a href={r.url} target="_blank" rel="noreferrer">
+                              Open video
+                            </a>
+                          </video>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="tw-hint">No attachments for this practice.</p>
+                  )}
+                </div>
+                {feedback[open]?.map((f) => (
+                  <p key={f.id}>
+                    {f.comment} <small>· {f.createdAt.slice(0, 10)}</small>
+                    {f.audioUrl && (
+                      <audio
+                        controls
+                        preload="none"
+                        src={f.audioUrl}
+                        aria-label="Teacher audio feedback"
+                      />
+                    )}
+                  </p>
+                ))}
+                {feedback[open]?.length === 0 && <p>No teacher comments yet.</p>}
+                {selectedReviewed ? (
+                  <p className="tw-hint" role="status">
+                    This practice has been reviewed and is read-only.
+                  </p>
+                ) : (
+                  <>
+                    <label htmlFor="teacher-comment">
+                      Add comment <span className="tw-required-label">(required)</span>
+                    </label>
+                    <textarea
+                      id="teacher-comment"
+                      required
+                      aria-required="true"
+                      maxLength={1000}
+                      value={comment}
+                      onChange={(e) => {
+                        setComment(e.target.value);
                         setNotice('');
                         setError('');
                       }}
+                      placeholder="Feedback on the student's practice"
                     />
-                  </div>
-                  {feedbackAudioUrl && (
-                    <div className="tw-feedback-audio-preview">
-                      <span>{feedbackAudio?.name}</span>
-                      <audio controls preload="metadata" src={feedbackAudioUrl} />
+                    <div className="tw-feedback-audio-picker">
+                      <span>
+                        Audio feedback <small>Optional</small>
+                      </span>
+                      <AudioFeedbackRecorder
+                        disabled={busy}
+                        onRecording={(file) => {
+                          if (feedbackAudioUrl) URL.revokeObjectURL(feedbackAudioUrl);
+                          setFeedbackAudio(file);
+                          setFeedbackAudioId('');
+                          setFeedbackAudioUrl(URL.createObjectURL(file));
+                          setNotice('');
+                          setError('');
+                        }}
+                      />
                     </div>
+                    {feedbackAudioUrl && (
+                      <div className="tw-feedback-audio-preview">
+                        <span>{feedbackAudio?.name}</span>
+                        <audio controls preload="metadata" src={feedbackAudioUrl} />
+                      </div>
+                    )}
+                  </>
+                )}
+                {error && (
+                  <p role="alert" className="sadhana-sync-error">
+                    {error}
+                  </p>
+                )}
+                {notice && (
+                  <p className="tw-feedback-saved" role="status">
+                    {notice}
+                  </p>
+                )}
+                <div className="tw-feedback-actions">
+                  {!selectedReviewed && (
+                    <button
+                      type="button"
+                      className={`reg-primary${notice ? ' is-saved' : ''}`}
+                      disabled={busy || Boolean(notice) || !comment.trim()}
+                      onClick={() => void submit(open)}
+                    >
+                      {busy ? 'Saving…' : notice ? 'Saved' : 'Save comment'}
+                    </button>
                   )}
-                </>
-              )}
-              {error && (
-                <p role="alert" className="sadhana-sync-error">
-                  {error}
-                </p>
-              )}
-              {notice && (
-                <p className="tw-feedback-saved" role="status">
-                  {notice}
-                </p>
-              )}
-              <div className="tw-feedback-actions">
-                {!selectedReviewed && (
+                  {selectedReviewed && notice && (
+                    <button type="button" className="reg-primary is-saved" disabled>
+                      Saved
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className={`reg-primary${notice ? ' is-saved' : ''}`}
-                    disabled={busy || Boolean(notice) || !comment.trim()}
-                    onClick={() => void submit(open)}
+                    className="reg-secondary"
+                    disabled={busy}
+                    onClick={closeReview}
                   >
-                    {busy ? 'Saving…' : notice ? 'Saved' : 'Save comment'}
+                    Close
                   </button>
-                )}
-                {selectedReviewed && notice && (
-                  <button type="button" className="reg-primary is-saved" disabled>
-                    Saved
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="reg-secondary"
-                  onClick={() => {
-                    setOpen('');
-                    setComment('');
-                    setFeedbackAudio(null);
-                    setFeedbackAudioId('');
-                    setFeedbackAudioUrl('');
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            </section>
+                </div>
+              </section>
+            </div>
           )}
         </>
       )}
