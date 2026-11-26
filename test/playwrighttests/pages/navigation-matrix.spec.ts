@@ -64,11 +64,13 @@ async function waitForPage(page: Page) {
 
 async function capture(page: Page, name: string) {
   await waitForPage(page);
-  // This full-page attendance view has a small, repeatable rasterization
-  // difference between local macOS 27 and the macOS 15 GitHub runner. Keep
-  // the extra tolerance scoped to that one cross-academy teacher screenshot.
+  // These full-page teacher attendance views have a small, repeatable
+  // rasterization difference between local macOS 27 and the macOS 15 runner.
+  // Keep the extra tolerance scoped to the two cross-academy attendance shots.
   const platformPixelTolerance =
-    name === 'teacher-sruti-my-students-my-teaching-sections-attendance' ? 0.021 : undefined;
+    /^teacher-(?:sruti|raagasudha)-my-students-my-teaching-sections-attendance$/.test(name)
+      ? 0.021
+      : undefined;
   await expect(page).toHaveScreenshot(`${slug(name)}.png`, {
     animations: 'disabled',
     ...(platformPixelTolerance === undefined ? {} : { maxDiffPixelRatio: platformPixelTolerance }),
