@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { filterPracticeEntries, practiceTotals } from '../../../src/practiceSelectors';
+import {
+  filterPracticeEntries,
+  newestPracticeFirst,
+  practiceTotals,
+} from '../../../src/practiceSelectors';
 const entries = [
   { id: 'b', studentId: 'one', date: '2026-10-20', topic: 'Raga', minutes: 20 },
   { id: 'c', studentId: 'two', date: '2026-10-21', topic: 'Chanting', minutes: 15 },
@@ -8,6 +12,13 @@ const entries = [
 describe('teacher practice review selectors', () => {
   it('sorts newest first and uses stable IDs for ties', () =>
     expect(filterPracticeEntries(entries, '', '').map((x) => x.id)).toEqual(['a', 'c', 'b']));
+  it('orders by practice date before update time', () =>
+    expect(
+      newestPracticeFirst([
+        { id: 'older', studentId: 'one', date: '2026-11-19', updatedAt: '2026-11-23T20:00:00Z' },
+        { id: 'newer', studentId: 'one', date: '2026-11-23', updatedAt: '2026-11-23T09:00:00Z' },
+      ]).map((x) => x.id),
+    ).toEqual(['newer', 'older']));
   it('filters by student identity rather than duplicate names', () =>
     expect(filterPracticeEntries(entries, 'two', '').map((x) => x.id)).toEqual(['c']));
   it('matches topic and date case insensitively', () =>

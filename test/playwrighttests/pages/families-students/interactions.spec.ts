@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openFamiliesAndStudents } from '../../fixtures/registrationPortal';
 
 // Strict offline boundary: no DNS names, Cognito, backend, AWS, or production endpoints.
 test.beforeEach(async ({ page }) => {
@@ -9,6 +10,7 @@ test.beforeEach(async ({ page }) => {
     throw new Error(`BLOCKED non-fixture request: ${url.origin}`);
   });
   await page.goto('/e2e-fixtures/portal.html');
+  await openFamiliesAndStudents(page);
   await expect(page.getByText('Test Meera').first()).toBeVisible();
 });
 async function chooseFilter(page: Page, name: string) {
@@ -42,6 +44,8 @@ test('real student table sorts roll numbers and names without changing identitie
 }) => {
   await table(page);
   await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page).first()).toContainText('RS-3');
+  await page.getByRole('button', { name: /Sort by roll number/ }).click();
   await expect(rows(page).first()).toContainText('RS-2');
   await page.getByRole('button', { name: /Sort by roll number/ }).click();
   await expect(rows(page).first()).toContainText('RS-10');
@@ -122,7 +126,7 @@ test('real Archive reload Restore preserves permanent identity and only updates 
     familyId: before.familyId,
     archived: true,
   });
-  await page.getByRole('button', { name: 'Students', exact: true }).click();
+  await openFamiliesAndStudents(page);
   await chooseFilter(page, 'Archived');
   await expect(page.getByText('Test Meera').first()).toBeVisible();
   await families(page);

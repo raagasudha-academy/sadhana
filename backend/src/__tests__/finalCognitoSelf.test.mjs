@@ -15,6 +15,10 @@ const services = {
     calls.push(['photo', value, claims.sub]),
     { photoUrl: 'private-url' }
   ),
+  uploadAdministratorPhoto: async (value, claims) => (
+    calls.push(['administrator-photo', value, claims.sub]),
+    { photoUrl: 'private-admin-url' }
+  ),
 };
 const codecs = {
   readJSON: (raw) => JSON.parse(raw),
@@ -64,15 +68,9 @@ test('final mode own-photo POST uses JWT subject and no caller-provided target',
   assert.equal(photo.status, 200);
   assert.deepEqual(calls, [['photo', { base64: 'x' }, 'verified-jwt-sub']]);
 });
-test('disallows changing someone else identity or admin/teacher photos', async () => {
+test('disallows changing someone else identity or teacher photos', async () => {
   calls.length = 0;
-  for (const path of [
-    ['me', 'other'],
-    ['photos', 'teacher'],
-    ['photos', 'administrator'],
-    ['identities', 'search'],
-    ['me'],
-  ])
+  for (const path of [['me', 'other'], ['photos', 'teacher'], ['identities', 'search'], ['me']])
     assert.equal(
       await finalCognitoSelfRoute(req(path, 'POST'), services, codecs, final),
       undefined,
@@ -80,6 +78,18 @@ test('disallows changing someone else identity or admin/teacher photos', async (
   assert.equal(calls.length, 0);
   assert.equal(finalOnlyGate(['photos', 'teacher'], 'POST', 'early', final)?.status, 503);
   assert.equal(finalOnlyGate(['me'], 'GET', 'early', final)?.status, 503);
+});
+test('final mode routes administrator photo uploads through the protected service', async () => {
+  calls.length = 0;
+  const payload = { username: 'academy-admin', base64: 'jpeg' };
+  const photo = await finalCognitoSelfRoute(
+    req(['photos', 'administrator'], 'POST', { body: JSON.stringify(payload) }),
+    services,
+    codecs,
+    final,
+  );
+  assert.deepEqual(photo, { status: 200, body: { photoUrl: 'private-admin-url' } });
+  assert.deepEqual(calls, [['administrator-photo', payload, 'verified-jwt-sub']]);
 });
 test('unsupported methods fail with 405; base64 body decoding preserved', async () => {
   calls.length = 0;

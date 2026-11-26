@@ -2,7 +2,12 @@ import { expect, type Page } from '@playwright/test';
 
 export type PortalRole = 'admin' | 'teacher' | 'student' | 'guardian';
 
-export async function openRoleSession(page: Page, role: PortalRole, scenario?: string) {
+export async function openRoleSession(
+  page: Page,
+  role: PortalRole,
+  scenario?: string,
+  academyScope?: 'raaga' | 'sruti' | 'both',
+) {
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
     if (
@@ -15,19 +20,28 @@ export async function openRoleSession(page: Page, role: PortalRole, scenario?: s
   });
   await page.clock.install({ time: new Date('2026-11-08T12:00:00Z') });
   const scenarioQuery = scenario ? `&scenario=${encodeURIComponent(scenario)}` : '';
-  await page.goto(`/e2e-fixtures/roles.html?role=${role}${scenarioQuery}`);
+  const scopeQuery = academyScope ? `&scope=${academyScope}` : '';
+  await page.goto(`/e2e-fixtures/roles.html?role=${role}${scenarioQuery}${scopeQuery}`);
+}
+
+export async function waitForEnrolledLearner(page: Page, role: PortalRole) {
+  if (role !== 'student' && role !== 'guardian') return;
+  await expect(
+    page.getByRole('heading', { name: /^(My Learning Dashboard|Family Dashboard)$/ }),
+  ).toBeVisible();
 }
 
 export async function assertRolePage(page: Page, role: PortalRole, label: string) {
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   await openRoleSession(page, role);
+  await waitForEnrolledLearner(page, role);
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   let link = navigation.getByRole('button', { name: label, exact: true });
   if ((await link.count()) === 0 && role === 'admin') {
     const group = ['Families & Students', 'Website Registrations', 'Account Access'].includes(label)
       ? 'People & Access'
-      : ['Classes & Timetable', 'Practice & Reports', 'Communications', 'Settings'].includes(label)
+      : ['Classes & Timetable', 'Communications', 'Settings'].includes(label)
         ? 'Academy Workspace'
         : undefined;
     if (group) {

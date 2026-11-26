@@ -472,6 +472,7 @@ Resources:
               enabled,
               !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue],
             ]
+          SADHANA_FINAL_GUARDIAN_DECISIONS: !If [UseDevFamilyReads, enabled, !Ref AWS::NoValue]
           SADHANA_PROFILE_PHOTOS_BUCKET: !Ref SadhanaProfilePhotos
           MIDDLESBROUGH_CREDENTIAL_PARAMETER: !Ref MiddlesbroughCredentialParameter
       Policies:
@@ -548,6 +549,9 @@ Resources:
                 - s3:PutObject
                 - s3:GetObject
               Resource: !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/*'
+            - Effect: Allow
+              Action: [s3:DeleteObject]
+              Resource: !Sub '${SadhanaHomeworkMedia.Arn}/homework-private/learner/*'
             - Effect: Allow
               Action:
                 - s3:ListBucket

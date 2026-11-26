@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  ClipboardList,
   CalendarDays,
   CheckCircle2,
   CircleAlert,
@@ -26,7 +27,7 @@ export const ICONS = {
   'Classes & Timetable': CalendarDays,
   'My Classes': CalendarDays,
   'My Students': UsersRound,
-  'Practice & Reports': FileBarChart2,
+  'Student Work': ClipboardList,
   Communications: MessageCircle,
   Venues: MapPin,
   Settings: Settings2,

@@ -263,7 +263,11 @@ export default function PracticeModule({
         between(l.date, dates.from, dates.to) &&
         (studentFilter === 'all' || l.studentId === studentFilter),
     )
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) =>
+      String(b.submittedAt || b.updatedAt || b.createdAt || b.date || '').localeCompare(
+        String(a.submittedAt || a.updatedAt || a.createdAt || a.date || ''),
+      ),
+    );
   const students = members.filter((m) => involved.has(m.id));
   const save = (input, id) => {
     const other = logs.find(
@@ -643,9 +647,9 @@ export default function PracticeModule({
         )}
       </section>
       <div className="info-inline">
-        No practice history has been imported. These forms are not connected to DynamoDB; any
-        entries you add are temporary. Do not enter real student information until persistence,
-        consent and audit safeguards are in place.
+        No practice history has been imported. These forms are not connected to saved academy
+        records; any entries you add are temporary. Do not enter real student information until
+        persistence, consent and audit safeguards are in place.
       </div>
       {dialog?.type === 'add' && (
         <PracticeDialog

@@ -291,10 +291,11 @@ test('assigned teacher may preview future weekday changes but not edit other cla
   pilot(async () => {
     const c = client({ teacher: true, legacyWeeklyDay: true });
     const teacherClaims = { sub: 'teacher-sub' };
+    const currentWeekday = new Date(`${effectiveFrom}T12:00:00Z`).getUTCDay();
     const result = await makeM95SeriesWriter(c).preview(
       'raaga',
       classId,
-      { ...input, changes: { weekday: '3' } },
+      { ...input, changes: { weekday: String((currentWeekday + 1) % 7) } },
       teacherClaims,
     );
     assert.equal(result.changedCount, 3);

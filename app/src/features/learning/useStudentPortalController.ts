@@ -46,6 +46,7 @@ export type StudentPortalProps = {
   selectedStudentId?: string;
   onStudentChange?: (id: string) => void;
   onNavigate?: (page: LearnerPage) => void;
+  onEnrollmentStateChange?: (hasActiveEnrollment: boolean | null) => void;
 };
 export function useStudentPortalController({
   cloud,
@@ -55,6 +56,7 @@ export function useStudentPortalController({
   selectedStudentId,
   onStudentChange,
   onNavigate,
+  onEnrollmentStateChange,
 }: {
   cloud: CloudSession;
   initialInstitution?: InstitutionId;
@@ -63,6 +65,7 @@ export function useStudentPortalController({
   selectedStudentId?: string;
   onStudentChange?: (id: string) => void;
   onNavigate?: (page: LearnerPage) => void;
+  onEnrollmentStateChange?: (hasActiveEnrollment: boolean | null) => void;
 }) {
   const [inst, setInst] = useState<InstitutionId>(initialInstitution);
   useEffect(() => {
@@ -73,7 +76,7 @@ export function useStudentPortalController({
     if (!embedded || !page) return;
     const section = (value: LearnerPage): string => {
       if (['classes', 'calendar', 'attendance', 'venues'].includes(value)) return 'classes';
-      if (['homework', 'practice'].includes(value)) return 'learning';
+      if (['homework', 'practice', 'classNotes'].includes(value)) return 'learning';
       if (value === 'resources') return 'resources';
       if (['profile', 'privacy'].includes(value)) return 'profile';
       return value;
@@ -110,6 +113,8 @@ export function useStudentPortalController({
     [contactPhone, setContactPhone] = useState(''),
     [about, setAbout] = useState('');
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [deletingPractice, setDeletingPractice] = useState(false);
+  const [removingPracticeMediaId, setRemovingPracticeMediaId] = useState('');
   const [media, setMedia] = useState<
     Array<{
       id: string;
@@ -579,6 +584,8 @@ export function useStudentPortalController({
     [topic, setTopic] = useState(''),
     [notes, setNotes] = useState('');
   const loadDetail = async (id: string) => {
+    const changingStudent = id !== activeId;
+    const hadPracticeDraft = !!edit || !!pendingPracticeMediaId || practiceMediaFiles.length > 0;
     clearHomeworkObjectUrls();
     setConfirmHomework(null);
     setSelectedHomework('');
@@ -588,7 +595,7 @@ export function useStudentPortalController({
     setHomeworkText('');
     submissionBaseline.current = null;
     setDetailLoading(true);
-    if (id !== activeId) setDetail(null);
+    if (changingStudent) setDetail(null);
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       setError('');
@@ -607,6 +614,20 @@ export function useStudentPortalController({
         }),
       ]);
       if (timer) clearTimeout(timer);
+      if (changingStudent) {
+        setMedia([]);
+        setEdit(null);
+        setPracticeMediaFiles([]);
+        setPendingPracticeMediaId('');
+        setTopic('');
+        setNotes('');
+        setMinutes(15);
+        setDate(todayUK());
+        if (hadPracticeDraft)
+          setMessage(
+            'Student changed. The unsaved practice draft was cleared; reopen that student’s entry before editing.',
+          );
+      }
       setDetail(result);
       activeDashboardRef.current = { institution: inst, studentId: id };
       setCalendarAnchor(
@@ -641,6 +662,17 @@ export function useStudentPortalController({
     if (!activeId) return;
     setError('');
     setMessage('');
+    if (!edit && !pendingPracticeMediaId) {
+      const duplicate = detail?.practice.find(
+        (entry) => entry.classId === classId && entry.date === date,
+      );
+      if (duplicate) {
+        setError(
+          'A practice entry already exists for this class and date. Use “Edit submission” in Practice history to correct it.',
+        );
+        return;
+      }
+    }
     try {
       let practiceId = pendingPracticeMediaId;
       if (!practiceId) {
@@ -670,7 +702,74 @@ export function useStudentPortalController({
       setNotes('');
       await loadDetail(activeId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to save practice');
+      const message = e instanceof Error ? e.message : 'Unable to save practice';
+      setError(
+        message === 'Practice already recorded for this class and date'
+          ? 'A practice entry already exists for this class and date. Use “Edit submission” in Practice history to correct it.'
+          : message,
+      );
+    }
+  };
+  const deletePractice = async () => {
+    if (!activeId || !edit) return;
+    setError('');
+    setMessage('');
+    setDeletingPractice(true);
+    try {
+      const result = await cloud.api.deleteLearnerPractice(inst, activeId, edit);
+      setEdit(null);
+      setPracticeMediaFiles([]);
+      setPendingPracticeMediaId('');
+      setTopic('');
+      setNotes('');
+      setMessage(
+        result.cleanupPending
+          ? 'Practice submission deleted. Some stored attachments still need cleanup.'
+          : 'Practice submission and attachments deleted.',
+      );
+      await loadDetail(activeId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to delete practice submission');
+    } finally {
+      setDeletingPractice(false);
+    }
+  };
+  const removePracticeMedia = async (mediaId: string) => {
+    if (!activeId || !edit || removingPracticeMediaId) return;
+    setError('');
+    setMessage('');
+    setRemovingPracticeMediaId(mediaId);
+    try {
+      const result = await cloud.api.deleteLearnerPracticeMedia(
+        inst,
+        activeId,
+        edit.id,
+        mediaId,
+        edit.version,
+      );
+      setEdit((current) =>
+        current?.id === edit.id ? { ...current, version: result.version } : current,
+      );
+      setDetail((current) =>
+        current
+          ? {
+              ...current,
+              practice: current.practice.map((entry) =>
+                entry.id === edit.id ? { ...entry, version: result.version } : entry,
+              ),
+            }
+          : current,
+      );
+      setMedia((current) => current.filter((item) => item.id !== mediaId));
+      setMessage(
+        result.cleanupPending
+          ? 'Attachment removed. Its stored file still needs cleanup.'
+          : 'Attachment removed from the practice submission.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to remove practice attachment');
+    } finally {
+      setRemovingPracticeMediaId('');
     }
   };
   const [rollNumber, setRollNumber] = useState('');
@@ -840,6 +939,7 @@ export function useStudentPortalController({
   };
 
   return {
+    onEnrollmentStateChange,
     cloud,
     initialInstitution,
     embedded,
@@ -893,6 +993,7 @@ export function useStudentPortalController({
     about,
     setAbout,
     uploadBusy,
+    removingPracticeMediaId,
     setUploadBusy,
     media,
     setMedia,
@@ -956,6 +1057,9 @@ export function useStudentPortalController({
     setNotes,
     loadDetail,
     savePractice,
+    deletePractice,
+    removePracticeMedia,
+    deletingPractice,
     rollNumber,
     setRollNumber,
     kind,

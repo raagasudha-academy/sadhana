@@ -61,19 +61,15 @@ test('all workspaces have visible navigation beyond Dashboard', () => {
     'Website Registrations',
     'Account Access',
   ]);
-  expect(adminWorkspaceTabs).toEqual([
-    'Classes & Timetable',
-    'Practice & Reports',
-    'Communications',
-    'Settings',
-  ]);
+  expect(adminWorkspaceTabs).toEqual(['Classes & Timetable', 'Communications', 'Settings']);
   expect(
-    ['Teachers', 'Venues', 'Administrators'].every((page) =>
+    ['Student Work', 'Teachers', 'Venues', 'Administrators'].every((page) =>
       adminSidebarPages.includes(page as any),
     ),
   ).toBe(true);
+  expect(adminNavigationGroup('Student Work')).toBe('Student Work');
   expect(adminNavigationGroup('Account Access')).toBe('People & Access');
-  expect(adminNavigationGroup('Practice & Reports')).toBe('Academy Workspace');
+  expect(adminNavigationGroup('Practice & Reports')).toBe('Practice & Reports');
   expect(needsAcademySelection('combined', 'Website Registrations')).toBe(true);
   expect(needsAcademySelection('combined', 'Classes & Timetable')).toBe(false);
   expect(needsAcademySelection('combined', 'Families & Students')).toBe(true);

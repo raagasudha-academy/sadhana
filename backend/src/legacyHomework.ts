@@ -228,13 +228,19 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     };
     return { actor: fresh, check };
   }
-  async function staff(inst: InstitutionId, claims: Claims, classId: string) {
+  async function staff(
+    inst: InstitutionId,
+    claims: Claims,
+    classId: string,
+    allowAdminReadOnly = false,
+  ) {
     if (!acceptableId(classId)) throw httpError(400, 'Invalid class identifier');
-    const { actor, check } = await identity(inst, claims);
     const cls = await get('classes', classId);
     if (!cls || cls.institutionId !== inst || cls.status === 'archived')
       throw httpError(404, 'Class unavailable');
     const admin = permittedInstitutions(claims).includes(inst);
+    if (admin && allowAdminReadOnly) return { actor: null, checks: [], classRecord: cls };
+    const { actor, check } = await identity(inst, claims);
     const assigned =
       actor.personTypes?.includes('teacher') && cls.teacherPersonIds?.includes(actor.personId);
     if (!admin && !assigned)
@@ -408,7 +414,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     return { h, enrollmentCheck };
   }
   async function listClass(inst: InstitutionId, claims: Claims, classId: string) {
-    await staff(inst, claims, classId);
+    await staff(inst, claims, classId, true);
     return {
       records: (await query('homework', 'ClassHomeworkIndex', 'classId', classId))
         .filter((h) => checkAssignment(inst, h))
@@ -925,7 +931,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     studentId: string,
   ) {
     if (!mediaEnabled()) throw httpError(503, 'M9 media integration disabled');
-    await staff(inst, claims, classId);
+    await staff(inst, claims, classId, true);
     const h = await get('homework', homeworkId);
     if (!checkAssignment(inst, h) || h.classId !== classId)
       throw httpError(404, 'Homework unavailable');
@@ -1199,7 +1205,7 @@ export function makeM9Homework(db: HomeworkDB, mediaIO: M9MediaIO = realMediaIO)
     classId: string,
     homeworkId: string,
   ) {
-    await staff(inst, claims, classId);
+    await staff(inst, claims, classId, true);
     const h = await get('homework', homeworkId);
     if (!checkAssignment(inst, h) || h.classId !== classId)
       throw httpError(404, 'Assignment unavailable');

@@ -1,6 +1,6 @@
 .teacher-workspace .tw-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -535,4 +535,51 @@
   color: #276548;
   font-size: 13px;
   font-weight: 650;
+}
+.teacher-workspace--work-only > .page-heading,
+.teacher-workspace--work-only > .tw-stats,
+.teacher-workspace--work-only .tw-tabs,
+.teacher-workspace--work-only .tw-filter {
+  display: none;
+}
+.tw-homework-composer {
+  margin: 4px 0 24px;
+  border: 1px solid #d8e2f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(29 61 101 / 5%);
+}
+.tw-homework-composer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  color: #29364c;
+  cursor: pointer;
+  list-style: none;
+}
+.tw-homework-composer > summary::-webkit-details-marker {
+  display: none;
+}
+.tw-homework-composer > summary > span {
+  display: grid;
+  gap: 4px;
+}
+.tw-homework-composer > summary strong {
+  font-size: 18px;
+}
+.tw-homework-composer > summary small {
+  color: #71819b;
+  font-size: 14px;
+}
+.tw-homework-composer[open] > summary {
+  border-bottom: 1px solid #e4eaf2;
+}
+.tw-homework-composer[open] > summary svg {
+  transform: rotate(180deg);
+}
+.tw-homework-composer > p,
+.tw-homework-composer > form {
+  margin: 18px 20px;
 }

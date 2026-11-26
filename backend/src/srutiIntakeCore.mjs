@@ -230,6 +230,10 @@ export function toApprovedM9Registration(record) {
     students.push({
       personId,
       studentType: s.applicantType === 'self' ? 'adult' : 'child',
+      // Sadhana's student directory location is a simple text value. Seed it
+      // from the applicant's submitted Town / City when no class location was
+      // selected; this keeps the registration address out of venue IDs.
+      preferredLocationId: g.city,
       foodAllergies: { status: allergyStatus, details: s.allergies },
       contactPreferences: {
         emailSource: 'guardian',

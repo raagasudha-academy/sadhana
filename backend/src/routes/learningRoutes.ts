@@ -30,7 +30,12 @@ import {
   teacherPracticeComments,
   readPracticeComments,
 } from '../practiceFeedback.ts';
-import { learnerDashboard, saveLearnerPractice, saveLearnerRsvp } from '../studentLearning.ts';
+import {
+  learnerDashboard,
+  learnerClassNotes,
+  saveLearnerPractice,
+  saveLearnerRsvp,
+} from '../studentLearning.ts';
 import { academyDirectory } from '../academyDirectory.ts';
 import { learnerIdentity } from '../learnerExtras.ts';
 import { json, readJSON } from './http.ts';
@@ -124,6 +129,10 @@ export async function learningRoutes({
         await publishHomework(inst, claims, { ...readJSON(event.body || ''), classId: parts[1] }),
       );
     return json(405, { error: 'Unsupported homework action' });
+  }
+  if (parts[0] === 'learner' && parts.length === 3 && parts[2] === 'class-notes') {
+    if (method === 'GET') return json(200, await learnerClassNotes(inst, claims, parts[1]));
+    return json(405, { error: 'Unsupported class notes action' });
   }
   if (parts[0] === 'learner' && parts.length >= 3) {
     const studentId = parts[1];

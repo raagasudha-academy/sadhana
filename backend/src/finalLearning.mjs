@@ -62,6 +62,17 @@ export async function finalLearningRoute(context, dependencies, env = process.en
       return { status: 200, body: await service.saveProfile(institution, claims, id, body()) };
     return { status: 200, body: await service.extras(institution, claims, id) };
   }
+  if (root === 'learner' && parts.length === 3 && parts[2] === 'class-notes' && method === 'GET') {
+    if (env.SADHANA_FINAL_LEARNER_READS !== 'enabled')
+      return refuse('Final learner class notes are disabled.');
+    if (!idOk(id)) return refuse('Invalid student identifier.', 400);
+    dependencies.assertConfigured();
+    if (!dependencies.classNotes) return refuse('Canonical class notes service unavailable.');
+    return {
+      status: 200,
+      body: await dependencies.classNotes().forLearner(institution, claims, id),
+    };
+  }
   // Private learner media is stored as canonical submission receipts; no
   // legacy profile/media PK/SK rows are read or written in final mode.
   if (
@@ -71,11 +82,31 @@ export async function finalLearningRoute(context, dependencies, env = process.en
       (parts.length === 4 &&
         parts[2] === 'media' &&
         method === 'POST' &&
-        ['start', 'finish'].includes(parts[3])))
+        ['start', 'finish'].includes(parts[3])) ||
+      (parts.length === 6 &&
+        parts[2] === 'practice' &&
+        parts[4] === 'media' &&
+        method === 'DELETE'))
   ) {
-    if (env.SADHANA_FINAL_LEARNER_MEDIA !== 'enabled')
-      return refuse('Final learner media disabled.');
+    const removePracticeMedia = parts[2] === 'practice' && method === 'DELETE';
+    if (
+      env[removePracticeMedia ? 'SADHANA_FINAL_LEARNER_WRITES' : 'SADHANA_FINAL_LEARNER_MEDIA'] !==
+      'enabled'
+    )
+      return refuse(
+        removePracticeMedia ? 'Final learner writes disabled.' : 'Final learner media disabled.',
+      );
     dependencies.assertConfigured();
+    if (removePracticeMedia) {
+      if (!idOk(parts[3]) || !idOk(parts[5]))
+        return refuse('Invalid practice attachment identifier.', 400);
+      return {
+        status: 200,
+        body: await dependencies
+          .learnerWrites()
+          .deletePracticeMedia(institution, claims, id, parts[3], parts[5], body()),
+      };
+    }
     const media = dependencies.learnerMedia();
     if (method === 'GET') return { status: 200, body: await media.list(institution, claims, id) };
     return { status: 200, body: await media[parts[3]](institution, claims, id, body()) };
@@ -91,6 +122,7 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     root === 'learner' &&
     ((parts.length === 3 && parts[2] === 'practice' && method === 'POST') ||
       (parts.length === 4 && parts[2] === 'practice' && method === 'PATCH') ||
+      (parts.length === 4 && parts[2] === 'practice' && method === 'DELETE') ||
       (parts.length === 3 && parts[2] === 'rsvp' && method === 'PUT'))
   ) {
     if (env.SADHANA_FINAL_LEARNER_WRITES !== 'enabled')
@@ -101,6 +133,11 @@ export async function finalLearningRoute(context, dependencies, env = process.en
     const service = dependencies.learnerWrites();
     if (parts[2] === 'rsvp')
       return { status: 200, body: await service.saveRsvp(institution, claims, id, body()) };
+    if (method === 'DELETE')
+      return {
+        status: 200,
+        body: await service.deletePractice(institution, claims, id, parts[3], body()),
+      };
     const update = method === 'PATCH';
     return {
       status: update ? 200 : 201,

@@ -242,7 +242,7 @@ export default function AcademyOperations({
       if (edit) await cloud.api.updateOperation(area, workspace, edit.id, payload, edit.version);
       else await cloud.api.createOperation(area, workspace, payload);
       setShowForm(false);
-      setNotice(`${labels[area].slice(0, -1)} saved to DynamoDB.`);
+      setNotice(`${labels[area].slice(0, -1)} saved.`);
       await reload();
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Save failed.';
@@ -376,7 +376,7 @@ export default function AcademyOperations({
             {workspace === 'raaga' ? 'RAAGASUDHA' : 'ŚRUTI VEDAM'} ·{' '}
             {teacherMode ? 'TEACHER' : 'ADMINISTRATOR'}
           </div>
-          <h1>{teacherMode ? 'My teaching records' : 'Practice & Reports'}</h1>
+          <h1>{teacherMode ? 'My teaching records' : 'Student Work'}</h1>
           <p>Attendance, practice, teacher feedback and class RSVPs.</p>
         </div>
         <button className="reg-secondary" disabled={busy} onClick={() => void reload()}>
@@ -521,7 +521,7 @@ export default function AcademyOperations({
                 Cancel
               </button>
               <button className="reg-primary" disabled={busy}>
-                {busy ? 'Saving…' : 'Save to DynamoDB'}
+                {busy ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>

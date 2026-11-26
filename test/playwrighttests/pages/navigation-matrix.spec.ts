@@ -1,9 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openRoleSession, type PortalRole } from '../fixtures/rolePage';
+import { openRoleSession, type PortalRole, waitForEnrolledLearner } from '../fixtures/rolePage';
 
 const adminGroups = {
   'People & Access': ['Families & Students', 'Website Registrations', 'Account Access'],
-  'Academy Workspace': ['Classes & Timetable', 'Practice & Reports', 'Communications', 'Settings'],
+  'Academy Workspace': ['Classes & Timetable', 'Communications', 'Settings'],
 } as const;
 
 const roleNavigation: Record<PortalRole, string[]> = {
@@ -11,6 +11,7 @@ const roleNavigation: Record<PortalRole, string[]> = {
     'Dashboard',
     'People & Access',
     'Academy Workspace',
+    'Student Work',
     'Syllabus & Resources',
     'Messages',
     'Teachers',
@@ -22,7 +23,7 @@ const roleNavigation: Record<PortalRole, string[]> = {
     'Dashboard',
     'My Classes',
     'My Students',
-    'Practice & Reports',
+    'Student Work',
     'Syllabus & Resources',
     'Messages',
     'Teachers',
@@ -63,7 +64,17 @@ async function waitForPage(page: Page) {
 
 async function capture(page: Page, name: string) {
   await waitForPage(page);
-  await expect(page).toHaveScreenshot(`${slug(name)}.png`, { animations: 'disabled' });
+  // These full-page teacher attendance views have a small, repeatable
+  // rasterization difference between local macOS 27 and the macOS 15 runner.
+  // Keep the extra tolerance scoped to the two cross-academy attendance shots.
+  const platformPixelTolerance =
+    /^teacher-(?:sruti|raagasudha)-my-students-my-teaching-sections-attendance$/.test(name)
+      ? 0.021
+      : undefined;
+  await expect(page).toHaveScreenshot(`${slug(name)}.png`, {
+    animations: 'disabled',
+    ...(platformPixelTolerance === undefined ? {} : { maxDiffPixelRatio: platformPixelTolerance }),
+  });
 }
 
 async function captureAndVisitTabs(
@@ -152,6 +163,17 @@ async function visitDirectPage(page: Page, role: PortalRole, workspace: string, 
   await captureAndVisitTabs(page, role, workspace, label);
 }
 
+async function selectAcademy(page: Page, institution: 'raaga' | 'sruti') {
+  await page.getByRole('button', { name: 'Choose workspace' }).click();
+  const label = institution === 'raaga' ? 'Raagasudha' : 'Śruti Vedam';
+  await page
+    .getByRole('group', { name: 'Select an institution' })
+    .getByRole('button')
+    .filter({ hasText: label })
+    .click();
+  await expect(page.getByRole('button', { name: 'Choose workspace' })).toContainText(label);
+}
+
 async function visitRoleNavigation(page: Page, role: PortalRole, workspace: string) {
   const expected =
     role === 'admin' && workspace === 'raagasudha'
@@ -164,6 +186,7 @@ async function visitRoleNavigation(page: Page, role: PortalRole, workspace: stri
     await visitAdminGroup(page, workspace, 'People & Access');
     await visitAdminGroup(page, workspace, 'Academy Workspace');
     for (const label of [
+      'Student Work',
       'Syllabus & Resources',
       'Messages',
       'Teachers',
@@ -180,27 +203,34 @@ async function visitRoleNavigation(page: Page, role: PortalRole, workspace: stri
 }
 
 test.describe('complete role navigation and tab visual regression', () => {
-  test('administrator can open every Śruti page and tab', async ({ page }) => {
+  test('Śruti-only administrator can open every page and tab', async ({ page }) => {
     test.setTimeout(180_000);
-    await openRoleSession(page, 'admin');
+    await openRoleSession(page, 'admin', undefined, 'sruti');
     await visitRoleNavigation(page, 'admin', 'sruti');
   });
 
-  test('administrator can open every Raagasudha page and tab', async ({ page }) => {
+  test('Raagasudha-only administrator can open every page and tab', async ({ page }) => {
     test.setTimeout(180_000);
-    await openRoleSession(page, 'admin');
-    await page.getByRole('button', { name: 'Choose workspace' }).click();
-    await page
-      .getByRole('group', { name: 'Select an institution' })
-      .getByRole('button')
-      .filter({ hasText: 'Raagasudha' })
-      .click();
+    await openRoleSession(page, 'admin', undefined, 'raaga');
+    await visitRoleNavigation(page, 'admin', 'raagasudha');
+  });
+
+  test('dual-academy administrator can open every page and tab in both workspaces', async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await openRoleSession(page, 'admin', undefined, 'both');
+    await visitDirectPage(page, 'admin', 'combined', 'Dashboard');
+    await selectAcademy(page, 'sruti');
+    await visitRoleNavigation(page, 'admin', 'sruti');
+    await selectAcademy(page, 'raaga');
     await visitRoleNavigation(page, 'admin', 'raagasudha');
   });
 
   test('data-backed student and class detail tabs are reachable', async ({ page }) => {
     test.setTimeout(90_000);
     await openRoleSession(page, 'admin', 'detail-tabs');
+    await selectAcademy(page, 'sruti');
 
     await (await navButton(page, 'People & Access')).click();
     const peopleTabs = page.getByRole('tablist', { name: 'People & Access' });
@@ -231,11 +261,17 @@ test.describe('complete role navigation and tab visual regression', () => {
     );
   });
 
-  for (const role of ['teacher', 'student', 'guardian'] as const) {
-    test(`${role} can open every page and tab`, async ({ page }) => {
-      test.setTimeout(180_000);
-      await openRoleSession(page, role);
+  for (const role of ['teacher', 'student'] as const) {
+    test(`${role} with both academies can open every page and tab in Śruti then Raagasudha`, async ({
+      page,
+    }) => {
+      test.setTimeout(300_000);
+      await openRoleSession(page, role, undefined, 'both');
+      await waitForEnrolledLearner(page, role);
+      await selectAcademy(page, 'sruti');
       await visitRoleNavigation(page, role, 'sruti');
+      await selectAcademy(page, 'raaga');
+      await visitRoleNavigation(page, role, 'raagasudha');
     });
   }
 });

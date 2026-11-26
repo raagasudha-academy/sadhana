@@ -84,6 +84,10 @@ const depsLearn = {
       called.push(['saveRsvp', inst, who.sub, id, body]),
       { saved: true }
     ),
+    deletePracticeMedia: async (inst, who, id, practiceId, mediaId, body) => (
+      called.push(['deletePracticeMedia', inst, who.sub, id, practiceId, mediaId, body]),
+      { deleted: true, version: body.expectedVersion + 1 }
+    ),
   }),
   homework: () =>
     Object.fromEntries(
@@ -307,6 +311,26 @@ test('learner practice POST/PATCH and RSVP PUT delegate to original transaction 
       ['saveRsvp', 'raaga', 'verified-guardian', 'STUDENT-1001'],
     ],
   );
+});
+test('learner practice media deletion delegates through the versioned learner-write route', async () => {
+  reset();
+  const response = await learn(
+    'learner/STUDENT-1001/practice/PRACTICE-1001/media/LEARNERMEDIA-12345678-1234-4234-8234-123456789abc',
+    'DELETE',
+    'raaga',
+    guardian,
+    { expectedVersion: 3 },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(called.at(-1), [
+    'deletePracticeMedia',
+    'raaga',
+    'verified-guardian',
+    'STUDENT-1001',
+    'PRACTICE-1001',
+    'LEARNERMEDIA-12345678-1234-4234-8234-123456789abc',
+    { expectedVersion: 3 },
+  ]);
 });
 test('learner writes can be disabled independently without invoking services', async () => {
   reset();

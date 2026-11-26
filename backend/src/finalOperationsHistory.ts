@@ -50,7 +50,7 @@ export function makeM10FinalOperationsHistory(client: Client) {
     const rows = (await scan(kind === 'practice' ? 'practice' : 'rsvps')).filter(
       (row) =>
         row.institutionId === inst &&
-        (kind !== 'practice' || row.recordType !== 'operational-feedback'),
+        (kind !== 'practice' || !['operational-feedback', 'class-note'].includes(row.recordType)),
     );
     let sessions = new Map<string, Row>();
     if (kind === 'rsvp' && classIds) {

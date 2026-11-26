@@ -259,7 +259,6 @@ export function ManagedEvents({
   if (!openRequest || !cloud) return null;
   const locations = venueRows.length ? venueRows : venues || [];
   const chosenVenue = locations.find((v: any) => v.id === venueId);
-  const eventOnline = sharedEvent && venueId === 'online';
   const save = async () => {
     setBusy(true);
     setError('');
@@ -320,10 +319,8 @@ export function ManagedEvents({
         endTime <= startTime
       )
         throw Error('Choose a start and end time; the end must be later than the start.');
-      if (sharedEvent) {
-        if (!eventOnline && !chosenVenue) throw Error('Choose a saved venue or Online.');
-      } else if (mode !== 'Online' && !chosenVenue)
-        throw Error('Choose a venue from the directory.');
+      if (eventKind !== 'event' && mode !== 'Online' && !chosenVenue)
+        throw Error('Choose a venue from the directory or Online.');
       if (eventKind === 'recurring') {
         if (
           !['daily', 'weekly', 'monthly'].includes(repeatFrequency) ||
@@ -389,10 +386,7 @@ export function ManagedEvents({
         onClose();
         return;
       }
-      if (
-        (sharedEvent && !eventOnline && !chosenVenue) ||
-        (eventKind !== 'event' && mode !== 'Online' && !chosenVenue)
-      )
+      if (eventKind !== 'event' && mode !== 'Online' && !chosenVenue)
         throw Error('Choose a venue from the directory or Online.');
       const payload = {
         name,
@@ -403,8 +397,8 @@ export function ManagedEvents({
         endTime,
         mode: eventKind === 'event' ? 'Event' : mode,
         location:
-          eventOnline || (!sharedEvent && mode === 'Online') ? 'Online' : chosenVenue?.name || '',
-        venueId: eventOnline || (!sharedEvent && mode === 'Online') ? '' : chosenVenue?.id || '',
+          eventKind === 'event' ? '' : mode === 'Online' ? 'Online' : chosenVenue?.name || '',
+        venueId: eventKind === 'event' || mode === 'Online' ? '' : chosenVenue?.id || '',
         ...(eventKind === 'event' || isTeacher ? {} : { teacherId }),
       };
       if (sharedEvent) {
@@ -1340,20 +1334,6 @@ export function ManagedEvents({
                   >
                     <option>In person</option>
                     <option>Online</option>
-                  </select>
-                </label>
-              )}
-              {sharedEvent && (
-                <label className="sadhana-edit-field">
-                  <span className="sadhana-required-label">Venue</span>
-                  <select required value={venueId} onChange={(e) => setVenueId(e.target.value)}>
-                    <option value="">Choose venue</option>
-                    <option value="online">Online</option>
-                    {locations.map((v: any) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                      </option>
-                    ))}
                   </select>
                 </label>
               )}

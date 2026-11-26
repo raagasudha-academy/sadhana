@@ -51,7 +51,7 @@ export function domainForPK(pk: string, sk = ''): Domain {
   )
     return 'students';
   if (
-    /^OPS#(?:sruti|raaga)#(?:ATTENDANCE|PRACTICE|FEEDBACK|RSVP)$/.test(pk) ||
+    /^OPS#(?:sruti|raaga)#(?:ATTENDANCE|PRACTICE|FEEDBACK|CLASS-NOTE|RSVP)$/.test(pk) ||
     pk.startsWith('PRACTICE_COMMENTS#') ||
     pk.startsWith('PRACTICE#') ||
     /^INST#[^#]+#PRACTICE$/.test(pk)

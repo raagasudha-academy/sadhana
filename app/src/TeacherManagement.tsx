@@ -543,7 +543,7 @@ export default function TeacherManagement({
                         .filter(Boolean),
                     }))
                   }
-                  placeholder="Amruta, Amrutha"
+                  placeholder="Nicknames, alternate spellings, etc."
                 />
               </label>
 

@@ -109,6 +109,14 @@
   background: #fff;
   color: #234061;
 }
+.v1376-practice-page .sv1276-practice-form > .v1376-practice-delete-button {
+  border-color: #d7a8a8;
+  color: #9b3030;
+}
+.v1376-practice-page .sv1276-practice-form > .v1376-practice-delete-button:hover:not(:disabled) {
+  border-color: #b84b4b;
+  background: #fff4f4;
+}
 .v1376-practice-recording {
   margin-top: 18px;
   background: #f7f9fc;

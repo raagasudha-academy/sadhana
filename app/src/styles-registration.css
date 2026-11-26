@@ -376,6 +376,46 @@
   margin-top: 12px;
   color: #7c8595;
 }
+.reg-overview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.reg-overview-heading h3 {
+  margin: 0;
+}
+.reg-overview-heading select {
+  max-width: 150px;
+  border: 1px solid #d5ddeb;
+  border-radius: 9px;
+  background: #fff;
+  color: #52627c;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12px;
+}
+.reg-overview-rates {
+  display: grid;
+  gap: 15px;
+}
+.reg-overview-rates > div {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #dce1ed;
+}
+.reg-overview-rates > div:last-child {
+  border-bottom: 0;
+}
+.reg-overview-rates span {
+  color: #758198;
+  font-size: 13px;
+}
+.reg-overview-rates strong {
+  color: #526a9e;
+  font-size: 28px;
+}
 .reg-metrics {
   display: flex;
   gap: 24px;

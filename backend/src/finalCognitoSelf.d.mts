@@ -9,6 +9,10 @@ export function finalCognitoSelfRoute(
       value: Record<string, unknown>,
       claims: RouteContext['claims'],
     ) => Promise<unknown>;
+    uploadAdministratorPhoto: (
+      value: Record<string, unknown>,
+      claims: RouteContext['claims'],
+    ) => Promise<unknown>;
   },
   codecs: {
     readJSON: (input: string) => Record<string, any>;

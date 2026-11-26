@@ -8,6 +8,7 @@ export function finalLearningRoute(
     learnerWrites: () => ReturnType<typeof import('./learnerWrites.ts').m9LearnerWrites>;
     homework: () => ReturnType<typeof import('./legacyHomework.ts').m9Homework>;
     teacherPractice: (context: RouteContext) => Promise<JsonResponse | undefined>;
+    classNotes: () => ReturnType<typeof import('./finalClassNotes.ts').finalClassNotes>;
   },
   env?: Record<string, string | undefined>,
 ): Promise<{ status: number; body: unknown } | undefined>;

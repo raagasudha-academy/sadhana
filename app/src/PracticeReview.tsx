@@ -1,24 +1,28 @@
 import './practiceInsights.css';
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpenCheck } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, BookOpenCheck } from 'lucide-react';
 import AudioFeedbackRecorder from './AudioFeedbackRecorder';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
-import { filterPracticeEntries, practiceTotals } from './practiceSelectors';
+import { filterPracticeEntries, newestPracticeFirst, practiceTotals } from './practiceSelectors';
 
 type Feedback = { id: string; comment: string; createdAt: string; audioUrl?: string };
+type PracticeSortKey = 'date' | 'student' | 'topic' | 'minutes' | 'feedback';
+type SortDirection = 'asc' | 'desc';
 export default function PracticeReview({
   cloud,
   workspace,
   entries,
   students,
   onReload,
+  showSummary = true,
 }: {
   cloud: CloudSession;
   workspace: InstitutionId;
   entries: any[];
   students: any[];
   onReload: () => Promise<void>;
+  showSummary?: boolean;
 }) {
   const [open, setOpen] = useState(''),
     [comment, setComment] = useState(''),
@@ -31,6 +35,8 @@ export default function PracticeReview({
     >({});
   const [studentId, setStudentId] = useState(''),
     [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<PracticeSortKey>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [period, setPeriod] = useState<'week' | 'month' | 'all'>('week');
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
@@ -49,34 +55,73 @@ export default function PracticeReview({
       }),
     [today],
   );
+  const fullDate = (value: string, options: Intl.DateTimeFormatOptions = {}) =>
+    new Date(`${value}T12:00:00Z`).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+      ...options,
+    });
   const start = period === 'week' ? days[0] : period === 'month' ? today.slice(0, 7) + '-01' : '';
   const scoped = useMemo(
     () =>
-      entries.filter(
-        (p) => String(p.date || '') <= today && (!start || String(p.date || '') >= start),
+      newestPracticeFirst(
+        showSummary
+          ? entries.filter(
+              (p) => String(p.date || '') <= today && (!start || String(p.date || '') >= start),
+            )
+          : entries,
       ),
-    [entries, start, today],
+    [entries, start, today, showSummary],
   );
   const shown = useMemo(
     () => filterPracticeEntries(scoped, studentId, search),
     [scoped, studentId, search],
   );
+  const sortedShown = useMemo(() => {
+    const collator = new Intl.Collator('en-GB', { numeric: true, sensitivity: 'base' });
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    return [...shown].sort((a, b) => {
+      let comparison = 0;
+      if (sortKey === 'date') comparison = String(a.date || '').localeCompare(String(b.date || ''));
+      else if (sortKey === 'student')
+        comparison = collator.compare(
+          names.get(a.studentId) || 'Student',
+          names.get(b.studentId) || 'Student',
+        );
+      else if (sortKey === 'topic')
+        comparison = collator.compare(a.topic || 'Practice', b.topic || 'Practice');
+      else if (sortKey === 'minutes')
+        comparison = (Number(a.minutes) || 0) - (Number(b.minutes) || 0);
+      else {
+        const aFeedback =
+          a.teacherReviewed || a.teacherComments?.length ? 'Reviewed' : 'Needs review';
+        const bFeedback =
+          b.teacherReviewed || b.teacherComments?.length ? 'Reviewed' : 'Needs review';
+        comparison = collator.compare(aFeedback, bFeedback);
+      }
+      if (comparison) return comparison * direction;
+      return (
+        String(b.date || '').localeCompare(String(a.date || '')) ||
+        String(a.id || '').localeCompare(String(b.id || ''))
+      );
+    });
+  }, [shown, names, sortKey, sortDirection]);
   const learnerSummary = useMemo(
     () =>
       students
         .filter((s) => entries.some((p) => p.studentId === s.id))
         .map((s) => {
-          const rows = scoped.filter((p) => p.studentId === s.id);
-          const sum = (x: any[]) => x.reduce((n, p) => n + (Number(p.minutes) || 0), 0);
           return {
             student: s,
-            rows,
-            minutes: sum(rows),
-            days: new Set(rows.filter((p) => Number(p.minutes) > 0).map((p) => p.date)).size,
-            week: days.map((d) => sum(entries.filter((p) => p.studentId === s.id && p.date === d))),
+            week: days.map((d) =>
+              entries
+                .filter((p) => p.studentId === s.id && p.date === d)
+                .reduce((minutes, p) => minutes + (Number(p.minutes) || 0), 0),
+            ),
           };
         }),
-    [students, entries, scoped, days],
+    [students, entries, days],
   );
   const scopeMinutes = scoped.reduce((n, p) => n + (Number(p.minutes) || 0), 0);
   const participantCount = new Set(
@@ -96,6 +141,8 @@ export default function PracticeReview({
     setError('');
     setStudentId('');
     setSearch('');
+    setSortKey('date');
+    setSortDirection('desc');
   }, [workspace]);
   useEffect(
     () => () => {
@@ -178,136 +225,146 @@ export default function PracticeReview({
     }
   };
   const selected = entries.find((p) => p.id === open);
+  const changeSort = (key: PracticeSortKey) => {
+    if (key === sortKey) setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDirection(key === 'date' ? 'desc' : 'asc');
+    }
+  };
+  const sortHeader = (key: PracticeSortKey, label: string) => {
+    const active = sortKey === key;
+    const directionLabel = sortDirection === 'asc' ? 'ascending' : 'descending';
+    const Icon = active ? (sortDirection === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <th scope="col" aria-sort={active ? directionLabel : 'none'}>
+        <button
+          type="button"
+          className="practice-sort-button"
+          onClick={() => changeSort(key)}
+          aria-label={`Sort by ${label}${active ? `, currently ${directionLabel}` : ''}`}
+          title={`Sort by ${label}`}
+        >
+          {label}
+          <Icon size={15} aria-hidden="true" />
+        </button>
+      </th>
+    );
+  };
   const selectedReviewed = Boolean(
     selected?.teacherReviewed || selected?.teacherComments?.length || feedback[open]?.length,
   );
   return (
     <section className="tw-review">
-      <div className="tw-section-head">
-        <h2>Student practice</h2>
-        <span>
-          {totals.entries} entries · {totals.minutes} minutes
-        </span>
-      </div>
-      <p className="tw-hint">
-        Students and authorised guardians record practice. Review submissions and leave feedback
-        here.
-      </p>
-      <div className="v1376-period">
-        <span>Practice period</span>
-        <div>
-          <button type="button" aria-pressed={period === 'week'} onClick={() => setPeriod('week')}>
-            Last 7 days
-          </button>
-          <button
-            type="button"
-            aria-pressed={period === 'month'}
-            onClick={() => setPeriod('month')}
-          >
-            This month
-          </button>
-          <button type="button" aria-pressed={period === 'all'} onClick={() => setPeriod('all')}>
-            All time
-          </button>
-        </div>
-      </div>
-      <div className="v1376-stats">
-        <div>
-          <small>Total minutes</small>
-          <strong>{scopeMinutes}</strong>
-        </div>
-        <div>
-          <small>Students practised</small>
-          <strong>
-            {participantCount} / {new Set(entries.map((p) => p.studentId)).size}
-          </strong>
-        </div>
-        <div>
-          <small>Avg minutes / participant</small>
-          <strong>{avgMinutes}</strong>
-        </div>
-      </div>
-      <section className="v1376-consistency" aria-label="Weekly practice consistency">
-        <div className="v1376-section-top">
-          <h3>Weekly practice consistency</h3>
-          <small>Daily recorded minutes · last 7 days</small>
-        </div>
-        {learnerSummary.length ? (
-          <>
-            {learnerSummary.map((row) => (
-              <div className="v1376-learner-row" key={row.student.id}>
-                <div className="v1376-learner-head">
-                  <strong>
-                    {row.student.name}
-                    {row.student.rollNumber ? ` · ${row.student.rollNumber}` : ''}
-                  </strong>
-                  <small>
-                    {row.week.filter((v) => v > 0).length}/7 days ·{' '}
-                    {row.week.reduce((a, b) => a + b, 0)} min
-                  </small>
-                </div>
-                <div className="v1376-week">
-                  {row.week.map((mins, i) => (
-                    <div
-                      key={days[i]}
-                      title={`${days[i]} · ${mins} minutes`}
-                      className={
-                        mins === 0
-                          ? 'v1376-none'
-                          : mins < 15
-                            ? 'v1376-low'
-                            : mins < 30
-                              ? 'v1376-medium'
-                              : 'v1376-high'
-                      }
-                    >
-                      <span>{days[i].slice(5)}</span>
-                      <strong>{mins || '—'}</strong>
+      {showSummary && (
+        <>
+          <div className="tw-section-head">
+            <h2>Student practice</h2>
+            <span>
+              {totals.entries} entries · {totals.minutes} minutes
+            </span>
+          </div>
+          <p className="tw-hint">
+            Students and authorised guardians record practice. Review submissions and leave feedback
+            here.
+          </p>
+          <div className="v1376-period">
+            <span>Practice period</span>
+            <div>
+              <button
+                type="button"
+                aria-pressed={period === 'week'}
+                onClick={() => setPeriod('week')}
+              >
+                Last 7 days
+              </button>
+              <button
+                type="button"
+                aria-pressed={period === 'month'}
+                onClick={() => setPeriod('month')}
+              >
+                This month
+              </button>
+              <button
+                type="button"
+                aria-pressed={period === 'all'}
+                onClick={() => setPeriod('all')}
+              >
+                All time
+              </button>
+            </div>
+          </div>
+          <div className="v1376-stats">
+            <div>
+              <small>Total minutes</small>
+              <strong>{scopeMinutes}</strong>
+            </div>
+            <div>
+              <small>Students practised</small>
+              <strong>
+                {participantCount} / {new Set(entries.map((p) => p.studentId)).size}
+              </strong>
+            </div>
+            <div>
+              <small>Avg minutes / participant</small>
+              <strong>{avgMinutes}</strong>
+            </div>
+          </div>
+          <section className="v1376-consistency" aria-label="Weekly practice consistency">
+            <div className="v1376-section-top">
+              <h3>Weekly practice consistency</h3>
+              <small>
+                Daily recorded minutes · {fullDate(days[0])}–
+                {fullDate(days[6], { year: 'numeric' })}
+              </small>
+            </div>
+            {learnerSummary.length ? (
+              <>
+                {learnerSummary.map((row) => (
+                  <div className="v1376-learner-row" key={row.student.id}>
+                    <div className="v1376-learner-head">
+                      <strong>
+                        {row.student.name}
+                        {row.student.rollNumber ? ` · ${row.student.rollNumber}` : ''}
+                      </strong>
+                      <small>
+                        {row.week.filter((v) => v > 0).length}/7 days ·{' '}
+                        {row.week.reduce((a, b) => a + b, 0)} min
+                      </small>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </>
-        ) : (
-          <p className="tw-hint">No recorded practice for this class.</p>
-        )}
-        <p className="tw-hint">
-          An empty day means no practice was logged, not necessarily that no practice occurred.
-        </p>
-      </section>
-      <div className="v1376-section-top">
-        <h3>Student practice summary</h3>
-        <small>Selected period</small>
-      </div>
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Days logged</th>
-              <th>Minutes</th>
-              <th>Latest entry</th>
-            </tr>
-          </thead>
-          <tbody>
-            {learnerSummary.map((row) => (
-              <tr key={row.student.id}>
-                <td>{row.student.name}</td>
-                <td>{row.days}</td>
-                <td>{row.minutes}</td>
-                <td>
-                  {row.rows
-                    .map((p) => p.date)
-                    .sort()
-                    .at(-1) || '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <h3>Practice entries & teacher feedback</h3>
+                    <div className="v1376-week">
+                      {row.week.map((mins, i) => (
+                        <div
+                          key={days[i]}
+                          title={`${days[i]} · ${mins} minutes`}
+                          className={
+                            mins === 0
+                              ? 'v1376-none'
+                              : mins < 15
+                                ? 'v1376-low'
+                                : mins < 30
+                                  ? 'v1376-medium'
+                                  : 'v1376-high'
+                          }
+                        >
+                          <span>{fullDate(days[i])}</span>
+                          <strong>{mins || '—'}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p className="tw-hint">No recorded practice for this class.</p>
+            )}
+            <p className="tw-hint">
+              An empty day means no practice was logged, not necessarily that no practice occurred.
+            </p>
+          </section>
+        </>
+      )}
+      <h3>{showSummary ? 'Practice entries & teacher feedback' : 'Practice entries'}</h3>
 
       {!entries.length ? (
         <div className="tw-practice-empty" role="status">
@@ -357,16 +414,29 @@ export default function PracticeReview({
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Student</th>
-                  <th>Topic</th>
-                  <th>Minutes</th>
-                  <th>Feedback</th>
+                  {sortHeader('date', 'Date')}
+                  {sortHeader('student', 'Student')}
+                  {sortHeader('topic', 'Topic')}
+                  {sortHeader('minutes', 'Minutes')}
+                  {sortHeader('feedback', 'Feedback')}
                 </tr>
               </thead>
               <tbody>
-                {shown.map((p) => (
-                  <tr key={p.id}>
+                {sortedShown.map((p) => (
+                  <tr
+                    key={p.id}
+                    tabIndex={0}
+                    aria-label={`Open practice review for ${names.get(p.studentId) || 'student'} on ${p.date}`}
+                    onClick={() => void inspect(p.id)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        void inspect(p.id);
+                      }
+                    }}
+                    className="practice-review-row"
+                  >
                     <td>{p.date}</td>
                     <td>{names.get(p.studentId) || 'Student'}</td>
                     <td>{p.topic || 'Practice'}</td>
@@ -378,7 +448,10 @@ export default function PracticeReview({
                           className="practice-review-status is-reviewed practice-review-action"
                           aria-label={`View reviewed practice for ${names.get(p.studentId) || 'student'} on ${p.date}`}
                           aria-pressed={open === p.id}
-                          onClick={() => void inspect(p.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void inspect(p.id);
+                          }}
                         >
                           Reviewed · View
                         </button>
@@ -387,7 +460,10 @@ export default function PracticeReview({
                           type="button"
                           className="practice-review-status is-pending practice-review-action"
                           aria-pressed={open === p.id}
-                          onClick={() => void inspect(p.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void inspect(p.id);
+                          }}
                         >
                           Review
                         </button>

@@ -1,4 +1,4 @@
-/** Read-only smoke test: proves the signed-in user can query institution-scoped DynamoDB data. */
+/** Read-only smoke test: verifies signed-in access to institution-scoped academy records. */
 import { useEffect, useState } from 'react';
 import { Cloud, X, RefreshCw, ShieldCheck, Database } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
@@ -68,7 +68,7 @@ export default function CloudInspector({
             <h2>
               <Cloud size={20} /> AWS connection
             </h2>
-            <p>Verified Cognito identity · DynamoDB test queries</p>
+            <p>Verified sign-in · academy access checks</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">
             <X size={20} />
@@ -86,7 +86,7 @@ export default function CloudInspector({
         </div>
         {loading ? (
           <p className="cloud-progress">
-            <RefreshCw size={18} /> Querying Sadhana's real DynamoDB table…
+            <RefreshCw size={18} /> Checking Sadhana's live academy records…
           </p>
         ) : error ? (
           <p role="alert" className="cloud-error">
@@ -116,9 +116,9 @@ export default function CloudInspector({
           </div>
         )}
         <p className="cloud-disclaimer">
-          These counts come from the live AWS API. The portal now starts without any seeded records.
+          These counts come from the live Sadhana API. The portal starts without any seeded records.
           Middlesbrough calendar events are saved separately; registration, class, venue and
-          practice CRUD screens are not yet connected to DynamoDB.
+          practice screens are not yet connected to persistent records.
         </p>
         <div className="cloud-actions">
           <button onClick={() => setRefresh((x) => x + 1)} disabled={loading}>

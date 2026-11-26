@@ -289,7 +289,7 @@ export function ClassFormDialog({ workspace, record, classes, venues, onSave, on
                 <CircleAlert size={16} />
                 <span>
                   Permanent timetable changes require effective-date history in the live build.
-                  Local-only changes are temporary and not saved to DynamoDB.
+                  Local-only changes are temporary and are not saved with your academy records.
                 </span>
               </div>
             )}

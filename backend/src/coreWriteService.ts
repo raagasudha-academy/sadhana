@@ -9,7 +9,7 @@ import {
   ScanCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { ALLOWED_FIELDS, httpError, newId, validate } from './model.ts';
+import { ALLOWED_FIELDS, httpError, newId, permittedInstitutions, validate } from './model.ts';
 import { guardianLinkId } from './websiteImportCore.mjs';
 import { academyRoll } from './academyRoll.mjs';
 import type { InstitutionId, Claims } from './model.ts';
@@ -324,6 +324,206 @@ export function makeM10CoreWriteService(db: CoreDb) {
         relationship: 'parent_guardian',
         alreadyRegistered: false,
       };
+    },
+    async registerFamily(inst: InstitutionId, claims: Claims, raw: RecordValue) {
+      if (!text(claims.sub)) throw httpError(401, 'Verified administrator required.');
+      only(raw, ['parentName', 'phone', 'gender', 'location', 'email', 'members']);
+      const details = validate('families', {
+        parentName: raw.parentName,
+        phone: raw.phone,
+        gender: raw.gender || '',
+        createdIn: inst,
+      });
+      const email = String(raw.email || '')
+        .trim()
+        .toLowerCase();
+      if (!validEmail(email)) throw httpError(400, 'Guardian email required.');
+      if (!Array.isArray(raw.members) || !raw.members.length || raw.members.length > 20)
+        throw httpError(400, 'Choose 1–20 learners per family.');
+
+      const familyId = newId('FAMILY');
+      const guardianId = newId('PERSON');
+      const now = new Date().toISOString();
+      const common = {
+        familyId,
+        institutionIds: [inst],
+        status: 'active',
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const location = String(raw.location || '')
+        .trim()
+        .slice(0, 120);
+      const guardian: RecordValue = {
+        ...common,
+        personId: guardianId,
+        ...names(details.parentName),
+        phone: details.phone,
+        gender: details.gender,
+        email,
+        location,
+        personTypes: ['guardian'],
+      };
+      const [familySeq, rollSeq] = await Promise.all([
+        counter(db, inst, 'FAMILY_NUMBER'),
+        counter(db, inst, 'STUDENT_ROLL'),
+      ]);
+      const familyNumber = String(familySeq.previous + 1).padStart(3, '0');
+      const record = {
+        ...details,
+        id: familyId,
+        email,
+        location,
+        familyNumber,
+        archived: false,
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const family = {
+        ...common,
+        familyNumber,
+        primaryContactPersonId: guardianId,
+        legacyPayload: record,
+      };
+      const actions: any[] = [familySeq.write, rollSeq.write, put('families', family, 'familyId')];
+      const guard = (counterId: string, personId: string, sequenceType: string) =>
+        put(
+          'counters',
+          { counterId, institutionId: inst, familyId, personId, sequenceType, createdAt: now },
+          'counterId',
+        );
+      actions.push(
+        guard(`FAMILY_PHONE#${inst}#${details.phone}`, guardianId, 'FAMILY_PHONE_GUARD'),
+      );
+      const emails = new Set([email]);
+      const learnerNames = new Set<string>();
+      const students: RecordValue[] = [];
+      for (const member of raw.members) {
+        only(member, ['name', 'phone', 'email', 'relationship', 'gender']);
+        const learner = validate('students', {
+          name: member.name,
+          phone: member.phone || '',
+          email: member.email || '',
+          location,
+          familyId,
+          createdIn: inst,
+          registrationType: 'family',
+        });
+        const relationship = member.relationship || 'child';
+        if (!['other', 'child', 'parent_guardian'].includes(relationship))
+          throw httpError(400, 'Invalid family relationship.');
+        const key = learner.name.trim().replace(/\s+/g, ' ').toLowerCase();
+        if (learnerNames.has(key)) throw httpError(400, 'Duplicate learner name in family.');
+        learnerNames.add(key);
+        const isGuardian = relationship === 'parent_guardian' && learner.email === email;
+        if (relationship === 'parent_guardian' && (!learner.email || !learner.phone))
+          throw httpError(400, 'Adult family learners require email and phone.');
+        if (
+          isGuardian &&
+          (learner.phone !== guardian.phone ||
+            key !== details.parentName.trim().replace(/\s+/g, ' ').toLowerCase())
+        )
+          throw httpError(409, 'Guardian details do not match.');
+        const personId = isGuardian ? guardianId : newId('PERSON');
+        if (!isGuardian && learner.email) {
+          if (emails.has(learner.email)) throw httpError(409, 'Duplicate email in family.');
+          emails.add(learner.email);
+          actions.push(guard(`STUDENT_EMAIL#${learner.email}`, personId, 'STUDENT_EMAIL_GUARD'));
+        }
+        const rollNumber = academyRoll(inst, rollSeq.previous + students.length + 1);
+        const studentProfile = { rollNumber, rollNumbers: { [inst]: rollNumber } };
+        const row = {
+          ...learner,
+          id: personId,
+          relationship,
+          rollNumber,
+          version: 1,
+          createdAt: now,
+          updatedAt: now,
+          archived: false,
+        };
+        students.push(row);
+        actions.push(guard(`ROLL_GLOBAL#${rollNumber}`, personId, 'ROLL_UNIQUE'));
+        if (isGuardian)
+          Object.assign(guardian, {
+            studentProfile,
+            personTypes: ['guardian', 'student'],
+            legacyPayload: row,
+          });
+        else {
+          actions.push(
+            put(
+              'people',
+              {
+                ...common,
+                personId,
+                ...names(learner.name),
+                email: learner.email,
+                phone: learner.phone,
+                location,
+                studentProfile,
+                personTypes: ['student'],
+                legacyPayload: row,
+              },
+              'personId',
+            ),
+          );
+          actions.push(
+            put(
+              'family-links',
+              {
+                linkId: guardianLinkId(inst, guardianId, personId),
+                institutionId: inst,
+                familyId,
+                recordType: 'guardian-access',
+                guardianPersonId: guardianId,
+                personId: guardianId,
+                studentId: personId,
+                relationship: 'unverified',
+                relationshipVerified: false,
+                accessStatus: 'pending',
+                version: 1,
+                createdAt: now,
+                updatedAt: now,
+              },
+              'linkId',
+            ),
+          );
+        }
+      }
+      let cursor;
+      do {
+        const page = await db.send(
+          new ScanCommand({
+            TableName: table('people'),
+            ProjectionExpression: 'email',
+            ConsistentRead: true,
+            ExclusiveStartKey: cursor,
+          }),
+        );
+        if (
+          page.Items?.some(
+            (person) =>
+              typeof person.email === 'string' && emails.has(person.email.trim().toLowerCase()),
+          )
+        )
+          throw httpError(409, 'An existing person uses this email. Review the family directory.');
+        cursor = page.LastEvaluatedKey;
+      } while (cursor);
+      rollSeq.write.Update.ExpressionAttributeValues[':next'] = rollSeq.previous + students.length;
+      actions.push(
+        guard(`STUDENT_EMAIL#${email}`, guardianId, 'PERSON_EMAIL_GUARD'),
+        put('people', guardian, 'personId'),
+        put(
+          'audit',
+          audit(inst, claims.sub!, 'ACADEMY_FAMILY_CREATED', 'family', familyId, now),
+          'auditId',
+        ),
+      );
+      await tx(actions);
+      return { record, students };
     },
     async create(entity: CoreEntity, inst: InstitutionId, claims: Claims, raw: RecordValue) {
       const actor = claims.sub;
@@ -808,7 +1008,7 @@ export function makeM10CoreWriteService(db: CoreDb) {
       const requestedRelationship = entity === 'students' ? changes.relationship : undefined;
       if (entity === 'students') delete changes.relationship;
       const allowed: Record<CoreEntity, string[]> = {
-        families: ['parentName'],
+        families: ['parentName', 'email', 'phone', 'gender', 'location'],
         students: ['name', 'email', 'phone', 'location'],
         enrolments: ['studentId', 'classId', 'startDate', 'endDate'],
       };
@@ -835,8 +1035,14 @@ export function makeM10CoreWriteService(db: CoreDb) {
         );
       if (entity === 'enrolments' ? current.institutionId !== inst : !scope(current, inst))
         throw httpError(403, 'Institution mismatch.');
-      if (entity !== 'enrolments' && current.institutionIds.length !== 1)
-        throw httpError(409, 'Shared identities require dedicated reconciliation.');
+      if (entity !== 'enrolments' && current.institutionIds.length > 1) {
+        const writable = permittedInstitutions(claims);
+        if (current.institutionIds.some((linked: InstitutionId) => !writable.includes(linked)))
+          throw httpError(
+            409,
+            'Shared identity updates require administrator access to every linked academy.',
+          );
+      }
       if (entity === 'students' && !current.legacyPayload) {
         if (!Array.isArray(current.personTypes) || !current.personTypes.includes('student'))
           throw httpError(409, 'This person is not enrolled as a student.');
@@ -898,16 +1104,40 @@ export function makeM10CoreWriteService(db: CoreDb) {
       }
       const old =
         legacy(current) ??
-        (entity === 'enrolments'
-          ? {
-              id: current.enrolmentId,
-              institution: inst,
-              studentId: current.studentId,
-              classId: current.classId,
-              startDate: current.startDate,
-              endDate: current.endDate || '',
-            }
-          : null);
+        (entity === 'families'
+          ? await (async () => {
+              const contact = current.primaryContactPersonId
+                ? await get('people', 'personId', current.primaryContactPersonId)
+                : null;
+              if (
+                !contact ||
+                contact.familyId !== id ||
+                !contact.personTypes?.includes('guardian') ||
+                !scope(contact, inst)
+              )
+                throw httpError(409, 'Primary contact mismatch.');
+              return {
+                id,
+                parentName:
+                  contact.displayName ||
+                  [contact.firstName, contact.lastName].filter(Boolean).join(' '),
+                email: current.email || contact.email || '',
+                phone: current.phone || contact.phone || '',
+                gender: current.gender || contact.gender || '',
+                location: current.location || contact.location || '',
+                createdIn: inst,
+              };
+            })()
+          : entity === 'enrolments'
+            ? {
+                id: current.enrolmentId,
+                institution: inst,
+                studentId: current.studentId,
+                classId: current.classId,
+                startDate: current.startDate,
+                endDate: current.endDate || '',
+              }
+            : null);
       if (!old) throw httpError(409, 'This record requires a canonical data edit workflow.');
       if (requestedRelationship !== undefined) {
         if (requestedRelationship !== 'child' && requestedRelationship !== 'parent_guardian')
@@ -938,10 +1168,37 @@ export function makeM10CoreWriteService(db: CoreDb) {
         const contact = await get('people', 'personId', current.primaryContactPersonId);
         if (!contact || contact.familyId !== id || !scope(contact, inst))
           throw httpError(409, 'Primary contact mismatch.');
+        const writable = permittedInstitutions(claims);
+        if (
+          Array.isArray(contact.institutionIds) &&
+          contact.institutionIds.length > 1 &&
+          contact.institutionIds.some((linked: InstitutionId) => !writable.includes(linked))
+        )
+          throw httpError(
+            409,
+            'Shared identity updates require administrator access to every linked academy.',
+          );
+        const requestedEmail = updated.email || '';
+        const currentEmail = String(old.email || contact.email || '')
+          .trim()
+          .toLowerCase();
+        if (
+          requestedEmail !== currentEmail &&
+          (contact.cognitoSub ||
+            contact.legacyPayload?.cognitoSub ||
+            contact.staffProfile?.cognitoSub)
+        )
+          throw httpError(
+            409,
+            'This parent email is linked to a sign-in account. Use account reconciliation before changing it.',
+          );
         const now = new Date().toISOString();
         const newContact: RecordValue = {
           ...contact,
           ...names(updated.parentName),
+          email: requestedEmail,
+          phone: updated.phone,
+          location: updated.location || '',
           version: contact.version + 1,
           updatedAt: now,
         };
@@ -949,12 +1206,15 @@ export function makeM10CoreWriteService(db: CoreDb) {
         else delete newContact.gender;
         const newFamily = {
           ...current,
+          email: requestedEmail,
+          phone: updated.phone,
+          location: updated.location || '',
           gender: updated.gender || '',
           version: expectedVersion + 1,
           updatedAt: now,
           legacyPayload: { ...old, ...updated, version: expectedVersion + 1, updatedAt: now },
         };
-        await tx([
+        const writes: any[] = [
           replace(
             'families',
             { familyId: id },
@@ -971,12 +1231,119 @@ export function makeM10CoreWriteService(db: CoreDb) {
             { '#v': 'version', '#f': 'familyId' },
             { ':v': contact.version, ':f': id },
           ),
+        ];
+        const emailChanged = requestedEmail !== currentEmail;
+        if (emailChanged && requestedEmail) {
+          let cursor: RecordValue | undefined;
+          do {
+            const page = await db.send(
+              new ScanCommand({
+                TableName: table('people'),
+                ProjectionExpression: 'personId,email',
+                ConsistentRead: true,
+                ExclusiveStartKey: cursor,
+              }),
+            );
+            if (
+              page.Items?.some(
+                (person: RecordValue) =>
+                  person.personId !== contact.personId &&
+                  typeof person.email === 'string' &&
+                  person.email.trim().toLowerCase() === requestedEmail,
+              )
+            )
+              throw httpError(409, 'That parent email is already used by another person.');
+            cursor = page.LastEvaluatedKey;
+          } while (cursor);
+          const nextEmailGuardId = `STUDENT_EMAIL#${requestedEmail}`;
+          const nextEmailGuard = await get('counters', 'counterId', nextEmailGuardId);
+          if (nextEmailGuard && nextEmailGuard.personId !== contact.personId)
+            throw httpError(409, 'That parent email is already used by another person.');
+          if (!nextEmailGuard)
+            writes.push(
+              put(
+                'counters',
+                {
+                  counterId: nextEmailGuardId,
+                  institutionId: old.createdIn || inst,
+                  familyId: id,
+                  personId: contact.personId,
+                  sequenceType: 'PERSON_EMAIL_GUARD',
+                  createdAt: now,
+                },
+                'counterId',
+              ),
+            );
+        }
+        const oldEmailGuardId = currentEmail ? `STUDENT_EMAIL#${currentEmail}` : '';
+        if (emailChanged && oldEmailGuardId) {
+          const oldEmailGuard = await get('counters', 'counterId', oldEmailGuardId);
+          if (oldEmailGuard?.personId === contact.personId)
+            writes.push({
+              Delete: {
+                TableName: table('counters'),
+                Key: { counterId: oldEmailGuardId },
+                ConditionExpression: '#p=:p',
+                ExpressionAttributeNames: { '#p': 'personId' },
+                ExpressionAttributeValues: { ':p': contact.personId },
+              },
+            });
+        }
+        const currentPhone = String(old.phone || contact.phone || '');
+        const phoneChanged = updated.phone !== currentPhone;
+        const guardInstitutions: InstitutionId[] = Array.isArray(current.institutionIds)
+          ? current.institutionIds
+          : [inst];
+        if (phoneChanged) {
+          for (const guardInstitution of guardInstitutions) {
+            const nextPhoneGuardId = `FAMILY_PHONE#${guardInstitution}#${updated.phone}`;
+            const nextPhoneGuard = await get('counters', 'counterId', nextPhoneGuardId);
+            if (
+              nextPhoneGuard &&
+              (nextPhoneGuard.familyId !== id || nextPhoneGuard.personId !== contact.personId)
+            )
+              throw httpError(409, 'That parent phone number is already used by another family.');
+            if (!nextPhoneGuard)
+              writes.push(
+                put(
+                  'counters',
+                  {
+                    counterId: nextPhoneGuardId,
+                    institutionId: guardInstitution,
+                    familyId: id,
+                    personId: contact.personId,
+                    sequenceType: 'FAMILY_PHONE_GUARD',
+                    createdAt: now,
+                  },
+                  'counterId',
+                ),
+              );
+            const oldPhoneGuardId = currentPhone
+              ? `FAMILY_PHONE#${guardInstitution}#${currentPhone}`
+              : '';
+            if (oldPhoneGuardId) {
+              const oldPhoneGuard = await get('counters', 'counterId', oldPhoneGuardId);
+              if (oldPhoneGuard?.familyId === id && oldPhoneGuard.personId === contact.personId)
+                writes.push({
+                  Delete: {
+                    TableName: table('counters'),
+                    Key: { counterId: oldPhoneGuardId },
+                    ConditionExpression: '#f=:f AND #p=:p',
+                    ExpressionAttributeNames: { '#f': 'familyId', '#p': 'personId' },
+                    ExpressionAttributeValues: { ':f': id, ':p': contact.personId },
+                  },
+                });
+            }
+          }
+        }
+        writes.push(
           put(
             'audit',
             audit(inst, claims.sub!, 'ACADEMY_FAMILY_UPDATED', 'family', id, now),
             'auditId',
           ),
-        ]);
+        );
+        await tx(writes);
         return newFamily.legacyPayload;
       }
       if (

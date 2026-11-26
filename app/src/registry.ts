@@ -1,6 +1,6 @@
 import type { FamilyRecord, StudentRecord, EnrolmentRecord, EnrolmentStatus } from './types';
 
-/** Start clean. Registration CRUD is not yet connected to DynamoDB. */
+/** Start clean. Registration CRUD is not yet connected to persistent storage. */
 export const initialFamilies: FamilyRecord[] = [];
 export const initialMembers: StudentRecord[] = [];
 export const initialEnrolments: EnrolmentRecord[] = [];

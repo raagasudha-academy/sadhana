@@ -132,7 +132,7 @@ export default function PersistentRegistration({
       )}
       {loading && (
         <p className="reg-footnote" role="status">
-          Loading families and students from DynamoDB…
+          Loading families and students…
         </p>
       )}
       {(!loading || loadedOnce) && (

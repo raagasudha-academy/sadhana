@@ -6,7 +6,7 @@ const pages: Record<ViewRole, readonly string[]> = {
     'Dashboard',
     'My Classes',
     'My Students',
-    'Practice & Reports',
+    'Student Work',
     'Syllabus & Resources',
     'Messages',
     'Teachers',
@@ -27,21 +27,25 @@ const pages: Record<ViewRole, readonly string[]> = {
 export function pageForView(current: string, role: ViewRole, saved: string | null) {
   if (current === 'Dashboard' && saved && pages[role].includes(saved)) return saved;
   if (pages[role].includes(current)) return current;
+  const requestedPage = current || saved || '';
   const equivalent =
     role === 'teacher'
       ? (
-          { 'Classes & Timetable': 'My Classes', 'Families & Students': 'My Students' } as Record<
-            string,
-            string
-          >
-        )[current]
+          {
+            'Classes & Timetable': 'My Classes',
+            'My Timetable': 'My Classes',
+            'Families & Students': 'My Students',
+            'Practice & Reports': 'Student Work',
+          } as Record<string, string>
+        )[requestedPage]
       : role === 'admin'
         ? (
-            { 'My Classes': 'Classes & Timetable', 'My Students': 'Families & Students' } as Record<
-              string,
-              string
-            >
-          )[current]
+            {
+              'My Classes': 'Classes & Timetable',
+              'My Students': 'Families & Students',
+              'Practice & Reports': 'Student Work',
+            } as Record<string, string>
+          )[requestedPage]
         : undefined;
   if (equivalent) return equivalent;
   return saved && pages[role].includes(saved) ? saved : 'Dashboard';

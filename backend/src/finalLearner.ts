@@ -10,7 +10,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import {
-  matchingCognitoPerson,
+  matchingCognitoActor,
   authorisedStudent,
   projectLearnerDashboard,
 } from './finalAccessCore.mjs';
@@ -75,7 +75,7 @@ export function makeM9FinalLearner(db: M9FinalDb) {
       )
         throw httpError(403, 'Approved student access required.');
       const identities = await query('people', 'CognitoIdentityIndex', 'cognitoSub', claims.sub);
-      const actor = matchingCognitoPerson(identities, claims.sub, institution);
+      const actor = matchingCognitoActor(identities, claims.sub, institution);
       if (!actor) throw httpError(403, 'A verified portal identity is required.');
       // Use strong base reads so a revoked link cannot survive a stale GSI projection.
       const activeActor = await get('people', 'personId', actor.personId);
@@ -83,7 +83,8 @@ export function makeM9FinalLearner(db: M9FinalDb) {
         !activeActor ||
         activeActor.cognitoSub !== claims.sub ||
         activeActor.status !== 'active' ||
-        !activeActor.institutionIds?.includes(institution)
+        (!activeActor.institutionIds?.includes(institution) &&
+          !activeActor.personTypes?.includes('guardian'))
       )
         throw httpError(403, 'A verified portal identity is required.');
       const student = await get('people', 'personId', studentId);

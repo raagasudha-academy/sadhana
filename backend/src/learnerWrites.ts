@@ -6,10 +6,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
+  DeleteCommand,
   GetCommand,
   QueryCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 import { isWithinPracticeWindow } from './practiceWindow.ts';
@@ -26,6 +28,11 @@ import {
 export interface M9LearnerWriteDb {
   send(command: any): Promise<any>;
 }
+type LearnerMediaCleanup = (bucket: string, key: string) => Promise<void>;
+const learnerMediaS3 = new S3Client({ requestChecksumCalculation: 'WHEN_REQUIRED' });
+const deleteLearnerMediaObject: LearnerMediaCleanup = async (bucket, key) => {
+  await learnerMediaS3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+};
 const table = (domain: string) => entityTable(domain);
 const verifiedInstitution = (inst: InstitutionId) => {
   if (inst !== 'raaga' && inst !== 'sruti') throw httpError(400, 'Choose an academy');
@@ -61,6 +68,7 @@ export function makeM9LearnerWrites(
   db: M9LearnerWriteDb,
   notifyActivity: ActivityWriter = async () => ({ recipients: 0 }),
   listAdmins: AdminDirectory = async () => [],
+  deleteMediaObject: LearnerMediaCleanup = deleteLearnerMediaObject,
 ) {
   const get = async (domain: string, key: string, value: string) =>
     (
@@ -378,6 +386,247 @@ export function makeM9LearnerWrites(
       },
     };
   }
+  async function deletePractice(
+    inst: InstitutionId,
+    claims: Claims,
+    studentId: string,
+    practiceId: string,
+    body: any,
+  ) {
+    if (
+      process.env.SADHANA_ENTITY_TABLE_SET === 'final'
+        ? process.env.SADHANA_FINAL_LEARNER_WRITES !== 'enabled'
+        : process.env.M9_LEARNER_WRITES !== 'enabled'
+    )
+      throw httpError(503, 'Learner writes disabled');
+    const { actor, checks } = await identity(inst, claims, studentId);
+    const id = validateId(practiceId);
+    if (!body || !Number.isInteger(body.expectedVersion))
+      throw httpError(400, 'Practice version is required to delete');
+    const old = await get('practice', 'practiceId', id);
+    if (!old || old.institutionId !== inst || old.studentId !== studentId)
+      throw httpError(404, 'Your practice entry was not found');
+    if (old.version !== body.expectedVersion)
+      throw httpError(409, 'Practice changed; refresh before deleting');
+    if (!isWithinPracticeWindow(old.practiceDate))
+      throw httpError(409, 'The seven-day practice correction window has closed');
+    if (old.teacherReviewed === true || (old.teacherComments?.length ?? 0) > 0)
+      throw httpError(409, 'Teacher has reviewed this practice; deletion is locked');
+
+    const now = new Date().toISOString();
+    const audit = {
+      auditId: `AUDIT-${randomUUID()}`,
+      institutionId: inst,
+      action: 'studentPracticeDelete',
+      actorCognitoSub: claims.sub,
+      actorPersonId: actor.personId,
+      timestamp: now,
+      resourceType: 'practice',
+      resourceId: id,
+    };
+    try {
+      await db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            ...checks,
+            {
+              Delete: {
+                TableName: table('practice'),
+                Key: { practiceId: id },
+                ConditionExpression:
+                  'institutionId=:inst AND studentId=:student AND #v=:v AND (attribute_not_exists(teacherReviewed) OR teacherReviewed=:notReviewed)',
+                ExpressionAttributeNames: { '#v': 'version' },
+                ExpressionAttributeValues: {
+                  ':inst': inst,
+                  ':student': studentId,
+                  ':v': body.expectedVersion,
+                  ':notReviewed': false,
+                },
+              },
+            },
+            {
+              Put: {
+                TableName: table('audit'),
+                Item: audit,
+                ConditionExpression: 'attribute_not_exists(auditId)',
+              },
+            },
+          ],
+        }),
+      );
+    } catch (e: any) {
+      if (e.name === 'TransactionCanceledException')
+        throw httpError(409, 'Practice or access changed. Refresh and retry');
+      throw e;
+    }
+
+    // The practice row is now gone, so no new attachment receipt can be
+    // created. Remove all associated receipts and private objects best effort.
+    let receipts: any[];
+    try {
+      receipts = (
+        await query('submissions', 'StudentSubmissionsIndex', 'studentId', studentId)
+      ).filter(
+        (receipt) =>
+          receipt.recordType === 'learner-media' &&
+          receipt.institutionId === inst &&
+          receipt.studentId === studentId &&
+          receipt.practiceId === id &&
+          typeof receipt.submissionId === 'string' &&
+          /^LEARNERMEDIA-[0-9a-f-]{36}$/i.test(receipt.submissionId) &&
+          typeof receipt.objectKey === 'string' &&
+          receipt.objectKey.startsWith(`homework-private/learner/${inst}/${studentId}/`),
+      );
+    } catch {
+      return { deleted: true, cleanupPending: true };
+    }
+    const bucket = process.env.SADHANA_LEARNER_MEDIA_BUCKET;
+    let cleanupPending = false;
+    for (const receipt of receipts) {
+      try {
+        await db.send(
+          new DeleteCommand({
+            TableName: table('submissions'),
+            Key: { submissionId: receipt.submissionId },
+          }),
+        );
+        if (!bucket) {
+          cleanupPending = true;
+          continue;
+        }
+        await deleteMediaObject(bucket, receipt.objectKey);
+      } catch {
+        cleanupPending = true;
+      }
+    }
+    return { deleted: true, cleanupPending };
+  }
+  async function deletePracticeMedia(
+    inst: InstitutionId,
+    claims: Claims,
+    studentId: string,
+    practiceId: string,
+    mediaId: string,
+    body: any,
+  ) {
+    if (
+      process.env.SADHANA_ENTITY_TABLE_SET === 'final'
+        ? process.env.SADHANA_FINAL_LEARNER_WRITES !== 'enabled'
+        : process.env.M9_LEARNER_WRITES !== 'enabled'
+    )
+      throw httpError(503, 'Learner writes disabled');
+    const { actor, checks } = await identity(inst, claims, studentId);
+    const id = validateId(practiceId);
+    if (!/^LEARNERMEDIA-[0-9a-f-]{36}$/i.test(mediaId))
+      throw httpError(400, 'Invalid practice attachment identifier');
+    if (!body || !Number.isInteger(body.expectedVersion))
+      throw httpError(400, 'Practice version is required to remove an attachment');
+    const old = await get('practice', 'practiceId', id);
+    if (!old || old.institutionId !== inst || old.studentId !== studentId)
+      throw httpError(404, 'Your practice entry was not found');
+    if (old.version !== body.expectedVersion)
+      throw httpError(409, 'Practice changed; refresh before removing an attachment');
+    if (!isWithinPracticeWindow(old.practiceDate))
+      throw httpError(409, 'The seven-day practice correction window has closed');
+    if (old.teacherReviewed === true || (old.teacherComments?.length ?? 0) > 0)
+      throw httpError(409, 'Teacher has reviewed this practice; attachments are locked');
+
+    const receipt = await get('submissions', 'submissionId', mediaId);
+    if (
+      !receipt ||
+      receipt.recordType !== 'learner-media' ||
+      receipt.institutionId !== inst ||
+      receipt.studentId !== studentId ||
+      receipt.practiceId !== id ||
+      receipt.purpose !== 'practice' ||
+      receipt.mediaStatus !== 'ready' ||
+      typeof receipt.objectKey !== 'string' ||
+      !receipt.objectKey.startsWith(`homework-private/learner/${inst}/${studentId}/`)
+    )
+      throw httpError(404, 'Practice attachment was not found');
+
+    const nextVersion = Number(old.version || 0) + 1;
+    const now = new Date().toISOString();
+    const audit = {
+      auditId: `AUDIT-${randomUUID()}`,
+      institutionId: inst,
+      action: 'studentPracticeMediaDelete',
+      actorCognitoSub: claims.sub,
+      actorPersonId: actor.personId,
+      timestamp: now,
+      resourceType: 'practice-media',
+      resourceId: mediaId,
+    };
+    try {
+      await db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            ...checks,
+            {
+              Update: {
+                TableName: table('practice'),
+                Key: { practiceId: id },
+                UpdateExpression: 'SET #v=:next, updatedAt=:now, updatedBy=:actor',
+                ConditionExpression:
+                  'institutionId=:inst AND studentId=:student AND #v=:expected AND (attribute_not_exists(teacherReviewed) OR teacherReviewed=:notReviewed) AND (attribute_not_exists(teacherComments) OR size(teacherComments)=:empty)',
+                ExpressionAttributeNames: { '#v': 'version' },
+                ExpressionAttributeValues: {
+                  ':inst': inst,
+                  ':student': studentId,
+                  ':expected': old.version,
+                  ':next': nextVersion,
+                  ':now': now,
+                  ':actor': claims.sub,
+                  ':notReviewed': false,
+                  ':empty': 0,
+                },
+              },
+            },
+            {
+              Delete: {
+                TableName: table('submissions'),
+                Key: { submissionId: mediaId },
+                ConditionExpression:
+                  'recordType=:type AND institutionId=:inst AND studentId=:student AND practiceId=:practice AND purpose=:purpose AND mediaStatus=:ready AND objectKey=:key',
+                ExpressionAttributeValues: {
+                  ':type': 'learner-media',
+                  ':inst': inst,
+                  ':student': studentId,
+                  ':practice': id,
+                  ':purpose': 'practice',
+                  ':ready': 'ready',
+                  ':key': receipt.objectKey,
+                },
+              },
+            },
+            {
+              Put: {
+                TableName: table('audit'),
+                Item: audit,
+                ConditionExpression: 'attribute_not_exists(auditId)',
+              },
+            },
+          ],
+        }),
+      );
+    } catch (e: any) {
+      if (e.name === 'TransactionCanceledException')
+        throw httpError(409, 'Practice, attachment or access changed. Refresh and retry');
+      throw e;
+    }
+
+    let cleanupPending = false;
+    const bucket = process.env.SADHANA_LEARNER_MEDIA_BUCKET;
+    if (!bucket) cleanupPending = true;
+    else {
+      try {
+        await deleteMediaObject(bucket, receipt.objectKey);
+      } catch {
+        cleanupPending = true;
+      }
+    }
+    return { deleted: true, cleanupPending, version: nextVersion };
+  }
   async function saveRsvp(inst: InstitutionId, claims: Claims, studentId: string, body: any) {
     if (
       process.env.SADHANA_ENTITY_TABLE_SET === 'final'
@@ -501,7 +750,7 @@ export function makeM9LearnerWrites(
     }
     throw httpError(409, 'RSVP changed while saving. Refresh and retry');
   }
-  return { savePractice, saveRsvp };
+  return { savePractice, deletePractice, deletePracticeMedia, saveRsvp };
 }
 let singleton: ReturnType<typeof makeM9LearnerWrites> | undefined;
 export function m9LearnerWrites() {
