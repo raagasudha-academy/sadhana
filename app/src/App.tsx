@@ -531,6 +531,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
         result.status === 'fulfilled'
           ? result.value.records.map((item) => ({
               ...item,
+              sortAt: item.age,
               age: new Date(item.age).toLocaleString(undefined, {
                 day: 'numeric',
                 month: 'short',
@@ -541,7 +542,15 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
             }))
           : [],
       );
-      setNotifications([...learnerActivity, ...activity]);
+      setNotifications(
+        [...learnerActivity, ...activity].sort((a, b) => {
+          const aTime = Date.parse(a.sortAt || '');
+          const bTime = Date.parse(b.sortAt || '');
+          if (Number.isNaN(aTime)) return Number.isNaN(bTime) ? 0 : 1;
+          if (Number.isNaN(bTime)) return -1;
+          return bTime - aTime;
+        }),
+      );
       if (person.admin && currentRole === 'admin' && currentWorkspace === 'raaga') {
         const registrationResults = await Promise.allSettled([
           cloud.api.listWebsiteRegistrations({

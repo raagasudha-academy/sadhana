@@ -31,6 +31,7 @@ export function messageThreadNotifications(
       hour: '2-digit',
       minute: '2-digit',
     }),
+    sortAt: thread.lastAt,
     category: 'Messages',
     read: thread.unreadCount === 0,
     unreadCount: thread.unreadCount,
