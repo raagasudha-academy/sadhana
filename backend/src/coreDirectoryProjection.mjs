@@ -12,6 +12,16 @@ const name = (x) =>
   [x.firstName, x.middleName, x.lastName].filter(requiredText).join(' ').trim() ||
   x.displayName ||
   '';
+const addressLocation = (...addresses) => {
+  for (const address of addresses) {
+    if (!address || typeof address !== 'object' || Array.isArray(address)) continue;
+    for (const field of ['town', 'city']) {
+      const value = typeof address[field] === 'string' ? address[field].trim() : '';
+      if (value) return value;
+    }
+  }
+  return '';
+};
 export function projectM10Directory(entity, items, inst, people = []) {
   if (!validInstitution(inst)) throw Error('M10_INVALID_INSTITUTION');
   if (!['students', 'families', 'enrolments'].includes(entity))
@@ -29,8 +39,13 @@ export function projectM10Directory(entity, items, inst, people = []) {
         continue;
       const legacy = cleanLegacy(item.legacyPayload);
       if (legacy) {
+        const location =
+          legacy.location ||
+          legacy.preferredLocationId ||
+          addressLocation(legacy.address, legacy.contactAddress);
         result.push({
           ...legacy,
+          ...(location ? { location } : {}),
           version: item.version ?? legacy.version ?? 1,
           rollNumber: item.studentProfile?.rollNumbers?.[inst] || legacy.rollNumber || '',
         });
@@ -38,7 +53,10 @@ export function projectM10Directory(entity, items, inst, people = []) {
       }
       if (!requiredText(item.personId) || !requiredText(item.familyId) || !requiredText(name(item)))
         throw Error('M10_INCOMPLETE_STUDENT');
-      const location = item.location || item.studentProfile?.preferredLocationId || '';
+      const location =
+        item.location ||
+        item.studentProfile?.preferredLocationId ||
+        addressLocation(item.address, item.contactAddress);
       // A guardian who is also enrolled as a learner shares one canonical
       // person record. Preserve that relationship in the legacy-facing view;
       // otherwise the UI incorrectly labels the parent as a child.
@@ -62,8 +80,13 @@ export function projectM10Directory(entity, items, inst, people = []) {
       if (!hasScope(item, inst)) continue;
       const legacy = cleanLegacy(item.legacyPayload);
       if (legacy) {
+        const location =
+          legacy.location ||
+          legacy.preferredLocationId ||
+          addressLocation(legacy.address, legacy.contactAddress);
         result.push({
           ...legacy,
+          ...(location ? { location } : {}),
           version: item.version ?? legacy.version ?? 1,
           familyNumber: item.familyNumber || legacy.familyNumber || '',
         });
@@ -85,7 +108,7 @@ export function projectM10Directory(entity, items, inst, people = []) {
         item.preferredLocationId ||
         contact.location ||
         contact.preferredLocationId ||
-        '';
+        addressLocation(item.address, item.contactAddress, contact.address, contact.contactAddress);
       result.push({
         id: item.familyId,
         familyNumber: item.familyNumber || '',

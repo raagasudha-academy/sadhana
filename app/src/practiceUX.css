@@ -174,6 +174,7 @@
   margin-top: 12px;
 }
 .student-portal-v119 .v1376-practice-history-topic,
+.student-portal-v119 .v1376-practice-history-notes,
 .student-portal-v119 .v1376-practice-history-media-row {
   display: grid;
   grid-template-columns: 70px minmax(0, 1fr);
@@ -186,6 +187,26 @@
   color: #263b58;
   font-size: 15px;
   overflow-wrap: anywhere;
+}
+.student-portal-v119 .v1376-practice-history-notes > textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 84px;
+  max-height: 180px;
+  padding: 9px 11px;
+  border: 1px solid #dbe4ef;
+  border-radius: 9px;
+  background: #f7f9fc;
+  color: #526984;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  resize: vertical;
+  overflow-y: auto;
+}
+.student-portal-v119 .v1376-practice-history-notes > textarea:focus-visible {
+  outline: 2px solid #6b83af;
+  outline-offset: 2px;
 }
 .student-portal-v119 .v1376-practice-history-media-label {
   padding-top: 3px;
@@ -325,6 +346,22 @@
   height: 44px;
   object-fit: cover;
   border-radius: 6px;
+  background: #edf2f8;
+}
+.student-portal-v119 .v1376-practice-attachment > a {
+  display: block;
+  width: 52px;
+  height: 44px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.student-portal-v119 .v1376-practice-attachment > a > :is(img, video) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: cover;
   background: #edf2f8;
 }
 .student-portal-v119 .v1376-practice-attachment > audio {

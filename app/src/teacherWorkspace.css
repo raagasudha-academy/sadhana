@@ -300,7 +300,7 @@
 }
 
 .tw-practice-feedback {
-  margin-top: 16px;
+  margin: 0;
   padding: 16px;
   border: 1px solid #dbe3ef;
   border-radius: 12px;
@@ -309,8 +309,75 @@
   width: 100%;
   max-width: none;
   box-sizing: border-box;
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(14, 31, 53, 0.28);
 }
-.tw-practice-feedback textarea {
+.tw-practice-modal-backdrop .tw-practice-feedback {
+  width: min(860px, calc(100vw - 32px));
+  max-width: 860px;
+}
+.tw-practice-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vh, 36px);
+  background: rgba(17, 35, 58, 0.56);
+}
+.tw-practice-feedback-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tw-practice-feedback-head h3,
+.tw-practice-feedback-head p {
+  margin-top: 0;
+}
+.tw-practice-modal-close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d7e0ec;
+  border-radius: 10px;
+  background: #f7f9fc;
+  color: #4d617d;
+  cursor: pointer;
+}
+.tw-practice-modal-close:hover:not(:disabled) {
+  background: #edf2f8;
+}
+.tw-practice-modal-close:focus-visible {
+  outline: 3px solid #9bbce0;
+  outline-offset: 2px;
+}
+.tw-practice-modal-close:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.tw-practice-notes-box {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 92px;
+  max-height: 190px;
+  padding: 10px 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 9px;
+  background: #f7f9fc;
+  color: #526984;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  overflow-y: auto;
+}
+.tw-practice-feedback > textarea {
   width: 100%;
   min-height: 132px;
   padding: 12px 14px;
@@ -424,6 +491,18 @@
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .tw-practice-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .tw-practice-feedback {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+  }
 }
 .student-teacher-feedback {
   font-size: 12px;
