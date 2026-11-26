@@ -93,6 +93,12 @@
       "Resource": "arn:aws:s3:::prod-sadhana-homework-media-627821644317-us-east-1/homework-private/*"
     },
     {
+      "Sid": "DeleteLearnerPracticeMedia",
+      "Effect": "Allow",
+      "Action": ["s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::prod-sadhana-homework-media-627821644317-us-east-1/homework-private/learner/*"
+    },
+    {
       "Sid": "ListProfilePhotoBucket",
       "Effect": "Allow",
       "Action": ["s3:ListBucket"],
