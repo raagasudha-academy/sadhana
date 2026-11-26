@@ -52,6 +52,29 @@ export function StudentRecord({
   const [studentPracticeLogs, setStudentPracticeLogs] = useState<any[]>(practiceLogs);
   const [practiceBusy, setPracticeBusy] = useState(false);
   const [practiceError, setPracticeError] = useState('');
+  const [studentDetails, setStudentDetails] = useState<any>(null);
+  useEffect(() => {
+    if (typeof operationsApi?.getStudentDetails !== 'function') {
+      setStudentDetails(null);
+      return;
+    }
+    let active = true;
+    operationsApi
+      .getStudentDetails(workspace, person.id)
+      .then((details: any) => {
+        if (active) setStudentDetails(details);
+      })
+      .catch(() => {
+        if (active) setStudentDetails(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [operationsApi, person.id, workspace]);
+  const familyContact = studentDetails?.familyContact || {};
+  const studentLocation = person.location || family?.location || familyContact.location || '';
+  const studentEmail = person.email || family?.email || familyContact.email || '';
+  const studentPhone = person.phone || family?.phone || familyContact.phone || '';
   const list = enrollments.filter((e) => e.studentId === person.id && e.institution === workspace);
   const today = ukISODate();
   const period =
@@ -352,28 +375,28 @@ export function StudentRecord({
                 <span>Parent / guardian</span>
                 <strong>
                   {person.adultConfirmed && (!family || family.parentName === person.name)
-                    ? 'Not applicable'
+                    ? 'Not applicable for self'
                     : family?.parentName || 'Independent Student'}
                 </strong>
               </div>
               <div className="reg-info-row">
                 <span>Location</span>
-                <strong>{readableLocation(person.location || family?.location) || '—'}</strong>
+                <strong>{readableLocation(studentLocation) || '—'}</strong>
               </div>
               <div className="reg-info-row">
                 <span>Email</span>
-                <strong>{person.email || family?.email || '—'}</strong>
+                <strong>{studentEmail || '—'}</strong>
               </div>
               <div className="reg-info-row">
                 <span>Contact</span>
-                <strong>{family ? maskPhone(family.phone) : maskPhone(person.phone)}</strong>
+                <strong>{maskPhone(studentPhone)}</strong>
               </div>
               <div className="reg-info-row">
                 <span>Student WhatsApp</span>
                 <strong>
                   {person.phone
                     ? maskPhone(person.phone)
-                    : family
+                    : family || familyContact.phone
                       ? 'Uses parent’s number'
                       : 'Not recorded'}
                 </strong>

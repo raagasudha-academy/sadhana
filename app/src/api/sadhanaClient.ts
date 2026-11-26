@@ -1664,6 +1664,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         familyContact: {
           email: string;
           phone: string;
+          location: string;
           address: Record<string, unknown>;
           emergencyContact: Record<string, unknown>;
           registrationNotes: string;

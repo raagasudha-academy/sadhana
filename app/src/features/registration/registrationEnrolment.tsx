@@ -31,6 +31,9 @@ export function EnrolModal({
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState('');
   const classes = classRecords.filter((c) => c.institution === workspace);
+  const sortedClasses = [...classes].sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''), 'en-GB', { sensitivity: 'base' }),
+  );
   const person = members.find((m) => m.id === studentId);
   const selectedClass = classes.find((c) => c.id === classId);
   const fam = families.find((f) => f.id === person?.familyId);
@@ -117,9 +120,9 @@ export function EnrolModal({
             <Field label="Class *">
               <select required value={classId} onChange={(e) => setClassId(e.target.value)}>
                 <option value="">Select class</option>
-                {classes.map((c) => (
+                {sortedClasses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} · {c.id}
+                    {c.name || 'Unnamed class'}
                   </option>
                 ))}
               </select>
