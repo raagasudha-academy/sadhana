@@ -109,6 +109,7 @@ export function makeM10CoreDirectoryReader(client: M10Client) {
           parentPersonId: String(primary?.personId || ''),
           email: String(familyRecord?.email || primary?.email || ''),
           phone: String(familyRecord?.phone || primary?.phone || ''),
+          location: String(familyRecord?.location || primary?.location || ''),
           address: familyRecord?.address || primary?.address || {},
           emergencyContact: familyRecord?.emergencyContact || primary?.emergencyContact || {},
           registrationNotes: String(familyRecord?.registrationNotes || ''),

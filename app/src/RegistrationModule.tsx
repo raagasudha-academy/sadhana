@@ -893,7 +893,7 @@ export default function RegistrationModule({
       },
       'Enrolment saved.',
       () => {
-        setStudentFocus(values.studentId);
+        setStudentFocus(null);
         setFamilyFocus(null);
         setArea('students');
         setQuery('');
