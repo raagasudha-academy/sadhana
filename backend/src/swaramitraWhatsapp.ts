@@ -196,11 +196,11 @@ export async function swaraMitraWhatsappRoute(event: SadhanaHttpEvent) {
   );
   const permitted = linkedPeople.filter(({ person }) => {
     const settings = person?.studentProfile?.swaraMitra;
-    // Missing preference uses the approved default-on setting. Permission is
-    // always explicit; absence of a record never grants WhatsApp access.
-    const enabled =
-      typeof settings?.whatsappEnabled === 'boolean' ? settings.whatsappEnabled : true;
-    return enabled && settings?.permissionStatus === 'granted';
+    // New records use one registration-backed boolean. Honor explicit grants
+    // from records written by the earlier permission/source model.
+    return typeof settings?.whatsappAllowed === 'boolean'
+      ? settings.whatsappAllowed
+      : settings?.permissionStatus === 'granted' && settings?.whatsappEnabled !== false;
   });
   const learners = permitted.map(({ record }) => ({
     id: record.id,

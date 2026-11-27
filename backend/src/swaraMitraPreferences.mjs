@@ -95,9 +95,7 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
   if (env.SADHANA_FINAL_CORE_WRITES !== 'enabled')
     return { status: 503, body: { error: 'Student communication settings are read-only.' } };
   const record = await deps.preferences.update(inst, parts[3], claims, {
-    whatsappEnabled: input.whatsappEnabled,
-    permissionStatus: input.permissionStatus,
-    permissionGivenBy: input.permissionGivenBy,
+    whatsappAllowed: input.whatsappAllowed,
   });
   return { status: 200, body: { record } };
 }

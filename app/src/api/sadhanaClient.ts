@@ -194,9 +194,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       request<{
         records: Array<{
           studentId: string;
-          whatsappEnabled: boolean;
-          permissionStatus: 'not-recorded' | 'granted' | 'not-granted' | 'withdrawn';
-          permissionGivenBy: 'student' | 'guardian' | null;
+          whatsappAllowed: boolean;
           updatedAt: string | null;
         }>;
       }>('GET', '/integrations/swaramitra/preferences', {
@@ -207,11 +205,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       institution: InstitutionId,
       classId: string,
       studentId: string,
-      data: {
-        whatsappEnabled: boolean;
-        permissionStatus: 'not-recorded' | 'granted' | 'not-granted' | 'withdrawn';
-        permissionGivenBy: 'student' | 'guardian' | null;
-      },
+      data: { whatsappAllowed: boolean },
     ) =>
       request<{ record: any }>(
         'PATCH',

@@ -230,15 +230,9 @@ export function prepareWebsiteImport(
         ...(institution === 'sruti'
           ? {
               swaraMitra: {
-                whatsappEnabled: srutiPhoneContactAllowed,
-                permissionStatus: srutiPhoneContactAllowed ? 'granted' : 'not-granted',
-                permissionGivenBy: srutiPhoneContactAllowed
-                  ? sourceId === primary.personId
-                    ? 'student'
-                    : 'guardian'
-                  : null,
-                permissionSource: 'sruti-registration-contact-methods',
-                permissionRecordedAt: string(r.submittedAt) || now,
+                whatsappAllowed: srutiPhoneContactAllowed,
+                consentSource: 'sruti-registration-contact-methods',
+                consentRecordedAt: string(r.submittedAt) || now,
                 sourceRegistrationId: id,
               },
             }

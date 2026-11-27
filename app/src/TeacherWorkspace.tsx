@@ -380,14 +380,8 @@ export default function TeacherWorkspace({
       current = false;
     };
   }, [area, effectiveClass, cloud?.api, workspace]);
-  const saveSwaraMitraPreference = async (studentId: string, patch: Record<string, any>) => {
+  const saveSwaraMitraPreference = async (studentId: string, whatsappAllowed: boolean) => {
     if (!cloud || !effectiveClass || preferenceBusyId) return;
-    const existing = swaramitraPreferences[studentId] || {
-      whatsappEnabled: true,
-      permissionStatus: 'not-recorded',
-      permissionGivenBy: null,
-    };
-    const next = { ...existing, ...patch };
     setPreferenceBusyId(studentId);
     setError('');
     try {
@@ -395,7 +389,7 @@ export default function TeacherWorkspace({
         workspace,
         effectiveClass,
         studentId,
-        next,
+        { whatsappAllowed },
       );
       setSwaramitraPreferences((current) => ({ ...current, [studentId]: result.record }));
       setNotice('SwaraMitra settings saved. In-app notifications remain on.');
@@ -708,8 +702,8 @@ export default function TeacherWorkspace({
                   <span>{roster.length} enrolled</span>
                 </div>
                 <p className="tw-hint">
-                  WhatsApp is sent only when reminders are enabled and the student or guardian’s
-                  permission is recorded. Sadhana in-app notices stay on.
+                  This checkbox shows whether WhatsApp is allowed for each student. Sadhana in-app
+                  notices stay on either way.
                 </p>
                 <div className="table-scroll">
                   <table className="data-table">
@@ -723,20 +717,7 @@ export default function TeacherWorkspace({
                     </thead>
                     <tbody>
                       {visibleRoster.map((s) => {
-                        const settings = swaramitraPreferences[s.id] || {
-                          whatsappEnabled: true,
-                          permissionStatus: 'not-recorded',
-                          permissionGivenBy: null,
-                        };
-                        const permissionValue =
-                          settings.permissionStatus === 'granted'
-                            ? settings.permissionGivenBy === 'guardian'
-                              ? 'guardian'
-                              : 'student'
-                            : settings.permissionStatus;
-                        const permissionBlocked =
-                          settings.permissionStatus === 'withdrawn' ||
-                          settings.permissionStatus === 'not-granted';
+                        const settings = swaramitraPreferences[s.id] || { whatsappAllowed: false };
                         const saving = preferenceBusyId === s.id;
                         return (
                           <tr key={s.id}>
@@ -747,50 +728,19 @@ export default function TeacherWorkspace({
                             <td>Active</td>
                             <td>
                               <div className="tw-swaramitra-controls">
-                                <label className={permissionBlocked ? 'is-disabled' : undefined}>
+                                <label
+                                  className={!settings.whatsappAllowed ? 'is-unallowed' : undefined}
+                                >
                                   <input
                                     type="checkbox"
-                                    checked={
-                                      !permissionBlocked && settings.whatsappEnabled !== false
-                                    }
-                                    disabled={
-                                      permissionBlocked || saving || Boolean(preferenceBusyId)
-                                    }
+                                    checked={settings.whatsappAllowed}
+                                    disabled={saving || Boolean(preferenceBusyId)}
                                     onChange={(event) =>
-                                      void saveSwaraMitraPreference(s.id, {
-                                        whatsappEnabled: event.target.checked,
-                                      })
+                                      void saveSwaraMitraPreference(s.id, event.target.checked)
                                     }
                                   />
-                                  WhatsApp reminders
+                                  WhatsApp allowed
                                 </label>
-                                <select
-                                  aria-label={`WhatsApp permission for ${s.name}`}
-                                  value={permissionValue}
-                                  disabled={saving || Boolean(preferenceBusyId)}
-                                  onChange={(event) => {
-                                    const value = event.target.value;
-                                    void saveSwaraMitraPreference(s.id, {
-                                      permissionStatus:
-                                        value === 'student' || value === 'guardian'
-                                          ? 'granted'
-                                          : value,
-                                      permissionGivenBy:
-                                        value === 'student' || value === 'guardian' ? value : null,
-                                      ...(['withdrawn', 'not-granted'].includes(value)
-                                        ? { whatsappEnabled: false }
-                                        : {}),
-                                    });
-                                  }}
-                                >
-                                  <option value="not-recorded">Permission not recorded</option>
-                                  <option value="student">Permission from student</option>
-                                  <option value="guardian">Permission from parent/guardian</option>
-                                  <option value="not-granted">
-                                    Phone/WhatsApp permission not granted
-                                  </option>
-                                  <option value="withdrawn">Permission withdrawn</option>
-                                </select>
                               </div>
                             </td>
                           </tr>

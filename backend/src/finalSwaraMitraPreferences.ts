@@ -12,28 +12,15 @@ import { httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 
 type DB = { send: (command: any) => Promise<any> };
-type PermissionStatus = 'not-recorded' | 'granted' | 'not-granted' | 'withdrawn';
-type PermissionSource = 'student' | 'guardian' | null;
-
 const preference = (person: any) => {
   const value = person.studentProfile?.swaraMitra;
-  const permissionStatus = (
-    ['not-recorded', 'granted', 'not-granted', 'withdrawn'].includes(value?.permissionStatus)
-      ? value.permissionStatus
-      : 'not-recorded'
-  ) as PermissionStatus;
   return {
-    whatsappEnabled:
-      permissionStatus === 'withdrawn' || permissionStatus === 'not-granted'
-        ? false
-        : typeof value?.whatsappEnabled === 'boolean'
-          ? value.whatsappEnabled
-          : true,
-    permissionStatus,
-    permissionGivenBy: (value?.permissionGivenBy === 'student' ||
-    value?.permissionGivenBy === 'guardian'
-      ? value.permissionGivenBy
-      : null) as PermissionSource,
+    // Read older records written by the previous permission/source model.
+    // New records use the single registration-backed allowed/unallowed flag.
+    whatsappAllowed:
+      typeof value?.whatsappAllowed === 'boolean'
+        ? value.whatsappAllowed
+        : value?.permissionStatus === 'granted' && value?.whatsappEnabled !== false,
     updatedAt: typeof value?.updatedAt === 'string' ? value.updatedAt : null,
   };
 };
@@ -75,11 +62,7 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
       inst: InstitutionId,
       studentId: string,
       claims: Claims,
-      input: {
-        whatsappEnabled: boolean;
-        permissionStatus: PermissionStatus;
-        permissionGivenBy: PermissionSource;
-      },
+      input: { whatsappAllowed: boolean },
     ) {
       // Imported students keep STUDENT-* IDs; students created in the
       // canonical people model use PERSON-* IDs. Both are emitted by the
@@ -103,27 +86,13 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
         throw httpError(404, 'Active student not found.');
       if (!Number.isSafeInteger(person.version) || person.version < 1)
         throw httpError(409, 'Student record cannot be safely updated.');
-      if (
-        typeof input?.whatsappEnabled !== 'boolean' ||
-        !['not-recorded', 'granted', 'not-granted', 'withdrawn'].includes(
-          input?.permissionStatus,
-        ) ||
-        ![null, 'student', 'guardian'].includes(input?.permissionGivenBy) ||
-        (input.permissionStatus === 'granted' && input.permissionGivenBy === null) ||
-        (['not-recorded', 'not-granted', 'withdrawn'].includes(input.permissionStatus) &&
-          input.permissionGivenBy !== null)
-      )
-        throw httpError(400, 'Valid SwaraMitra reminder and permission settings are required.');
+      if (typeof input?.whatsappAllowed !== 'boolean')
+        throw httpError(400, 'Choose whether WhatsApp is allowed for this student.');
 
       const timestamp = now();
       const previous = preference(person);
       const nextPreference = {
-        whatsappEnabled:
-          input.permissionStatus === 'withdrawn' || input.permissionStatus === 'not-granted'
-            ? false
-            : input.whatsappEnabled,
-        permissionStatus: input.permissionStatus,
-        permissionGivenBy: input.permissionGivenBy,
+        whatsappAllowed: input.whatsappAllowed,
         updatedAt: timestamp,
         updatedBy: claims.sub || '',
       };
@@ -163,11 +132,8 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
                     resourceId: studentId,
                     timestamp,
                     metadata: {
-                      previousEnabled: previous.whatsappEnabled,
-                      whatsappEnabled: nextPreference.whatsappEnabled,
-                      previousPermissionStatus: previous.permissionStatus,
-                      permissionStatus: input.permissionStatus,
-                      permissionGivenBy: input.permissionGivenBy,
+                      previousWhatsappAllowed: previous.whatsappAllowed,
+                      whatsappAllowed: nextPreference.whatsappAllowed,
                     },
                   },
                   ConditionExpression: 'attribute_not_exists(auditId)',
