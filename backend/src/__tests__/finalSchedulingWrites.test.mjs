@@ -234,12 +234,11 @@ test('unsupported calendar and event writes never fall back', async () => {
     'schedule/series/bad',
     'events/invalid!',
     'schedule/teacher-links/CLASS-1234',
-    'schedule/master/CLASS-1234/lifecycle',
   ]) {
     const result = await run(path, 'PATCH');
     assert.equal(result.status, 503);
   }
-  for (const path of ['schedule/teacher-links/CLASS-1234', 'schedule/master/CLASS-1234/lifecycle'])
+  for (const path of ['schedule/teacher-links/CLASS-1234'])
     assert.equal(
       (
         await run(

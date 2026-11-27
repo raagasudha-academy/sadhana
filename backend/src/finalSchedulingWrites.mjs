@@ -137,6 +137,21 @@ export async function finalSchedulingWriteRoute(context, dependencies, access, e
         body: await dependencies.sessions().previewDeleteClass(institution, parts[2], payload()),
       };
     }
+    if (
+      parts.length === 4 &&
+      parts[1] === 'master' &&
+      parts[3] === 'lifecycle' &&
+      method === 'PATCH' &&
+      idOK(parts[2])
+    ) {
+      access.admin(claims, institution);
+      return {
+        status: 200,
+        body: await dependencies
+          .sessions()
+          .changeMasterLifecycle(institution, parts[2], payload(), claims),
+      };
+    }
     if (parts.length === 3 && parts[1] === 'master' && method === 'DELETE' && idOK(parts[2])) {
       access.admin(claims, institution);
       return {

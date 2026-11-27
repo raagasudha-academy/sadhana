@@ -804,6 +804,79 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         signature,
       };
     },
+    async changeMasterLifecycle(
+      inst: InstitutionId,
+      id: string,
+      body: Record<string, any>,
+      claims: Claims,
+    ) {
+      checkId(id);
+      checkVersion(body?.expectedVersion);
+      if (
+        Object.keys(body).some((key) => !['lifecycleStatus', 'expectedVersion'].includes(key)) ||
+        !['active', 'paused', 'archived'].includes(body.lifecycleStatus)
+      )
+        throw httpError(400, 'Choose Active, Paused or Archived.');
+      const master = await masterFor(inst, id);
+      if (master.version !== body.expectedVersion)
+        throw httpError(409, 'Class changed. Refresh and try again.');
+      const currentStatus =
+        master.lifecycleStatus ?? master.legacyPayload?.lifecycleStatus ?? 'active';
+      const publicRecord = (lifecycleStatus: string, version: number, updatedAt?: string) => {
+        const record = { ...(master.legacyPayload ?? {}) };
+        for (const key of ['PK', 'SK', 'entityType', 'lifecycleUpdatedBy']) delete record[key];
+        return {
+          ...record,
+          id: record.id ?? master.classId,
+          recordType: 'class',
+          lifecycleStatus,
+          version,
+          ...(updatedAt ? { updatedAt } : {}),
+        };
+      };
+      if (currentStatus === body.lifecycleStatus)
+        return { record: publicRecord(currentStatus, master.version, master.updatedAt) };
+
+      const now = new Date().toISOString();
+      const nextVersion = master.version + 1;
+      const legacyPayload = {
+        ...(master.legacyPayload ?? {}),
+        lifecycleStatus: body.lifecycleStatus,
+        version: nextVersion,
+        updatedAt: now,
+      };
+      const updated = {
+        ...master,
+        lifecycleStatus: body.lifecycleStatus,
+        lifecycleUpdatedBy: String(claims.sub),
+        version: nextVersion,
+        updatedAt: now,
+        legacyPayload,
+      };
+      await transact([
+        {
+          Put: {
+            TableName: table('classes'),
+            Item: updated,
+            ConditionExpression: '#v=:v AND #i=:i AND #type=:class',
+            ExpressionAttributeNames: {
+              '#v': 'version',
+              '#i': 'institutionId',
+              '#type': 'recordType',
+            },
+            ExpressionAttributeValues: {
+              ':v': master.version,
+              ':i': inst,
+              ':class': 'class',
+            },
+          },
+        },
+        auditAction(inst, 'MASTER_CLASS_LIFECYCLE_CHANGED', id, String(claims.sub)),
+      ]);
+      return {
+        record: publicRecord(body.lifecycleStatus, nextVersion, now),
+      };
+    },
     async deleteClass(inst: InstitutionId, id: string, body: Record<string, any>, claims: Claims) {
       if (body?.confirm !== true || typeof body.signature !== 'string')
         throw httpError(400, 'Preview and confirmation required.');
