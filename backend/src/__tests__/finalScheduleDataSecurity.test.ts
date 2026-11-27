@@ -649,6 +649,36 @@ test('master delete includes linked sessions and class audit in one transaction'
     assert.ok(actions.some((action: any) => action.Delete?.Key.sessionId === session.sessionId));
     assert.ok(actions.some((action: any) => action.Put?.Item?.action === 'MASTER_CLASS_DELETED'));
   }));
+test('master delete conditionally removes a legacy unversioned series rule', async () =>
+  withFinal(async () => {
+    const rule = {
+      sessionId: 'SERIES-SRUTI-1',
+      institutionId: 'sruti',
+      recordType: 'series-change',
+      classId: master.classId,
+      effectiveFrom: '2026-11-23',
+      updatedAt: '2026-11-22T09:49:57.855Z',
+      legacyPayload: { changes: { startTime: '18:30' } },
+    };
+    const x = make({ sessions: [rule] });
+    const preview = await x.service.previewDeleteClass('sruti', master.classId, {
+      expectedVersion: 3,
+    });
+    assert.equal(preview.ruleCount, 1);
+    await x.service.deleteClass(
+      'sruti',
+      master.classId,
+      { expectedVersion: 3, confirm: true, signature: preview.signature },
+      { sub: 'admin-sub' } as any,
+    );
+    const deletion = x.actions[0].find(
+      (action: any) => action.Delete?.Key.sessionId === rule.sessionId,
+    ).Delete;
+    assert.match(deletion.ConditionExpression, /#updated=:updated AND #from=:from/);
+    assert.equal(deletion.ExpressionAttributeValues[':class'], master.classId);
+    assert.equal(deletion.ExpressionAttributeValues[':updated'], rule.updatedAt);
+    assert.equal(Object.hasOwn(deletion.ExpressionAttributeValues, ':v'), false);
+  }));
 test('master deletion rejects stale previews, missing classes, and sessions with learning history', async () =>
   withFinal(async () => {
     const session = {
