@@ -75,14 +75,18 @@ export function SwaraMitraAudience({
                 key={record.studentId}
               >
                 <span>{record.displayName || 'Student'}</span>
-                <span>{record.whatsappAllowed ? 'WhatsApp allowed' : 'No WhatsApp · in-app only'}</span>
+                <span>
+                  {record.whatsappAllowed ? 'WhatsApp allowed' : 'No WhatsApp · in-app only'}
+                </span>
               </li>
             ))}
           </ul>
         </details>
       )}
       {!loading && !error && records.length === 0 && (
-        <p className="swaramitra-audience__status">No active students are enrolled in this class.</p>
+        <p className="swaramitra-audience__status">
+          No active students are enrolled in this class.
+        </p>
       )}
       <p className="swaramitra-audience__note">
         Class changes still create Sadhana in-app notices for enrolled students. WhatsApp delivery
