@@ -122,6 +122,7 @@ import { defaultM95DirectoryReader } from './directoryCompatibility.ts';
 import { defaultM10CoreDirectoryReader } from './coreDirectory.ts';
 import { finalFamilyContactRoute } from './finalFamilyContact.ts';
 import { emailLoginRoute } from './emailLogin.ts';
+import { swaraMitraWhatsappRoute } from './swaramitraWhatsapp.ts';
 
 export function createHandler(
   repository: SadhanaRepository,
@@ -223,6 +224,8 @@ export function createHandler(
       }
       const publicAuthResponse = await emailLoginRoute(event);
       if (publicAuthResponse) return publicAuthResponse;
+      const swaraMitraWhatsapp = await swaraMitraWhatsappRoute(event);
+      if (swaraMitraWhatsapp) return swaraMitraWhatsapp;
       // DO NOT use event.headers or a user-selected frontend persona as an identity.
       // API Gateway's JWT authorizer verifies signature, issuer, audience and expiry.
       const claims = event?.requestContext?.authorizer?.jwt?.claims;

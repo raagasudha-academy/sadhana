@@ -1,28 +1,127 @@
 import { useEffect, useState } from 'react';
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   CircleAlert,
   GraduationCap,
   Info,
+  LoaderCircle,
   MessageCircle,
+  Phone,
   Plus,
+  RefreshCw,
   Settings2,
   ShieldCheck,
   Trash2,
+  XCircle,
 } from 'lucide-react';
 import { institutions } from '../institutions';
 import { getEnrolmentStatus } from '../registry';
 import { dayLabel, displayTime, pct, Pill, PageHeader, EmptyState } from './appShared';
 
 export function CommsPage({ workspace }: any) {
+  const [health, setHealth] = useState<
+    'not-checked' | 'checking' | 'healthy' | 'unavailable'
+  >('not-checked');
+  const healthUrl = import.meta.env.VITE_SWARAMITRA_HEALTH_URL?.trim();
+  const institutionName =
+    workspace === 'sruti' ? 'Śruti' : workspace === 'raaga' ? 'Raaga Sudha' : 'all academies';
+
+  async function checkServiceHealth() {
+    if (!healthUrl) return;
+    setHealth('checking');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(healthUrl, { signal: controller.signal, cache: 'no-store' });
+      const result = await response.json();
+      setHealth(response.ok && result?.ok === true ? 'healthy' : 'unavailable');
+    } catch {
+      setHealth('unavailable');
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
+  const healthLabel = {
+    'not-checked': healthUrl ? 'Not checked' : 'Not configured',
+    checking: 'Checking…',
+    healthy: 'API is responding',
+    unavailable: 'Could not reach the API',
+  }[health];
+
   return (
     <>
       <PageHeader
         kicker="COMMUNICATIONS"
         title="Communications"
-        description="A future home for WhatsApp delivery records, announcements and failed messages."
+        description={`Manage SwaraMitra for ${institutionName}. WhatsApp controls are restricted to administrators.`}
       />
+      <section className="surface swara-admin-panel" aria-labelledby="swara-admin-title">
+        <div className="swara-admin-heading">
+          <div className="feature-icon">
+            <MessageCircle size={22} />
+          </div>
+          <div>
+            <p className="swara-admin-kicker">SWARAMITRA · WHATSAPP</p>
+            <h2 id="swara-admin-title">Assistant service</h2>
+            <p>Check the assistant API and see whether WhatsApp controls are ready.</p>
+          </div>
+        </div>
+
+        <div className="swara-admin-status-grid">
+          <div className="swara-admin-status-card">
+            <span>SwaraMitra API</span>
+            <strong className={`swara-health is-${health}`} role="status" aria-live="polite">
+              {health === 'checking' ? <LoaderCircle size={16} className="swara-spin" /> : null}
+              {health === 'healthy' ? <CheckCircle2 size={16} /> : null}
+              {health === 'unavailable' ? <XCircle size={16} /> : null}
+              {healthLabel}
+            </strong>
+            <button
+              className="swara-admin-button"
+              type="button"
+              onClick={checkServiceHealth}
+              disabled={!healthUrl || health === 'checking'}
+              title={
+                !healthUrl ? 'Set VITE_SWARAMITRA_HEALTH_URL for this environment' : undefined
+              }
+            >
+              <RefreshCw size={15} /> Check connection
+            </button>
+          </div>
+
+          <div className="swara-admin-status-card">
+            <span>WhatsApp account</span>
+            <strong className="swara-health is-pending">Pairing controls not connected</strong>
+            <button className="swara-admin-button" type="button" disabled>
+              <Phone size={15} /> Pair a number
+            </button>
+          </div>
+
+          <div className="swara-admin-status-card">
+            <span>WhatsApp sending</span>
+            <strong className="swara-health is-pending">Unavailable until worker is hosted</strong>
+            <label className="swara-admin-switch-row">
+              <input type="checkbox" role="switch" disabled aria-label="Enable WhatsApp sending" />
+              <span className="swara-admin-switch" aria-hidden="true" />
+              <span>Enable WhatsApp</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="info-inline swara-admin-note">
+          <Info size={17} />
+          <span>
+            Sadhana can check the assistant API when its health URL is configured. Pairing and the
+            on/off switch are shown here for the admin workflow, but are disabled until SwaraMitra’s
+            WhatsApp worker has a hosted control API. A healthy API check does not mean a WhatsApp
+            number is connected.
+          </span>
+        </div>
+      </section>
+
       <div className="feature-grid">
         <section className="surface feature-card">
           <div className="feature-icon">
@@ -50,8 +149,8 @@ export function CommsPage({ workspace }: any) {
         </section>
       </div>
       <div className="info-inline">
-        <Info size={17} /> No WhatsApp messages can be sent from Sadhana at this stage. Existing
-        Charu messaging is completely untouched.
+        <Info size={17} /> In-app notifications remain available independently. WhatsApp delivery
+        and delivery history will be connected after the worker and Sadhana control API are ready.
       </div>
     </>
   );

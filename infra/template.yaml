@@ -30,6 +30,14 @@ Parameters:
   MiddlesbroughCredentialParameter:
     Type: String
     Description: Required stage-specific SSM SecureString name holding the dedicated Google service account JSON (never passed in template)
+  SwaraMitraServiceCredentialParameter:
+    Type: String
+    Description: Stage-specific SSM SecureString name for the SwaraMitra-to-Sadhana HMAC key.
+  EnableSwaraMitraWhatsappIdentity:
+    Type: String
+    Default: disabled
+    AllowedValues: [enabled, disabled]
+    Description: Enable the signed WhatsApp phone-to-Sadhana identity resolver after configuring its stage-specific credential.
   EnablePointInTimeRecovery:
     Type: String
     Default: 'false'
@@ -347,6 +355,9 @@ Resources:
         'POST /api/auth/{proxy+}':
           ThrottlingBurstLimit: 10
           ThrottlingRateLimit: 5
+        'POST /api/integrations/swaramitra/whatsapp':
+          ThrottlingBurstLimit: 10
+          ThrottlingRateLimit: 5
       Auth:
         DefaultAuthorizer: CognitoStaff
         Authorizers:
@@ -403,6 +414,8 @@ Resources:
           SADHANA_COGNITO_APP_CLIENT_ID: !Ref CognitoAppClientId
           SADHANA_COGNITO_EMAIL_USERNAME: !Ref CognitoEmailUsernameMode
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
+          SWARAMITRA_SERVICE_CREDENTIAL_PARAMETER: !Ref SwaraMitraServiceCredentialParameter
+          SADHANA_SWARAMITRA_WHATSAPP: !Ref EnableSwaraMitraWhatsappIdentity
           SADHANA_ALLOWED_PORTAL_ORIGINS: !Join [',', !Ref AllowedPortalOrigins]
           SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
           SADHANA_ENTITY_TABLE_SET: final
@@ -559,6 +572,9 @@ Resources:
             - Effect: Allow
               Action: [ssm:GetParameter]
               Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MiddlesbroughCredentialParameter}'
+            - Effect: Allow
+              Action: [ssm:GetParameter]
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SwaraMitraServiceCredentialParameter}'
       Events:
         ProtectedRoutes:
           Type: HttpApi
@@ -581,6 +597,14 @@ Resources:
           Properties:
             ApiId: !Ref SadhanaApi
             Path: /api/auth/{proxy+}
+            Method: POST
+            Auth:
+              Authorizer: NONE
+        SwaraMitraWhatsappIdentity:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SadhanaApi
+            Path: /api/integrations/swaramitra/whatsapp
             Method: POST
             Auth:
               Authorizer: NONE

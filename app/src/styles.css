@@ -1279,6 +1279,132 @@ a {
   place-items: center;
   border-radius: 12px;
 }
+.swara-admin-panel {
+  padding: 22px;
+  margin-bottom: 18px;
+}
+.swara-admin-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.swara-admin-heading h2 {
+  margin: 0 0 5px;
+  font-size: 16px;
+}
+.swara-admin-heading p {
+  margin: 0;
+  color: #8490a4;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.swara-admin-heading .swara-admin-kicker {
+  margin-bottom: 4px;
+  color: #64789c;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+.swara-admin-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.swara-admin-status-card {
+  display: flex;
+  min-height: 138px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid #e6eaf1;
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+.swara-admin-status-card > span:first-child {
+  color: #728099;
+  font-size: 11px;
+  font-weight: 650;
+}
+.swara-health {
+  display: inline-flex;
+  min-height: 18px;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.swara-health.is-healthy {
+  color: #168255;
+}
+.swara-health.is-unavailable {
+  color: #b54747;
+}
+.swara-health.is-pending {
+  color: #8a6e36;
+}
+.swara-admin-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding: 8px 10px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  background: #fff;
+  color: #435676;
+  font: inherit;
+  font-size: 11px;
+}
+.swara-admin-button:not(:disabled) {
+  cursor: pointer;
+}
+.swara-admin-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+.swara-admin-switch-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  color: #7d889b;
+  font-size: 11px;
+}
+.swara-admin-switch-row input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.swara-admin-switch {
+  position: relative;
+  width: 31px;
+  height: 18px;
+  border-radius: 10px;
+  background: #d9dee8;
+}
+.swara-admin-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
+}
+.swara-admin-note {
+  margin-top: 16px;
+}
+.swara-spin {
+  animation: swara-admin-spin 1s linear infinite;
+}
+@keyframes swara-admin-spin {
+  to { transform: rotate(360deg); }
+}
 .setting-icon {
   width: 35px;
   height: 35px;
@@ -1913,7 +2039,8 @@ a {
     grid-template-columns: 1fr;
   }
   .feature-grid,
-  .settings-grid {
+  .settings-grid,
+  .swara-admin-status-grid {
     grid-template-columns: 1fr;
   }
   .venue-grid {
