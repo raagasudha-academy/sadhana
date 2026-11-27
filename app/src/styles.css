@@ -1403,7 +1403,9 @@ a {
   animation: swara-admin-spin 1s linear infinite;
 }
 @keyframes swara-admin-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .setting-icon {
   width: 35px;

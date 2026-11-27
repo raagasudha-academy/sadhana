@@ -21,9 +21,9 @@ import { getEnrolmentStatus } from '../registry';
 import { dayLabel, displayTime, pct, Pill, PageHeader, EmptyState } from './appShared';
 
 export function CommsPage({ workspace }: any) {
-  const [health, setHealth] = useState<
-    'not-checked' | 'checking' | 'healthy' | 'unavailable'
-  >('not-checked');
+  const [health, setHealth] = useState<'not-checked' | 'checking' | 'healthy' | 'unavailable'>(
+    'not-checked',
+  );
   const healthUrl = import.meta.env.VITE_SWARAMITRA_HEALTH_URL?.trim();
   const institutionName =
     workspace === 'sruti' ? 'Śruti' : workspace === 'raaga' ? 'Raaga Sudha' : 'all academies';
@@ -84,9 +84,7 @@ export function CommsPage({ workspace }: any) {
               type="button"
               onClick={checkServiceHealth}
               disabled={!healthUrl || health === 'checking'}
-              title={
-                !healthUrl ? 'Set VITE_SWARAMITRA_HEALTH_URL for this environment' : undefined
-              }
+              title={!healthUrl ? 'Set VITE_SWARAMITRA_HEALTH_URL for this environment' : undefined}
             >
               <RefreshCw size={15} /> Check connection
             </button>
