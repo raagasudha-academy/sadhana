@@ -709,7 +709,7 @@ export default function TeacherWorkspace({
                         <th>Roll number</th>
                         <th>Student</th>
                         <th>Enrolment</th>
-                        <th>SwaraMitra Notifications</th>
+                        <th>Notifications</th>
                       </tr>
                     </thead>
                     <tbody>

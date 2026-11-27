@@ -125,6 +125,7 @@
   display: grid;
   gap: 8px;
   min-width: 210px;
+  justify-content: center;
 }
 .tw-swaramitra-controls label {
   display: flex;
