@@ -1658,6 +1658,96 @@ a {
   display: flex;
   flex-direction: column;
 }
+.session-editor-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.session-editor-modal {
+  width: min(760px, 100%);
+  height: min(900px, 100%);
+  max-height: 100%;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px #17243b45;
+}
+@media (max-width: 640px) {
+  .session-editor-backdrop {
+    padding: 10px;
+  }
+  .session-editor-modal {
+    width: 100%;
+    height: 100%;
+    border-radius: 14px;
+    padding: 18px 16px 22px;
+  }
+}
+.swaramitra-audience {
+  margin: 12px 0;
+  padding: 13px 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #f8faff;
+  color: #34445c;
+  font-size: 13px;
+}
+.swaramitra-audience__choice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+}
+.swaramitra-audience__choice input {
+  width: 17px;
+  height: 17px;
+  accent-color: #6250c8;
+}
+.swaramitra-audience__choice small {
+  margin-left: auto;
+  color: #77849a;
+  font-size: 11px;
+  font-weight: 600;
+}
+.swaramitra-audience__status,
+.swaramitra-audience__note {
+  margin: 8px 0 0;
+  color: #66758a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.swaramitra-audience details {
+  margin-top: 9px;
+}
+.swaramitra-audience summary {
+  cursor: pointer;
+  color: #40547a;
+  font-weight: 650;
+}
+.swaramitra-audience ul {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.swaramitra-audience li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: white;
+  font-size: 12px;
+}
+.swaramitra-audience li.is-whatsapp-allowed > span:last-child {
+  color: #218056;
+}
+.swaramitra-audience li.is-in-app-only {
+  color: #8993a3;
+  background: #f0f2f5;
+}
+.swaramitra-audience li.is-in-app-only > span:last-child {
+  color: #7c8798;
+}
 .notification-drawer {
   overflow: hidden;
 }

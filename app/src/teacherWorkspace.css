@@ -122,9 +122,10 @@
   font-size: 13px;
 }
 .tw-swaramitra-controls {
-  display: grid;
+  display: flex;
   gap: 8px;
-  min-width: 210px;
+  width: 100%;
+  min-width: 0;
   justify-content: center;
 }
 .tw-swaramitra-heading,

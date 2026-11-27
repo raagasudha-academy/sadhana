@@ -13,6 +13,7 @@ import { institutions } from '../institutions';
 import type { InstitutionId } from '../types';
 import { ukDate, displayTime, Pill, PageHeader, EmptyState, teacherNameKey } from './appShared';
 import { InfoRow } from './AppRecords';
+import { SwaraMitraAudience } from './SwaraMitraAudience';
 
 export function sadhanaConfirmDialog(message: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -140,6 +141,18 @@ export function SessionDrawer({
   const selectedTeacherId = pickedTeacherId ?? (session.original?.teacherId || '');
   const selectedTeacher = teachers.find((t) => t.id === selectedTeacherId);
   const original = session.original || {};
+  const initialScheduleFields: Record<string, unknown> = {
+    date: original.date ?? session.dateISO,
+    endDate: original.endDate ?? session.dateISO,
+    startTime: original.startTime ?? session.time ?? '',
+    endTime: original.endTime ?? session.endTime ?? '',
+    status: original.status ?? 'confirmed',
+  };
+  const hasScheduleChange =
+    session.recordType === 'class-session' &&
+    ['date', 'endDate', 'startTime', 'endTime', 'status'].some(
+      (key) => form[key] !== initialScheduleFields[key],
+    );
   const canEditWeeklyDay =
     session.recordType === 'class-session' &&
     (!session.seriesRecurrence ||
@@ -380,11 +393,16 @@ export function SessionDrawer({
     }
   };
   return (
-    <div className="drawer-backdrop" onClick={onClose}>
+    <div
+      className={`drawer-backdrop${editing ? ' session-editor-backdrop' : ''}`}
+      onClick={onClose}
+    >
       <aside
-        className="detail-drawer"
+        className={`detail-drawer${editing ? ' session-editor-modal' : ''}`}
         onClick={(e) => e.stopPropagation()}
-        aria-label="Session quick details"
+        role={editing ? 'dialog' : undefined}
+        aria-modal={editing ? true : undefined}
+        aria-label={editing ? 'Edit timetable entry' : 'Session quick details'}
       >
         <div className="drawer-head">
           <span>{editing ? 'EDIT TIMETABLE ENTRY' : 'SESSION DETAILS'}</span>
@@ -707,6 +725,13 @@ export function SessionDrawer({
                   </button>
                 </div>
               </div>
+            )}
+            {hasScheduleChange && (
+              <SwaraMitraAudience
+                cloud={cloud}
+                institution={session.institution}
+                classId={session.classId}
+              />
             )}
             {pendingReview && (
               <div className="sadhana-inline-review" role="status" aria-live="polite">

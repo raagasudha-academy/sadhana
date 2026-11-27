@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
+import { SwaraMitraAudience } from './app/SwaraMitraAudience';
 import './academyOperations.css';
 import './teacherNextClass.css';
 
@@ -657,6 +658,11 @@ export default function LiveDashboard({
                           onChange={(e) => setNextEnd(e.target.value)}
                         />
                       </label>
+                      <SwaraMitraAudience
+                        cloud={cloud}
+                        institution={teacherNextSession.institution}
+                        classId={teacherNextSession.classId}
+                      />
                       <div>
                         <button
                           type="button"
@@ -712,6 +718,11 @@ export default function LiveDashboard({
                       <strong>{teacherNextSession.name}</strong> will be marked as cancelled, and
                       students will see the change.
                     </p>
+                    <SwaraMitraAudience
+                      cloud={cloud}
+                      institution={teacherNextSession.institution}
+                      classId={teacherNextSession.classId}
+                    />
                     {nextActionError && (
                       <p role="alert" className="teacher-next-class__error">
                         {nextActionError}

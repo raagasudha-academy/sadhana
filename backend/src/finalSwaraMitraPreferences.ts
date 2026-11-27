@@ -52,7 +52,12 @@ async function studentsForClass(db: DB, inst: InstitutionId, ids: string[]) {
         person.institutionIds?.includes(inst) &&
         person.status !== 'archived',
     )
-    .map((person) => ({ studentId: person.personId, ...preference(person) }));
+    .map((person) => ({
+      studentId: person.personId,
+      displayName:
+        person.displayName || [person.firstName, person.lastName].filter(Boolean).join(' '),
+      ...preference(person),
+    }));
 }
 
 export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().toISOString()) {

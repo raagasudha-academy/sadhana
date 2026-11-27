@@ -265,6 +265,9 @@
   justify-content: flex-end;
   gap: 9px;
 }
+.teacher-next-class__form .swaramitra-audience {
+  grid-column: 1/-1;
+}
 .teacher-next-class__confirm-overlay {
   position: fixed;
   inset: 0;

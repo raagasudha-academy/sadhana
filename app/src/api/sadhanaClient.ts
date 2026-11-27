@@ -194,6 +194,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       request<{
         records: Array<{
           studentId: string;
+          displayName?: string;
           whatsappAllowed: boolean;
           updatedAt: string | null;
         }>;
