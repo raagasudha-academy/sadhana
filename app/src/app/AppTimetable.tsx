@@ -1220,7 +1220,7 @@ export function Timetable({
                         <tr>
                           <th>Roll number</th>
                           <th>Student</th>
-                          <th>SwaraMitra Notifications</th>
+                          <th className="sadhana-notifications-heading">Notifications</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1236,7 +1236,7 @@ export function Timetable({
                               <tr key={enrolment.id}>
                                 <td>{student?.rollNumber || '—'}</td>
                                 <td>{student?.name || 'Student record unavailable'}</td>
-                                <td>
+                                <td className="sadhana-notifications-cell">
                                   <label
                                     className={`sadhana-swaramitra-toggle${setting?.whatsappAllowed ? '' : ' is-unallowed'}`}
                                   >

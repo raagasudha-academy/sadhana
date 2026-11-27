@@ -786,12 +786,17 @@
   border-bottom: 1px solid #e8edf4;
   padding: 12px;
 }
+.sadhana-notifications-heading,
+.sadhana-notifications-cell {
+  text-align: center !important;
+}
 .sadhana-swaramitra-toggle {
   display: flex;
   width: fit-content;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  margin: 0 auto;
 }
 .sadhana-swaramitra-toggle.is-unallowed {
   opacity: 0.68;

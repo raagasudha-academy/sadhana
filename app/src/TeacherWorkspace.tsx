@@ -709,7 +709,7 @@ export default function TeacherWorkspace({
                         <th>Roll number</th>
                         <th>Student</th>
                         <th>Enrolment</th>
-                        <th>Notifications</th>
+                        <th className="tw-swaramitra-heading">Notifications</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -723,7 +723,7 @@ export default function TeacherWorkspace({
                               <strong>{s.name}</strong>
                             </td>
                             <td>Active</td>
-                            <td>
+                            <td className="tw-swaramitra-cell">
                               <div className="tw-swaramitra-controls">
                                 <label
                                   className={!settings.whatsappAllowed ? 'is-unallowed' : undefined}

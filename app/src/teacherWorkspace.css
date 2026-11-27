@@ -127,6 +127,10 @@
   min-width: 210px;
   justify-content: center;
 }
+.tw-swaramitra-heading,
+.tw-swaramitra-cell {
+  text-align: center;
+}
 .tw-swaramitra-controls label {
   display: flex;
   align-items: center;
