@@ -17,11 +17,19 @@ type PermissionSource = 'student' | 'guardian' | null;
 
 const preference = (person: any) => {
   const value = person.studentProfile?.swaraMitra;
-  return {
-    whatsappEnabled: typeof value?.whatsappEnabled === 'boolean' ? value.whatsappEnabled : true,
-    permissionStatus: (['not-recorded', 'granted', 'withdrawn'].includes(value?.permissionStatus)
+  const permissionStatus = (
+    ['not-recorded', 'granted', 'withdrawn'].includes(value?.permissionStatus)
       ? value.permissionStatus
-      : 'not-recorded') as PermissionStatus,
+      : 'not-recorded'
+  ) as PermissionStatus;
+  return {
+    whatsappEnabled:
+      permissionStatus === 'withdrawn'
+        ? false
+        : typeof value?.whatsappEnabled === 'boolean'
+          ? value.whatsappEnabled
+          : true,
+    permissionStatus,
     permissionGivenBy: (value?.permissionGivenBy === 'student' ||
     value?.permissionGivenBy === 'guardian'
       ? value.permissionGivenBy
@@ -107,7 +115,7 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
       const timestamp = now();
       const previous = preference(person);
       const nextPreference = {
-        whatsappEnabled: input.whatsappEnabled,
+        whatsappEnabled: input.permissionStatus === 'withdrawn' ? false : input.whatsappEnabled,
         permissionStatus: input.permissionStatus,
         permissionGivenBy: input.permissionGivenBy,
         updatedAt: timestamp,

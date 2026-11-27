@@ -734,6 +734,7 @@ export default function TeacherWorkspace({
                               ? 'guardian'
                               : 'student'
                             : settings.permissionStatus;
+                        const permissionWithdrawn = settings.permissionStatus === 'withdrawn';
                         const saving = preferenceBusyId === s.id;
                         return (
                           <tr key={s.id}>
@@ -744,11 +745,15 @@ export default function TeacherWorkspace({
                             <td>Active</td>
                             <td>
                               <div className="tw-swaramitra-controls">
-                                <label>
+                                <label className={permissionWithdrawn ? 'is-disabled' : undefined}>
                                   <input
                                     type="checkbox"
-                                    checked={settings.whatsappEnabled !== false}
-                                    disabled={saving || Boolean(preferenceBusyId)}
+                                    checked={
+                                      !permissionWithdrawn && settings.whatsappEnabled !== false
+                                    }
+                                    disabled={
+                                      permissionWithdrawn || saving || Boolean(preferenceBusyId)
+                                    }
                                     onChange={(event) =>
                                       void saveSwaraMitraPreference(s.id, {
                                         whatsappEnabled: event.target.checked,
