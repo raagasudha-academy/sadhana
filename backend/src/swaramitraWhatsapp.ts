@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
   CognitoIdentityProviderClient,
   ListUsersCommand,
@@ -9,10 +11,16 @@ import { m10FinalFamilyAccessReader } from './finalFamilyAccessData.ts';
 import { m10FinalLearnerProfiles } from './finalLearnerProfilesData.ts';
 import { finalLinkedStudents } from './finalFamilyAccess.mjs';
 import { apiRouteParts } from './apiRoute.ts';
+import { entityTable } from './entityTables.mjs';
+import { swaraMitraOutbox } from './swaramitraOutbox.ts';
 import { json, type SadhanaHttpEvent } from './routes/http.ts';
 
 const ssm = new SSMClient({});
 const cognito = new CognitoIdentityProviderClient({});
+const outboxDb = DynamoDBDocumentClient.from(
+  new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }),
+  { marshallOptions: { removeUndefinedValues: true } },
+);
 let secretPromise: Promise<string> | undefined;
 
 function header(event: SadhanaHttpEvent, name: string): string {
@@ -52,6 +60,37 @@ function normalizedPhone(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const digits = value.replace(/\D/g, '');
   return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
+}
+
+async function verifiedSwaraMitraRequest(event: SadhanaHttpEvent): Promise<unknown | undefined> {
+  const raw = rawBody(event);
+  if (Buffer.byteLength(raw, 'utf8') > 4_000) return json(413, { error: 'Request too large.' });
+  const timestamp = header(event, 'x-swaramitra-timestamp');
+  const nonce = header(event, 'x-swaramitra-nonce');
+  const signature = header(event, 'x-swaramitra-signature');
+  const timestampMs = Number(timestamp);
+  if (
+    !/^\d{13}$/.test(timestamp) ||
+    !Number.isFinite(timestampMs) ||
+    Math.abs(Date.now() - timestampMs) > 60_000 ||
+    !/^[0-9a-f-]{36}$/i.test(nonce) ||
+    !/^[0-9a-f]{64}$/i.test(signature)
+  )
+    return unauthorized();
+  const expected = Buffer.from(
+    createHmac('sha256', await hmacSecret())
+      .update(`${timestamp}.${nonce}.${raw}`)
+      .digest('hex'),
+  );
+  const supplied = Buffer.from(signature);
+  if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied))
+    return unauthorized();
+  if (!(await swaraMitraOutbox().consumeNonce(nonce))) return unauthorized();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return json(400, { error: 'Invalid JSON body.' });
+  }
 }
 
 function cleanDashboard(dashboard: Record<string, any>, classDetails: Record<string, any>) {
@@ -226,4 +265,123 @@ export async function swaraMitraWhatsappRoute(event: SadhanaHttpEvent) {
     learner,
     dashboard: cleanDashboard(dashboard, classDetails),
   });
+}
+
+/** Signed worker poll/ack API. It rechecks enrolment, current consent and contact details on claim. */
+export async function swaraMitraWhatsappOutboxRoute(event: SadhanaHttpEvent) {
+  const parts = apiRouteParts(event);
+  const method = event.requestContext?.http?.method ?? event.httpMethod;
+  if (parts.join('/') !== 'integrations/swaramitra/whatsapp/outbox') return undefined;
+  if (method !== 'POST') return json(405, { error: 'Method not allowed.' });
+  if (process.env.SADHANA_SWARAMITRA_WHATSAPP !== 'enabled')
+    return json(404, { error: 'Integration is not available.' });
+  if (
+    process.env.SADHANA_ENTITY_TABLE_SET !== 'final' ||
+    process.env.SADHANA_ENTITY_FINAL_ACK !== 'enabled' ||
+    process.env.SADHANA_DATA_MODE === 'split'
+  )
+    return json(503, { error: 'Sadhana dev notification queue is not ready.' });
+  const body = await verifiedSwaraMitraRequest(event);
+  if (body === undefined || (body as any)?.statusCode) return body as any;
+  if (!body || typeof body !== 'object' || Array.isArray(body))
+    return json(400, { error: 'JSON object required.' });
+  const input = body as Record<string, unknown>;
+  const outbox = swaraMitraOutbox();
+  if (input.action === 'ack') {
+    if (
+      typeof input.deliveryId !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(input.deliveryId) ||
+      typeof input.leaseToken !== 'string' ||
+      !/^[0-9a-f-]{36}$/i.test(input.leaseToken) ||
+      !['sent', 'failed', 'suppressed'].includes(String(input.outcome))
+    )
+      return json(400, { error: 'Valid delivery outcome required.' });
+    return json(
+      200,
+      await outbox.acknowledge(
+        input.deliveryId,
+        input.leaseToken,
+        input.outcome as 'sent' | 'failed' | 'suppressed',
+      ),
+    );
+  }
+  if (input.action !== 'poll') return json(400, { error: 'Unsupported worker action.' });
+  const jobs = await outbox.claim(Number(input.limit) || 5);
+  const messages = new Map<
+    string,
+    {
+      deliveries: Array<{ deliveryId: string; leaseToken: string }>;
+      recipientPhone: string;
+      message: string;
+    }
+  >();
+  const isStillEnrolled = async (job: Record<string, any>) => {
+    let cursor: Record<string, any> | undefined;
+    do {
+      const page = await outboxDb.send(
+        new QueryCommand({
+          TableName: entityTable('enrolments'),
+          IndexName: 'ClassEnrolmentsIndex',
+          KeyConditionExpression: 'classId=:classId',
+          ExpressionAttributeValues: { ':classId': job.classId },
+          Limit: 100,
+          ExclusiveStartKey: cursor,
+        }),
+      );
+      if (
+        (page.Items || []).some(
+          (row: any) =>
+            row.institutionId === job.institutionId &&
+            row.studentId === job.studentId &&
+            row.status === 'active' &&
+            row.archived !== true,
+        )
+      )
+        return true;
+      cursor = page.LastEvaluatedKey;
+    } while (cursor);
+    return false;
+  };
+  for (const job of jobs) {
+    const [personResult, stillEnrolled] = await Promise.all([
+      outboxDb.send(
+        new GetCommand({
+          TableName: entityTable('people'),
+          Key: { personId: job.studentId },
+          ConsistentRead: true,
+        }),
+      ),
+      isStillEnrolled(job),
+    ]);
+    const person = personResult.Item;
+    const permission = person?.studentProfile?.swaraMitra;
+    const allowed =
+      typeof permission?.whatsappAllowed === 'boolean'
+        ? permission.whatsappAllowed
+        : permission?.permissionStatus === 'granted' && permission?.whatsappEnabled !== false;
+    const recipientPhone = normalizedPhone(person?.phone);
+    if (
+      !person ||
+      person.status !== 'active' ||
+      !person.personTypes?.includes('student') ||
+      !person.institutionIds?.includes(job.institutionId) ||
+      !allowed ||
+      !stillEnrolled ||
+      !recipientPhone
+    ) {
+      await outbox.acknowledge(job.deliveryId, job.leaseToken, 'suppressed');
+      continue;
+    }
+    const messageKey = `${recipientPhone}\n${job.message}`;
+    const existing = messages.get(messageKey);
+    const delivery = { deliveryId: job.deliveryId, leaseToken: job.leaseToken };
+    if (existing) existing.deliveries.push(delivery);
+    else
+      messages.set(messageKey, {
+        deliveries: [delivery],
+        recipientPhone,
+        message: job.message,
+      });
+  }
+  return json(200, { messages: [...messages.values()] });
 }

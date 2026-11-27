@@ -196,12 +196,23 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
           studentId: string;
           displayName?: string;
           whatsappAllowed: boolean;
+          whatsappReady: boolean;
           updatedAt: string | null;
         }>;
       }>('GET', '/integrations/swaramitra/preferences', {
         institution,
         params: { classId },
       }),
+    sendSwaraMitraScheduleUpdate: (
+      institution: InstitutionId,
+      classId: string,
+      data: { resourceId: string; title: string; message: string; requestId: string },
+    ) =>
+      request<{ queued: number; eligible: number }>(
+        'POST',
+        '/integrations/swaramitra/preferences/send',
+        { institution, body: { classId, ...data } },
+      ),
     updateSwaraMitraPreference: (
       institution: InstitutionId,
       classId: string,

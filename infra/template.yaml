@@ -341,6 +341,45 @@ Resources:
         - Key: Environment
           Value: !Ref Stage
 
+  SwaraMitraWhatsappOutboxTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub '${Stage}-sadhana-swaramitra-whatsapp-outbox'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: deliveryId, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: deliveryId, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: QueueByStatus
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: QueueByLease
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: Sadhana
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Purpose
+          Value: SwaraMitraWhatsAppOutbox
+
   SadhanaApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -356,6 +395,9 @@ Resources:
           ThrottlingBurstLimit: 10
           ThrottlingRateLimit: 5
         'POST /api/integrations/swaramitra/whatsapp':
+          ThrottlingBurstLimit: 10
+          ThrottlingRateLimit: 5
+        'POST /api/integrations/swaramitra/whatsapp/outbox':
           ThrottlingBurstLimit: 10
           ThrottlingRateLimit: 5
       Auth:
@@ -416,6 +458,7 @@ Resources:
           SADHANA_SUPER_ADMIN_SUB: !Ref SadhanaSuperAdminSub
           SWARAMITRA_SERVICE_CREDENTIAL_PARAMETER: !Ref SwaraMitraServiceCredentialParameter
           SADHANA_SWARAMITRA_WHATSAPP: !Ref EnableSwaraMitraWhatsappIdentity
+          SWARAMITRA_WHATSAPP_OUTBOX_TABLE: !Ref SwaraMitraWhatsappOutboxTable
           SADHANA_ALLOWED_PORTAL_ORIGINS: !Join [',', !Ref AllowedPortalOrigins]
           SADHANA_FINAL_TEACHER_LOOKUP_TABLE: !Sub '${Stage}-sadhana-people'
           SADHANA_ENTITY_TABLE_SET: final
@@ -605,6 +648,14 @@ Resources:
           Properties:
             ApiId: !Ref SadhanaApi
             Path: /api/integrations/swaramitra/whatsapp
+            Method: POST
+            Auth:
+              Authorizer: NONE
+        SwaraMitraWhatsappOutbox:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SadhanaApi
+            Path: /api/integrations/swaramitra/whatsapp/outbox
             Method: POST
             Auth:
               Authorizer: NONE

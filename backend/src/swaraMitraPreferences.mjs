@@ -15,10 +15,11 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
 
   const isList = method === 'GET' && parts.length === 3;
   const isUpdate = method === 'PATCH' && parts.length === 4;
-  if (!isList && !isUpdate) return undefined;
+  const isSend = method === 'POST' && parts.length === 4 && parts[3] === 'send';
+  if (!isList && !isUpdate && !isSend) return undefined;
   const classId = isList ? query.classId : undefined;
   let input;
-  if (isUpdate) {
+  if (isUpdate || isSend) {
     try {
       input = event.body
         ? JSON.parse(
@@ -89,6 +90,36 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
   if (isList) {
     const records = await deps.preferences.list(inst, studentIds);
     return { status: 200, body: { records } };
+  }
+  if (isSend) {
+    const { resourceId, title, message, requestId } = input;
+    if (
+      typeof resourceId !== 'string' ||
+      !resourceId.trim() ||
+      typeof title !== 'string' ||
+      !title.trim() ||
+      title.length > 120 ||
+      typeof message !== 'string' ||
+      !message.trim() ||
+      message.length > 1000 ||
+      typeof requestId !== 'string' ||
+      !/^[0-9a-f-]{36}$/i.test(requestId)
+    )
+      return { status: 400, body: { error: 'Provide a short message and unique request ID.' } };
+    const preferences = await deps.preferences.list(inst, studentIds);
+    const eligibleIds = preferences
+      .filter((record) => record.whatsappAllowed === true && record.whatsappReady === true)
+      .map((record) => record.studentId);
+    const result = await deps.outbox.enqueue({
+      institution: inst,
+      classId: requestedClassId,
+      studentIds: eligibleIds,
+      resourceId,
+      title: title.trim(),
+      message: message.trim(),
+      requestId,
+    });
+    return { status: 201, body: { queued: result.queued, eligible: eligibleIds.length } };
   }
   if (!studentIds.includes(parts[3]))
     return { status: 403, body: { error: 'Student is not actively enrolled in this class.' } };

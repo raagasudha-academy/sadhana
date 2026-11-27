@@ -89,6 +89,7 @@ export function SessionDrawer({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [whatsAppDraft, setWhatsAppDraft] = useState({ enabled: false, message: '' });
   const [pendingReview, setPendingReview] = useState<null | 'historical' | 'dated-link'>(null);
   const [impact, setImpact] = useState<any>(null);
   const [impactKey, setImpactKey] = useState('');
@@ -384,6 +385,34 @@ export function SessionDrawer({
           changes,
           session.expectedVersion,
         );
+        if (
+          whatsAppDraft.enabled &&
+          session.classId &&
+          (session.institution === 'raaga' || session.institution === 'sruti')
+        ) {
+          try {
+            const message = whatsAppDraft.message.trim();
+            if (!message) throw new Error('Enter the WhatsApp message first.');
+            const queued = await cloud.api.sendSwaraMitraScheduleUpdate(
+              session.institution,
+              session.classId,
+              {
+                resourceId: session.recordId,
+                title: form.status === 'cancelled' ? 'Class cancelled' : 'Class schedule changed',
+                message,
+                requestId: crypto.randomUUID(),
+              },
+            );
+            if (queued.eligible === 0)
+              throw new Error('No currently consented students are eligible for WhatsApp.');
+            if (queued.queued !== queued.eligible)
+              throw new Error('Only some of the eligible WhatsApp messages were queued.');
+          } catch (notificationError) {
+            window.alert(
+              `The class change was saved, but its WhatsApp update was not queued. ${notificationError instanceof Error ? notificationError.message : ''}`,
+            );
+          }
+        }
       }
       onSaved();
     } catch (e) {
@@ -726,11 +755,14 @@ export function SessionDrawer({
                 </div>
               </div>
             )}
-            {hasScheduleChange && (
+            {hasScheduleChange && scope === 'one' && session.classId && (
               <SwaraMitraAudience
                 cloud={cloud}
                 institution={session.institution}
                 classId={session.classId}
+                draft={whatsAppDraft}
+                suggestedMessage={`Class schedule changed for ${session.name}. New time: ${form.date} at ${form.startTime}. Please check Sadhana for the latest details.`}
+                onDraftChange={setWhatsAppDraft}
               />
             )}
             {pendingReview && (

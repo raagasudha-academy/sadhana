@@ -21,6 +21,10 @@ const preference = (person: any) => {
       typeof value?.whatsappAllowed === 'boolean'
         ? value.whatsappAllowed
         : value?.permissionStatus === 'granted' && value?.whatsappEnabled !== false,
+    whatsappReady: (() => {
+      const digits = typeof person.phone === 'string' ? person.phone.replace(/\D/g, '') : '';
+      return digits.length >= 8 && digits.length <= 15;
+    })(),
     updatedAt: typeof value?.updatedAt === 'string' ? value.updatedAt : null,
   };
 };
