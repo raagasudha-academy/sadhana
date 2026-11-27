@@ -69,6 +69,57 @@ export function sadhanaConfirmDialog(message: string): Promise<boolean> {
   });
 }
 
+function scheduleNoticeDate(value: unknown) {
+  const date = String(value || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return date || 'not set';
+  return ukDate(new Date(`${date}T12:00:00Z`), { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function scheduleNoticeValue(field: string, value: unknown) {
+  const text = String(value || '');
+  if (!text) return 'not set';
+  if (field === 'date' || field === 'endDate') return scheduleNoticeDate(text);
+  if (field === 'startTime' || field === 'endTime')
+    return /^\d{2}:\d{2}$/.test(text) ? displayTime(text) : text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function scheduleNoticeMessage(session: any, values: Record<string, unknown>) {
+  const original = session.original || {};
+  const previous: Record<string, unknown> = {
+    date: original.date ?? session.dateISO,
+    endDate: original.endDate ?? session.dateISO,
+    startTime: original.startTime ?? session.time ?? '',
+    endTime: original.endTime ?? session.endTime ?? '',
+    location: original.location ?? session.venue ?? '',
+    teacher: original.teacher ?? session.teacher ?? '',
+    status: original.status ?? 'confirmed',
+  };
+  const labels: Record<string, string> = {
+    date: 'Date',
+    endDate: 'End date (exclusive)',
+    startTime: 'Start time',
+    endTime: 'End time',
+    location: 'Venue',
+    teacher: 'Teacher',
+    status: 'Status',
+  };
+  const changed = Object.keys(labels).filter(
+    (field) => (session.allDay || field !== 'endDate') && values[field] !== previous[field],
+  );
+  const isNewCancellation = values.status === 'cancelled' && previous.status !== 'cancelled';
+  const headline = isNewCancellation
+    ? `Class cancelled for ${session.name}.`
+    : `Class schedule changed for ${session.name}.`;
+  const details = changed
+    .filter((field) => !(isNewCancellation && field === 'status'))
+    .map(
+      (field) =>
+        `${labels[field]} changed from ${scheduleNoticeValue(field, previous[field])} to ${scheduleNoticeValue(field, values[field])}`,
+    );
+  return `${headline}${details.length ? ` ${details.join('. ')}.` : ''} Please check Sadhana for the latest details.`;
+}
+
 export function SessionDrawer({
   session,
   onClose,
@@ -147,13 +198,21 @@ export function SessionDrawer({
     endDate: original.endDate ?? session.dateISO,
     startTime: original.startTime ?? session.time ?? '',
     endTime: original.endTime ?? session.endTime ?? '',
+    location: original.location ?? session.venue ?? '',
+    teacher: original.teacher ?? session.teacher ?? '',
     status: original.status ?? 'confirmed',
   };
   const hasScheduleChange =
     session.recordType === 'class-session' &&
-    ['date', 'endDate', 'startTime', 'endTime', 'status'].some(
-      (key) => form[key] !== initialScheduleFields[key],
-    );
+    [
+      'date',
+      ...(session.allDay ? ['endDate'] : []),
+      'startTime',
+      'endTime',
+      'location',
+      'teacher',
+      'status',
+    ].some((key) => form[key] !== initialScheduleFields[key]);
   const canEditWeeklyDay =
     session.recordType === 'class-session' &&
     (!session.seriesRecurrence ||
@@ -180,11 +239,15 @@ export function SessionDrawer({
   const update = (key: string, value: string) => {
     resetImpact();
     setPendingReview(null);
-    setForm((d: any) => ({
-      ...d,
+    const next = {
+      ...form,
       [key]: value,
       ...(key === 'date' && !session.allDay ? { endDate: value } : {}),
-    }));
+    };
+    const currentSuggestion = scheduleNoticeMessage(session, form);
+    if (!whatsAppDraft.message || whatsAppDraft.message === currentSuggestion)
+      setWhatsAppDraft({ ...whatsAppDraft, message: scheduleNoticeMessage(session, next) });
+    setForm(next);
   };
   const deleteOne = async () => {
     if (!canDelete || !cloud || !session.sadhana) return;
@@ -761,7 +824,7 @@ export function SessionDrawer({
                 institution={session.institution}
                 classId={session.classId}
                 draft={whatsAppDraft}
-                suggestedMessage={`Class schedule changed for ${session.name}. New time: ${form.date} at ${form.startTime}. Please check Sadhana for the latest details.`}
+                suggestedMessage={scheduleNoticeMessage(session, form)}
                 onDraftChange={setWhatsAppDraft}
               />
             )}
