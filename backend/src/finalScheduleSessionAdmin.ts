@@ -276,6 +276,56 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
       ExpressionAttributeValues: { ':v': version, ':i': inst },
     },
   });
+  const classDeleteAction = (row: Record<string, any>, id: string, inst: InstitutionId) => {
+    if (typeof row.sessionId !== 'string' || !row.sessionId)
+      throw httpError(409, 'Class has schedule records that need reconciliation before deletion.');
+    if (Number.isSafeInteger(row.version) && row.version > 0)
+      return deleteAction('sessions', row.sessionId, row.version, inst);
+    // Series-rule rows predate versioned schedule records. Guard their removal
+    // with the canonical rule identity and last-update marker instead of
+    // sending an undefined :v value to DynamoDB.
+    if (
+      row.recordType === 'series-change' &&
+      typeof row.updatedAt === 'string' &&
+      typeof row.effectiveFrom === 'string'
+    )
+      return {
+        Delete: {
+          TableName: table('sessions'),
+          Key: { sessionId: row.sessionId },
+          ConditionExpression:
+            '#i=:i AND #class=:class AND #type=:type AND #updated=:updated AND #from=:from',
+          ExpressionAttributeNames: {
+            '#i': 'institutionId',
+            '#class': 'classId',
+            '#type': 'recordType',
+            '#updated': 'updatedAt',
+            '#from': 'effectiveFrom',
+          },
+          ExpressionAttributeValues: {
+            ':i': inst,
+            ':class': id,
+            ':type': 'series-change',
+            ':updated': row.updatedAt,
+            ':from': row.effectiveFrom,
+          },
+        },
+      };
+    throw httpError(409, 'Class has schedule records that need reconciliation before deletion.');
+  };
+  const classDeleteFingerprint = (id: string, version: number, rows: Record<string, any>[]) => [
+    id,
+    version,
+    ...rows
+      .map((row) => [
+        row.sessionId ?? null,
+        row.version ?? null,
+        row.recordType ?? null,
+        row.updatedAt ?? null,
+        row.effectiveFrom ?? null,
+      ])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+  ];
   const auditAction = (inst: InstitutionId, action: string, id: string, sub: string) => ({
     Put: {
       TableName: table('audit'),
@@ -739,15 +789,7 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         if (row.recordType === 'class-session') await ensureNoSessionHistory(inst, row.sessionId);
       }
       const signature = createHash('sha256')
-        .update(
-          JSON.stringify([
-            id,
-            master.version,
-            ...linked
-              .map((s) => [s.sessionId, s.version])
-              .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
-          ]),
-        )
+        .update(JSON.stringify(classDeleteFingerprint(id, master.version, linked)))
         .digest('hex');
       return {
         classId: id,
@@ -772,21 +814,13 @@ export function makeM10FinalScheduleSessionAdmin(db: DB) {
         (x) => x.institutionId === inst && x.classId === id,
       );
       const actualSignature = createHash('sha256')
-        .update(
-          JSON.stringify([
-            id,
-            body.expectedVersion,
-            ...linked
-              .map((s) => [s.sessionId, s.version])
-              .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
-          ]),
-        )
+        .update(JSON.stringify(classDeleteFingerprint(id, body.expectedVersion, linked)))
         .digest('hex');
       if (actualSignature !== body.signature)
         throw httpError(409, 'Class sessions changed since preview. Review again.');
       const actions = [
         deleteAction('classes', id, body.expectedVersion, inst),
-        ...linked.map((s) => deleteAction('sessions', s.sessionId, s.version, inst)),
+        ...linked.map((row) => classDeleteAction(row, id, inst)),
         auditAction(inst, 'MASTER_CLASS_DELETED', id, String(claims.sub)),
       ];
       if (actions.length > 100) throw httpError(413, 'Too many linked records to delete safely.');
