@@ -123,6 +123,8 @@ import { defaultM10CoreDirectoryReader } from './coreDirectory.ts';
 import { finalFamilyContactRoute } from './finalFamilyContact.ts';
 import { emailLoginRoute } from './emailLogin.ts';
 import { swaraMitraWhatsappRoute } from './swaramitraWhatsapp.ts';
+import { swaraMitraPreferencesRoute } from './swaraMitraPreferences.mjs';
+import { finalSwaraMitraPreferences } from './finalSwaraMitraPreferences.ts';
 
 export function createHandler(
   repository: SadhanaRepository,
@@ -308,6 +310,21 @@ export function createHandler(
       const query = event.queryStringParameters ?? {};
       const inst = query.institution as InstitutionId;
       const routeContext = { event, parts, method, query, inst, claims, groups };
+      {
+        const preferences = await swaraMitraPreferencesRoute(
+          routeContext,
+          {
+            directory: (action, institution, userClaims) =>
+              getFinalReads().directory(action, institution, userClaims),
+            core: (entity, institution, userClaims) =>
+              getFinalReads().core(entity, institution, userClaims),
+            teacherEnrolments: finalTeacherEnrolments(),
+            preferences: finalSwaraMitraPreferences(),
+          },
+          finalAccess,
+        );
+        if (preferences) return json(preferences.status, preferences.body);
+      }
       {
         const response = await learningResourcesRoutes(routeContext);
         if (response) return response;

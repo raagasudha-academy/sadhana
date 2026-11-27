@@ -190,6 +190,34 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
     return method === 'GET' ? limitRead(perform) : perform();
   };
   return {
+    listSwaraMitraPreferences: (institution: InstitutionId, classId: string) =>
+      request<{
+        records: Array<{
+          studentId: string;
+          whatsappEnabled: boolean;
+          permissionStatus: 'not-recorded' | 'granted' | 'withdrawn';
+          permissionGivenBy: 'student' | 'guardian' | null;
+          updatedAt: string | null;
+        }>;
+      }>('GET', '/integrations/swaramitra/preferences', {
+        institution,
+        params: { classId },
+      }),
+    updateSwaraMitraPreference: (
+      institution: InstitutionId,
+      classId: string,
+      studentId: string,
+      data: {
+        whatsappEnabled: boolean;
+        permissionStatus: 'not-recorded' | 'granted' | 'withdrawn';
+        permissionGivenBy: 'student' | 'guardian' | null;
+      },
+    ) =>
+      request<{ record: any }>(
+        'PATCH',
+        `/integrations/swaramitra/preferences/${encodeURIComponent(studentId)}`,
+        { institution, body: { classId, ...data } },
+      ),
     listLearningResources: (institution: InstitutionId, studentId?: string) =>
       request<{
         records: Array<{

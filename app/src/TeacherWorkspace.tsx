@@ -70,6 +70,8 @@ export default function TeacherWorkspace({
   );
   const [classNoteText, setClassNoteText] = useState('');
   const [editingClassNote, setEditingClassNote] = useState<any>(null);
+  const [swaramitraPreferences, setSwaramitraPreferences] = useState<Record<string, any>>({});
+  const [preferenceBusyId, setPreferenceBusyId] = useState('');
   const [homeworkTitle, setHomeworkTitle] = useState(''),
     [homeworkInstructions, setHomeworkInstructions] = useState(''),
     [homeworkDue, setHomeworkDue] = useState('');
@@ -357,6 +359,54 @@ export default function TeacherWorkspace({
   );
   const selectedClass = classes.find((c) => c.id === classId);
   const effectiveClass = selectedClass?.id || classes[0]?.id || '';
+  useEffect(() => {
+    if (!cloud || area !== 'students' || !effectiveClass) return;
+    let current = true;
+    void cloud.api
+      .listSwaraMitraPreferences(workspace, effectiveClass)
+      .then((result) => {
+        if (current)
+          setSwaramitraPreferences(
+            Object.fromEntries(result.records.map((record) => [record.studentId, record])),
+          );
+      })
+      .catch((loadError) => {
+        if (current)
+          setError(
+            loadError instanceof Error ? loadError.message : 'Unable to load SwaraMitra settings.',
+          );
+      });
+    return () => {
+      current = false;
+    };
+  }, [area, effectiveClass, cloud?.api, workspace]);
+  const saveSwaraMitraPreference = async (studentId: string, patch: Record<string, any>) => {
+    if (!cloud || !effectiveClass || preferenceBusyId) return;
+    const existing = swaramitraPreferences[studentId] || {
+      whatsappEnabled: true,
+      permissionStatus: 'not-recorded',
+      permissionGivenBy: null,
+    };
+    const next = { ...existing, ...patch };
+    setPreferenceBusyId(studentId);
+    setError('');
+    try {
+      const result = await cloud.api.updateSwaraMitraPreference(
+        workspace,
+        effectiveClass,
+        studentId,
+        next,
+      );
+      setSwaramitraPreferences((current) => ({ ...current, [studentId]: result.record }));
+      setNotice('SwaraMitra settings saved. In-app notifications remain on.');
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error ? saveError.message : 'Unable to save SwaraMitra settings.',
+      );
+    } finally {
+      setPreferenceBusyId('');
+    }
+  };
   useEffect(() => {
     if (area === 'homework' && effectiveClass) void loadAssignments(effectiveClass);
   }, [area, effectiveClass, cloud?.api, workspace]);
@@ -657,6 +707,10 @@ export default function TeacherWorkspace({
                   <h2>Class students</h2>
                   <span>{roster.length} enrolled</span>
                 </div>
+                <p className="tw-hint">
+                  WhatsApp is sent only when reminders are enabled and the student or guardian’s
+                  permission is recorded. Sadhana in-app notices stay on.
+                </p>
                 <div className="table-scroll">
                   <table className="data-table">
                     <thead>
@@ -664,21 +718,75 @@ export default function TeacherWorkspace({
                         <th>Roll number</th>
                         <th>Student</th>
                         <th>Enrolment</th>
+                        <th>SwaraMitra WhatsApp</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleRoster.map((s) => (
-                        <tr key={s.id}>
-                          <td>{s.rollNumber || '—'}</td>
-                          <td>
-                            <strong>{s.name}</strong>
-                          </td>
-                          <td>Active</td>
-                        </tr>
-                      ))}
+                      {visibleRoster.map((s) => {
+                        const settings = swaramitraPreferences[s.id] || {
+                          whatsappEnabled: true,
+                          permissionStatus: 'not-recorded',
+                          permissionGivenBy: null,
+                        };
+                        const permissionValue =
+                          settings.permissionStatus === 'granted'
+                            ? settings.permissionGivenBy === 'guardian'
+                              ? 'guardian'
+                              : 'student'
+                            : settings.permissionStatus;
+                        const saving = preferenceBusyId === s.id;
+                        return (
+                          <tr key={s.id}>
+                            <td>{s.rollNumber || '—'}</td>
+                            <td>
+                              <strong>{s.name}</strong>
+                            </td>
+                            <td>Active</td>
+                            <td>
+                              <div className="tw-swaramitra-controls">
+                                <label>
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.whatsappEnabled !== false}
+                                    disabled={saving || Boolean(preferenceBusyId)}
+                                    onChange={(event) =>
+                                      void saveSwaraMitraPreference(s.id, {
+                                        whatsappEnabled: event.target.checked,
+                                      })
+                                    }
+                                  />
+                                  WhatsApp reminders
+                                </label>
+                                <select
+                                  aria-label={`WhatsApp permission for ${s.name}`}
+                                  value={permissionValue}
+                                  disabled={saving || Boolean(preferenceBusyId)}
+                                  onChange={(event) => {
+                                    const value = event.target.value;
+                                    void saveSwaraMitraPreference(s.id, {
+                                      permissionStatus:
+                                        value === 'student' || value === 'guardian'
+                                          ? 'granted'
+                                          : value,
+                                      permissionGivenBy:
+                                        value === 'student' || value === 'guardian' ? value : null,
+                                      ...(value === 'withdrawn' ? { whatsappEnabled: false } : {}),
+                                    });
+                                  }}
+                                >
+                                  <option value="not-recorded">Permission not recorded</option>
+                                  <option value="student">Permission from student</option>
+                                  <option value="guardian">Permission from parent/guardian</option>
+                                  <option value="withdrawn">Permission withdrawn</option>
+                                </select>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {!visibleRoster.length && (
                         <tr>
-                          <td colSpan={3}>No students found for this class.</td>
+                          <td colSpan={4}>No students found for this class.</td>
                         </tr>
                       )}
                     </tbody>

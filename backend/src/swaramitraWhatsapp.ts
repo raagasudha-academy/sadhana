@@ -191,12 +191,31 @@ export async function swaraMitraWhatsappRoute(event: SadhanaHttpEvent) {
     link: baseReader.link,
   };
   const linked = await finalLinkedStudents(institution, subject, reader);
-  const learners = linked.records.map(({ id, name, relationship }) => ({ id, name, relationship }));
-  if (learners.length === 0) return json(200, { status: 'unlinked', learners: [] });
+  const linkedPeople = await Promise.all(
+    linked.records.map(async (record) => ({ record, person: await reader.person(record.id) })),
+  );
+  const permitted = linkedPeople.filter(({ person }) => {
+    const settings = person?.studentProfile?.swaraMitra;
+    // Missing preference uses the approved default-on setting. Permission is
+    // always explicit; absence of a record never grants WhatsApp access.
+    const enabled =
+      typeof settings?.whatsappEnabled === 'boolean' ? settings.whatsappEnabled : true;
+    return enabled && settings?.permissionStatus === 'granted';
+  });
+  const learners = permitted.map(({ record }) => ({
+    id: record.id,
+    name: record.name,
+    relationship: record.relationship,
+  }));
+  if (linked.records.length === 0) return json(200, { status: 'unlinked', learners: [] });
+  if (learners.length === 0) return json(200, { status: 'permission_required', learners: [] });
   if (studentId === undefined) return json(200, { status: 'linked', learners });
 
   const learner = learners.find((record) => record.id === studentId);
-  if (!learner) return json(403, { error: 'Learner is outside the verified account scope.' });
+  if (!learner)
+    return json(403, {
+      error: 'SwaraMitra WhatsApp permission is missing or disabled for this learner.',
+    });
   const claims = { sub: subject };
   const [dashboard, classDetails] = await Promise.all([
     m9FinalLearner().dashboard(institution, claims, learner.id),
