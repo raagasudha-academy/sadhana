@@ -701,10 +701,7 @@ export default function TeacherWorkspace({
                   <h2>Class students</h2>
                   <span>{roster.length} enrolled</span>
                 </div>
-                <p className="tw-hint">
-                  This checkbox shows whether WhatsApp is allowed for each student. Sadhana in-app
-                  notices stay on either way.
-                </p>
+                <p className="tw-hint">Sadhana in-app notices stay on either way.</p>
                 <div className="table-scroll">
                   <table className="data-table">
                     <thead>
@@ -712,7 +709,7 @@ export default function TeacherWorkspace({
                         <th>Roll number</th>
                         <th>Student</th>
                         <th>Enrolment</th>
-                        <th>SwaraMitra WhatsApp</th>
+                        <th>SwaraMitra Notifications</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -733,13 +730,13 @@ export default function TeacherWorkspace({
                                 >
                                   <input
                                     type="checkbox"
+                                    aria-label={`SwaraMitra notifications for ${s.name}`}
                                     checked={settings.whatsappAllowed}
                                     disabled={saving || Boolean(preferenceBusyId)}
                                     onChange={(event) =>
                                       void saveSwaraMitraPreference(s.id, event.target.checked)
                                     }
                                   />
-                                  WhatsApp allowed
                                 </label>
                               </div>
                             </td>
