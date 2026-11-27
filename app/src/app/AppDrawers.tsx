@@ -108,9 +108,10 @@ function scheduleNoticeMessage(session: any, values: Record<string, unknown>) {
     (field) => (session.allDay || field !== 'endDate') && values[field] !== previous[field],
   );
   const isNewCancellation = values.status === 'cancelled' && previous.status !== 'cancelled';
+  const effectiveDate = scheduleNoticeDate(values.date ?? session.dateISO);
   const headline = isNewCancellation
-    ? `Class cancelled for ${session.name}.`
-    : `Class schedule changed for ${session.name}.`;
+    ? `Class cancelled for ${session.name} on ${effectiveDate}.`
+    : `Class schedule changed for ${session.name} on ${effectiveDate}.`;
   const details = changed
     .filter((field) => !(isNewCancellation && field === 'status'))
     .map(
