@@ -12,19 +12,19 @@ import { httpError } from './model.ts';
 import type { Claims, InstitutionId } from './model.ts';
 
 type DB = { send: (command: any) => Promise<any> };
-type PermissionStatus = 'not-recorded' | 'granted' | 'withdrawn';
+type PermissionStatus = 'not-recorded' | 'granted' | 'not-granted' | 'withdrawn';
 type PermissionSource = 'student' | 'guardian' | null;
 
 const preference = (person: any) => {
   const value = person.studentProfile?.swaraMitra;
   const permissionStatus = (
-    ['not-recorded', 'granted', 'withdrawn'].includes(value?.permissionStatus)
+    ['not-recorded', 'granted', 'not-granted', 'withdrawn'].includes(value?.permissionStatus)
       ? value.permissionStatus
       : 'not-recorded'
   ) as PermissionStatus;
   return {
     whatsappEnabled:
-      permissionStatus === 'withdrawn'
+      permissionStatus === 'withdrawn' || permissionStatus === 'not-granted'
         ? false
         : typeof value?.whatsappEnabled === 'boolean'
           ? value.whatsappEnabled
@@ -105,17 +105,23 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
         throw httpError(409, 'Student record cannot be safely updated.');
       if (
         typeof input?.whatsappEnabled !== 'boolean' ||
-        !['not-recorded', 'granted', 'withdrawn'].includes(input?.permissionStatus) ||
+        !['not-recorded', 'granted', 'not-granted', 'withdrawn'].includes(
+          input?.permissionStatus,
+        ) ||
         ![null, 'student', 'guardian'].includes(input?.permissionGivenBy) ||
         (input.permissionStatus === 'granted' && input.permissionGivenBy === null) ||
-        (input.permissionStatus === 'not-recorded' && input.permissionGivenBy !== null)
+        (['not-recorded', 'not-granted', 'withdrawn'].includes(input.permissionStatus) &&
+          input.permissionGivenBy !== null)
       )
         throw httpError(400, 'Valid SwaraMitra reminder and permission settings are required.');
 
       const timestamp = now();
       const previous = preference(person);
       const nextPreference = {
-        whatsappEnabled: input.permissionStatus === 'withdrawn' ? false : input.whatsappEnabled,
+        whatsappEnabled:
+          input.permissionStatus === 'withdrawn' || input.permissionStatus === 'not-granted'
+            ? false
+            : input.whatsappEnabled,
         permissionStatus: input.permissionStatus,
         permissionGivenBy: input.permissionGivenBy,
         updatedAt: timestamp,
@@ -158,7 +164,7 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
                     timestamp,
                     metadata: {
                       previousEnabled: previous.whatsappEnabled,
-                      whatsappEnabled: input.whatsappEnabled,
+                      whatsappEnabled: nextPreference.whatsappEnabled,
                       previousPermissionStatus: previous.permissionStatus,
                       permissionStatus: input.permissionStatus,
                       permissionGivenBy: input.permissionGivenBy,

@@ -734,7 +734,9 @@ export default function TeacherWorkspace({
                               ? 'guardian'
                               : 'student'
                             : settings.permissionStatus;
-                        const permissionWithdrawn = settings.permissionStatus === 'withdrawn';
+                        const permissionBlocked =
+                          settings.permissionStatus === 'withdrawn' ||
+                          settings.permissionStatus === 'not-granted';
                         const saving = preferenceBusyId === s.id;
                         return (
                           <tr key={s.id}>
@@ -745,14 +747,14 @@ export default function TeacherWorkspace({
                             <td>Active</td>
                             <td>
                               <div className="tw-swaramitra-controls">
-                                <label className={permissionWithdrawn ? 'is-disabled' : undefined}>
+                                <label className={permissionBlocked ? 'is-disabled' : undefined}>
                                   <input
                                     type="checkbox"
                                     checked={
-                                      !permissionWithdrawn && settings.whatsappEnabled !== false
+                                      !permissionBlocked && settings.whatsappEnabled !== false
                                     }
                                     disabled={
-                                      permissionWithdrawn || saving || Boolean(preferenceBusyId)
+                                      permissionBlocked || saving || Boolean(preferenceBusyId)
                                     }
                                     onChange={(event) =>
                                       void saveSwaraMitraPreference(s.id, {
@@ -775,13 +777,18 @@ export default function TeacherWorkspace({
                                           : value,
                                       permissionGivenBy:
                                         value === 'student' || value === 'guardian' ? value : null,
-                                      ...(value === 'withdrawn' ? { whatsappEnabled: false } : {}),
+                                      ...(['withdrawn', 'not-granted'].includes(value)
+                                        ? { whatsappEnabled: false }
+                                        : {}),
                                     });
                                   }}
                                 >
                                   <option value="not-recorded">Permission not recorded</option>
                                   <option value="student">Permission from student</option>
                                   <option value="guardian">Permission from parent/guardian</option>
+                                  <option value="not-granted">
+                                    Phone/WhatsApp permission not granted
+                                  </option>
                                   <option value="withdrawn">Permission withdrawn</option>
                                 </select>
                               </div>

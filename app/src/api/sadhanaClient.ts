@@ -195,7 +195,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         records: Array<{
           studentId: string;
           whatsappEnabled: boolean;
-          permissionStatus: 'not-recorded' | 'granted' | 'withdrawn';
+          permissionStatus: 'not-recorded' | 'granted' | 'not-granted' | 'withdrawn';
           permissionGivenBy: 'student' | 'guardian' | null;
           updatedAt: string | null;
         }>;
@@ -209,7 +209,7 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
       studentId: string,
       data: {
         whatsappEnabled: boolean;
-        permissionStatus: 'not-recorded' | 'granted' | 'withdrawn';
+        permissionStatus: 'not-recorded' | 'granted' | 'not-granted' | 'withdrawn';
         permissionGivenBy: 'student' | 'guardian' | null;
       },
     ) =>
