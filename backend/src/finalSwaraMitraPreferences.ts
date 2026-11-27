@@ -73,7 +73,11 @@ export function makeFinalSwaraMitraPreferences(db: DB, now = () => new Date().to
         permissionGivenBy: PermissionSource;
       },
     ) {
-      if (!/^STUDENT-[0-9a-f-]{36}$/i.test(studentId)) throw httpError(400, 'Invalid student ID.');
+      // Imported students keep STUDENT-* IDs; students created in the
+      // canonical people model use PERSON-* IDs. Both are emitted by the
+      // authorised class roster and are resolved by the same personId key.
+      if (!/^(?:STUDENT|PERSON)-[0-9a-f-]{36}$/i.test(studentId))
+        throw httpError(400, 'Invalid student ID.');
       const response = await db.send(
         new GetCommand({
           TableName: entityTable('people'),
