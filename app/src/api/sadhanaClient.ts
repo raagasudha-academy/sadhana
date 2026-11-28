@@ -190,6 +190,70 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
     return method === 'GET' ? limitRead(perform) : perform();
   };
   return {
+    listSwaraMitraPreferences: (institution: InstitutionId, classId: string) =>
+      request<{
+        records: Array<{
+          studentId: string;
+          displayName?: string;
+          whatsappAllowed: boolean;
+          whatsappReady: boolean;
+          updatedAt: string | null;
+        }>;
+      }>('GET', '/integrations/swaramitra/preferences', {
+        institution,
+        params: { classId },
+      }),
+    listSwaraMitraNotificationHistory: (institution: InstitutionId, limit = 20) =>
+      request<{
+        records: Array<{
+          requestId: string;
+          institution: InstitutionId;
+          classId: string;
+          className: string;
+          title: string;
+          message: string;
+          createdAt: string;
+          updatedAt: string;
+          recipientCount: number;
+          sentCount: number;
+          failedCount: number;
+          queuedCount: number;
+          sendingCount: number;
+          notSentCount: number;
+          status: 'in-progress' | 'partial' | 'failed' | 'sent' | 'not-sent';
+          countsMayBePartial: boolean;
+        }>;
+      }>('GET', '/integrations/swaramitra/preferences/history', {
+        institution,
+        params: { limit: String(limit) },
+      }),
+    sendSwaraMitraScheduleUpdate: (
+      institution: InstitutionId,
+      classId: string,
+      data: {
+        resourceId: string;
+        title: string;
+        message: string;
+        requestId: string;
+        recipientStudentId?: string;
+      },
+    ) =>
+      request<{ queued: number; eligible: number }>(
+        'POST',
+        '/integrations/swaramitra/preferences/send',
+        { institution, body: { classId, ...data } },
+      ),
+    updateSwaraMitraPreference: (
+      institution: InstitutionId,
+      classId: string,
+      studentId: string,
+      data: { whatsappAllowed: boolean },
+    ) =>
+      request<{ record: any }>(
+        'PATCH',
+        `/integrations/swaramitra/preferences/${encodeURIComponent(studentId)}`,
+        { institution, body: { classId, ...data } },
+      ),
     listLearningResources: (institution: InstitutionId, studentId?: string) =>
       request<{
         records: Array<{

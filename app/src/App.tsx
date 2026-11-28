@@ -1410,7 +1410,7 @@ export default function App({ cloud }: { cloud?: CloudSession } = {}) {
                       teacherMode={teacherMode}
                     />
                   ) : activePage === 'Communications' ? (
-                    <CommsPage workspace={currentWorkspace} />
+                    <CommsPage workspace={currentWorkspace} cloud={cloud} />
                   ) : activePage === 'Venues' ? (
                     <VenueManager
                       venues={venues}

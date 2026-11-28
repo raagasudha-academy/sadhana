@@ -133,6 +133,7 @@ export function prepareWebsiteImport(
     links = [];
   const preferredLocationId = string(r.preferredLocationId || primary.preferredLocationId);
   const submittedConsent = obj(r.mediaConsent);
+  const srutiPhoneContactAllowed = institution === 'sruti' && r.contactMethods?.phone === true;
   const mediaConsent =
     typeof submittedConsent.granted === 'boolean'
       ? {
@@ -226,6 +227,16 @@ export function prepareWebsiteImport(
         dateOfBirth: p.dateOfBirth,
         foodAllergies: allergies,
         ...(mediaConsent ? { mediaConsent } : {}),
+        ...(institution === 'sruti'
+          ? {
+              swaraMitra: {
+                whatsappAllowed: srutiPhoneContactAllowed,
+                consentSource: 'sruti-registration-contact-methods',
+                consentRecordedAt: string(r.submittedAt) || now,
+                sourceRegistrationId: id,
+              },
+            }
+          : {}),
         ...(institution === 'sruti' && s.srutiLearning ? { srutiLearning: s.srutiLearning } : {}),
         rollNumber: academyRoll(institution, counters.student + i + 1),
         rollNumbers: { [institution]: academyRoll(institution, counters.student + i + 1) },

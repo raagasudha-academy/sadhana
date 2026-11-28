@@ -786,6 +786,31 @@
   border-bottom: 1px solid #e8edf4;
   padding: 12px;
 }
+.sadhana-notifications-heading,
+.sadhana-notifications-cell {
+  text-align: center !important;
+}
+.sadhana-swaramitra-toggle {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+}
+.sadhana-swaramitra-toggle.is-unallowed {
+  opacity: 0.68;
+}
+.sadhana-swaramitra-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #5b4acb;
+}
+.sadhana-swaramitra-toggle input:disabled {
+  accent-color: #94a3b8;
+  cursor: not-allowed;
+}
 .sadhana-master-class-filter select {
   max-width: 220px;
   min-width: 160px;

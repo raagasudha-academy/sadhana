@@ -20,6 +20,7 @@ import {
   visibleDatedSessions,
 } from './operationsSelectors';
 import SessionAttendanceRegister from './SessionAttendanceRegister';
+import { SwaraMitraAudience } from './app/SwaraMitraAudience';
 import './teacherWorkspace.css';
 import './learningExperience.css';
 import './unifiedLayout.css';
@@ -70,9 +71,15 @@ export default function TeacherWorkspace({
   );
   const [classNoteText, setClassNoteText] = useState('');
   const [editingClassNote, setEditingClassNote] = useState<any>(null);
+  const [swaramitraPreferences, setSwaramitraPreferences] = useState<Record<string, any>>({});
+  const [preferenceBusyId, setPreferenceBusyId] = useState('');
   const [homeworkTitle, setHomeworkTitle] = useState(''),
     [homeworkInstructions, setHomeworkInstructions] = useState(''),
     [homeworkDue, setHomeworkDue] = useState('');
+  const [homeworkWhatsAppDraft, setHomeworkWhatsAppDraft] = useState({
+    enabled: false,
+    message: '',
+  });
   const [homeworkFiles, setHomeworkFiles] = useState<File[]>([]);
   const [existingMaterials, setExistingMaterials] = useState<
     Array<{ id: string; mime: string; size: number; url: string }>
@@ -134,6 +141,7 @@ export default function TeacherWorkspace({
       setExistingMaterials(links.records);
       setRemovedMaterialIds([]);
       setHomeworkFiles([]);
+      setHomeworkWhatsAppDraft({ enabled: false, message: '' });
       setEditingHomework({ id: a.id, version: a.version || 1 });
       setHomeworkTitle(a.title);
       setHomeworkInstructions(a.instructions);
@@ -175,6 +183,7 @@ export default function TeacherWorkspace({
     setHomeworkTitle('');
     setHomeworkInstructions('');
     setHomeworkDue('');
+    setHomeworkWhatsAppDraft({ enabled: false, message: '' });
     setHomeworkFiles([]);
     setExistingMaterials([]);
     setRemovedMaterialIds([]);
@@ -184,6 +193,7 @@ export default function TeacherWorkspace({
     if (!cloud || !effectiveClass) return;
     setBusy(true);
     setError('');
+    const wasEditing = !!editingHomework;
     try {
       const result = editingHomework
         ? await cloud.api.republishClassHomework(
@@ -236,10 +246,46 @@ export default function TeacherWorkspace({
         }
         await cloud.api.setTeacherHomeworkMaterials(workspace, effectiveClass, id, ids, version);
       }
-      const wasEditing = !!editingHomework;
+      let whatsappError = '';
+      let whatsappSent = 0;
+      if (!wasEditing && homeworkWhatsAppDraft.enabled) {
+        try {
+          const message = homeworkWhatsAppDraft.message.trim();
+          if (!message) throw new Error('Enter a message, or untick the WhatsApp option.');
+          const queued = await cloud.api.sendSwaraMitraScheduleUpdate(workspace, effectiveClass, {
+            resourceId: id,
+            title: 'New homework',
+            message,
+            requestId: crypto.randomUUID(),
+          });
+          if (queued.eligible === 0)
+            throw new Error('No currently consented students are eligible for WhatsApp.');
+          if (queued.queued !== queued.eligible)
+            throw new Error('Only some of the eligible WhatsApp messages were queued.');
+          whatsappSent = queued.queued;
+        } catch (notificationError) {
+          whatsappError =
+            notificationError instanceof Error
+              ? notificationError.message
+              : 'WhatsApp could not be queued.';
+        }
+      }
       resetHomeworkForm();
       await loadAssignments(effectiveClass);
-      setNotice(wasEditing ? 'Homework republished' : 'Homework published to enrolled students');
+      if (whatsappError) {
+        setError(
+          `Homework was published and students have in-app notices, but WhatsApp was not fully queued. ${whatsappError}`,
+        );
+        setNotice('Homework published to enrolled students in Sadhana');
+      } else {
+        setNotice(
+          wasEditing
+            ? 'Homework republished'
+            : homeworkWhatsAppDraft.enabled
+              ? `Homework published. WhatsApp queued for ${whatsappSent} opted-in students.`
+              : 'Homework published to enrolled students in Sadhana',
+        );
+      }
     } catch (e) {
       setError(
         `${e instanceof Error ? e.message : 'Unable to publish homework'}. If the assignment was published, refresh the list before retrying.`,
@@ -258,6 +304,8 @@ export default function TeacherWorkspace({
     if (initialClass) setClassId(initialClass);
   }, [initialClass]);
   const [reviewId, setReviewId] = useState('');
+  const [reviewWhatsAppEnabled, setReviewWhatsAppEnabled] = useState<Record<string, boolean>>({});
+  const [reviewWhatsAppMessages, setReviewWhatsAppMessages] = useState<Record<string, string>>({});
   const [historyPeriod, setHistoryPeriod] = useState('all'),
     [historyFrom, setHistoryFrom] = useState(''),
     [historyTo, setHistoryTo] = useState(''),
@@ -298,6 +346,15 @@ export default function TeacherWorkspace({
   };
   const saveFeedback = async (row: { studentId: string; version: number }) => {
     if (!cloud || !effectiveClass) return;
+    const reviewKey = `${reviewId}:${row.studentId}`;
+    const shouldSendWhatsApp = reviewWhatsAppEnabled[reviewKey] === true;
+    const homeworkName = assignments.find((item) => item.id === reviewId)?.title || 'your homework';
+    const defaultMessage = `Your teacher has reviewed ${homeworkName}. Open Sadhana to see your feedback.`;
+    const message = reviewWhatsAppMessages[reviewKey]?.trim() ?? defaultMessage;
+    if (shouldSendWhatsApp && !message) {
+      setError('Enter a WhatsApp message, or untick the WhatsApp option.');
+      return;
+    }
     try {
       await cloud.api.teacherHomeworkFeedback(
         workspace,
@@ -308,8 +365,31 @@ export default function TeacherWorkspace({
         row.version,
         feedbackAudio[row.studentId]?.id,
       );
+      if (shouldSendWhatsApp) {
+        try {
+          const result = await cloud.api.sendSwaraMitraScheduleUpdate(workspace, effectiveClass, {
+            resourceId: reviewId,
+            title: 'Homework reviewed',
+            message,
+            requestId: crypto.randomUUID(),
+            recipientStudentId: row.studentId,
+          });
+          if (result.eligible !== 1 || result.queued !== 1)
+            throw new Error('This student is not currently eligible for WhatsApp.');
+        } catch (notificationError) {
+          setError(
+            `Feedback was saved and the student received an in-app notice, but WhatsApp was not queued. ${notificationError instanceof Error ? notificationError.message : ''}`,
+          );
+          await reviewHomework(reviewId);
+          return;
+        }
+      }
       await reviewHomework(reviewId);
-      setNotice('Feedback saved');
+      setNotice(
+        shouldSendWhatsApp
+          ? 'Feedback saved. The student received an in-app notice and WhatsApp was queued.'
+          : 'Feedback saved. The student received an in-app notice.',
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to save feedback');
     }
@@ -357,6 +437,48 @@ export default function TeacherWorkspace({
   );
   const selectedClass = classes.find((c) => c.id === classId);
   const effectiveClass = selectedClass?.id || classes[0]?.id || '';
+  useEffect(() => {
+    if (!cloud || (area !== 'students' && area !== 'homework') || !effectiveClass) return;
+    let current = true;
+    void cloud.api
+      .listSwaraMitraPreferences(workspace, effectiveClass)
+      .then((result) => {
+        if (current)
+          setSwaramitraPreferences(
+            Object.fromEntries(result.records.map((record) => [record.studentId, record])),
+          );
+      })
+      .catch((loadError) => {
+        if (current)
+          setError(
+            loadError instanceof Error ? loadError.message : 'Unable to load SwaraMitra settings.',
+          );
+      });
+    return () => {
+      current = false;
+    };
+  }, [area, effectiveClass, cloud?.api, workspace]);
+  const saveSwaraMitraPreference = async (studentId: string, whatsappAllowed: boolean) => {
+    if (!cloud || !effectiveClass || preferenceBusyId) return;
+    setPreferenceBusyId(studentId);
+    setError('');
+    try {
+      const result = await cloud.api.updateSwaraMitraPreference(
+        workspace,
+        effectiveClass,
+        studentId,
+        { whatsappAllowed },
+      );
+      setSwaramitraPreferences((current) => ({ ...current, [studentId]: result.record }));
+      setNotice('SwaraMitra settings saved. In-app notifications remain on.');
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error ? saveError.message : 'Unable to save SwaraMitra settings.',
+      );
+    } finally {
+      setPreferenceBusyId('');
+    }
+  };
   useEffect(() => {
     if (area === 'homework' && effectiveClass) void loadAssignments(effectiveClass);
   }, [area, effectiveClass, cloud?.api, workspace]);
@@ -657,6 +779,7 @@ export default function TeacherWorkspace({
                   <h2>Class students</h2>
                   <span>{roster.length} enrolled</span>
                 </div>
+                <p className="tw-hint">Sadhana in-app notices stay on either way.</p>
                 <div className="table-scroll">
                   <table className="data-table">
                     <thead>
@@ -664,21 +787,43 @@ export default function TeacherWorkspace({
                         <th>Roll number</th>
                         <th>Student</th>
                         <th>Enrolment</th>
+                        <th className="tw-swaramitra-heading">Notifications</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleRoster.map((s) => (
-                        <tr key={s.id}>
-                          <td>{s.rollNumber || '—'}</td>
-                          <td>
-                            <strong>{s.name}</strong>
-                          </td>
-                          <td>Active</td>
-                        </tr>
-                      ))}
+                      {visibleRoster.map((s) => {
+                        const settings = swaramitraPreferences[s.id] || { whatsappAllowed: false };
+                        const saving = preferenceBusyId === s.id;
+                        return (
+                          <tr key={s.id}>
+                            <td>{s.rollNumber || '—'}</td>
+                            <td>
+                              <strong>{s.name}</strong>
+                            </td>
+                            <td>Active</td>
+                            <td className="tw-swaramitra-cell">
+                              <div className="tw-swaramitra-controls">
+                                <label
+                                  className={!settings.whatsappAllowed ? 'is-unallowed' : undefined}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`SwaraMitra notifications for ${s.name}`}
+                                    checked={settings.whatsappAllowed}
+                                    disabled={saving || Boolean(preferenceBusyId)}
+                                    onChange={(event) =>
+                                      void saveSwaraMitraPreference(s.id, event.target.checked)
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {!visibleRoster.length && (
                         <tr>
-                          <td colSpan={3}>No students found for this class.</td>
+                          <td colSpan={4}>No students found for this class.</td>
                         </tr>
                       )}
                     </tbody>
@@ -688,18 +833,13 @@ export default function TeacherWorkspace({
             )}
             {area === 'homework' && cloud && (
               <section className="sv1276-teacher-homework">
-                <details className="tw-homework-composer" open>
-                  <summary>
-                    <span>
-                      <strong>Class homework</strong>
-                      <small>Only the selected class · Create or update an assignment</small>
-                    </span>
-                    <ChevronDown aria-hidden="true" size={20} />
-                  </summary>
-                  <p>
-                    Create assignments for your verified class. Enrolled students will see them in
-                    their portal.
-                  </p>
+                <div className="tw-homework-composer">
+                  <header className="tw-homework-head">
+                    <h3>Class homework</h3>
+                    <p>
+                      Create or update an assignment. Enrolled students will see it in their portal.
+                    </p>
+                  </header>
                   <form className="sv1276-hw-form" onSubmit={(e) => void publishAssignment(e)}>
                     <label>
                       Assignment title
@@ -781,24 +921,38 @@ export default function TeacherWorkspace({
                         </div>
                       ))}
                     </div>
-                    <button
-                      className="sadhana-hw-primary"
-                      type="submit"
-                      disabled={busy || !effectiveClass}
-                    >
-                      {editingHomework ? 'Save & republish' : 'Publish homework'}
-                    </button>
-                    {editingHomework && (
-                      <button
-                        className="sadhana-hw-secondary"
-                        type="button"
-                        onClick={resetHomeworkForm}
-                      >
-                        Cancel edit
-                      </button>
+                    {!editingHomework && (
+                      <div className="sv1276-hw-wide">
+                        <SwaraMitraAudience
+                          cloud={cloud}
+                          institution={workspace}
+                          classId={effectiveClass}
+                          draft={homeworkWhatsAppDraft}
+                          suggestedMessage={`New homework: ${homeworkTitle || 'your assignment'}${homeworkDue ? `, due ${homeworkDue}` : ''}. Open Sadhana to view the instructions.`}
+                          onDraftChange={setHomeworkWhatsAppDraft}
+                        />
+                      </div>
                     )}
+                    <div className="sv1276-hw-wide sv1276-hw-actions">
+                      <button
+                        className="sadhana-hw-primary"
+                        type="submit"
+                        disabled={busy || !effectiveClass}
+                      >
+                        {editingHomework ? 'Save & republish' : 'Publish homework'}
+                      </button>
+                      {editingHomework && (
+                        <button
+                          className="sadhana-hw-secondary"
+                          type="button"
+                          onClick={resetHomeworkForm}
+                        >
+                          Cancel edit
+                        </button>
+                      )}
+                    </div>
                   </form>
-                </details>
+                </div>
                 <h3>Published assignments</h3>
                 {assignments.length ? (
                   <div className="sv1276-hw-records">
@@ -1053,6 +1207,60 @@ export default function TeacherWorkspace({
                                       />
                                     </div>
                                   )}
+                                  {(() => {
+                                    const reviewKey = `${reviewId}:${row.studentId}`;
+                                    const permission = swaramitraPreferences[row.studentId];
+                                    const canWhatsApp =
+                                      permission?.whatsappAllowed === true &&
+                                      permission?.whatsappReady === true;
+                                    const suggestedMessage = `Your teacher has reviewed ${assignments.find((item) => item.id === reviewId)?.title || 'your homework'}. Open Sadhana to see your feedback.`;
+                                    return (
+                                      <div
+                                        className={`tw-review-notification${canWhatsApp ? '' : ' is-unavailable'}`}
+                                      >
+                                        <label>
+                                          <input
+                                            type="checkbox"
+                                            checked={reviewWhatsAppEnabled[reviewKey] === true}
+                                            disabled={Boolean(row.reviewedAt) || !canWhatsApp}
+                                            onChange={(event) =>
+                                              setReviewWhatsAppEnabled((current) => ({
+                                                ...current,
+                                                [reviewKey]: event.target.checked,
+                                              }))
+                                            }
+                                          />
+                                          <span>Also send a WhatsApp update to this student</span>
+                                        </label>
+                                        <small>
+                                          {canWhatsApp
+                                            ? 'The in-app notice is always sent.'
+                                            : permission?.whatsappAllowed === true
+                                              ? 'WhatsApp unavailable · in-app notice only.'
+                                              : 'WhatsApp not allowed · in-app notice only.'}
+                                        </small>
+                                        {reviewWhatsAppEnabled[reviewKey] === true && (
+                                          <label className="tw-review-notification__message">
+                                            WhatsApp message
+                                            <textarea
+                                              rows={2}
+                                              maxLength={1000}
+                                              value={
+                                                reviewWhatsAppMessages[reviewKey] ??
+                                                suggestedMessage
+                                              }
+                                              onChange={(event) =>
+                                                setReviewWhatsAppMessages((current) => ({
+                                                  ...current,
+                                                  [reviewKey]: event.target.value,
+                                                }))
+                                              }
+                                            />
+                                          </label>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                   <button
                                     type="button"
                                     className={row.reviewedAt ? 'is-reviewed' : undefined}

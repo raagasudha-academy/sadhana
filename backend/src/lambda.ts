@@ -122,6 +122,10 @@ import { defaultM95DirectoryReader } from './directoryCompatibility.ts';
 import { defaultM10CoreDirectoryReader } from './coreDirectory.ts';
 import { finalFamilyContactRoute } from './finalFamilyContact.ts';
 import { emailLoginRoute } from './emailLogin.ts';
+import { swaraMitraWhatsappRoute, swaraMitraWhatsappOutboxRoute } from './swaramitraWhatsapp.ts';
+import { swaraMitraPreferencesRoute } from './swaraMitraPreferences.mjs';
+import { finalSwaraMitraPreferences } from './finalSwaraMitraPreferences.ts';
+import { swaraMitraOutbox } from './swaramitraOutbox.ts';
 
 export function createHandler(
   repository: SadhanaRepository,
@@ -223,6 +227,10 @@ export function createHandler(
       }
       const publicAuthResponse = await emailLoginRoute(event);
       if (publicAuthResponse) return publicAuthResponse;
+      const swaraMitraWhatsapp = await swaraMitraWhatsappRoute(event);
+      if (swaraMitraWhatsapp) return swaraMitraWhatsapp;
+      const swaraMitraOutboxResponse = await swaraMitraWhatsappOutboxRoute(event);
+      if (swaraMitraOutboxResponse) return swaraMitraOutboxResponse;
       // DO NOT use event.headers or a user-selected frontend persona as an identity.
       // API Gateway's JWT authorizer verifies signature, issuer, audience and expiry.
       const claims = event?.requestContext?.authorizer?.jwt?.claims;
@@ -305,6 +313,22 @@ export function createHandler(
       const query = event.queryStringParameters ?? {};
       const inst = query.institution as InstitutionId;
       const routeContext = { event, parts, method, query, inst, claims, groups };
+      {
+        const preferences = await swaraMitraPreferencesRoute(
+          routeContext,
+          {
+            directory: (action, institution, userClaims) =>
+              getFinalReads().directory(action, institution, userClaims),
+            core: (entity, institution, userClaims) =>
+              getFinalReads().core(entity, institution, userClaims),
+            teacherEnrolments: finalTeacherEnrolments(),
+            preferences: finalSwaraMitraPreferences(),
+            outbox: swaraMitraOutbox(),
+          },
+          finalAccess,
+        );
+        if (preferences) return json(preferences.status, preferences.body);
+      }
       {
         const response = await learningResourcesRoutes(routeContext);
         if (response) return response;

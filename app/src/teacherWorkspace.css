@@ -121,6 +121,51 @@
   color: #64748b;
   font-size: 13px;
 }
+.tw-swaramitra-controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+}
+.tw-swaramitra-heading,
+.tw-swaramitra-cell {
+  text-align: center;
+}
+.tw-swaramitra-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #354863;
+  font-size: 12px;
+  font-weight: 650;
+}
+.tw-swaramitra-controls label.is-unallowed {
+  color: #94a3b8;
+  opacity: 0.68;
+  cursor: pointer;
+}
+.tw-swaramitra-controls input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #5b4acb;
+}
+.tw-swaramitra-controls input[type='checkbox']:disabled {
+  accent-color: #94a3b8;
+  cursor: not-allowed;
+}
+.tw-swaramitra-controls select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #354863;
+  font: inherit;
+  font-size: 12px;
+}
 .tw-practice-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -623,42 +668,21 @@
 }
 .tw-homework-composer {
   margin: 4px 0 24px;
-  border: 1px solid #d8e2f0;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgb(29 61 101 / 5%);
-}
-.tw-homework-composer > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
   color: #29364c;
-  cursor: pointer;
-  list-style: none;
 }
-.tw-homework-composer > summary::-webkit-details-marker {
-  display: none;
+.tw-homework-head {
+  margin-bottom: 18px;
 }
-.tw-homework-composer > summary > span {
-  display: grid;
-  gap: 4px;
+.tw-homework-head h3 {
+  margin: 0;
+  color: #29364c;
+  font-size: 20px;
 }
-.tw-homework-composer > summary strong {
-  font-size: 18px;
-}
-.tw-homework-composer > summary small {
+.tw-homework-head p {
+  margin: 5px 0 0;
   color: #71819b;
   font-size: 14px;
 }
-.tw-homework-composer[open] > summary {
-  border-bottom: 1px solid #e4eaf2;
-}
-.tw-homework-composer[open] > summary svg {
-  transform: rotate(180deg);
-}
-.tw-homework-composer > p,
 .tw-homework-composer > form {
-  margin: 18px 20px;
+  margin: 0;
 }

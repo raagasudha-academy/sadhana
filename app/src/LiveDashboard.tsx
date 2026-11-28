@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { CloudSession } from './CloudAuth';
 import type { InstitutionId } from './types';
+import { SwaraMitraAudience } from './app/SwaraMitraAudience';
 import './academyOperations.css';
 import './teacherNextClass.css';
 
@@ -58,6 +59,7 @@ export default function LiveDashboard({
   const [nextDate, setNextDate] = useState('');
   const [nextStart, setNextStart] = useState('');
   const [nextEnd, setNextEnd] = useState('');
+  const [whatsAppDraft, setWhatsAppDraft] = useState({ enabled: false, message: '' });
   const scopes = useMemo(
     () =>
       (workspace === 'combined' ? cloud.staff.institutions : [workspace]).filter(
@@ -387,6 +389,28 @@ export default function LiveDashboard({
         { status: 'cancelled' },
         Number(teacherNextSession.version),
       );
+      if (whatsAppDraft.enabled && teacherNextSession.classId) {
+        try {
+          const queued = await cloud.api.sendSwaraMitraScheduleUpdate(
+            teacherNextSession.institution,
+            teacherNextSession.classId,
+            {
+              resourceId: teacherNextSession.id,
+              title: 'Class cancelled',
+              message: whatsAppDraft.message.trim(),
+              requestId: crypto.randomUUID(),
+            },
+          );
+          if (queued.eligible === 0)
+            throw new Error('No currently consented students are eligible for WhatsApp.');
+          if (queued.queued !== queued.eligible)
+            throw new Error('Only some of the eligible WhatsApp messages were queued.');
+        } catch (notificationError) {
+          setNextActionError(
+            `The class was cancelled, but its WhatsApp update was not queued. ${notificationError instanceof Error ? notificationError.message : ''}`,
+          );
+        }
+      }
       setCancelConfirm(false);
       setRearranging(false);
       setRefresh((x) => x + 1);
@@ -413,6 +437,28 @@ export default function LiveDashboard({
         { date: nextDate, endDate: nextDate, startTime: nextStart, endTime: nextEnd },
         Number(teacherNextSession.version),
       );
+      if (whatsAppDraft.enabled && teacherNextSession.classId) {
+        try {
+          const queued = await cloud.api.sendSwaraMitraScheduleUpdate(
+            teacherNextSession.institution,
+            teacherNextSession.classId,
+            {
+              resourceId: teacherNextSession.id,
+              title: 'Class time changed',
+              message: whatsAppDraft.message.trim(),
+              requestId: crypto.randomUUID(),
+            },
+          );
+          if (queued.eligible === 0)
+            throw new Error('No currently consented students are eligible for WhatsApp.');
+          if (queued.queued !== queued.eligible)
+            throw new Error('Only some of the eligible WhatsApp messages were queued.');
+        } catch (notificationError) {
+          setNextActionError(
+            `The new class time was saved, but its WhatsApp update was not queued. ${notificationError instanceof Error ? notificationError.message : ''}`,
+          );
+        }
+      }
       setRearranging(false);
       setRefresh((x) => x + 1);
     } catch (e) {
@@ -428,6 +474,7 @@ export default function LiveDashboard({
     setNextEnd(String(teacherNextSession.endTime || ''));
     setRearranging(true);
     setNextActionError('');
+    setWhatsAppDraft({ enabled: false, message: '' });
   };
   const students = new Set(
     data.flatMap((d) =>
@@ -594,7 +641,10 @@ export default function LiveDashboard({
                           type="button"
                           className="teacher-next-class__cancel"
                           disabled={nextActionBusy}
-                          onClick={() => setCancelConfirm(true)}
+                          onClick={() => {
+                            setWhatsAppDraft({ enabled: false, message: '' });
+                            setCancelConfirm(true);
+                          }}
                         >
                           <X size={15} /> Cancel class
                         </button>
@@ -657,6 +707,14 @@ export default function LiveDashboard({
                           onChange={(e) => setNextEnd(e.target.value)}
                         />
                       </label>
+                      <SwaraMitraAudience
+                        cloud={cloud}
+                        institution={teacherNextSession.institution}
+                        classId={teacherNextSession.classId}
+                        draft={whatsAppDraft}
+                        suggestedMessage={`Class time changed for ${teacherNextSession.name}. New time: ${nextDate} at ${nextStart}. Please check Sadhana for the latest details.`}
+                        onDraftChange={setWhatsAppDraft}
+                      />
                       <div>
                         <button
                           type="button"
@@ -712,6 +770,14 @@ export default function LiveDashboard({
                       <strong>{teacherNextSession.name}</strong> will be marked as cancelled, and
                       students will see the change.
                     </p>
+                    <SwaraMitraAudience
+                      cloud={cloud}
+                      institution={teacherNextSession.institution}
+                      classId={teacherNextSession.classId}
+                      draft={whatsAppDraft}
+                      suggestedMessage={`Class cancelled: ${teacherNextSession.name} on ${teacherNextSession.date} at ${teacherNextSession.startTime}. Please check Sadhana for the latest details.`}
+                      onDraftChange={setWhatsAppDraft}
+                    />
                     {nextActionError && (
                       <p role="alert" className="teacher-next-class__error">
                         {nextActionError}

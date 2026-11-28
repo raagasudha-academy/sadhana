@@ -139,6 +139,13 @@
   box-shadow: 0 4px 20px rgba(20, 46, 80, 0.045);
   gap: 1rem;
 }
+.sv1276-teacher-homework .tw-homework-composer > .sv1276-hw-form {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
 .sv1276-teacher-homework .sv1276-hw-form label {
   color: #293e55;
   font-weight: 650;
@@ -165,13 +172,97 @@
 }
 .sv1276-teacher-homework .sadhana-form-materials {
   width: 100%;
-  max-width: 660px;
+  max-width: none;
   justify-self: start;
   box-sizing: border-box;
-  background: var(--hw-soft);
-  border: 1px dashed #b9c9dc;
-  border-radius: 12px;
-  padding: 1rem 1.2rem;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--hw-line);
+  border-radius: 0;
+  padding: 1rem 0 0;
+}
+.sv1276-teacher-homework .tw-homework-composer .sadhana-form-materials > p {
+  margin: 0.3rem 0 0.65rem;
+  color: #687b91;
+  font-size: 0.86rem;
+}
+.sv1276-teacher-homework .tw-homework-composer .sadhana-form-materials > strong {
+  color: #293e55;
+}
+.sv1276-teacher-homework .tw-homework-composer .swaramitra-audience {
+  margin: 0;
+  padding: 1rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--hw-line);
+  border-radius: 0;
+  background: transparent;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice {
+  display: grid;
+  grid-template-columns: 18px 18px minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  column-gap: 0.65rem;
+  row-gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice input[type='checkbox'] {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  justify-self: center;
+  accent-color: #6250c8;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__whatsapp-icon {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: #20a45a;
+  align-self: center;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice > span {
+  grid-column: 3;
+  grid-row: 1;
+  text-align: left;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice > small {
+  grid-column: 3;
+  grid-row: 2;
+  margin: 0;
+  justify-self: start;
+  color: #77849a;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+.sv1276-teacher-homework .swaramitra-audience__status,
+.sv1276-teacher-homework .swaramitra-audience > details {
+  margin-left: 54px;
+}
+.sv1276-teacher-homework .swaramitra-audience__status {
+  margin-top: 6px;
+}
+.sv1276-teacher-homework .sv1276-hw-form label.swaramitra-audience__message {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0 54px;
+  text-align: left;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__message textarea {
+  min-height: 76px;
+  padding: 9px 10px;
+  font-weight: 500;
+}
+.sv1276-teacher-homework .sv1276-hw-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
 }
 .sv1276-teacher-homework .sadhana-homework-upload-grid {
   display: grid;
@@ -531,6 +622,55 @@
   display: flex;
   align-items: center;
   gap: 2px;
+}
+.sv1276-teacher-homework .tw-review-notification {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid #d8e2ef;
+  border-radius: 10px;
+  background: #fff;
+}
+.sv1276-teacher-homework .tw-review-notification > label:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #354b68;
+  font-weight: 650;
+}
+.sv1276-teacher-homework .tw-review-notification input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: #5d4bd1;
+}
+.sv1276-teacher-homework .tw-review-notification small {
+  margin-left: 1.55rem;
+  color: #64748b;
+  font-weight: 400;
+}
+.sv1276-teacher-homework .tw-review-notification.is-unavailable {
+  background: #f3f5f8;
+}
+.sv1276-teacher-homework .tw-review-notification.is-unavailable > label:first-child,
+.sv1276-teacher-homework .tw-review-notification.is-unavailable small {
+  color: #8a94a3;
+}
+.sv1276-teacher-homework .tw-review-notification .tw-review-notification__message {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+  color: #354b68;
+  font-weight: 650;
+}
+.sv1276-teacher-homework .tw-review-notification textarea {
+  min-height: 4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cbd6e5;
+  border-radius: 9px;
+  font: inherit;
+  line-height: 1.4;
+  resize: vertical;
 }
 .sv1276-teacher-homework .tw-homework-feedback textarea {
   width: 100%;

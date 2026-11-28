@@ -1,58 +1,302 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   ChevronLeft,
-  CircleAlert,
   GraduationCap,
   Info,
+  LoaderCircle,
   MessageCircle,
   Plus,
+  RefreshCw,
   Settings2,
-  ShieldCheck,
   Trash2,
 } from 'lucide-react';
 import { institutions } from '../institutions';
 import { getEnrolmentStatus } from '../registry';
 import { dayLabel, displayTime, pct, Pill, PageHeader, EmptyState } from './appShared';
 
-export function CommsPage({ workspace }: any) {
+export function CommsPage({ workspace, cloud }: any) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [academyFilter, setAcademyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('60');
+  const institutionName =
+    workspace === 'sruti' ? 'Śruti' : workspace === 'raaga' ? 'Raaga Sudha' : 'all academies';
+  const historyInstitutions = useMemo(
+    () =>
+      workspace === 'combined'
+        ? (cloud?.staff.institutions || []).filter((id: string) => id === 'raaga' || id === 'sruti')
+        : workspace === 'raaga' || workspace === 'sruti'
+          ? [workspace]
+          : [],
+    [cloud?.staff.institutions, workspace],
+  );
+  const loadHistory = useCallback(async () => {
+    if (!cloud?.api || historyInstitutions.length === 0) {
+      setHistory([]);
+      setHistoryLoaded(false);
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const results = await Promise.all(
+        historyInstitutions.map((institution: any) =>
+          cloud.api.listSwaraMitraNotificationHistory(institution, 20),
+        ),
+      );
+      setHistory(
+        results
+          .flatMap((result: any) => result.records || [])
+          .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .slice(0, 30),
+      );
+      setHistoryLoaded(true);
+    } catch (error) {
+      setHistoryLoaded(false);
+      setHistoryError(
+        error instanceof Error ? error.message : 'Unable to load SwaraMitra notification history.',
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [cloud?.api, historyInstitutions]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  const visibleHistory = useMemo(() => {
+    const cutoff = Date.now() - Number(periodFilter) * 24 * 60 * 60 * 1000;
+    return history.filter((item) => {
+      const academyMatches = academyFilter === 'all' || item.institution === academyFilter;
+      const statusMatches = statusFilter === 'all' || item.status === statusFilter;
+      const timestamp = Date.parse(item.createdAt || '');
+      const periodMatches = !Number.isFinite(timestamp) || timestamp >= cutoff;
+      return academyMatches && statusMatches && periodMatches;
+    });
+  }, [academyFilter, history, periodFilter, statusFilter]);
+
+  function statusLabel(status: string) {
+    if (status === 'in-progress') return 'In progress';
+    if (status === 'partial') return 'Partial';
+    if (status === 'failed') return 'Failed';
+    if (status === 'not-sent') return 'Not sent';
+    return 'Sent';
+  }
+
+  function statusTone(status: string) {
+    if (status === 'sent') return 'green';
+    if (status === 'partial') return 'amber';
+    if (status === 'failed' || status === 'not-sent') return 'red';
+    return 'violet';
+  }
+
+  function academyLabel(institution: string) {
+    return institution === 'sruti' ? 'Śruti' : 'Raaga Sudha';
+  }
+
+  function timeLabel(timestamp: string) {
+    if (!timestamp) return 'Time unavailable';
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+      ? 'Time unavailable'
+      : new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Europe/London',
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }).format(date);
+  }
+
   return (
     <>
       <PageHeader
         kicker="COMMUNICATIONS"
         title="Communications"
-        description="A future home for WhatsApp delivery records, announcements and failed messages."
+        description={`SwaraMitra WhatsApp updates for ${institutionName}.`}
+        right={
+          <button
+            className="swara-admin-button"
+            type="button"
+            onClick={() => void loadHistory()}
+            disabled={historyLoading || !cloud?.api}
+          >
+            {historyLoading ? (
+              <LoaderCircle size={15} className="swara-spin" />
+            ) : (
+              <RefreshCw size={15} />
+            )}
+            Refresh
+          </button>
+        }
       />
-      <div className="feature-grid">
-        <section className="surface feature-card">
-          <div className="feature-icon">
-            <MessageCircle size={22} />
+      <section className="surface swara-history-panel" aria-labelledby="swara-history-title">
+        <div className="swara-history-service">
+          <div className="swara-history-service__icon" aria-hidden="true">
+            <MessageCircle size={19} />
           </div>
-          <h2>Message history</h2>
-          <p>Review sent, delivered and failed messages for your institution.</p>
-          <Pill>Phase 5</Pill>
-        </section>
-        <section className="surface feature-card">
-          <div className="feature-icon">
-            <CircleAlert size={22} />
+          <div>
+            <strong>SwaraMitra WhatsApp</strong>
+            <p>
+              In-app notices stay on. WhatsApp uses each student's saved choice and paired number.
+            </p>
           </div>
-          <h2>Failed messages</h2>
-          <p>Investigate failures and choose whether to resend manually.</p>
-          <Pill>Phase 5</Pill>
-        </section>
-        <section className="surface feature-card">
-          <div className="feature-icon">
-            <ShieldCheck size={22} />
+          <Pill
+            tone={
+              historyError ? 'red' : historyLoading ? 'violet' : historyLoaded ? 'green' : 'neutral'
+            }
+          >
+            {historyError
+              ? 'Sadhana API unavailable'
+              : historyLoading
+                ? 'Checking Sadhana API'
+                : historyLoaded
+                  ? 'Sadhana API available'
+                  : 'Sign in required'}
+          </Pill>
+        </div>
+
+        <div className="swara-history-heading">
+          <div>
+            <h2 id="swara-history-title">Recent WhatsApp updates</h2>
+            <p>
+              See the class message and how sending went. No student or phone details are shown.
+            </p>
           </div>
-          <h2>Contact preferences</h2>
-          <p>Institution-specific announcement permissions and Reminder Service status.</p>
-          <Pill>Phase 5</Pill>
-        </section>
-      </div>
-      <div className="info-inline">
-        <Info size={17} /> No WhatsApp messages can be sent from Sadhana at this stage. Existing
-        Charu messaging is completely untouched.
-      </div>
+          <div className="swara-history-filters" aria-label="Filter WhatsApp history">
+            {workspace === 'combined' && (
+              <select
+                value={academyFilter}
+                onChange={(event) => setAcademyFilter(event.target.value)}
+                aria-label="Filter by academy"
+              >
+                <option value="all">All academies</option>
+                {historyInstitutions.includes('raaga') && (
+                  <option value="raaga">Raaga Sudha</option>
+                )}
+                {historyInstitutions.includes('sruti') && <option value="sruti">Śruti</option>}
+              </select>
+            )}
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label="Filter by send status"
+            >
+              <option value="all">All statuses</option>
+              <option value="sent">Sent</option>
+              <option value="partial">Partial</option>
+              <option value="failed">Failed</option>
+              <option value="in-progress">In progress</option>
+              <option value="not-sent">Not sent</option>
+            </select>
+            <select
+              value={periodFilter}
+              onChange={(event) => setPeriodFilter(event.target.value)}
+              aria-label="Filter by date range"
+            >
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="60">Last 60 days</option>
+            </select>
+          </div>
+        </div>
+
+        {historyError && (
+          <p className="swara-history-error" role="alert">
+            {historyError}
+          </p>
+        )}
+        {!cloud?.api ? (
+          <p className="swara-history-empty">
+            Sign in as an academy administrator to view this history.
+          </p>
+        ) : historyLoading && history.length === 0 ? (
+          <p className="swara-history-empty" role="status">
+            Loading recent updates…
+          </p>
+        ) : visibleHistory.length === 0 ? (
+          <p className="swara-history-empty">
+            {history.length
+              ? 'No updates match these filters.'
+              : `No WhatsApp updates in the last ${periodFilter} days.`}
+          </p>
+        ) : (
+          <div className="swara-history-table-wrap">
+            <table className="swara-history-table">
+              <thead>
+                <tr>
+                  <th scope="col">Class / academy</th>
+                  <th scope="col">Message sent</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleHistory.map((item) => (
+                  <tr key={`${item.institution}:${item.requestId}`}>
+                    <td>
+                      <strong className="swara-history-class">
+                        {item.className || item.classId}
+                      </strong>
+                      <span className="swara-history-academy">
+                        {academyLabel(item.institution)}
+                      </span>
+                    </td>
+                    <td className="swara-history-message">{item.message}</td>
+                    <td className="swara-history-result">
+                      <span>
+                        <b>{item.sentCount}</b> sent
+                      </span>
+                      {item.failedCount > 0 && (
+                        <span>
+                          <b>{item.failedCount}</b> failed
+                        </span>
+                      )}
+                      {item.queuedCount > 0 && (
+                        <span>
+                          <b>{item.queuedCount}</b> queued
+                        </span>
+                      )}
+                      {item.sendingCount > 0 && (
+                        <span>
+                          <b>{item.sendingCount}</b> sending
+                        </span>
+                      )}
+                      {item.notSentCount > 0 && (
+                        <span>
+                          <b>{item.notSentCount}</b> not sent
+                        </span>
+                      )}
+                      <span>
+                        <b>{item.recipientCount}</b> eligible
+                      </span>
+                    </td>
+                    <td>
+                      <Pill tone={statusTone(item.status)}>{statusLabel(item.status)}</Pill>
+                    </td>
+                    <td className="swara-history-time">
+                      {timeLabel(item.updatedAt || item.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {visibleHistory.some((item) => item.countsMayBePartial) && (
+          <p className="swara-history-warning">
+            Some older delivery records were omitted from this view; counts may be partial.
+          </p>
+        )}
+        <p className="swara-history-note">
+          “Sent” means the message was accepted by the WhatsApp sender. WhatsApp delivery and read
+          receipts are not available.
+        </p>
+      </section>
     </>
   );
 }

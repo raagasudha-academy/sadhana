@@ -73,6 +73,12 @@ export function Timetable({
   const [classDetailsTab, setClassDetailsTab] = useState<'details' | 'roster'>('details');
   const [rosterSearch, setRosterSearch] = useState('');
   const [classRosterError, setClassRosterError] = useState('');
+  const [classSwaraMitraPreferences, setClassSwaraMitraPreferences] = useState<Record<string, any>>(
+    {},
+  );
+  const [classSwaraMitraLoading, setClassSwaraMitraLoading] = useState(false);
+  const [classSwaraMitraBusyId, setClassSwaraMitraBusyId] = useState('');
+  const [classSwaraMitraError, setClassSwaraMitraError] = useState('');
   useEffect(() => {
     if (!master || !cloud) {
       setClassRoster([]);
@@ -101,6 +107,56 @@ export function Timetable({
       active = false;
     };
   }, [master?.id, cloud?.api]);
+  useEffect(() => {
+    if (!master || !cloud || classDetailsTab !== 'roster') {
+      setClassSwaraMitraPreferences({});
+      setClassSwaraMitraLoading(false);
+      setClassSwaraMitraError('');
+      return;
+    }
+    let active = true;
+    setClassSwaraMitraLoading(true);
+    setClassSwaraMitraPreferences({});
+    setClassSwaraMitraError('');
+    void cloud.api
+      .listSwaraMitraPreferences(master.institution, master.id)
+      .then((result: any) => {
+        if (active)
+          setClassSwaraMitraPreferences(
+            Object.fromEntries(result.records.map((record: any) => [record.studentId, record])),
+          );
+      })
+      .catch((error: Error) => {
+        if (active)
+          setClassSwaraMitraError(error.message || 'SwaraMitra settings are not available.');
+      })
+      .finally(() => {
+        if (active) setClassSwaraMitraLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [master?.id, master?.institution, classDetailsTab, cloud?.api]);
+  const updateClassSwaraMitraPreference = async (studentId: string, whatsappAllowed: boolean) => {
+    if (!master || !cloud || classSwaraMitraBusyId) return;
+    setClassSwaraMitraBusyId(studentId);
+    setClassSwaraMitraError('');
+    try {
+      const result = await cloud.api.updateSwaraMitraPreference(
+        master.institution,
+        master.id,
+        studentId,
+        { whatsappAllowed },
+      );
+      setClassSwaraMitraPreferences((current) => ({ ...current, [studentId]: result.record }));
+    } catch (error) {
+      setClassSwaraMitraError(
+        error instanceof Error ? error.message : 'Unable to save SwaraMitra settings.',
+      );
+    } finally {
+      setClassSwaraMitraBusyId('');
+    }
+  };
   const [masterForm, setMasterForm] = useState<any>({});
   const [seriesFrom, setSeriesFrom] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1154,6 +1210,7 @@ export function Timetable({
                   value={rosterSearch}
                   onChange={(e) => setRosterSearch(e.target.value)}
                 />
+                {classSwaraMitraError && <p role="alert">{classSwaraMitraError}</p>}
                 {classRosterError ? (
                   <p role="alert">{classRosterError}</p>
                 ) : (
@@ -1163,6 +1220,7 @@ export function Timetable({
                         <tr>
                           <th>Roll number</th>
                           <th>Student</th>
+                          <th className="sadhana-notifications-heading">Notifications</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1172,12 +1230,37 @@ export function Timetable({
                               .toLowerCase()
                               .includes(rosterSearch.toLowerCase()),
                           )
-                          .map(({ enrolment, student }: any) => (
-                            <tr key={enrolment.id}>
-                              <td>{student?.rollNumber || '—'}</td>
-                              <td>{student?.name || 'Student record unavailable'}</td>
-                            </tr>
-                          ))}
+                          .map(({ enrolment, student }: any) => {
+                            const setting = classSwaraMitraPreferences[enrolment.studentId];
+                            return (
+                              <tr key={enrolment.id}>
+                                <td>{student?.rollNumber || '—'}</td>
+                                <td>{student?.name || 'Student record unavailable'}</td>
+                                <td className="sadhana-notifications-cell">
+                                  <label
+                                    className={`sadhana-swaramitra-toggle${setting?.whatsappAllowed ? '' : ' is-unallowed'}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`SwaraMitra notifications for ${student?.name || student?.rollNumber || 'student'}`}
+                                      checked={setting?.whatsappAllowed === true}
+                                      disabled={
+                                        classSwaraMitraLoading ||
+                                        !setting ||
+                                        Boolean(classSwaraMitraBusyId)
+                                      }
+                                      onChange={(event) =>
+                                        void updateClassSwaraMitraPreference(
+                                          enrolment.studentId,
+                                          event.target.checked,
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                </td>
+                              </tr>
+                            );
+                          })}
                       </tbody>
                     </table>
                     {!classRoster.length && <p>No current enrolments found.</p>}

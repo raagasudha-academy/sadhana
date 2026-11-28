@@ -574,8 +574,10 @@ export function makeM95CalendarWriter(client: CalendarClient) {
         await notifyClassSchedule(
           inst,
           current.classId!,
-          'Class schedule changed',
-          `Session updated · ${next.date} at ${next.startTime}`,
+          next.status === 'cancelled' ? 'Class cancelled' : 'Class schedule changed',
+          next.status === 'cancelled'
+            ? `Session cancelled · ${next.date} at ${next.startTime}`
+            : `Session updated · ${next.date} at ${next.startTime}`,
           id,
         );
       else

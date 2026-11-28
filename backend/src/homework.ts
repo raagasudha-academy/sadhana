@@ -13,6 +13,7 @@ import type { Claims, InstitutionId } from './model.ts';
 import { myTeacherIdentity } from './teacherDirectory.ts';
 import { schedulePK, scheduleSK } from './scheduleModel.ts';
 import { isStudentRecordId } from './accessRules.ts';
+import { makeLearnerActivityNotifications } from './learnerActivityNotifications.ts';
 import {
   S3Client,
   PutObjectCommand,
@@ -209,6 +210,16 @@ export async function publishHomework(raw: string, claims: Claims, body: any) {
       ],
     }),
   );
+  await makeLearnerActivityNotifications(db)
+    .notify({
+      institution: inst,
+      classIds: [classId],
+      title: 'New homework',
+      detail: `${item.title} · due ${item.dueDate}`,
+      category: 'Homework',
+      resourceId: id,
+    })
+    .catch((error) => console.error('New homework notification failed', error));
   return { record: { id, classId, title: item.title, instructions: item.instructions, dueDate } };
 }
 /** Edit and republish an existing assignment, retaining student submissions and material IDs. */
@@ -769,6 +780,16 @@ export async function teacherHomeworkFeedback(
       ],
     }),
   );
+  await makeLearnerActivityNotifications(db)
+    .notify({
+      institution: inst,
+      recipientPersonIds: [studentId],
+      title: 'Homework reviewed',
+      detail: `${assignment.title} · Your teacher has reviewed your work. Open Sadhana to see the feedback.`,
+      category: 'Homework',
+      resourceId: homeworkId,
+    })
+    .catch((error) => console.error('Homework review notification failed', error));
   return { saved: true };
 }
 
