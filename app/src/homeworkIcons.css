@@ -139,6 +139,13 @@
   box-shadow: 0 4px 20px rgba(20, 46, 80, 0.045);
   gap: 1rem;
 }
+.sv1276-teacher-homework .tw-homework-composer > .sv1276-hw-form {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
 .sv1276-teacher-homework .sv1276-hw-form label {
   color: #293e55;
   font-weight: 650;
@@ -165,17 +172,34 @@
 }
 .sv1276-teacher-homework .sadhana-form-materials {
   width: 100%;
-  max-width: 660px;
+  max-width: none;
   justify-self: start;
   box-sizing: border-box;
-  background: var(--hw-soft);
-  border: 1px dashed #b9c9dc;
-  border-radius: 12px;
-  padding: 1rem 1.2rem;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--hw-line);
+  border-radius: 0;
+  padding: 1rem 0 0;
+}
+.sv1276-teacher-homework .tw-homework-composer .sadhana-form-materials > p {
+  margin: 0.3rem 0 0.65rem;
+  color: #687b91;
+  font-size: 0.86rem;
+}
+.sv1276-teacher-homework .tw-homework-composer .sadhana-form-materials > strong {
+  color: #293e55;
+}
+.sv1276-teacher-homework .tw-homework-composer .swaramitra-audience {
+  margin: 0;
+  padding: 1rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--hw-line);
+  border-radius: 0;
+  background: transparent;
 }
 .sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 18px 18px minmax(0, 1fr);
   align-items: center;
   justify-items: start;
   column-gap: 0.65rem;
@@ -195,13 +219,19 @@
   justify-self: center;
   accent-color: #6250c8;
 }
-.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice > span {
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__whatsapp-icon {
   grid-column: 2;
+  grid-row: 1 / span 2;
+  color: #20a45a;
+  align-self: center;
+}
+.sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice > span {
+  grid-column: 3;
   grid-row: 1;
   text-align: left;
 }
 .sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__choice > small {
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 2;
   margin: 0;
   justify-self: start;
@@ -210,16 +240,29 @@
   font-weight: 500;
   text-align: left;
 }
+.sv1276-teacher-homework .swaramitra-audience__status,
+.sv1276-teacher-homework .swaramitra-audience > details {
+  margin-left: 54px;
+}
+.sv1276-teacher-homework .swaramitra-audience__status {
+  margin-top: 6px;
+}
 .sv1276-teacher-homework .sv1276-hw-form label.swaramitra-audience__message {
   display: grid;
   gap: 6px;
-  margin-top: 10px;
+  margin: 10px 0 0 54px;
   text-align: left;
 }
 .sv1276-teacher-homework .sv1276-hw-form .swaramitra-audience__message textarea {
   min-height: 76px;
   padding: 9px 10px;
   font-weight: 500;
+}
+.sv1276-teacher-homework .sv1276-hw-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
 }
 .sv1276-teacher-homework .sadhana-homework-upload-grid {
   display: grid;

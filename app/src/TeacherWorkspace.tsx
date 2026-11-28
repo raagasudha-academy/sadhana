@@ -833,18 +833,13 @@ export default function TeacherWorkspace({
             )}
             {area === 'homework' && cloud && (
               <section className="sv1276-teacher-homework">
-                <details className="tw-homework-composer" open>
-                  <summary>
-                    <span>
-                      <strong>Class homework</strong>
-                      <small>Only the selected class · Create or update an assignment</small>
-                    </span>
-                    <ChevronDown aria-hidden="true" size={20} />
-                  </summary>
-                  <p>
-                    Create assignments for your verified class. Enrolled students will see them in
-                    their portal.
-                  </p>
+                <div className="tw-homework-composer">
+                  <header className="tw-homework-head">
+                    <h3>Class homework</h3>
+                    <p>
+                      Create or update an assignment. Enrolled students will see it in their portal.
+                    </p>
+                  </header>
                   <form className="sv1276-hw-form" onSubmit={(e) => void publishAssignment(e)}>
                     <label>
                       Assignment title
@@ -877,18 +872,6 @@ export default function TeacherWorkspace({
                         onChange={(e) => setHomeworkInstructions(e.target.value)}
                       />
                     </label>
-                    {!editingHomework && (
-                      <div className="sv1276-hw-wide">
-                        <SwaraMitraAudience
-                          cloud={cloud}
-                          institution={workspace}
-                          classId={effectiveClass}
-                          draft={homeworkWhatsAppDraft}
-                          suggestedMessage={`New homework: ${homeworkTitle || 'your assignment'}${homeworkDue ? `, due ${homeworkDue}` : ''}. Open Sadhana to view the instructions.`}
-                          onDraftChange={setHomeworkWhatsAppDraft}
-                        />
-                      </div>
-                    )}
                     <div className="sv1276-hw-wide sadhana-form-materials">
                       <strong>Attachments · {homeworkAttachmentCount}/4</strong>
                       <p>Add up to four images, audio files, or videos for the assignment.</p>
@@ -938,24 +921,38 @@ export default function TeacherWorkspace({
                         </div>
                       ))}
                     </div>
-                    <button
-                      className="sadhana-hw-primary"
-                      type="submit"
-                      disabled={busy || !effectiveClass}
-                    >
-                      {editingHomework ? 'Save & republish' : 'Publish homework'}
-                    </button>
-                    {editingHomework && (
-                      <button
-                        className="sadhana-hw-secondary"
-                        type="button"
-                        onClick={resetHomeworkForm}
-                      >
-                        Cancel edit
-                      </button>
+                    {!editingHomework && (
+                      <div className="sv1276-hw-wide">
+                        <SwaraMitraAudience
+                          cloud={cloud}
+                          institution={workspace}
+                          classId={effectiveClass}
+                          draft={homeworkWhatsAppDraft}
+                          suggestedMessage={`New homework: ${homeworkTitle || 'your assignment'}${homeworkDue ? `, due ${homeworkDue}` : ''}. Open Sadhana to view the instructions.`}
+                          onDraftChange={setHomeworkWhatsAppDraft}
+                        />
+                      </div>
                     )}
+                    <div className="sv1276-hw-wide sv1276-hw-actions">
+                      <button
+                        className="sadhana-hw-primary"
+                        type="submit"
+                        disabled={busy || !effectiveClass}
+                      >
+                        {editingHomework ? 'Save & republish' : 'Publish homework'}
+                      </button>
+                      {editingHomework && (
+                        <button
+                          className="sadhana-hw-secondary"
+                          type="button"
+                          onClick={resetHomeworkForm}
+                        >
+                          Cancel edit
+                        </button>
+                      )}
+                    </div>
                   </form>
-                </details>
+                </div>
                 <h3>Published assignments</h3>
                 {assignments.length ? (
                   <div className="sv1276-hw-records">

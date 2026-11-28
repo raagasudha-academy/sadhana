@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 import type { CloudSession } from '../CloudAuth';
 import type { InstitutionId } from '../types';
 
@@ -72,6 +73,12 @@ export function SwaraMitraAudience({
               message: draft.message || suggestedMessage,
             })
           }
+        />
+        <MessageCircle
+          className="swaramitra-audience__whatsapp-icon"
+          aria-hidden="true"
+          size={17}
+          strokeWidth={2.4}
         />
         <span>Also send a WhatsApp update</span>
         <small>Only opted-in students with a usable number will receive WhatsApp.</small>

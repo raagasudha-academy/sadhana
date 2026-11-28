@@ -1860,6 +1860,10 @@ a {
   height: 17px;
   accent-color: #6250c8;
 }
+.swaramitra-audience__whatsapp-icon {
+  flex: 0 0 auto;
+  color: #20a45a;
+}
 .swaramitra-audience__choice small {
   margin-left: auto;
   color: #77849a;
