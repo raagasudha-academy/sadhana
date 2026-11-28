@@ -74,7 +74,7 @@ export function SwaraMitraAudience({
           }
         />
         <span>Also send a WhatsApp update</span>
-        <small>Dev test recipients only</small>
+        <small>Only opted-in students with a usable number will receive WhatsApp.</small>
       </label>
       <p id="swaramitra-delivery-status" className="swaramitra-audience__status">
         {loading

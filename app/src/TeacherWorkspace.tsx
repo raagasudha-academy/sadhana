@@ -20,6 +20,7 @@ import {
   visibleDatedSessions,
 } from './operationsSelectors';
 import SessionAttendanceRegister from './SessionAttendanceRegister';
+import { SwaraMitraAudience } from './app/SwaraMitraAudience';
 import './teacherWorkspace.css';
 import './learningExperience.css';
 import './unifiedLayout.css';
@@ -75,6 +76,10 @@ export default function TeacherWorkspace({
   const [homeworkTitle, setHomeworkTitle] = useState(''),
     [homeworkInstructions, setHomeworkInstructions] = useState(''),
     [homeworkDue, setHomeworkDue] = useState('');
+  const [homeworkWhatsAppDraft, setHomeworkWhatsAppDraft] = useState({
+    enabled: false,
+    message: '',
+  });
   const [homeworkFiles, setHomeworkFiles] = useState<File[]>([]);
   const [existingMaterials, setExistingMaterials] = useState<
     Array<{ id: string; mime: string; size: number; url: string }>
@@ -136,6 +141,7 @@ export default function TeacherWorkspace({
       setExistingMaterials(links.records);
       setRemovedMaterialIds([]);
       setHomeworkFiles([]);
+      setHomeworkWhatsAppDraft({ enabled: false, message: '' });
       setEditingHomework({ id: a.id, version: a.version || 1 });
       setHomeworkTitle(a.title);
       setHomeworkInstructions(a.instructions);
@@ -177,6 +183,7 @@ export default function TeacherWorkspace({
     setHomeworkTitle('');
     setHomeworkInstructions('');
     setHomeworkDue('');
+    setHomeworkWhatsAppDraft({ enabled: false, message: '' });
     setHomeworkFiles([]);
     setExistingMaterials([]);
     setRemovedMaterialIds([]);
@@ -186,6 +193,7 @@ export default function TeacherWorkspace({
     if (!cloud || !effectiveClass) return;
     setBusy(true);
     setError('');
+    const wasEditing = !!editingHomework;
     try {
       const result = editingHomework
         ? await cloud.api.republishClassHomework(
@@ -238,10 +246,46 @@ export default function TeacherWorkspace({
         }
         await cloud.api.setTeacherHomeworkMaterials(workspace, effectiveClass, id, ids, version);
       }
-      const wasEditing = !!editingHomework;
+      let whatsappError = '';
+      let whatsappSent = 0;
+      if (!wasEditing && homeworkWhatsAppDraft.enabled) {
+        try {
+          const message = homeworkWhatsAppDraft.message.trim();
+          if (!message) throw new Error('Enter a message, or untick the WhatsApp option.');
+          const queued = await cloud.api.sendSwaraMitraScheduleUpdate(workspace, effectiveClass, {
+            resourceId: id,
+            title: 'New homework',
+            message,
+            requestId: crypto.randomUUID(),
+          });
+          if (queued.eligible === 0)
+            throw new Error('No currently consented students are eligible for WhatsApp.');
+          if (queued.queued !== queued.eligible)
+            throw new Error('Only some of the eligible WhatsApp messages were queued.');
+          whatsappSent = queued.queued;
+        } catch (notificationError) {
+          whatsappError =
+            notificationError instanceof Error
+              ? notificationError.message
+              : 'WhatsApp could not be queued.';
+        }
+      }
       resetHomeworkForm();
       await loadAssignments(effectiveClass);
-      setNotice(wasEditing ? 'Homework republished' : 'Homework published to enrolled students');
+      if (whatsappError) {
+        setError(
+          `Homework was published and students have in-app notices, but WhatsApp was not fully queued. ${whatsappError}`,
+        );
+        setNotice('Homework published to enrolled students in Sadhana');
+      } else {
+        setNotice(
+          wasEditing
+            ? 'Homework republished'
+            : homeworkWhatsAppDraft.enabled
+              ? `Homework published. WhatsApp queued for ${whatsappSent} opted-in students.`
+              : 'Homework published to enrolled students in Sadhana',
+        );
+      }
     } catch (e) {
       setError(
         `${e instanceof Error ? e.message : 'Unable to publish homework'}. If the assignment was published, refresh the list before retrying.`,
@@ -833,6 +877,18 @@ export default function TeacherWorkspace({
                         onChange={(e) => setHomeworkInstructions(e.target.value)}
                       />
                     </label>
+                    {!editingHomework && (
+                      <div className="sv1276-hw-wide">
+                        <SwaraMitraAudience
+                          cloud={cloud}
+                          institution={workspace}
+                          classId={effectiveClass}
+                          draft={homeworkWhatsAppDraft}
+                          suggestedMessage={`New homework: ${homeworkTitle || 'your assignment'}${homeworkDue ? `, due ${homeworkDue}` : ''}. Open Sadhana to view the instructions.`}
+                          onDraftChange={setHomeworkWhatsAppDraft}
+                        />
+                      </div>
+                    )}
                     <div className="sv1276-hw-wide sadhana-form-materials">
                       <strong>Attachments · {homeworkAttachmentCount}/4</strong>
                       <p>Add up to four images, audio files, or videos for the assignment.</p>

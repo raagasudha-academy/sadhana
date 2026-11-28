@@ -210,6 +210,16 @@ export async function publishHomework(raw: string, claims: Claims, body: any) {
       ],
     }),
   );
+  await makeLearnerActivityNotifications(db)
+    .notify({
+      institution: inst,
+      classIds: [classId],
+      title: 'New homework',
+      detail: `${item.title} · due ${item.dueDate}`,
+      category: 'Homework',
+      resourceId: id,
+    })
+    .catch((error) => console.error('New homework notification failed', error));
   return { record: { id, classId, title: item.title, instructions: item.instructions, dueDate } };
 }
 /** Edit and republish an existing assignment, retaining student submissions and material IDs. */
