@@ -168,48 +168,39 @@ export function CommsPage({ workspace, cloud }: any) {
           </div>
           <div className="swara-history-filters" aria-label="Filter WhatsApp history">
             {workspace === 'combined' && (
-              <label>
-                <span className="sr-only">Academy</span>
-                <select
-                  value={academyFilter}
-                  onChange={(event) => setAcademyFilter(event.target.value)}
-                  aria-label="Filter by academy"
-                >
-                  <option value="all">All academies</option>
-                  {historyInstitutions.includes('raaga') && (
-                    <option value="raaga">Raaga Sudha</option>
-                  )}
-                  {historyInstitutions.includes('sruti') && <option value="sruti">Śruti</option>}
-                </select>
-              </label>
+              <select
+                value={academyFilter}
+                onChange={(event) => setAcademyFilter(event.target.value)}
+                aria-label="Filter by academy"
+              >
+                <option value="all">All academies</option>
+                {historyInstitutions.includes('raaga') && (
+                  <option value="raaga">Raaga Sudha</option>
+                )}
+                {historyInstitutions.includes('sruti') && <option value="sruti">Śruti</option>}
+              </select>
             )}
-            <label>
-              <span className="sr-only">Status</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                aria-label="Filter by send status"
-              >
-                <option value="all">All statuses</option>
-                <option value="sent">Sent</option>
-                <option value="partial">Partial</option>
-                <option value="failed">Failed</option>
-                <option value="in-progress">In progress</option>
-                <option value="not-sent">Not sent</option>
-              </select>
-            </label>
-            <label>
-              <span className="sr-only">Date range</span>
-              <select
-                value={periodFilter}
-                onChange={(event) => setPeriodFilter(event.target.value)}
-                aria-label="Filter by date range"
-              >
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="60">Last 60 days</option>
-              </select>
-            </label>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label="Filter by send status"
+            >
+              <option value="all">All statuses</option>
+              <option value="sent">Sent</option>
+              <option value="partial">Partial</option>
+              <option value="failed">Failed</option>
+              <option value="in-progress">In progress</option>
+              <option value="not-sent">Not sent</option>
+            </select>
+            <select
+              value={periodFilter}
+              onChange={(event) => setPeriodFilter(event.target.value)}
+              aria-label="Filter by date range"
+            >
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="60">Last 60 days</option>
+            </select>
           </div>
         </div>
 
@@ -230,7 +221,7 @@ export function CommsPage({ workspace, cloud }: any) {
           <p className="swara-history-empty">
             {history.length
               ? 'No updates match these filters.'
-              : 'No WhatsApp updates in the last 60 days.'}
+              : `No WhatsApp updates in the last ${periodFilter} days.`}
           </p>
         ) : (
           <div className="swara-history-table-wrap">
