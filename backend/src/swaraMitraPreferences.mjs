@@ -99,7 +99,7 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
     return { status: 200, body: { records } };
   }
   if (isSend) {
-    const { resourceId, title, message, requestId } = input;
+    const { resourceId, title, message, requestId, recipientStudentId } = input;
     if (
       typeof resourceId !== 'string' ||
       !resourceId.trim() ||
@@ -114,8 +114,16 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
     )
       return { status: 400, body: { error: 'Provide a short message and unique request ID.' } };
     const preferences = await deps.preferences.list(inst, studentIds);
+    if (
+      recipientStudentId !== undefined &&
+      (typeof recipientStudentId !== 'string' || !studentIds.includes(recipientStudentId))
+    )
+      return { status: 403, body: { error: 'Student is not actively enrolled in this class.' } };
     const eligibleIds = preferences
       .filter((record) => record.whatsappAllowed === true && record.whatsappReady === true)
+      .filter(
+        (record) => recipientStudentId === undefined || record.studentId === recipientStudentId,
+      )
       .map((record) => record.studentId);
     const result = await deps.outbox.enqueue({
       institution: inst,

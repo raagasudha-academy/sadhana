@@ -260,6 +260,8 @@ export default function TeacherWorkspace({
     if (initialClass) setClassId(initialClass);
   }, [initialClass]);
   const [reviewId, setReviewId] = useState('');
+  const [reviewWhatsAppEnabled, setReviewWhatsAppEnabled] = useState<Record<string, boolean>>({});
+  const [reviewWhatsAppMessages, setReviewWhatsAppMessages] = useState<Record<string, string>>({});
   const [historyPeriod, setHistoryPeriod] = useState('all'),
     [historyFrom, setHistoryFrom] = useState(''),
     [historyTo, setHistoryTo] = useState(''),
@@ -300,6 +302,15 @@ export default function TeacherWorkspace({
   };
   const saveFeedback = async (row: { studentId: string; version: number }) => {
     if (!cloud || !effectiveClass) return;
+    const reviewKey = `${reviewId}:${row.studentId}`;
+    const shouldSendWhatsApp = reviewWhatsAppEnabled[reviewKey] === true;
+    const homeworkName = assignments.find((item) => item.id === reviewId)?.title || 'your homework';
+    const defaultMessage = `Your teacher has reviewed ${homeworkName}. Open Sadhana to see your feedback.`;
+    const message = reviewWhatsAppMessages[reviewKey]?.trim() ?? defaultMessage;
+    if (shouldSendWhatsApp && !message) {
+      setError('Enter a WhatsApp message, or untick the WhatsApp option.');
+      return;
+    }
     try {
       await cloud.api.teacherHomeworkFeedback(
         workspace,
@@ -310,8 +321,31 @@ export default function TeacherWorkspace({
         row.version,
         feedbackAudio[row.studentId]?.id,
       );
+      if (shouldSendWhatsApp) {
+        try {
+          const result = await cloud.api.sendSwaraMitraScheduleUpdate(workspace, effectiveClass, {
+            resourceId: reviewId,
+            title: 'Homework reviewed',
+            message,
+            requestId: crypto.randomUUID(),
+            recipientStudentId: row.studentId,
+          });
+          if (result.eligible !== 1 || result.queued !== 1)
+            throw new Error('This student is not currently eligible for WhatsApp.');
+        } catch (notificationError) {
+          setError(
+            `Feedback was saved and the student received an in-app notice, but WhatsApp was not queued. ${notificationError instanceof Error ? notificationError.message : ''}`,
+          );
+          await reviewHomework(reviewId);
+          return;
+        }
+      }
       await reviewHomework(reviewId);
-      setNotice('Feedback saved');
+      setNotice(
+        shouldSendWhatsApp
+          ? 'Feedback saved. The student received an in-app notice and WhatsApp was queued.'
+          : 'Feedback saved. The student received an in-app notice.',
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to save feedback');
     }
@@ -360,7 +394,7 @@ export default function TeacherWorkspace({
   const selectedClass = classes.find((c) => c.id === classId);
   const effectiveClass = selectedClass?.id || classes[0]?.id || '';
   useEffect(() => {
-    if (!cloud || area !== 'students' || !effectiveClass) return;
+    if (!cloud || (area !== 'students' && area !== 'homework') || !effectiveClass) return;
     let current = true;
     void cloud.api
       .listSwaraMitraPreferences(workspace, effectiveClass)
@@ -1120,6 +1154,60 @@ export default function TeacherWorkspace({
                                       />
                                     </div>
                                   )}
+                                  {(() => {
+                                    const reviewKey = `${reviewId}:${row.studentId}`;
+                                    const permission = swaramitraPreferences[row.studentId];
+                                    const canWhatsApp =
+                                      permission?.whatsappAllowed === true &&
+                                      permission?.whatsappReady === true;
+                                    const suggestedMessage = `Your teacher has reviewed ${assignments.find((item) => item.id === reviewId)?.title || 'your homework'}. Open Sadhana to see your feedback.`;
+                                    return (
+                                      <div
+                                        className={`tw-review-notification${canWhatsApp ? '' : ' is-unavailable'}`}
+                                      >
+                                        <label>
+                                          <input
+                                            type="checkbox"
+                                            checked={reviewWhatsAppEnabled[reviewKey] === true}
+                                            disabled={Boolean(row.reviewedAt) || !canWhatsApp}
+                                            onChange={(event) =>
+                                              setReviewWhatsAppEnabled((current) => ({
+                                                ...current,
+                                                [reviewKey]: event.target.checked,
+                                              }))
+                                            }
+                                          />
+                                          <span>Also send a WhatsApp update to this student</span>
+                                        </label>
+                                        <small>
+                                          {canWhatsApp
+                                            ? 'The in-app notice is always sent.'
+                                            : permission?.whatsappAllowed === true
+                                              ? 'WhatsApp unavailable · in-app notice only.'
+                                              : 'WhatsApp not allowed · in-app notice only.'}
+                                        </small>
+                                        {reviewWhatsAppEnabled[reviewKey] === true && (
+                                          <label className="tw-review-notification__message">
+                                            WhatsApp message
+                                            <textarea
+                                              rows={2}
+                                              maxLength={1000}
+                                              value={
+                                                reviewWhatsAppMessages[reviewKey] ??
+                                                suggestedMessage
+                                              }
+                                              onChange={(event) =>
+                                                setReviewWhatsAppMessages((current) => ({
+                                                  ...current,
+                                                  [reviewKey]: event.target.value,
+                                                }))
+                                              }
+                                            />
+                                          </label>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                   <button
                                     type="button"
                                     className={row.reviewedAt ? 'is-reviewed' : undefined}

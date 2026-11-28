@@ -532,6 +532,55 @@
   align-items: center;
   gap: 2px;
 }
+.sv1276-teacher-homework .tw-review-notification {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid #d8e2ef;
+  border-radius: 10px;
+  background: #fff;
+}
+.sv1276-teacher-homework .tw-review-notification > label:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #354b68;
+  font-weight: 650;
+}
+.sv1276-teacher-homework .tw-review-notification input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: #5d4bd1;
+}
+.sv1276-teacher-homework .tw-review-notification small {
+  margin-left: 1.55rem;
+  color: #64748b;
+  font-weight: 400;
+}
+.sv1276-teacher-homework .tw-review-notification.is-unavailable {
+  background: #f3f5f8;
+}
+.sv1276-teacher-homework .tw-review-notification.is-unavailable > label:first-child,
+.sv1276-teacher-homework .tw-review-notification.is-unavailable small {
+  color: #8a94a3;
+}
+.sv1276-teacher-homework .tw-review-notification .tw-review-notification__message {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+  color: #354b68;
+  font-weight: 650;
+}
+.sv1276-teacher-homework .tw-review-notification textarea {
+  min-height: 4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cbd6e5;
+  border-radius: 9px;
+  font: inherit;
+  line-height: 1.4;
+  resize: vertical;
+}
 .sv1276-teacher-homework .tw-homework-feedback textarea {
   width: 100%;
   min-height: 120px;

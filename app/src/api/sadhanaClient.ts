@@ -230,7 +230,13 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
     sendSwaraMitraScheduleUpdate: (
       institution: InstitutionId,
       classId: string,
-      data: { resourceId: string; title: string; message: string; requestId: string },
+      data: {
+        resourceId: string;
+        title: string;
+        message: string;
+        requestId: string;
+        recipientStudentId?: string;
+      },
     ) =>
       request<{ queued: number; eligible: number }>(
         'POST',
