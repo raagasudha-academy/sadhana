@@ -14,9 +14,10 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
     return { status: 400, body: { error: 'Invalid academy.' } };
 
   const isList = method === 'GET' && parts.length === 3;
+  const isHistory = method === 'GET' && parts.length === 4 && parts[3] === 'history';
   const isUpdate = method === 'PATCH' && parts.length === 4;
   const isSend = method === 'POST' && parts.length === 4 && parts[3] === 'send';
-  if (!isList && !isUpdate && !isSend) return undefined;
+  if (!isList && !isHistory && !isUpdate && !isSend) return undefined;
   const classId = isList ? query.classId : undefined;
   let input;
   if (isUpdate || isSend) {
@@ -32,11 +33,18 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
     if (!input || typeof input !== 'object' || Array.isArray(input))
       return { status: 400, body: { error: 'Invalid settings.' } };
   }
+  access.view(claims, inst);
+  const isAdmin = access.permittedInstitutions(claims).includes(inst);
+  if (isHistory) {
+    if (!isAdmin) return { status: 403, body: { error: 'Academy administrator required.' } };
+    const limit = Number(query.limit) || 20;
+    return { status: 200, body: await deps.outbox.history(inst, limit) };
+  }
+
   const requestedClassId = isList ? classId : input.classId;
   if (typeof requestedClassId !== 'string' || !requestedClassId.trim())
     return { status: 400, body: { error: 'Choose a class.' } };
 
-  access.view(claims, inst);
   const classes = await deps.directory('classes', inst, claims);
   const targetClass = (classes?.records ?? []).find(
     (row) =>
@@ -44,7 +52,6 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
   );
   if (!targetClass) return { status: 404, body: { error: 'Active class not found.' } };
 
-  const isAdmin = access.permittedInstitutions(claims).includes(inst);
   let assignedClassIds;
   if (!isAdmin) {
     const teacher = await deps.directory('teacherMe', inst, claims);
@@ -113,6 +120,7 @@ export async function swaraMitraPreferencesRoute(context, deps, access, env = pr
     const result = await deps.outbox.enqueue({
       institution: inst,
       classId: requestedClassId,
+      className: String(targetClass.name || targetClass.className || targetClass.title || 'Class'),
       studentIds: eligibleIds,
       resourceId,
       title: title.trim(),

@@ -203,6 +203,30 @@ export function createSadhanaApi({ baseUrl, getAccessToken }: SadhanaApiOptions)
         institution,
         params: { classId },
       }),
+    listSwaraMitraNotificationHistory: (institution: InstitutionId, limit = 20) =>
+      request<{
+        records: Array<{
+          requestId: string;
+          institution: InstitutionId;
+          classId: string;
+          className: string;
+          title: string;
+          message: string;
+          createdAt: string;
+          updatedAt: string;
+          recipientCount: number;
+          sentCount: number;
+          failedCount: number;
+          queuedCount: number;
+          sendingCount: number;
+          notSentCount: number;
+          status: 'in-progress' | 'partial' | 'failed' | 'sent' | 'not-sent';
+          countsMayBePartial: boolean;
+        }>;
+      }>('GET', '/integrations/swaramitra/preferences/history', {
+        institution,
+        params: { limit: String(limit) },
+      }),
     sendSwaraMitraScheduleUpdate: (
       institution: InstitutionId,
       classId: string,

@@ -1396,8 +1396,167 @@ a {
   background: #fff;
   content: '';
 }
-.swara-admin-note {
-  margin-top: 16px;
+.swara-history-panel {
+  padding: 22px;
+  margin-bottom: 18px;
+}
+.swara-history-service {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  margin-bottom: 23px;
+  border: 1px solid #e1e7f2;
+  border-radius: 10px;
+  background: #f8f9fc;
+}
+.swara-history-service__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e9f5ed;
+  color: #318052;
+}
+.swara-history-service > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.swara-history-service strong {
+  display: block;
+  color: #34445d;
+  font-size: 13px;
+}
+.swara-history-service p {
+  margin: 3px 0 0;
+  color: #77859a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.swara-history-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 14px;
+}
+.swara-history-heading h2 {
+  margin: 0;
+  color: #30415e;
+  font-size: 18px;
+}
+.swara-history-heading p {
+  margin: 4px 0 0;
+  color: #8490a4;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.swara-history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swara-history-filters select {
+  min-height: 36px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #d6dfeb;
+  border-radius: 8px;
+  background: #fff;
+  color: #485971;
+  font: inherit;
+  font-size: 12px;
+}
+.swara-history-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.swara-history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.swara-history-table th {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e1e7f0;
+  background: #f8f9fc;
+  color: #7c899e;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.swara-history-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e9edf3;
+  color: #50617a;
+  font-size: 12px;
+  vertical-align: top;
+}
+.swara-history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.swara-history-class,
+.swara-history-academy {
+  display: block;
+}
+.swara-history-class {
+  min-width: 140px;
+  color: #34445d;
+  font-weight: 700;
+}
+.swara-history-academy {
+  margin-top: 3px;
+  color: #8793a6;
+  font-size: 11px;
+}
+.swara-history-message {
+  min-width: 260px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.swara-history-result {
+  min-width: 110px;
+  white-space: nowrap;
+}
+.swara-history-result span {
+  display: block;
+  line-height: 1.65;
+}
+.swara-history-result b {
+  color: #34445d;
+}
+.swara-history-time {
+  min-width: 120px;
+  color: #71809a !important;
+  white-space: nowrap;
+}
+.swara-history-empty,
+.swara-history-note,
+.swara-history-error,
+.swara-history-warning {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.swara-history-empty {
+  margin: 16px 2px;
+  color: #77859a;
+}
+.swara-history-note {
+  margin: 13px 2px 0;
+  color: #77859a;
+}
+.swara-history-error,
+.swara-history-warning {
+  color: #a23c3c;
+}
+.swara-history-warning {
+  margin: 10px 2px 0;
 }
 .swara-spin {
   animation: swara-admin-spin 1s linear infinite;
@@ -2153,6 +2312,17 @@ a {
   .settings-grid,
   .swara-admin-status-grid {
     grid-template-columns: 1fr;
+  }
+  .swara-history-service {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .swara-history-service > .pill {
+    margin-left: 48px;
+  }
+  .swara-history-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .venue-grid {
     grid-template-columns: 1fr;

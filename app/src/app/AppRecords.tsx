@@ -1,155 +1,311 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
-  CircleAlert,
   GraduationCap,
   Info,
   LoaderCircle,
   MessageCircle,
-  Phone,
   Plus,
   RefreshCw,
   Settings2,
-  ShieldCheck,
   Trash2,
-  XCircle,
 } from 'lucide-react';
 import { institutions } from '../institutions';
 import { getEnrolmentStatus } from '../registry';
 import { dayLabel, displayTime, pct, Pill, PageHeader, EmptyState } from './appShared';
 
-export function CommsPage({ workspace }: any) {
-  const [health, setHealth] = useState<'not-checked' | 'checking' | 'healthy' | 'unavailable'>(
-    'not-checked',
-  );
-  const healthUrl = import.meta.env.VITE_SWARAMITRA_HEALTH_URL?.trim();
+export function CommsPage({ workspace, cloud }: any) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [academyFilter, setAcademyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('60');
   const institutionName =
     workspace === 'sruti' ? 'Śruti' : workspace === 'raaga' ? 'Raaga Sudha' : 'all academies';
-
-  async function checkServiceHealth() {
-    if (!healthUrl) return;
-    setHealth('checking');
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 8000);
-    try {
-      const response = await fetch(healthUrl, { signal: controller.signal, cache: 'no-store' });
-      const result = await response.json();
-      setHealth(response.ok && result?.ok === true ? 'healthy' : 'unavailable');
-    } catch {
-      setHealth('unavailable');
-    } finally {
-      window.clearTimeout(timeout);
+  const historyInstitutions = useMemo(
+    () =>
+      workspace === 'combined'
+        ? (cloud?.staff.institutions || []).filter((id: string) => id === 'raaga' || id === 'sruti')
+        : workspace === 'raaga' || workspace === 'sruti'
+          ? [workspace]
+          : [],
+    [cloud?.staff.institutions, workspace],
+  );
+  const loadHistory = useCallback(async () => {
+    if (!cloud?.api || historyInstitutions.length === 0) {
+      setHistory([]);
+      setHistoryLoaded(false);
+      return;
     }
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const results = await Promise.all(
+        historyInstitutions.map((institution: any) =>
+          cloud.api.listSwaraMitraNotificationHistory(institution, 20),
+        ),
+      );
+      setHistory(
+        results
+          .flatMap((result: any) => result.records || [])
+          .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .slice(0, 30),
+      );
+      setHistoryLoaded(true);
+    } catch (error) {
+      setHistoryLoaded(false);
+      setHistoryError(
+        error instanceof Error ? error.message : 'Unable to load SwaraMitra notification history.',
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [cloud?.api, historyInstitutions]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  const visibleHistory = useMemo(() => {
+    const cutoff = Date.now() - Number(periodFilter) * 24 * 60 * 60 * 1000;
+    return history.filter((item) => {
+      const academyMatches = academyFilter === 'all' || item.institution === academyFilter;
+      const statusMatches = statusFilter === 'all' || item.status === statusFilter;
+      const timestamp = Date.parse(item.createdAt || '');
+      const periodMatches = !Number.isFinite(timestamp) || timestamp >= cutoff;
+      return academyMatches && statusMatches && periodMatches;
+    });
+  }, [academyFilter, history, periodFilter, statusFilter]);
+
+  function statusLabel(status: string) {
+    if (status === 'in-progress') return 'In progress';
+    if (status === 'partial') return 'Partial';
+    if (status === 'failed') return 'Failed';
+    if (status === 'not-sent') return 'Not sent';
+    return 'Sent';
   }
 
-  const healthLabel = {
-    'not-checked': healthUrl ? 'Not checked' : 'Not configured',
-    checking: 'Checking…',
-    healthy: 'API is responding',
-    unavailable: 'Could not reach the API',
-  }[health];
+  function statusTone(status: string) {
+    if (status === 'sent') return 'green';
+    if (status === 'partial') return 'amber';
+    if (status === 'failed' || status === 'not-sent') return 'red';
+    return 'violet';
+  }
+
+  function academyLabel(institution: string) {
+    return institution === 'sruti' ? 'Śruti' : 'Raaga Sudha';
+  }
+
+  function timeLabel(timestamp: string) {
+    if (!timestamp) return 'Time unavailable';
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+      ? 'Time unavailable'
+      : new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Europe/London',
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }).format(date);
+  }
 
   return (
     <>
       <PageHeader
         kicker="COMMUNICATIONS"
         title="Communications"
-        description={`Manage SwaraMitra for ${institutionName}. WhatsApp controls are restricted to administrators.`}
+        description={`SwaraMitra WhatsApp updates for ${institutionName}.`}
+        right={
+          <button
+            className="swara-admin-button"
+            type="button"
+            onClick={() => void loadHistory()}
+            disabled={historyLoading || !cloud?.api}
+          >
+            {historyLoading ? (
+              <LoaderCircle size={15} className="swara-spin" />
+            ) : (
+              <RefreshCw size={15} />
+            )}
+            Refresh
+          </button>
+        }
       />
-      <section className="surface swara-admin-panel" aria-labelledby="swara-admin-title">
-        <div className="swara-admin-heading">
-          <div className="feature-icon">
-            <MessageCircle size={22} />
+      <section className="surface swara-history-panel" aria-labelledby="swara-history-title">
+        <div className="swara-history-service">
+          <div className="swara-history-service__icon" aria-hidden="true">
+            <MessageCircle size={19} />
           </div>
           <div>
-            <p className="swara-admin-kicker">SWARAMITRA · WHATSAPP</p>
-            <h2 id="swara-admin-title">Assistant service</h2>
-            <p>Check the assistant API and see whether WhatsApp controls are ready.</p>
+            <strong>SwaraMitra WhatsApp</strong>
+            <p>
+              In-app notices stay on. WhatsApp uses each student's saved choice and paired number.
+            </p>
           </div>
+          <Pill
+            tone={
+              historyError ? 'red' : historyLoading ? 'violet' : historyLoaded ? 'green' : 'neutral'
+            }
+          >
+            {historyError
+              ? 'Sadhana API unavailable'
+              : historyLoading
+                ? 'Checking Sadhana API'
+                : historyLoaded
+                  ? 'Sadhana API available'
+                  : 'Sign in required'}
+          </Pill>
         </div>
 
-        <div className="swara-admin-status-grid">
-          <div className="swara-admin-status-card">
-            <span>SwaraMitra API</span>
-            <strong className={`swara-health is-${health}`} role="status" aria-live="polite">
-              {health === 'checking' ? <LoaderCircle size={16} className="swara-spin" /> : null}
-              {health === 'healthy' ? <CheckCircle2 size={16} /> : null}
-              {health === 'unavailable' ? <XCircle size={16} /> : null}
-              {healthLabel}
-            </strong>
-            <button
-              className="swara-admin-button"
-              type="button"
-              onClick={checkServiceHealth}
-              disabled={!healthUrl || health === 'checking'}
-              title={!healthUrl ? 'Set VITE_SWARAMITRA_HEALTH_URL for this environment' : undefined}
-            >
-              <RefreshCw size={15} /> Check connection
-            </button>
+        <div className="swara-history-heading">
+          <div>
+            <h2 id="swara-history-title">Recent WhatsApp updates</h2>
+            <p>
+              See the class message and how sending went. No student or phone details are shown.
+            </p>
           </div>
-
-          <div className="swara-admin-status-card">
-            <span>WhatsApp account</span>
-            <strong className="swara-health is-pending">Pairing controls not connected</strong>
-            <button className="swara-admin-button" type="button" disabled>
-              <Phone size={15} /> Pair a number
-            </button>
-          </div>
-
-          <div className="swara-admin-status-card">
-            <span>WhatsApp sending</span>
-            <strong className="swara-health is-pending">Unavailable until worker is hosted</strong>
-            <label className="swara-admin-switch-row">
-              <input type="checkbox" role="switch" disabled aria-label="Enable WhatsApp sending" />
-              <span className="swara-admin-switch" aria-hidden="true" />
-              <span>Enable WhatsApp</span>
+          <div className="swara-history-filters" aria-label="Filter WhatsApp history">
+            {workspace === 'combined' && (
+              <label>
+                <span className="sr-only">Academy</span>
+                <select
+                  value={academyFilter}
+                  onChange={(event) => setAcademyFilter(event.target.value)}
+                  aria-label="Filter by academy"
+                >
+                  <option value="all">All academies</option>
+                  {historyInstitutions.includes('raaga') && (
+                    <option value="raaga">Raaga Sudha</option>
+                  )}
+                  {historyInstitutions.includes('sruti') && <option value="sruti">Śruti</option>}
+                </select>
+              </label>
+            )}
+            <label>
+              <span className="sr-only">Status</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                aria-label="Filter by send status"
+              >
+                <option value="all">All statuses</option>
+                <option value="sent">Sent</option>
+                <option value="partial">Partial</option>
+                <option value="failed">Failed</option>
+                <option value="in-progress">In progress</option>
+                <option value="not-sent">Not sent</option>
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">Date range</span>
+              <select
+                value={periodFilter}
+                onChange={(event) => setPeriodFilter(event.target.value)}
+                aria-label="Filter by date range"
+              >
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="60">Last 60 days</option>
+              </select>
             </label>
           </div>
         </div>
 
-        <div className="info-inline swara-admin-note">
-          <Info size={17} />
-          <span>
-            Sadhana can check the assistant API when its health URL is configured. Pairing and the
-            on/off switch are shown here for the admin workflow, but are disabled until SwaraMitra’s
-            WhatsApp worker has a hosted control API. A healthy API check does not mean a WhatsApp
-            number is connected.
-          </span>
-        </div>
+        {historyError && (
+          <p className="swara-history-error" role="alert">
+            {historyError}
+          </p>
+        )}
+        {!cloud?.api ? (
+          <p className="swara-history-empty">
+            Sign in as an academy administrator to view this history.
+          </p>
+        ) : historyLoading && history.length === 0 ? (
+          <p className="swara-history-empty" role="status">
+            Loading recent updates…
+          </p>
+        ) : visibleHistory.length === 0 ? (
+          <p className="swara-history-empty">
+            {history.length
+              ? 'No updates match these filters.'
+              : 'No WhatsApp updates in the last 60 days.'}
+          </p>
+        ) : (
+          <div className="swara-history-table-wrap">
+            <table className="swara-history-table">
+              <thead>
+                <tr>
+                  <th scope="col">Class / academy</th>
+                  <th scope="col">Message sent</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleHistory.map((item) => (
+                  <tr key={`${item.institution}:${item.requestId}`}>
+                    <td>
+                      <strong className="swara-history-class">
+                        {item.className || item.classId}
+                      </strong>
+                      <span className="swara-history-academy">
+                        {academyLabel(item.institution)}
+                      </span>
+                    </td>
+                    <td className="swara-history-message">{item.message}</td>
+                    <td className="swara-history-result">
+                      <span>
+                        <b>{item.sentCount}</b> sent
+                      </span>
+                      {item.failedCount > 0 && (
+                        <span>
+                          <b>{item.failedCount}</b> failed
+                        </span>
+                      )}
+                      {item.queuedCount > 0 && (
+                        <span>
+                          <b>{item.queuedCount}</b> queued
+                        </span>
+                      )}
+                      {item.sendingCount > 0 && (
+                        <span>
+                          <b>{item.sendingCount}</b> sending
+                        </span>
+                      )}
+                      {item.notSentCount > 0 && (
+                        <span>
+                          <b>{item.notSentCount}</b> not sent
+                        </span>
+                      )}
+                      <span>
+                        <b>{item.recipientCount}</b> eligible
+                      </span>
+                    </td>
+                    <td>
+                      <Pill tone={statusTone(item.status)}>{statusLabel(item.status)}</Pill>
+                    </td>
+                    <td className="swara-history-time">
+                      {timeLabel(item.updatedAt || item.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {visibleHistory.some((item) => item.countsMayBePartial) && (
+          <p className="swara-history-warning">
+            Some older delivery records were omitted from this view; counts may be partial.
+          </p>
+        )}
+        <p className="swara-history-note">
+          “Sent” means the message was accepted by the WhatsApp sender. WhatsApp delivery and read
+          receipts are not available.
+        </p>
       </section>
-
-      <div className="feature-grid">
-        <section className="surface feature-card">
-          <div className="feature-icon">
-            <MessageCircle size={22} />
-          </div>
-          <h2>Message history</h2>
-          <p>Review sent, delivered and failed messages for your institution.</p>
-          <Pill>Phase 5</Pill>
-        </section>
-        <section className="surface feature-card">
-          <div className="feature-icon">
-            <CircleAlert size={22} />
-          </div>
-          <h2>Failed messages</h2>
-          <p>Investigate failures and choose whether to resend manually.</p>
-          <Pill>Phase 5</Pill>
-        </section>
-        <section className="surface feature-card">
-          <div className="feature-icon">
-            <ShieldCheck size={22} />
-          </div>
-          <h2>Contact preferences</h2>
-          <p>Institution-specific announcement permissions and Reminder Service status.</p>
-          <Pill>Phase 5</Pill>
-        </section>
-      </div>
-      <div className="info-inline">
-        <Info size={17} /> In-app notifications remain available independently. WhatsApp delivery
-        and delivery history will be connected after the worker and Sadhana control API are ready.
-      </div>
     </>
   );
 }

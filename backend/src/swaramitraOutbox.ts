@@ -15,6 +15,7 @@ type DB = { send: (command: any) => Promise<any> };
 type Enqueue = {
   institution: InstitutionId;
   classId: string;
+  className: string;
   studentIds: string[];
   resourceId: string;
   title: string;
@@ -35,6 +36,7 @@ export function makeSwaraMitraOutbox(db: DB, now = () => new Date().toISOString(
   return {
     async enqueue(input: Enqueue) {
       const createdAt = now();
+      const recipientCount = new Set(input.studentIds).size;
       let queued = 0;
       for (const studentId of [...new Set(input.studentIds)]) {
         const id = deliveryId(input.requestId, studentId);
@@ -46,8 +48,11 @@ export function makeSwaraMitraOutbox(db: DB, now = () => new Date().toISOString(
                 deliveryId: id,
                 institutionId: input.institution,
                 classId: input.classId,
+                className: input.className,
                 studentId,
                 resourceId: input.resourceId,
+                requestId: input.requestId,
+                requestedRecipientCount: recipientCount,
                 title: input.title,
                 message: input.message,
                 status: 'pending',
@@ -191,6 +196,90 @@ export function makeSwaraMitraOutbox(db: DB, now = () => new Date().toISOString(
         }),
       );
       return { ok: true };
+    },
+    async history(institution: InstitutionId, limit = 20) {
+      const states = ['pending', 'leased', 'sent', 'failed', 'suppressed'];
+      const rows: Record<string, any>[] = [];
+      let truncated = false;
+      for (const state of states) {
+        let cursor: Record<string, any> | undefined;
+        let read = 0;
+        do {
+          const page = await db.send(
+            new QueryCommand({
+              TableName: table(),
+              IndexName: 'QueueByStatus',
+              KeyConditionExpression: 'GSI1PK=:state',
+              ExpressionAttributeValues: { ':state': state },
+              ExclusiveStartKey: cursor,
+              Limit: 1000,
+              ScanIndexForward: false,
+            }),
+          );
+          for (const row of page.Items || []) {
+            if (row.institutionId === institution) rows.push(row);
+          }
+          read += (page.Items || []).length;
+          cursor = page.LastEvaluatedKey;
+        } while (cursor && read < 5000);
+        if (cursor) truncated = true;
+      }
+
+      const grouped = new Map<string, Record<string, any>>();
+      for (const row of rows) {
+        const requestId =
+          typeof row.requestId === 'string' ? row.requestId : `legacy:${row.deliveryId}`;
+        const key = `${row.institutionId}:${requestId}`;
+        const existing = grouped.get(key) || {
+          requestId,
+          institution: row.institutionId,
+          classId: row.classId,
+          className: row.className || row.classId,
+          title: row.title,
+          message: row.message,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          recipientCount: Number(row.requestedRecipientCount) || 0,
+          sentCount: 0,
+          failedCount: 0,
+          queuedCount: 0,
+          sendingCount: 0,
+          notSentCount: 0,
+        };
+        existing.recipientCount = Math.max(
+          existing.recipientCount,
+          Number(row.requestedRecipientCount) || 0,
+        );
+        if (!Number(row.requestedRecipientCount)) existing.recipientCount += 1;
+        if (row.status === 'sent') existing.sentCount += 1;
+        else if (row.status === 'failed') existing.failedCount += 1;
+        else if (row.status === 'pending') existing.queuedCount += 1;
+        else if (row.status === 'leased') existing.sendingCount += 1;
+        else if (row.status === 'suppressed') existing.notSentCount += 1;
+        if (String(row.updatedAt || '') > String(existing.updatedAt || ''))
+          existing.updatedAt = row.updatedAt;
+        grouped.set(key, existing);
+      }
+      const records: Record<string, any>[] = [...grouped.values()]
+        .map((record) => ({
+          ...record,
+          status:
+            record.queuedCount || record.sendingCount
+              ? 'in-progress'
+              : (record.failedCount || record.notSentCount) && record.sentCount
+                ? 'partial'
+                : record.failedCount
+                  ? 'failed'
+                  : record.sentCount
+                    ? 'sent'
+                    : 'not-sent',
+          countsMayBePartial: truncated,
+        }))
+        .sort((a: Record<string, any>, b: Record<string, any>) =>
+          String(b.createdAt).localeCompare(String(a.createdAt)),
+        )
+        .slice(0, Math.max(1, Math.min(50, limit)));
+      return { records };
     },
   };
 }
